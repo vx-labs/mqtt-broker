@@ -1,0 +1,249 @@
+package broker
+
+import (
+	"bytes"
+	"crypto/sha1"
+	"fmt"
+	"log"
+
+	"github.com/vx-labs/mqtt-broker/sessions"
+
+	proto "github.com/golang/protobuf/proto"
+	"github.com/vx-labs/mqtt-broker/broker/listener"
+	subscriptions "github.com/vx-labs/mqtt-broker/subscriptions"
+	topics "github.com/vx-labs/mqtt-broker/topics"
+	"github.com/vx-labs/mqtt-protocol/packet"
+	"github.com/weaveworks/mesh"
+)
+
+func makeSubID(session string, pattern []byte) string {
+	hash := sha1.New()
+	_, err := hash.Write([]byte(session))
+	if err != nil {
+		return ""
+	}
+	_, err = hash.Write(pattern)
+	if err != nil {
+		return ""
+	}
+	return fmt.Sprintf("%x", hash.Sum(nil))
+}
+
+func (b *Broker) OnSubscribe(id string, tenant string, packet *packet.Subscribe) error {
+	for idx, pattern := range packet.Topic {
+		subID := makeSubID(id, pattern)
+		event := &subscriptions.Subscription{
+			ID:        subID,
+			Pattern:   pattern,
+			Qos:       packet.Qos[idx],
+			Tenant:    tenant,
+			SessionID: id,
+			Peer:      uint64(b.Peer.Name()),
+		}
+		b.Peer.Add(encodeEvent(&StateEvent{
+			Name:         "subscriptions",
+			Subscription: event,
+		}))
+		err := b.Subscriptions.Create(event)
+		if err != nil {
+			return err
+		}
+		// Look for retained messages
+		set, err := b.Topics.ByTopicPattern(tenant, pattern)
+		if err != nil {
+			return err
+		}
+		go func() {
+			set.Apply(func(message *topics.RetainedMessage) {
+				qos := message.Qos
+				if packet.Qos[idx] < qos {
+					qos = packet.Qos[idx]
+				}
+				b.dispatch(&MessagePublished{
+					Payload:   message.Payload,
+					Retained:  true,
+					Recipient: []string{id},
+					Topic:     message.Topic,
+					Qos:       []int32{qos},
+				})
+			})
+		}()
+		log.Printf("INFO: %s subscribed to topic %s (qos %v)", id, string(pattern), packet.Qos[idx])
+	}
+	return nil
+}
+func (b *Broker) OnUnsubscribe(id string, tenant string, packet *packet.Unsubscribe) error {
+	log.Printf("INFO: received unsubscribe event from session %s about topic %b", id, packet.Topic)
+	set, err := b.Subscriptions.BySession(id)
+	if err != nil {
+		return err
+	}
+	set = set.Filter(func(sub *subscriptions.Subscription) bool {
+		for _, topic := range packet.Topic {
+			if bytes.Compare(topic, sub.Pattern) == 0 {
+				return true
+			}
+		}
+		return false
+	})
+	set.Apply(func(sub *subscriptions.Subscription) {
+		b.Peer.Del(encodeEvent(&StateEvent{
+			Name:         "subscriptions",
+			Subscription: sub,
+		}))
+		b.Subscriptions.Delete(sub.ID)
+	})
+	return nil
+}
+
+func (b *Broker) OnSessionClosed(id, tenant string) {
+	b.mutex.Lock()
+	defer b.mutex.Unlock()
+	delete(b.localSessions, id)
+
+	set, err := b.Subscriptions.BySession(id)
+	if err != nil {
+		return
+	}
+	sess, err := b.Sessions.ById(id)
+	if err != nil || sess.Peer != uint64(b.Peer.Name()) {
+		return
+	}
+	set.Apply(func(sub *subscriptions.Subscription) {
+		b.Peer.Del(encodeEvent(&StateEvent{
+			Name:         "subscriptions",
+			Subscription: sub,
+		}))
+		b.Subscriptions.Delete(sub.ID)
+	})
+	b.Peer.Del(encodeEvent(&StateEvent{
+		Name:    "sessions",
+		Session: sess,
+	}))
+	b.Sessions.Delete(sess.ID)
+	return
+}
+func (b *Broker) OnSessionLost(id, tenant string) {
+	defer b.OnSessionClosed(id, tenant)
+	sess, err := b.Sessions.ById(id)
+	if err != nil {
+		return
+	}
+	b.OnPublish(id, tenant, &packet.Publish{
+		Header: &packet.Header{
+			Dup:    false,
+			Retain: sess.WillRetain,
+			Qos:    sess.WillQoS,
+		},
+		Payload: sess.WillPayload,
+		Topic:   sess.WillTopic,
+	})
+}
+
+func (b *Broker) closeLocalSession(sess *sessions.Session) {
+	b.mutex.Lock()
+	if _, ok := b.localSessions[sess.ID]; ok {
+		b.Peer.Del(encodeEvent(&StateEvent{
+			Name:    "sessions",
+			Session: sess,
+		}))
+		b.Sessions.Delete(sess.ID)
+		b.localSessions[sess.ID].Close()
+		delete(b.localSessions, sess.ID)
+	}
+	b.mutex.Unlock()
+}
+func (b *Broker) OnConnect(id, tenant string, ch *listener.Session) {
+	connectPkt := ch.Connect()
+	sess, err := b.Sessions.ById(id)
+	if err == nil && sess.Peer == uint64(b.Peer.Name()) {
+		b.closeLocalSession(sess)
+		log.Printf("INFO: session %s reconnected with client_id=%s, keepalive=%d", id, connectPkt.ClientId, connectPkt.KeepaliveTimer)
+	} else {
+		log.Printf("INFO: session %s connected with client_id=%s, keepalive=%d", id, connectPkt.ClientId, connectPkt.KeepaliveTimer)
+	}
+	b.mutex.Lock()
+	if _, ok := b.localSessions[id]; ok {
+		b.localSessions[id].Close()
+	}
+	b.localSessions[id] = ch
+	b.mutex.Unlock()
+	sess = &sessions.Session{
+		ID:          id,
+		Tenant:      tenant,
+		Peer:        uint64(b.Peer.Name()),
+		WillPayload: connectPkt.WillPayload,
+		WillQoS:     connectPkt.WillQos,
+		WillRetain:  connectPkt.WillRetain,
+		WillTopic:   connectPkt.WillTopic,
+	}
+	b.Peer.Add(encodeEvent(&StateEvent{
+		Name:    "sessions",
+		Session: sess,
+	}))
+	b.Sessions.Upsert(sess)
+}
+func (b *Broker) OnPublish(id, tenant string, packet *packet.Publish) error {
+	if packet.Header.Retain {
+		message := &topics.RetainedMessage{
+			Payload: packet.Payload,
+			Qos:     packet.Header.Qos,
+			Tenant:  tenant,
+			Topic:   packet.Topic,
+		}
+		oldMessages, err := b.Topics.ByTopicPattern(tenant, packet.Topic)
+		if err == nil && len(oldMessages) == 1 {
+			b.Peer.Del(encodeEvent(&StateEvent{
+				Name:            "topics",
+				RetainedMessage: oldMessages[0],
+			}))
+		}
+		err = b.Topics.Create(message)
+		if err != nil {
+			log.Printf("WARN: failed to save retained message: %v", err)
+		}
+		b.Peer.Add(encodeEvent(&StateEvent{
+			Name:            "topics",
+			RetainedMessage: message,
+		}))
+	}
+	recipients, err := b.Subscriptions.ByTopic(tenant, packet.Topic)
+	if err != nil {
+		return err
+	}
+
+	peers := map[uint64]*MessagePublished{}
+	recipients.Apply(func(sub *subscriptions.Subscription) {
+		if _, ok := peers[sub.Peer]; !ok {
+			peers[sub.Peer] = &MessagePublished{
+				Payload:   packet.Payload,
+				Qos:       make([]int32, 0, len(recipients)),
+				Recipient: make([]string, 0, len(recipients)),
+				Topic:     packet.Topic,
+			}
+		}
+		peers[sub.Peer].Recipient = append(peers[sub.Peer].Recipient, sub.SessionID)
+		qos := packet.Header.Qos
+		if qos > sub.Qos {
+			qos = sub.Qos
+		}
+		peers[sub.Peer].Qos = append(peers[sub.Peer].Qos, qos)
+	})
+	for peer, message := range peers {
+		payload, err := proto.Marshal(message)
+		if err != nil {
+			return err
+		}
+		if peer == uint64(b.Peer.Name()) {
+			b.dispatch(message)
+		} else {
+			b.Peer.Send(mesh.PeerName(peer), payload)
+		}
+	}
+	log.Printf("INFO: %s published to topic %s (qos %v)", id, string(packet.Topic), packet.Header.Qos)
+	return nil
+}
+
+func (b *Broker) Authenticate(transport listener.Transport, sessionID, username string, password string) (tenant string, id string, err error) {
+	return b.authHelper(transport, sessionID, username, password)
+}

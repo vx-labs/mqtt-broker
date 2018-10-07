@@ -1,0 +1,10 @@
+syntax = "proto3";
+package topics;
+
+message RetainedMessage {
+   string id = 1;
+   string tenant = 2;
+   bytes topic = 3;
+   bytes payload = 4;
+   int32 qos = 5;
+}

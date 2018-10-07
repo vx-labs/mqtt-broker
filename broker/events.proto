@@ -1,0 +1,32 @@
+syntax = "proto3";
+package broker;
+
+import "github.com/vx-labs/mqtt-broker/topics/types.proto";
+import "github.com/vx-labs/mqtt-broker/subscriptions/types.proto";
+import "github.com/vx-labs/mqtt-broker/sessions/types.proto";
+
+message MessagePublished {
+  repeated string Recipient = 1;
+  bytes Topic = 2;
+  repeated int32 Qos = 3;
+  bytes Payload = 4;
+  bool Retained = 5;
+  bool Dup = 6;
+}
+
+message StateEvent {
+  string Name = 1;
+  MessagePublished MessagePublished = 2;
+  topics.RetainedMessage RetainedMessage = 3;
+  subscriptions.Subscription Subscription = 4;
+  sessions.Session Session = 5;
+}
+
+message SessionFilter {}
+message ListSessionsOutput{
+  repeated sessions.Session Sessions = 1;
+}
+
+service Broker {
+    rpc ListSessions(SessionFilter) returns (ListSessionsOutput);
+}

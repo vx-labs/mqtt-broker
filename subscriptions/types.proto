@@ -1,0 +1,11 @@
+syntax = "proto3";
+package subscriptions;
+
+message Subscription {
+  string ID = 1;
+  string SessionID = 2;
+  string Tenant = 3;
+  bytes Pattern = 4;
+  int32 Qos = 5;
+  uint64 Peer = 6;
+}

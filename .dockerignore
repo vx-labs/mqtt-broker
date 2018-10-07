@@ -1,0 +1,15 @@
+vendor
+Docker*
+.dockerignore
+Makefile
+.git
+release
+.idea/
+.gitlab*
+.gitignore
+kubernetes-spec.yml.template
+README.md
+.env
+docker-compose.yml
+run
+jobs/
