@@ -65,7 +65,7 @@ func (l *listener) runSession(t Transport) {
 	handler := l.handler
 	enc := encoder.New(c)
 	session := &Session{
-		ch:        make(chan *packet.Publish, 10),
+		ch:        make(chan *packet.Publish, 100),
 		tenant:    "_default",
 		keepalive: 30,
 		closer:    t.Close,
