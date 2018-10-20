@@ -20,6 +20,19 @@ func NewLWW() LWW {
 	}
 }
 
+func (lww *lwwMap) RemoveOlder(maxage int64) LWW {
+	copy := &lwwMap{
+		storage: map[string]Entry{},
+	}
+	lww.Iterate(func(key string, entry Entry) error {
+		if entry.IsAdded() ||
+			(entry.IsDeleted() && entry.Del > maxage) {
+			copy.storage[key] = entry
+		}
+		return nil
+	})
+	return copy
+}
 func DecodeLWW(data [][]byte) (LWW, error) {
 	if len(data) < 1 {
 		return nil, errors.New("invalid encoded payload size")

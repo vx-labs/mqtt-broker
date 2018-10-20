@@ -3,6 +3,7 @@ package set
 import "time"
 
 type LWW interface {
+	RemoveOlder(maxage int64) LWW
 	Remove(value string) error
 	Set(value string) error
 	IsSet(value string) bool

@@ -33,6 +33,30 @@ func TestLWW(t *testing.T) {
 	require.True(t, lww3.IsRemoved("test"))
 }
 
+func TestLWTTMapGC(t *testing.T) {
+	lww := &lwwMap{
+		storage: map[string]Entry{
+			"1": {
+				Add: 0,
+				Del: 12,
+			},
+			"2": {
+				Add: 0,
+				Del: 120,
+			},
+			"3": {
+				Add: 20,
+				Del: 0,
+			},
+		},
+	}
+	cleaned := lww.RemoveOlder(50)
+	require.Equal(t, 3, len(lww.storage))
+	require.Equal(t, 2, cleaned.Length())
+	require.True(t, cleaned.IsSet("3"))
+	require.True(t, cleaned.IsRemoved("2"))
+}
+
 func BenchmarkLWW(b *testing.B) {
 	b.Run("set", func(b *testing.B) {
 		lww := NewLWW()

@@ -2,6 +2,7 @@ package state
 
 import (
 	"log"
+	"time"
 
 	"github.com/weaveworks/mesh"
 
@@ -16,14 +17,24 @@ type state struct {
 }
 
 func New(self mesh.PeerName, onAdd, onDel func(string)) *state {
-	return &state{
+	s := &state{
 		set:   set.NewLWW(),
 		self:  self,
 		onAdd: onAdd,
 		onDel: onDel,
 	}
+	go s.startGC(6 * time.Hour)
+	return s
 }
 
+func (st *state) startGC(maxage time.Duration) {
+	ticker := time.NewTicker(1 * time.Hour)
+	for range ticker.C {
+		now := time.Now()
+		limit := now.UnixNano() - maxage.Nanoseconds()
+		st.set = st.set.RemoveOlder(limit)
+	}
+}
 func (st *state) Encode() [][]byte {
 	return st.set.Serialize()
 }
