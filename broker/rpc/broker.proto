@@ -1,0 +1,15 @@
+syntax = "proto3";
+package rpc;
+
+import "github.com/vx-labs/mqtt-broker/topics/types.proto";
+import "github.com/vx-labs/mqtt-broker/subscriptions/types.proto";
+import "github.com/vx-labs/mqtt-broker/sessions/types.proto";
+
+message SessionFilter {}
+message ListSessionsOutput{
+  repeated sessions.Session Sessions = 1;
+}
+
+service Broker {
+    rpc ListSessions(SessionFilter) returns (ListSessionsOutput);
+}

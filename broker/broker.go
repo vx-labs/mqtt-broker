@@ -10,6 +10,7 @@ import (
 	"github.com/vx-labs/mqtt-broker/topics"
 
 	"github.com/vx-labs/mqtt-broker/broker/listener/transport"
+	"github.com/vx-labs/mqtt-broker/broker/rpc"
 
 	"github.com/weaveworks/mesh"
 
@@ -63,6 +64,7 @@ type Broker struct {
 	TCPTransport  io.Closer
 	TLSTransport  io.Closer
 	WSSTransport  io.Closer
+	RPC           io.Closer
 }
 
 func New(id identity.Identity, config Config) *Broker {
@@ -83,6 +85,9 @@ func New(id identity.Identity, config Config) *Broker {
 	}
 	broker.Peer = peer.NewPeer(id, broker.onAdd, broker.onDel, broker.onPeerDown, broker.onUnicast)
 	l, listenerCh := listener.New(broker)
+	if config.RPCPort > 0 {
+		broker.RPC = rpc.New(config.RPCPort, broker)
+	}
 	if config.TCPPort > 0 {
 		tcpTransport, err := transport.NewTCPTransport(config.TCPPort, listenerCh)
 		broker.TCPTransport = tcpTransport
@@ -295,5 +300,9 @@ func (b *Broker) Stop() {
 		log.Printf("INFO: client connections closed")
 	}
 	b.mutex.Unlock()
-
+	if b.RPC != nil {
+		log.Printf("INFO: stopping RPC listener")
+		b.RPC.Close()
+		log.Printf("INFO: RPC listener stopped")
+	}
 }

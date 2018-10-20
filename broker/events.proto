@@ -21,12 +21,3 @@ message StateEvent {
   subscriptions.Subscription Subscription = 4;
   sessions.Session Session = 5;
 }
-
-message SessionFilter {}
-message ListSessionsOutput{
-  repeated sessions.Session Sessions = 1;
-}
-
-service Broker {
-    rpc ListSessions(SessionFilter) returns (ListSessionsOutput);
-}
