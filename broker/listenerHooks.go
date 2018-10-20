@@ -68,7 +68,7 @@ func (b *Broker) OnSubscribe(id string, tenant string, packet *packet.Subscribe)
 				})
 			})
 		}()
-		log.Printf("INFO: %s subscribed to topic %s (qos %v)", id, string(pattern), packet.Qos[idx])
+		//log.Printf("INFO: %s subscribed to topic %s (qos %v)", id, string(pattern), packet.Qos[idx])
 	}
 	return nil
 }
@@ -240,7 +240,7 @@ func (b *Broker) OnPublish(id, tenant string, packet *packet.Publish) error {
 			b.Peer.Send(mesh.PeerName(peer), payload)
 		}
 	}
-	log.Printf("INFO: %s published to topic %s (qos %v)", id, string(packet.Topic), packet.Header.Qos)
+	//log.Printf("INFO: %s published to topic %s (qos %v)", id, string(packet.Topic), packet.Header.Qos)
 	return nil
 }
 
