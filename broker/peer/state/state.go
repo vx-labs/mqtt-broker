@@ -60,9 +60,9 @@ func (st *state) merge(other *state) set.LWW {
 		}
 		return nil
 	})
-	if addCount+delCount > 0 {
+	/*if addCount+delCount > 0 {
 		log.Printf("INFO: synchronized state with mesh: %d entrie(s) were added, %d deleted", addCount, delCount)
-	}
+	}*/
 	return delta
 }
 func (st *state) Merge(other mesh.GossipData) (complete mesh.GossipData) {
