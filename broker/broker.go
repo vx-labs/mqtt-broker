@@ -262,10 +262,7 @@ func (b *Broker) dispatch(message *MessagePublished) {
 			MessageId: 1,
 		}
 		if ch, ok := b.localSessions[recipient]; ok {
-			select {
-			case ch.Channel() <- packet:
-			default:
-			}
+			ch.Channel() <- packet
 		}
 	}
 }
