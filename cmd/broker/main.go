@@ -167,6 +167,7 @@ func main() {
 			nodes, _ := cmd.Flags().GetStringArray("join")
 			tcpPort, _ := cmd.Flags().GetInt("tcp-port")
 			tlsPort, _ := cmd.Flags().GetInt("tls-port")
+			wssPort, _ := cmd.Flags().GetInt("wss-port")
 			nomad, _ := cmd.Flags().GetBool("nomad")
 			useVault, _ := cmd.Flags().GetBool("use-vault")
 			useConsul, _ := cmd.Flags().GetBool("use-consul")
@@ -191,6 +192,7 @@ func main() {
 			config := broker.DefaultConfig()
 			config.TCPPort = tcpPort
 			config.TLSPort = tlsPort
+			config.WSSPort = wssPort
 
 			if useVault || useConsul {
 				consulAPI, vaultAPI, err = mqttConfig.DefaultClients()

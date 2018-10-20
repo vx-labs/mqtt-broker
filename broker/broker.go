@@ -62,6 +62,7 @@ type Broker struct {
 	Listener      io.Closer
 	TCPTransport  io.Closer
 	TLSTransport  io.Closer
+	WSSTransport  io.Closer
 }
 
 func New(id identity.Identity, config Config) *Broker {
@@ -91,8 +92,17 @@ func New(id identity.Identity, config Config) *Broker {
 			log.Printf("INFO: started TCP listener on port %d", config.TCPPort)
 		}
 	}
-	if config.TLSPort > 0 {
-		if config.TLS != nil {
+	if config.TLS != nil {
+		if config.WSSPort > 0 {
+			wssTransport, err := transport.NewWSSTransport(config.WSSPort, config.TLS, listenerCh)
+			broker.WSSTransport = wssTransport
+			if err != nil {
+				log.Printf("WARN: failed to start WSS listener on port %d: %v", config.TLSPort, err)
+			} else {
+				log.Printf("INFO: started WSS listener on port %d", config.TLSPort)
+			}
+		}
+		if config.TLSPort > 0 {
 			tlsTransport, err := transport.NewTLSTransport(config.TLSPort, config.TLS, listenerCh)
 			broker.TLSTransport = tlsTransport
 			if err != nil {
@@ -273,6 +283,11 @@ func (b *Broker) Stop() {
 		log.Printf("INFO: stopping TLS listener")
 		b.TLSTransport.Close()
 		log.Printf("INFO: TLS listener stopped")
+	}
+	if b.WSSTransport != nil {
+		log.Printf("INFO: stopping WSS listener")
+		b.WSSTransport.Close()
+		log.Printf("INFO: WSS listener stopped")
 	}
 	b.mutex.Lock()
 	if len(b.localSessions) > 0 {
