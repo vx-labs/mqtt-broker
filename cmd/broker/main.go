@@ -15,6 +15,8 @@ import (
 
 	"github.com/vx-labs/mqtt-broker/broker/listener"
 
+	_ "net/http/pprof"
+
 	consul "github.com/hashicorp/consul/api"
 	vault "github.com/hashicorp/vault/api"
 	auth "github.com/vx-labs/iot-mqtt-auth/api"
@@ -170,6 +172,7 @@ func main() {
 			wssPort, _ := cmd.Flags().GetInt("wss-port")
 			rpcPort, _ := cmd.Flags().GetInt("rpc-port")
 			nomad, _ := cmd.Flags().GetBool("nomad")
+			pprof, _ := cmd.Flags().GetBool("pprof")
 			useVault, _ := cmd.Flags().GetBool("use-vault")
 			useConsul, _ := cmd.Flags().GetBool("use-consul")
 			useVXAuth, _ := cmd.Flags().GetBool("use-vx-auth")
@@ -180,6 +183,12 @@ func main() {
 			var tlsConfig *tls.Config
 			var consulAPI *consul.Client
 			var vaultAPI *vault.Client
+			if pprof {
+				go func() {
+					log.Printf("INFO: enable pprof endpoint on port 8080")
+					log.Println(http.ListenAndServe(":8080", nil))
+				}()
+			}
 
 			if nomad {
 				id, err = identity.NomadService("broker")
@@ -234,6 +243,7 @@ func main() {
 		},
 	}
 	root.Flags().StringArrayP("join", "j", nil, "Join this node")
+	root.Flags().BoolP("pprof", "", false, "Enable pprof endpoint")
 	root.Flags().BoolP("nomad", "", false, "Discover this node identity using Nomad environment variables")
 	root.Flags().BoolP("use-vault", "", false, "Manage node certificates and private keys using Vault and Consul")
 	root.Flags().BoolP("use-consul", "", false, "Discover other peers using Consul")
