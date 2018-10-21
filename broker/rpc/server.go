@@ -14,7 +14,7 @@ import (
 //go:generate protoc -I${GOPATH}/src -I${GOPATH}/src/github.com/vx-labs/mqtt-broker/broker/rpc --go_out=plugins=grpc:. rpc.proto
 
 type broker interface {
-	ListSessions() ([]*sessions.Session, error)
+	ListSessions() (sessions.SessionList, error)
 }
 
 type server struct {
@@ -49,5 +49,5 @@ func (s *server) ListSessions(ctx context.Context, filters *SessionFilter) (*Lis
 	if err != nil {
 		return nil, err
 	}
-	return &ListSessionsOutput{Sessions: set}, nil
+	return &ListSessionsOutput{Sessions: set.Sessions}, nil
 }

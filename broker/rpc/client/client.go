@@ -21,7 +21,9 @@ func New(conn *grpc.ClientConn) *Client {
 func (c *Client) ListSessions(ctx context.Context) (sessions.SessionList, error) {
 	set, err := c.api.ListSessions(ctx, &rpc.SessionFilter{})
 	if err != nil {
-		return nil, err
+		return sessions.SessionList{}, err
 	}
-	return set.Sessions, nil
+	return sessions.SessionList{
+		Sessions: set.Sessions,
+	}, nil
 }

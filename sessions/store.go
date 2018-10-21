@@ -2,7 +2,9 @@ package sessions
 
 import (
 	"errors"
-	"fmt"
+	"time"
+
+	"github.com/golang/protobuf/proto"
 
 	"github.com/hashicorp/go-memdb"
 )
@@ -15,6 +17,10 @@ var (
 	ErrSessionNotFound = errors.New("session not found")
 )
 
+var now = func() int64 {
+	return time.Now().UnixNano()
+}
+
 type SessionStore interface {
 	ById(id string) (*Session, error)
 	ByPeer(peer uint64) (SessionList, error)
@@ -22,6 +28,9 @@ type SessionStore interface {
 	Exists(id string) bool
 	Upsert(sess *Session) error
 	Delete(id string) error
+	ComputeDelta(set SessionList) (delta SessionList)
+	ApplyDelta(set SessionList)
+	DumpState() SessionList
 }
 
 type MemDBStore struct {
@@ -67,13 +76,54 @@ func NewSessionStore() SessionStore {
 		state: db,
 	}
 }
-
+func (s *MemDBStore) Encode() []byte {
+	set := s.DumpState()
+	payload, err := proto.Marshal(&set)
+	if err != nil {
+		return nil
+	}
+	return payload
+}
+func (s *MemDBStore) DumpState() SessionList {
+	var sessionList SessionList
+	s.read(func(tx *memdb.Txn) error {
+		iterator, err := tx.Get("sessions", "id")
+		if err != nil || iterator == nil {
+			return ErrSessionNotFound
+		}
+		for {
+			payload := iterator.Next()
+			if payload == nil {
+				return nil
+			}
+			sess := payload.(*Session)
+			sessionList.Sessions = append(sessionList.Sessions, sess)
+		}
+	})
+	return sessionList
+}
+func (s *MemDBStore) ComputeDelta(set SessionList) (delta SessionList) {
+	set.Apply(func(remote *Session) {
+		local, err := s.ById(remote.ID)
+		if err != nil {
+			// Session not found in our store, add it to delta
+			delta.Sessions = append(delta.Sessions, remote)
+		} else {
+			if IsOutdated(local, remote) {
+				delta.Sessions = append(delta.Sessions, remote)
+			}
+		}
+	})
+	return delta
+}
+func (s *MemDBStore) ApplyDelta(set SessionList) {
+	set.Apply(func(remote *Session) {
+		s.Upsert(remote)
+	})
+}
 func (s *MemDBStore) Exists(id string) bool {
 	_, err := s.ById(id)
 	return err == nil
-}
-func (s *MemDBStore) BySubscription(topic []byte) (SessionList, error) {
-	return nil, fmt.Errorf("not implemented")
 }
 func (s *MemDBStore) ById(id string) (*Session, error) {
 	var session *Session
@@ -87,20 +137,9 @@ func (s *MemDBStore) ById(id string) (*Session, error) {
 	})
 }
 func (s *MemDBStore) All() (SessionList, error) {
-	var sessionList SessionList
-	return sessionList, s.read(func(tx *memdb.Txn) error {
-		iterator, err := tx.Get("sessions", "id")
-		if err != nil || iterator == nil {
-			return ErrSessionNotFound
-		}
-		for {
-			payload := iterator.Next()
-			if payload == nil {
-				return nil
-			}
-			sessionList = append(sessionList, payload.(*Session))
-		}
-	})
+	return s.DumpState().Filter(func(s *Session) bool {
+		return s.IsAdded()
+	}), nil
 }
 
 func (s *MemDBStore) ByPeer(peer uint64) (SessionList, error) {
@@ -115,12 +154,16 @@ func (s *MemDBStore) ByPeer(peer uint64) (SessionList, error) {
 			if payload == nil {
 				return nil
 			}
-			sessionList = append(sessionList, payload.(*Session))
+			sess := payload.(*Session)
+			if sess.IsAdded() {
+				sessionList.Sessions = append(sessionList.Sessions, sess)
+			}
 		}
 	})
 }
 
 func (s *MemDBStore) Upsert(sess *Session) error {
+	sess.LastUpdated = now()
 	if sess.Tenant == "" {
 		sess.Tenant = defaultTenant
 	}
@@ -129,8 +172,13 @@ func (s *MemDBStore) Upsert(sess *Session) error {
 	})
 }
 func (s *MemDBStore) Delete(id string) error {
+	sess, err := s.ById(id)
+	if err != nil {
+		return nil
+	}
+	sess.LastDeleted = now()
 	return s.write(func(tx *memdb.Txn) error {
-		return tx.Delete("sessions", &Session{ID: id})
+		return tx.Insert("sessions", sess)
 	})
 }
 
@@ -152,27 +200,14 @@ func (s *MemDBStore) run(tx *memdb.Txn, statement func(tx *memdb.Txn) error) err
 	return nil
 }
 
-func (s *MemDBStore) update(tx *memdb.Txn, idx, id string, updater func(session *Session) (*Session, error)) error {
-	iterator, err := tx.Get("sessions", idx, id)
-	if err != nil {
-		return err
-	}
-	for {
-		payload := iterator.Next()
-		if payload == nil {
-			return nil
-		}
-		sess, err := updater(payload.(*Session))
-		if err != nil {
-			return err
-		}
-		tx.Insert("sessions", sess)
-	}
-}
 func (s *MemDBStore) first(tx *memdb.Txn, idx, id string) (*Session, error) {
 	data, err := tx.First("sessions", idx, id)
 	if err != nil || data == nil {
 		return &Session{}, ErrSessionNotFound
 	}
-	return data.(*Session), nil
+	sess := data.(*Session)
+	if sess.IsRemoved() {
+		return nil, ErrSessionNotFound
+	}
+	return sess, nil
 }
