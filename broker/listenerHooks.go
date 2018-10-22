@@ -245,5 +245,9 @@ func (b *Broker) OnPublish(id, tenant string, packet *packet.Publish) error {
 }
 
 func (b *Broker) Authenticate(transport listener.Transport, sessionID, username string, password string) (tenant string, id string, err error) {
-	return b.authHelper(transport, sessionID, username, password)
+	tenant, id, err = b.authHelper(transport, sessionID, username, password)
+	if err != nil {
+		log.Printf("WARN: authentication failed from %s: %v", transport.RemoteAddress(), err)
+	}
+	return tenant, id, err
 }
