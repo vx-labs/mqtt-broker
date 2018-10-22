@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"github.com/weaveworks/mesh"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -12,8 +13,24 @@ const (
 	sessionID = "cb8f3900-4146-4499-a880-c01611a6d9ee"
 )
 
+type mockGossip struct{}
+
+func (m *mockGossip) GossipUnicast(dst mesh.PeerName, msg []byte) error {
+	return nil
+}
+
+func (m *mockGossip) GossipBroadcast(update mesh.GossipData) {
+}
+
+type mockRouter struct {
+}
+
+func (m *mockRouter) NewGossip(channel string, gossiper mesh.Gossiper) (mesh.Gossip, error) {
+	return &mockGossip{}, nil
+}
+
 func TestSessionStore(t *testing.T) {
-	store := NewSessionStore()
+	store := NewSessionStore(&mockRouter{})
 
 	t.Run("create", func(t *testing.T) {
 		err := store.Upsert(&Session{
@@ -48,7 +65,7 @@ func TestSessionStore(t *testing.T) {
 		assert.NotNil(t, err)
 	})
 	t.Run("merge", func(t *testing.T) {
-		remote := NewSessionStore()
+		remote := NewSessionStore(&mockRouter{})
 		require.NoError(t, remote.Upsert(&Session{
 			ID:   "a",
 			Peer: 5,

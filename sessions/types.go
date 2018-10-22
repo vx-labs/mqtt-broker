@@ -27,6 +27,11 @@ func (set SessionList) Apply(f func(s *Session)) {
 		f(session)
 	}
 }
+func (set SessionList) ApplyIdx(f func(idx int, s *Session)) {
+	for idx, session := range set.Sessions {
+		f(idx, session)
+	}
+}
 
 func (set SessionList) ApplyE(f func(s *Session) error) error {
 	for _, session := range set.Sessions {

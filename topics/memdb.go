@@ -4,15 +4,21 @@ import (
 	"crypto/sha1"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/hashicorp/go-memdb"
+	"github.com/weaveworks/mesh"
 )
 
 type memDBStore struct {
 	db         *memdb.MemDB
-	offset     uint64
 	topicIndex *topicIndexer
+	gossip     mesh.Gossip
 }
+
+var (
+	ErrRetainedMessageNotFound = errors.New("retained message not found")
+)
 
 func MakeTopicID(tenant string, topic []byte) (string, error) {
 	hash := sha1.New()
@@ -25,6 +31,14 @@ func MakeTopicID(tenant string, topic []byte) (string, error) {
 		return "", err
 	}
 	return fmt.Sprintf("%x", hash.Sum(nil)), nil
+}
+
+var now = func() int64 {
+	return time.Now().UnixNano()
+}
+
+type Router interface {
+	NewGossip(channel string, gossiper mesh.Gossiper) (mesh.Gossip, error)
 }
 
 type ByteSliceIndexer struct {
@@ -40,7 +54,7 @@ func (b *ByteSliceIndexer) FromObject(obj interface{}) (bool, []byte, error) {
 	return true, append(message.GetTopic(), '\x00'), nil
 }
 
-func NewMemDBStore() (*memDBStore, error) {
+func NewMemDBStore(router Router) (*memDBStore, error) {
 	db, err := memdb.NewMemDB(&memdb.DBSchema{
 		Tables: map[string]*memdb.TableSchema{
 			"messages": &memdb.TableSchema{
@@ -67,10 +81,16 @@ func NewMemDBStore() (*memDBStore, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &memDBStore{
+	s := &memDBStore{
 		db:         db,
 		topicIndex: TenantTopicIndexer(),
-	}, nil
+	}
+	gossip, err := router.NewGossip("mqtt-topics", s)
+	if err != nil {
+		return nil, err
+	}
+	s.gossip = gossip
+	return s, nil
 }
 
 type topicIndexer struct {
@@ -88,7 +108,7 @@ func (t *topicIndexer) Lookup(tenant string, pattern []byte) (RetainedMessageLis
 	topic := NewTopic(pattern)
 	t.root.Apply(tenant, topic, func(node *Node) bool {
 		if node.Message != nil {
-			vals = append(vals, node.Message)
+			vals.RetainedMessages = append(vals.RetainedMessages, node.Message)
 		}
 		return false
 	})
@@ -124,6 +144,9 @@ func (m *memDBStore) first(tx *memdb.Txn, index string, value ...interface{}) (*
 	if !ok {
 		return res, errors.New("invalid type fetched")
 	}
+	if res.IsRemoved() {
+		return nil, ErrRetainedMessageNotFound
+	}
 	return res, nil
 }
 func (m *memDBStore) all(tx *memdb.Txn, index string, value ...interface{}) (RetainedMessageList, error) {
@@ -141,11 +164,13 @@ func (m *memDBStore) all(tx *memdb.Txn, index string, value ...interface{}) (Ret
 		if !ok {
 			return set, errors.New("invalid type fetched")
 		}
-		set = append(set, res)
+		if res.IsAdded() {
+			set.RetainedMessages = append(set.RetainedMessages, res)
+		}
 	}
 }
 
-func (m *memDBStore) ByID(tenant, id string) (*RetainedMessage, error) {
+func (m *memDBStore) ByID(id string) (*RetainedMessage, error) {
 	var res *RetainedMessage
 	return res, m.read(func(tx *memdb.Txn) (err error) {
 		res, err = m.first(tx, "id", id)
@@ -177,9 +202,29 @@ func (m *memDBStore) Create(message *RetainedMessage) error {
 		}
 		message.Id = id
 	}
+	message.LastUpdated = now()
 	err := m.topicIndex.Index(message)
 	if err != nil {
 		return err
+	}
+	defer m.gossip.GossipBroadcast(&RetainedMessageList{
+		RetainedMessages: []*RetainedMessage{message},
+	})
+	return m.insert(message)
+}
+func (m *memDBStore) insert(message *RetainedMessage) error {
+	if message.IsAdded() {
+		err := m.topicIndex.Index(message)
+		if err != nil {
+			return err
+		}
+	}
+	if message.IsRemoved() {
+		message.Payload = nil
+		err := m.topicIndex.Index(message)
+		if err != nil {
+			return err
+		}
 	}
 	return m.write(func(tx *memdb.Txn) error {
 		err := tx.Insert("messages", message)

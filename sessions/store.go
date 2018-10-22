@@ -4,9 +4,8 @@ import (
 	"errors"
 	"time"
 
-	"github.com/golang/protobuf/proto"
-
 	"github.com/hashicorp/go-memdb"
+	"github.com/weaveworks/mesh"
 )
 
 const (
@@ -28,16 +27,21 @@ type SessionStore interface {
 	Exists(id string) bool
 	Upsert(sess *Session) error
 	Delete(id string) error
-	ComputeDelta(set SessionList) (delta SessionList)
-	ApplyDelta(set SessionList)
-	DumpState() SessionList
+	ComputeDelta(set *SessionList) (delta *SessionList)
+	ApplyDelta(set *SessionList)
+	DumpState() *SessionList
 }
 
 type MemDBStore struct {
-	state *memdb.MemDB
+	state  *memdb.MemDB
+	gossip mesh.Gossip
 }
 
-func NewSessionStore() SessionStore {
+type Router interface {
+	NewGossip(channel string, gossiper mesh.Gossiper) (mesh.Gossip, error)
+}
+
+func NewSessionStore(router Router) SessionStore {
 	db, err := memdb.NewMemDB(&memdb.DBSchema{
 		Tables: map[string]*memdb.TableSchema{
 			"sessions": {
@@ -72,20 +76,18 @@ func NewSessionStore() SessionStore {
 	if err != nil {
 		panic(err)
 	}
-	return &MemDBStore{
+	s := &MemDBStore{
 		state: db,
 	}
-}
-func (s *MemDBStore) Encode() []byte {
-	set := s.DumpState()
-	payload, err := proto.Marshal(&set)
+	gossip, err := router.NewGossip("mqtt-sessions", s)
 	if err != nil {
-		return nil
+		panic(err)
 	}
-	return payload
+	s.gossip = gossip
+	return s
 }
-func (s *MemDBStore) DumpState() SessionList {
-	var sessionList SessionList
+func (s *MemDBStore) DumpState() *SessionList {
+	sessionList := SessionList{}
 	s.read(func(tx *memdb.Txn) error {
 		iterator, err := tx.Get("sessions", "id")
 		if err != nil || iterator == nil {
@@ -100,9 +102,10 @@ func (s *MemDBStore) DumpState() SessionList {
 			sessionList.Sessions = append(sessionList.Sessions, sess)
 		}
 	})
-	return sessionList
+	return &sessionList
 }
-func (s *MemDBStore) ComputeDelta(set SessionList) (delta SessionList) {
+func (s *MemDBStore) ComputeDelta(set *SessionList) *SessionList {
+	delta := SessionList{}
 	set.Apply(func(remote *Session) {
 		local, err := s.ById(remote.ID)
 		if err != nil {
@@ -114,11 +117,11 @@ func (s *MemDBStore) ComputeDelta(set SessionList) (delta SessionList) {
 			}
 		}
 	})
-	return delta
+	return &delta
 }
-func (s *MemDBStore) ApplyDelta(set SessionList) {
+func (s *MemDBStore) ApplyDelta(set *SessionList) {
 	set.Apply(func(remote *Session) {
-		s.Upsert(remote)
+		s.insert(remote)
 	})
 }
 func (s *MemDBStore) Exists(id string) bool {
@@ -167,6 +170,12 @@ func (s *MemDBStore) Upsert(sess *Session) error {
 	if sess.Tenant == "" {
 		sess.Tenant = defaultTenant
 	}
+	defer s.gossip.GossipBroadcast(&SessionList{
+		Sessions: []*Session{sess},
+	})
+	return s.insert(sess)
+}
+func (s *MemDBStore) insert(sess *Session) error {
 	return s.write(func(tx *memdb.Txn) error {
 		return tx.Insert("sessions", sess)
 	})
@@ -177,9 +186,10 @@ func (s *MemDBStore) Delete(id string) error {
 		return nil
 	}
 	sess.LastDeleted = now()
-	return s.write(func(tx *memdb.Txn) error {
-		return tx.Insert("sessions", sess)
+	defer s.gossip.GossipBroadcast(&SessionList{
+		Sessions: []*Session{sess},
 	})
+	return s.insert(sess)
 }
 
 func (s *MemDBStore) read(statement func(tx *memdb.Txn) error) error {

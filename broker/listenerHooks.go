@@ -41,10 +41,6 @@ func (b *Broker) OnSubscribe(id string, tenant string, packet *packet.Subscribe)
 			SessionID: id,
 			Peer:      uint64(b.Peer.Name()),
 		}
-		b.Peer.Add(encodeEvent(&StateEvent{
-			Name:         "subscriptions",
-			Subscription: event,
-		}))
 		err := b.Subscriptions.Create(event)
 		if err != nil {
 			return err
@@ -69,7 +65,7 @@ func (b *Broker) OnSubscribe(id string, tenant string, packet *packet.Subscribe)
 				})
 			})
 		}()
-		//log.Printf("INFO: %s subscribed to topic %s (qos %v)", id, string(pattern), packet.Qos[idx])
+		log.Printf("INFO: %s subscribed to topic %s (qos %v)", id, string(pattern), packet.Qos[idx])
 	}
 	return nil
 }
@@ -88,10 +84,6 @@ func (b *Broker) OnUnsubscribe(id string, tenant string, packet *packet.Unsubscr
 		return false
 	})
 	set.Apply(func(sub *subscriptions.Subscription) {
-		b.Peer.Del(encodeEvent(&StateEvent{
-			Name:         "subscriptions",
-			Subscription: sub,
-		}))
 		b.Subscriptions.Delete(sub.ID)
 	})
 	return nil
@@ -111,16 +103,8 @@ func (b *Broker) OnSessionClosed(id, tenant string) {
 		return
 	}
 	set.Apply(func(sub *subscriptions.Subscription) {
-		b.Peer.Del(encodeEvent(&StateEvent{
-			Name:         "subscriptions",
-			Subscription: sub,
-		}))
 		b.Subscriptions.Delete(sub.ID)
 	})
-	b.Peer.Del(encodeEvent(&StateEvent{
-		Name:    "sessions",
-		Session: sess,
-	}))
 	b.Sessions.Delete(sess.ID)
 	return
 }
@@ -146,10 +130,6 @@ func (b *Broker) OnSessionLost(id, tenant string) {
 func (b *Broker) closeLocalSession(sess *sessions.Session) {
 	b.mutex.Lock()
 	if _, ok := b.localSessions[sess.ID]; ok {
-		b.Peer.Del(encodeEvent(&StateEvent{
-			Name:    "sessions",
-			Session: sess,
-		}))
 		b.Sessions.Delete(sess.ID)
 		b.localSessions[sess.ID].Close()
 		delete(b.localSessions, sess.ID)
@@ -182,10 +162,6 @@ func (b *Broker) OnConnect(id, tenant string, ch *listener.Session) {
 		WillRetain:  connectPkt.WillRetain,
 		WillTopic:   connectPkt.WillTopic,
 	}
-	b.Peer.Add(encodeEvent(&StateEvent{
-		Name:    "sessions",
-		Session: sess,
-	}))
 	b.Sessions.Upsert(sess)
 }
 func (b *Broker) OnPublish(id, tenant string, packet *packet.Publish) error {
@@ -196,21 +172,10 @@ func (b *Broker) OnPublish(id, tenant string, packet *packet.Publish) error {
 			Tenant:  tenant,
 			Topic:   packet.Topic,
 		}
-		oldMessages, err := b.Topics.ByTopicPattern(tenant, packet.Topic)
-		if err == nil && len(oldMessages) == 1 {
-			b.Peer.Del(encodeEvent(&StateEvent{
-				Name:            "topics",
-				RetainedMessage: oldMessages[0],
-			}))
-		}
-		err = b.Topics.Create(message)
+		err := b.Topics.Create(message)
 		if err != nil {
 			log.Printf("WARN: failed to save retained message: %v", err)
 		}
-		b.Peer.Add(encodeEvent(&StateEvent{
-			Name:            "topics",
-			RetainedMessage: message,
-		}))
 	}
 	recipients, err := b.Subscriptions.ByTopic(tenant, packet.Topic)
 	if err != nil {
@@ -222,8 +187,8 @@ func (b *Broker) OnPublish(id, tenant string, packet *packet.Publish) error {
 		if _, ok := peers[sub.Peer]; !ok {
 			peers[sub.Peer] = &MessagePublished{
 				Payload:   packet.Payload,
-				Qos:       make([]int32, 0, len(recipients)),
-				Recipient: make([]string, 0, len(recipients)),
+				Qos:       make([]int32, 0, len(recipients.Subscriptions)),
+				Recipient: make([]string, 0, len(recipients.Subscriptions)),
 				Topic:     packet.Topic,
 			}
 		}
@@ -245,7 +210,7 @@ func (b *Broker) OnPublish(id, tenant string, packet *packet.Publish) error {
 			b.Peer.Send(mesh.PeerName(peer), payload)
 		}
 	}
-	//log.Printf("INFO: %s published to topic %s (qos %v)", id, string(packet.Topic), packet.Header.Qos)
+	log.Printf("INFO: %s published to topic %s (qos %v)", id, string(packet.Topic), packet.Header.Qos)
 	return nil
 }
 

@@ -60,7 +60,7 @@ func (d *INode) Remove(tenant, id string, topic Topic) error {
 				target := node.data.Filter(func(sub *Subscription) bool {
 					return sub.ID == id
 				})
-				if len(target) == 0 {
+				if len(target.Subscriptions) == 0 {
 					return errors.New("subscription not found")
 				}
 				d.nodes[idx] = node.DelSubscription(id)
@@ -73,12 +73,15 @@ func (d *INode) Remove(tenant, id string, topic Topic) error {
 	return errors.New("subscription not found")
 }
 
-func (d *INode) Select(tenant string, set SubscriptionList, topic Topic) SubscriptionList {
+func (d *INode) Select(tenant string, set *SubscriptionList, topic Topic) *SubscriptionList {
+	if set == nil {
+		set = &SubscriptionList{}
+	}
 	topic, token, ok := topic.Chop()
 	for _, node := range d.nodes {
 		if node.tenant == tenant && matchPattern(token, node.pattern) {
 			if !ok {
-				set = append(set, node.data...)
+				set.Subscriptions = append(set.Subscriptions, node.data.Subscriptions...)
 			} else {
 				set = node.inode.Select(tenant, set, topic)
 			}

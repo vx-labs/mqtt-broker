@@ -7,4 +7,10 @@ message RetainedMessage {
    bytes topic = 3;
    bytes payload = 4;
    int32 qos = 5;
+  int64 LastUpdated = 6;
+  int64 LastDeleted = 7;
+}
+
+message RetainedMessageList {
+  repeated RetainedMessage RetainedMessages = 1;
 }

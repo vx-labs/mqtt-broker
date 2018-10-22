@@ -1,12 +1,18 @@
 package topics
 
 //go:generate protoc -I${GOPATH}/src -I${GOPATH}/src/github.com/vx-labs/mqtt-broker/topics/ --go_out=plugins=grpc:. types.proto
-type RetainedMessageList []*RetainedMessage
+
+type Store interface {
+	Create(message *RetainedMessage) error
+	ByTopicPattern(tenant string, pattern []byte) (RetainedMessageList, error)
+	All() (RetainedMessageList, error)
+}
+
 type retainedMessageFilter func(*RetainedMessage) bool
 
 func (set RetainedMessageList) Filter(filters ...retainedMessageFilter) RetainedMessageList {
-	copy := make(RetainedMessageList, 0, len(set))
-	for _, message := range set {
+	copy := make([]*RetainedMessage, 0, len(set.RetainedMessages))
+	for _, message := range set.RetainedMessages {
 		accepted := true
 		for _, f := range filters {
 			if !f(message) {
@@ -18,17 +24,19 @@ func (set RetainedMessageList) Filter(filters ...retainedMessageFilter) Retained
 			copy = append(copy, message)
 		}
 	}
-	return copy
+	return RetainedMessageList{
+		RetainedMessages: copy,
+	}
 }
 
 func (set RetainedMessageList) Apply(f func(s *RetainedMessage)) {
-	for _, message := range set {
+	for _, message := range set.RetainedMessages {
 		f(message)
 	}
 }
 
 func (set RetainedMessageList) ApplyE(f func(s *RetainedMessage) error) error {
-	for _, message := range set {
+	for _, message := range set.RetainedMessages {
 		if err := f(message); err != nil {
 			return err
 		}
@@ -61,4 +69,26 @@ func HasTenant(tenant string) retainedMessageFilter {
 	return func(s *RetainedMessage) bool {
 		return s.Tenant == tenant
 	}
+}
+func (set RetainedMessageList) ApplyIdx(f func(idx int, s *RetainedMessage)) {
+	for idx, session := range set.RetainedMessages {
+		f(idx, session)
+	}
+}
+
+func (s *RetainedMessage) IsAdded() bool {
+	return s.LastUpdated > 0 && s.LastUpdated > s.LastDeleted
+}
+func (s *RetainedMessage) IsRemoved() bool {
+	return s.LastDeleted > 0 && s.LastUpdated < s.LastDeleted
+}
+
+func IsOutdated(s *RetainedMessage, remote *RetainedMessage) (outdated bool) {
+	if s.LastUpdated < remote.LastUpdated {
+		outdated = true
+	}
+	if s.LastDeleted < remote.LastDeleted {
+		outdated = true
+	}
+	return outdated
 }

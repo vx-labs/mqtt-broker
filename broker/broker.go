@@ -43,7 +43,7 @@ type TopicStore interface {
 	All() (topics.RetainedMessageList, error)
 }
 type SubscriptionStore interface {
-	ByTopic(tenant string, pattern []byte) (subscriptions.SubscriptionList, error)
+	ByTopic(tenant string, pattern []byte) (*subscriptions.SubscriptionList, error)
 	ByID(id string) (*subscriptions.Subscription, error)
 	All() (subscriptions.SubscriptionList, error)
 	ByPeer(peer uint64) (subscriptions.SubscriptionList, error)
@@ -68,22 +68,25 @@ type Broker struct {
 }
 
 func New(id identity.Identity, config Config) *Broker {
-	subscriptionsStore, err := subscriptions.NewMemDBStore()
-	if err != nil {
-		log.Fatal(err)
-	}
-	topicssStore, err := topics.NewMemDBStore()
-	if err != nil {
-		log.Fatal(err)
-	}
 	broker := &Broker{
-		Subscriptions: subscriptionsStore,
-		Topics:        topicssStore,
 		localSessions: map[string]*listener.Session{},
-		Sessions:      sessions.NewSessionStore(),
 		authHelper:    config.AuthHelper,
 	}
-	broker.Peer = peer.NewPeer(id, broker.onAdd, broker.onDel, broker.onPeerDown, broker.onUnicast)
+	broker.Peer = peer.NewPeer(id, broker.onPeerDown, broker.onUnicast)
+	subscriptionsStore, err := subscriptions.NewMemDBStore(broker.Peer.Router())
+	if err != nil {
+		log.Fatal(err)
+	}
+	topicssStore, err := topics.NewMemDBStore(broker.Peer.Router())
+	if err != nil {
+		log.Fatal(err)
+	}
+	sessionsStore := sessions.NewSessionStore(broker.Peer.Router())
+
+	broker.Topics = topicssStore
+	broker.Subscriptions = subscriptionsStore
+	broker.Sessions = sessionsStore
+
 	l, listenerCh := listener.New(broker)
 	if config.RPCPort > 0 {
 		broker.RPC = rpc.New(config.RPCPort, broker)
@@ -132,6 +135,7 @@ func (b *Broker) onUnicast(payload []byte) {
 	if err != nil {
 		return
 	}
+	log.Printf("INFO: dispatching message to %d recipients", len(message.Recipient))
 	b.dispatch(message)
 }
 func (b *Broker) onAdd(payload string) {
@@ -179,10 +183,6 @@ func (b *Broker) onPeerDown(name mesh.PeerName) {
 	}
 	set.Apply(func(sub *subscriptions.Subscription) {
 		b.Subscriptions.Delete(sub.ID)
-		b.Peer.Del(encodeEvent(&StateEvent{
-			Name:         "subscriptions",
-			Subscription: sub,
-		}))
 	})
 
 	sessionSet, err := b.Sessions.ByPeer(uint64(name))
@@ -199,10 +199,6 @@ func (b *Broker) onPeerDown(name mesh.PeerName) {
 				Topic:   s.WillTopic,
 			}
 			b.Topics.Create(retainedMessage)
-			b.Peer.Add(encodeEvent(&StateEvent{
-				Name:            "topics",
-				RetainedMessage: retainedMessage,
-			}))
 		}
 		recipients, err := b.Subscriptions.ByTopic(s.Tenant, s.WillTopic)
 		if err != nil {
@@ -212,8 +208,8 @@ func (b *Broker) onPeerDown(name mesh.PeerName) {
 		message := &MessagePublished{
 			Payload:   s.WillPayload,
 			Topic:     s.WillTopic,
-			Qos:       make([]int32, 0, len(recipients)),
-			Recipient: make([]string, 0, len(recipients)),
+			Qos:       make([]int32, 0, len(recipients.Subscriptions)),
+			Recipient: make([]string, 0, len(recipients.Subscriptions)),
 		}
 		recipients.Apply(func(sub *subscriptions.Subscription) {
 			message.Recipient = append(message.Recipient, sub.SessionID)
@@ -225,10 +221,6 @@ func (b *Broker) onPeerDown(name mesh.PeerName) {
 		})
 		b.dispatch(message)
 		b.Sessions.Delete(s.ID)
-		b.Peer.Add(encodeEvent(&StateEvent{
-			Name:    "sessions",
-			Session: s,
-		}))
 	})
 }
 func (b *Broker) onDel(payload string) {
