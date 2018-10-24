@@ -122,7 +122,7 @@ func ConsulPeers(api *consul.Client, service string, self identity.Identity) ([]
 }
 func makeSessionID(tenant, clientID string) (string, error) {
 	hash := sha1.New()
-	_, err := hash.Write([]byte(tenant + clientID))
+	_, err := hash.Write([]byte(tenant + clientID + time.Now().String()))
 	if err != nil {
 		return "", err
 	}
@@ -140,6 +140,7 @@ func authHelper(ctx context.Context) func(transport listener.Transport, sessionI
 		panic(err)
 	}
 	return func(transport listener.Transport, sessionID, username string, password string) (tenant string, id string, err error) {
+		log.Println("INFO: calling VX auth handler")
 		success, tenant, err := api.Authenticate(
 			ctx,
 			auth.WithProtocolContext(
