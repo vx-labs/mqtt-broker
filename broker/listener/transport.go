@@ -90,13 +90,12 @@ func (l *listener) runSession(t Transport) {
 			session.id = id
 			session.connect = p
 			session.tenant = tenant
-			log.Printf("INFO: listener %s: session %s started", t.Name(), session.id)
 			handler.OnConnect(session.id, tenant, session)
-			enc.ConnAck(&packet.ConnAck{
+			log.Printf("INFO: listener %s: session %s started", t.Name(), session.id)
+			return enc.ConnAck(&packet.ConnAck{
 				Header:     p.Header,
 				ReturnCode: packet.CONNACK_CONNECTION_ACCEPTED,
 			})
-			return nil
 		}),
 		decoder.OnPublish(func(p *packet.Publish) error {
 			c.SetDeadline(
