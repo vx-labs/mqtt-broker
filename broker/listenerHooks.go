@@ -98,8 +98,8 @@ func (b *Broker) OnUnsubscribe(id string, tenant string, packet *packet.Unsubscr
 
 func (b *Broker) OnSessionClosed(id, tenant string) {
 	b.mutex.Lock()
-	defer b.mutex.Unlock()
 	delete(b.localSessions, id)
+	b.mutex.Unlock()
 
 	set, err := b.Subscriptions.BySession(id)
 	if err != nil {
@@ -129,15 +129,17 @@ func (b *Broker) OnSessionLost(id, tenant string) {
 	if err != nil {
 		return
 	}
-	b.OnPublish(id, tenant, &packet.Publish{
-		Header: &packet.Header{
-			Dup:    false,
-			Retain: sess.WillRetain,
-			Qos:    sess.WillQoS,
-		},
-		Payload: sess.WillPayload,
-		Topic:   sess.WillTopic,
-	})
+	if len(sess.WillTopic) > 0 {
+		b.OnPublish(id, tenant, &packet.Publish{
+			Header: &packet.Header{
+				Dup:    false,
+				Retain: sess.WillRetain,
+				Qos:    sess.WillQoS,
+			},
+			Payload: sess.WillPayload,
+			Topic:   sess.WillTopic,
+		})
+	}
 }
 
 func (b *Broker) closeLocalSession(sess *sessions.Session) {
