@@ -11,7 +11,7 @@ import (
 	"google.golang.org/grpc"
 )
 
-//go:generate protoc -I${GOPATH}/src -I${GOPATH}/src/github.com/vx-labs/mqtt-broker/broker/rpc --go_out=plugins=grpc:. broker.proto
+//go:generate protoc -I${GOPATH}/src -I${GOPATH}/src/github.com/vx-labs/mqtt-broker/broker/rpc --go_out=plugins=grpc:. rpc.proto
 
 type broker interface {
 	ListSessions() ([]*sessions.Session, error)
@@ -35,7 +35,7 @@ func New(port int, handler broker) io.Closer {
 		listener: lis,
 		server:   s,
 	}
-	RegisterBrokerServer(s, server)
+	RegisterBrokerServiceServer(s, server)
 	go s.Serve(lis)
 	log.Printf("INFO: started RPC listener on port %d", port)
 	return server

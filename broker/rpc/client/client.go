@@ -9,12 +9,12 @@ import (
 )
 
 type Client struct {
-	api rpc.BrokerClient
+	api rpc.BrokerServiceClient
 }
 
 func New(conn *grpc.ClientConn) *Client {
 	return &Client{
-		api: rpc.NewBrokerClient(conn),
+		api: rpc.NewBrokerServiceClient(conn),
 	}
 }
 

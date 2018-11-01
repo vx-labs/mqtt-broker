@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"text/template"
+	"time"
 
 	"github.com/spf13/viper"
 
@@ -24,7 +25,24 @@ type APIWrapper struct {
 func (a *APIWrapper) API() *client.Client {
 	return a.api
 }
-
+func logInterceptor(
+	ctx context.Context,
+	method string,
+	req interface{},
+	reply interface{},
+	cc *grpc.ClientConn,
+	invoker grpc.UnaryInvoker,
+	opts ...grpc.CallOption,
+) error {
+	// Logic before invoking the invoker
+	start := time.Now()
+	// Calls the invoker to execute RPC
+	err := invoker(ctx, method, req, reply, cc, opts...)
+	// Logic after invoking the invoker
+	log.Printf("DEBUG: Invoked RPC method=%s; Duration=%s; Error=%v", method,
+		time.Since(start), err)
+	return err
+}
 func main() {
 	helper := &APIWrapper{}
 	var conn *grpc.ClientConn
@@ -39,15 +57,16 @@ func main() {
 		},
 		PersistentPreRun: func(cmd *cobra.Command, args []string) {
 			endpoint := viper.GetString("endpoint")
-			conn, err = grpc.Dial(endpoint, grpc.WithInsecure())
+			conn, err = grpc.Dial(endpoint,
+				grpc.WithInsecure())
 			if err != nil {
 				log.Fatalf("FATAL: failed to dial %s: %v", endpoint, err)
 			}
 			helper.api = client.New(conn)
 		},
 	}
-	root.Flags().StringP("endpoint", "e", "localhost:9090", "Broker GRPC endpoint")
-	viper.BindPFlag("endpoint", root.Flags().Lookup("endpoint"))
+	root.PersistentFlags().StringP("endpoint", "e", "localhost:9090", "Broker GRPC endpoint")
+	viper.BindPFlag("endpoint", root.PersistentFlags().Lookup("endpoint"))
 	root.AddCommand(Sessions(ctx, helper))
 	root.Execute()
 }
