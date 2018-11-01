@@ -9,4 +9,6 @@ message Session {
   int32 WillQoS = 5;
   bytes WillPayload = 6;
   bool WillRetain = 7;
+  int64 Created = 8;
+  bytes ClientID = 9;
 }

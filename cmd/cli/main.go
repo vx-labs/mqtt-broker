@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"sort"
 	"text/template"
 	"time"
 
@@ -72,6 +73,8 @@ func main() {
 }
 
 var SessionTemplate = `• {{ .ID | green | bold }}
+  {{ "Client ID:"     | faint }} {{ .ClientID | bytesToString }}
+  {{ "Created:"     | faint }} {{ .Created | parseDate}}
   {{ "Tenant:"     | faint }} {{ .Tenant }}
   {{ "Peer:"     | faint }} {{ .Peer }}`
 
@@ -93,7 +96,18 @@ func SessionsList(ctx context.Context, helper *APIWrapper) *cobra.Command {
 				log.Printf("ERR: failed to list sessions: %v", err)
 				return
 			}
-			tpl, err := template.New("").Funcs(promptui.FuncMap).Parse(fmt.Sprintf("%s\n", SessionTemplate))
+			sort.SliceStable(set, func(i, j int) bool {
+				return set[i].Created < set[j].Created
+			})
+			tpl, err := template.New("").Funcs(promptui.FuncMap).Funcs(template.FuncMap{
+				"parseDate": func(in int64) string {
+					date := time.Unix(in, 0)
+					return time.Since(date).String()
+				},
+				"bytesToString": func(in []byte) string {
+					return string(in)
+				},
+			}).Parse(fmt.Sprintf("%s\n", SessionTemplate))
 			if err != nil {
 				log.Printf("ERR: failed to parse session template: %v", err)
 				return

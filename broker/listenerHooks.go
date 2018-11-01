@@ -5,6 +5,7 @@ import (
 	"crypto/sha1"
 	"fmt"
 	"log"
+	"time"
 
 	"github.com/vx-labs/mqtt-broker/sessions"
 
@@ -172,6 +173,8 @@ func (b *Broker) OnConnect(id, tenant string, ch *listener.Session) {
 	b.mutex.Unlock()
 	sess = &sessions.Session{
 		ID:          id,
+		ClientID:    connectPkt.ClientId,
+		Created:     time.Now().Unix(),
 		Tenant:      tenant,
 		Peer:        uint64(b.Peer.Name()),
 		WillPayload: connectPkt.WillPayload,
