@@ -96,7 +96,7 @@ func SessionsList(ctx context.Context, helper *APIWrapper) *cobra.Command {
 				log.Printf("ERR: failed to list sessions: %v", err)
 				return
 			}
-			sort.SliceStable(set, func(i, j int) bool {
+			sort.SliceStable(set.Sessions, func(i, j int) bool {
 				return set.Sessions[i].Created < set.Sessions[j].Created
 			})
 			tpl, err := template.New("").Funcs(promptui.FuncMap).Funcs(template.FuncMap{
