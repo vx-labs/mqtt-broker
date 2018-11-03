@@ -135,7 +135,6 @@ func (b *Broker) onUnicast(payload []byte) {
 	if err != nil {
 		return
 	}
-	log.Printf("INFO: dispatching message to %d recipients", len(message.Recipient))
 	b.dispatch(message)
 }
 func (b *Broker) onAdd(payload string) {

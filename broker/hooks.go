@@ -65,12 +65,10 @@ func (b *Broker) OnSubscribe(id string, tenant string, packet *packet.Subscribe)
 				})
 			})
 		}()
-		log.Printf("INFO: %s subscribed to topic %s (qos %v)", id, string(pattern), packet.Qos[idx])
 	}
 	return nil
 }
 func (b *Broker) OnUnsubscribe(id string, tenant string, packet *packet.Unsubscribe) error {
-	log.Printf("INFO: received unsubscribe event from session %s about topic %b", id, packet.Topic)
 	set, err := b.Subscriptions.BySession(id)
 	if err != nil {
 		return err
@@ -211,7 +209,6 @@ func (b *Broker) OnPublish(id, tenant string, packet *packet.Publish) error {
 			b.Peer.Send(mesh.PeerName(peer), payload)
 		}
 	}
-	log.Printf("INFO: %s published to topic %s (qos %v)", id, string(packet.Topic), packet.Header.Qos)
 	return nil
 }
 
