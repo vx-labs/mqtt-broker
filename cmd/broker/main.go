@@ -172,6 +172,7 @@ func main() {
 			tlsPort, _ := cmd.Flags().GetInt("tls-port")
 			wssPort, _ := cmd.Flags().GetInt("wss-port")
 			rpcPort, _ := cmd.Flags().GetInt("rpc-port")
+			gossipPort, _ := cmd.Flags().GetInt("gossip-port")
 			nomad, _ := cmd.Flags().GetBool("nomad")
 			pprof, _ := cmd.Flags().GetBool("pprof")
 			useVault, _ := cmd.Flags().GetBool("use-vault")
@@ -193,6 +194,8 @@ func main() {
 
 			if nomad {
 				id, err = identity.NomadService("broker")
+			} else if gossipPort > 0 {
+				id = identity.StaticService(gossipPort)
 			} else {
 				id, err = identity.LocalService()
 			}
@@ -253,6 +256,7 @@ func main() {
 	root.Flags().IntP("tls-port", "s", 0, "Start TLS listener on this port. Specify 0 to disable the listener")
 	root.Flags().IntP("wss-port", "w", 0, "Start Secure WS listener on this port. Specify 0 to disable the listener")
 	root.Flags().IntP("rpc-port", "r", 0, "Start GRPC listener on this port. Specify 0 to disable the listener")
+	root.Flags().IntP("gossip-port", "g", 0, "Use this port for Mesh traffic. Specify 0 to use a random port")
 	root.Execute()
 }
 
