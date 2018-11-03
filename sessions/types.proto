@@ -13,6 +13,7 @@ message Session {
   bytes ClientID = 9;
   int64 LastUpdated = 10;
   int64 LastDeleted = 11;
+  string Transport = 12;
 }
 
 message SessionList {

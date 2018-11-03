@@ -26,7 +26,7 @@ type Transport interface {
 }
 type Handler interface {
 	Authenticate(transport Transport, sessionID, username string, password string) (tenant string, id string, err error)
-	OnConnect(id, tenant string, sess *Session)
+	OnConnect(id, tenant string, sess *Session, transport string)
 	OnSubscribe(id string, tenant string, packet *packet.Subscribe) error
 	OnUnsubscribe(id string, tenant string, packet *packet.Unsubscribe) error
 	OnSessionClosed(id, tenant string)
@@ -90,7 +90,7 @@ func (l *listener) runSession(t Transport) {
 			session.id = id
 			session.connect = p
 			session.tenant = tenant
-			handler.OnConnect(session.id, tenant, session)
+			handler.OnConnect(session.id, tenant, session, t.Name())
 			log.Printf("INFO: listener %s: session %s started", t.Name(), session.id)
 			return enc.ConnAck(&packet.ConnAck{
 				Header:     p.Header,

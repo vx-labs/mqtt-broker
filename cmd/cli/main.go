@@ -76,6 +76,7 @@ var SessionTemplate = `• {{ .ID | green | bold }}
   {{ "Client ID:"     | faint }} {{ .ClientID | bytesToString }}
   {{ "Created:"     | faint }} {{ .Created | parseDate}}
   {{ "Tenant:"     | faint }} {{ .Tenant }}
+  {{ "Transport:"     | faint }} {{ .Transport }}
   {{ "Peer:"     | faint }} {{ .Peer }}`
 
 func Sessions(ctx context.Context, helper *APIWrapper) *cobra.Command {

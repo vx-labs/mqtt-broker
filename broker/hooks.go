@@ -136,7 +136,7 @@ func (b *Broker) closeLocalSession(sess *sessions.Session) {
 	}
 	b.mutex.Unlock()
 }
-func (b *Broker) OnConnect(id, tenant string, ch *listener.Session) {
+func (b *Broker) OnConnect(id, tenant string, ch *listener.Session, transport string) {
 	connectPkt := ch.Connect()
 	sess, err := b.Sessions.ById(id)
 	if err == nil && sess.Peer == uint64(b.Peer.Name()) {
@@ -161,6 +161,7 @@ func (b *Broker) OnConnect(id, tenant string, ch *listener.Session) {
 		WillQoS:     connectPkt.WillQos,
 		WillRetain:  connectPkt.WillRetain,
 		WillTopic:   connectPkt.WillTopic,
+		Transport:   transport,
 	}
 	b.Sessions.Upsert(sess)
 }
