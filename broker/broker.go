@@ -125,10 +125,6 @@ func New(id identity.Identity, config Config) *Broker {
 	broker.Listener = l
 	return broker
 }
-func (b *Broker) decodeEvent(payload string) (*StateEvent, error) {
-	event := &StateEvent{}
-	return event, proto.Unmarshal([]byte(payload), event)
-}
 func (b *Broker) onUnicast(payload []byte) {
 	message := &MessagePublished{}
 	err := proto.Unmarshal(payload, message)
@@ -137,34 +133,7 @@ func (b *Broker) onUnicast(payload []byte) {
 	}
 	b.dispatch(message)
 }
-func (b *Broker) onAdd(payload string) {
-	event, err := b.decodeEvent(payload)
-	if err != nil {
-		log.Printf("ERR: failed to decode added event: %v", err)
-		return
-	}
-	switch event.Name {
-	case "sessions":
-		sess, err := b.Sessions.ById(event.GetSession().ID)
-		if err == nil && sess.Peer != uint64(b.Peer.Name()) {
-			b.closeLocalSession(sess)
-		}
-		b.Sessions.Upsert(event.GetSession())
-	case "subscriptions":
-		b.Subscriptions.Create(event.GetSubscription())
-	case "topics":
-		b.Topics.Create(event.GetRetainedMessage())
-	default:
-		log.Printf("WARN: received unhandled event %s", event.Name)
-	}
-}
-func encodeEvent(ev *StateEvent) string {
-	payload, err := proto.Marshal(ev)
-	if err != nil {
-		panic(err)
-	}
-	return string(payload)
-}
+
 func (b *Broker) onPeerDown(name mesh.PeerName) {
 	log.Printf("INFO: lost peer %s", name.String())
 	members := []string{}
@@ -222,22 +191,7 @@ func (b *Broker) onPeerDown(name mesh.PeerName) {
 		b.Sessions.Delete(s.ID)
 	})
 }
-func (b *Broker) onDel(payload string) {
-	event, err := b.decodeEvent(payload)
-	if err != nil {
-		log.Printf("ERR: failed to decode deleted event: %v", err)
-		return
-	}
-	switch event.Name {
-	case "sessions":
-		b.Sessions.Delete(event.GetSession().ID)
-	case "topics":
-	case "subscriptions":
-		b.Subscriptions.Delete(event.GetSubscription().ID)
-	default:
-		log.Printf("WARN: received unhandled event %s", event.Name)
-	}
-}
+
 func (b *Broker) Join(hosts []string) {
 	log.Printf("INFO: joining hosts %v", hosts)
 	b.Peer.Join(hosts)
