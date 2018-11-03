@@ -1,0 +1,18 @@
+---
+version: '3'
+services:
+  main-broker:
+    build:
+      context: .
+    ports:
+      - "1883:1883"
+      - "8080:8080"
+    command: -g 9999 -t 1883 --pprof
+  other-brokers:
+    links:
+      - main-broker:main-broker
+    build:
+      context: .
+    ports:
+      - "1883"
+    command: -g 9999 -t 1883 -j main-broker:9999
