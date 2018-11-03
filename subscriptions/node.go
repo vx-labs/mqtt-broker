@@ -27,15 +27,15 @@ func (n *Node) casINode(old, cur unsafe.Pointer) bool {
 
 func (n *Node) AddSubscription(tenant string, subscription *Subscription) *Node {
 	newNode := NewNode(tenant, n.pattern)
-	newNode.data = append(n.data, subscription)
+	newNode.data.Subscriptions = append(n.data.Subscriptions, subscription)
 	newNode.inode = n.inode
 	return newNode
 }
 func (n *Node) DelSubscription(id string) *Node {
 	newNode := NewNode(n.tenant, n.pattern)
-	for _, subscription := range n.data {
+	for _, subscription := range n.data.Subscriptions {
 		if subscription.ID != id {
-			newNode.data = append(newNode.data, subscription)
+			newNode.data.Subscriptions = append(newNode.data.Subscriptions, subscription)
 		}
 	}
 	newNode.inode = n.inode

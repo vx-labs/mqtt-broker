@@ -6,12 +6,12 @@ import (
 	"github.com/vx-labs/mqtt-broker/topics"
 )
 
-func (b *Broker) ListSessions() ([]*sessions.Session, error) {
+func (b *Broker) ListSessions() (sessions.SessionList, error) {
 	return b.Sessions.All()
 }
-func (b *Broker) ListSubscriptions() ([]*subscriptions.Subscription, error) {
+func (b *Broker) ListSubscriptions() (subscriptions.SubscriptionList, error) {
 	return b.Subscriptions.All()
 }
-func (b *Broker) ListRetainedMessages() ([]*topics.RetainedMessage, error) {
+func (b *Broker) ListRetainedMessages() (topics.RetainedMessageList, error) {
 	return b.Topics.All()
 }

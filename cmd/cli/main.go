@@ -97,7 +97,7 @@ func SessionsList(ctx context.Context, helper *APIWrapper) *cobra.Command {
 				return
 			}
 			sort.SliceStable(set, func(i, j int) bool {
-				return set[i].Created < set[j].Created
+				return set.Sessions[i].Created < set.Sessions[j].Created
 			})
 			tpl, err := template.New("").Funcs(promptui.FuncMap).Funcs(template.FuncMap{
 				"parseDate": func(in int64) string {

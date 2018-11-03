@@ -5,16 +5,39 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"time"
 
 	"github.com/hashicorp/go-memdb"
+	"github.com/weaveworks/mesh"
 )
 
+type Store interface {
+	ByTopic(tenant string, pattern []byte) (SubscriptionList, error)
+	ByID(id string) (*Subscription, error)
+	All() (SubscriptionList, error)
+	ByPeer(peer uint64) (SubscriptionList, error)
+	BySession(id string) (SubscriptionList, error)
+	Sessions() ([]string, error)
+	Create(subscription *Subscription) error
+	Delete(id string) error
+}
 type memDBStore struct {
 	db           *memdb.MemDB
 	patternIndex *topicIndexer
+	gossip       mesh.Gossip
+}
+type Router interface {
+	NewGossip(channel string, gossiper mesh.Gossiper) (mesh.Gossip, error)
 }
 
-func NewMemDBStore() (*memDBStore, error) {
+var (
+	ErrSubscriptionNotFound = errors.New("subscription not found")
+)
+var now = func() int64 {
+	return time.Now().UnixNano()
+}
+
+func NewMemDBStore(router Router) (*memDBStore, error) {
 	db, err := memdb.NewMemDB(&memdb.DBSchema{
 		Tables: map[string]*memdb.TableSchema{
 			"subscriptions": &memdb.TableSchema{
@@ -53,10 +76,17 @@ func NewMemDBStore() (*memDBStore, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &memDBStore{
+
+	s := &memDBStore{
 		db:           db,
 		patternIndex: TenantTopicIndexer(),
-	}, nil
+	}
+	gossip, err := router.NewGossip("mqtt-subscriptions", s)
+	if err != nil {
+		return nil, err
+	}
+	s.gossip = gossip
+	return s, nil
 }
 
 type topicIndexer struct {
@@ -71,9 +101,11 @@ func TenantTopicIndexer() *topicIndexer {
 func (t *topicIndexer) Remove(tenant, id string, pattern []byte) error {
 	return t.root.Remove(tenant, id, Topic(pattern))
 }
-func (t *topicIndexer) Lookup(tenant string, pattern []byte) (SubscriptionList, error) {
-	set := t.root.Select(tenant, nil, Topic(pattern))
-	return set, nil
+func (t *topicIndexer) Lookup(tenant string, pattern []byte) (*SubscriptionList, error) {
+	set := t.root.Select(tenant, nil, Topic(pattern)).Filter(func(s *Subscription) bool {
+		return s.IsAdded()
+	})
+	return &set, nil
 }
 
 func (s *topicIndexer) Index(subscription *Subscription) error {
@@ -107,6 +139,9 @@ func (m *memDBStore) first(tx *memdb.Txn, index string, value ...interface{}) (*
 	if !ok {
 		return res, errors.New("invalid type fetched")
 	}
+	if res.IsRemoved() {
+		return nil, ErrSubscriptionNotFound
+	}
 	return res, nil
 }
 func (m *memDBStore) all(tx *memdb.Txn, index string, value ...interface{}) (SubscriptionList, error) {
@@ -124,7 +159,9 @@ func (m *memDBStore) all(tx *memdb.Txn, index string, value ...interface{}) (Sub
 		if !ok {
 			return set, errors.New("invalid type fetched")
 		}
-		set = append(set, res)
+		if res.IsAdded() {
+			set.Subscriptions = append(set.Subscriptions, res)
+		}
 	}
 }
 
@@ -168,7 +205,7 @@ func (m *memDBStore) ByPeer(peer uint64) (SubscriptionList, error) {
 		return
 	})
 }
-func (m *memDBStore) ByTopic(tenant string, pattern []byte) (SubscriptionList, error) {
+func (m *memDBStore) ByTopic(tenant string, pattern []byte) (*SubscriptionList, error) {
 	return m.patternIndex.Lookup(tenant, pattern)
 }
 func (m *memDBStore) Sessions() ([]string, error) {
@@ -180,9 +217,9 @@ func (m *memDBStore) Sessions() ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	out := make([]string, len(res))
-	for idx := range res {
-		out[idx] = res[idx].SessionID
+	out := make([]string, len(res.Subscriptions))
+	for idx := range res.Subscriptions {
+		out[idx] = res.Subscriptions[idx].SessionID
 	}
 	return out, nil
 }
@@ -191,18 +228,11 @@ func (m *memDBStore) Delete(id string) error {
 	if err != nil {
 		return err
 	}
-	err = m.patternIndex.Remove(session.Tenant, session.ID, session.Pattern)
-	if err != nil {
-		return err
-	}
-	return m.write(func(tx *memdb.Txn) error {
-		err = tx.Delete("subscriptions", session)
-		if err != nil {
-			return err
-		}
-		tx.Commit()
-		return nil
+	session.LastDeleted = now()
+	defer m.gossip.GossipBroadcast(&SubscriptionList{
+		Subscriptions: []*Subscription{session},
 	})
+	return m.insert(session)
 }
 func MakeSubscriptionID(session string, pattern []byte) (string, error) {
 	hash := sha1.New()
@@ -217,18 +247,18 @@ func MakeSubscriptionID(session string, pattern []byte) (string, error) {
 	return fmt.Sprintf("%x", hash.Sum(nil)), nil
 }
 
-func (m *memDBStore) Create(message *Subscription) error {
-	if message.ID == "" {
-		log.Printf("WARN: autogenerating ID for subscription on topic %s", string(message.Pattern))
-		id, err := MakeSubscriptionID(message.SessionID, message.Pattern)
+func (m *memDBStore) insert(message *Subscription) error {
+	if message.IsAdded() {
+		err := m.patternIndex.Index(message)
 		if err != nil {
 			return err
 		}
-		message.ID = id
 	}
-	err := m.patternIndex.Index(message)
-	if err != nil {
-		return err
+	if message.IsRemoved() {
+		err := m.patternIndex.Remove(message.Tenant, message.ID, message.Pattern)
+		if err != nil {
+			return err
+		}
 	}
 	return m.write(func(tx *memdb.Txn) error {
 		err := tx.Insert("subscriptions", message)
@@ -238,4 +268,19 @@ func (m *memDBStore) Create(message *Subscription) error {
 		tx.Commit()
 		return nil
 	})
+}
+func (m *memDBStore) Create(message *Subscription) error {
+	if message.ID == "" {
+		log.Printf("WARN: autogenerating ID for subscription on topic %s", string(message.Pattern))
+		id, err := MakeSubscriptionID(message.SessionID, message.Pattern)
+		if err != nil {
+			return err
+		}
+		message.ID = id
+	}
+	message.LastUpdated = now()
+	defer m.gossip.GossipBroadcast(&SubscriptionList{
+		Subscriptions: []*Subscription{message},
+	})
+	return m.insert(message)
 }
