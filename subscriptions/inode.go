@@ -61,7 +61,7 @@ func (d *INode) Remove(tenant, id string, topic Topic) error {
 					return sub.ID == id
 				})
 				if len(target.Subscriptions) == 0 {
-					return errors.New("subscription not found")
+					return errors.New("subscription not found in index")
 				}
 				d.nodes[idx] = node.DelSubscription(id)
 				return nil
@@ -70,7 +70,7 @@ func (d *INode) Remove(tenant, id string, topic Topic) error {
 			}
 		}
 	}
-	return errors.New("subscription not found")
+	return errors.New("subscription not found in index")
 }
 
 func (d *INode) Select(tenant string, set *SubscriptionList, topic Topic) *SubscriptionList {

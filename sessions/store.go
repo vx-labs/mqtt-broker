@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/go-memdb"
+	"github.com/vx-labs/mqtt-broker/state"
 	"github.com/weaveworks/mesh"
 )
 
@@ -21,27 +22,24 @@ var now = func() int64 {
 }
 
 type SessionStore interface {
-	ById(id string) (*Session, error)
+	ByID(id string) (*Session, error)
 	ByPeer(peer uint64) (SessionList, error)
 	All() (SessionList, error)
 	Exists(id string) bool
 	Upsert(sess *Session) error
 	Delete(id string) error
-	ComputeDelta(set *SessionList) (delta *SessionList)
-	ApplyDelta(set *SessionList)
-	DumpState() *SessionList
 }
 
-type MemDBStore struct {
-	state  *memdb.MemDB
-	gossip mesh.Gossip
+type memDBStore struct {
+	db    *memdb.MemDB
+	state *state.Store
 }
 
 type Router interface {
 	NewGossip(channel string, gossiper mesh.Gossiper) (mesh.Gossip, error)
 }
 
-func NewSessionStore(router Router) SessionStore {
+func NewSessionStore(router Router) (SessionStore, error) {
 	db, err := memdb.NewMemDB(&memdb.DBSchema{
 		Tables: map[string]*memdb.TableSchema{
 			"sessions": {
@@ -76,17 +74,17 @@ func NewSessionStore(router Router) SessionStore {
 	if err != nil {
 		panic(err)
 	}
-	s := &MemDBStore{
-		state: db,
+	s := &memDBStore{
+		db: db,
 	}
-	gossip, err := router.NewGossip("mqtt-sessions", s)
+	state, err := state.NewStore("mqtt-sessions", s, router)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
-	s.gossip = gossip
-	return s
+	s.state = state
+	return s, nil
 }
-func (s *MemDBStore) DumpState() *SessionList {
+func (s *memDBStore) DumpState() *SessionList {
 	sessionList := SessionList{}
 	s.read(func(tx *memdb.Txn) error {
 		iterator, err := tx.Get("sessions", "id")
@@ -104,31 +102,12 @@ func (s *MemDBStore) DumpState() *SessionList {
 	})
 	return &sessionList
 }
-func (s *MemDBStore) ComputeDelta(set *SessionList) *SessionList {
-	delta := SessionList{}
-	set.Apply(func(remote *Session) {
-		local, err := s.ById(remote.ID)
-		if err != nil {
-			// Session not found in our store, add it to delta
-			delta.Sessions = append(delta.Sessions, remote)
-		} else {
-			if IsOutdated(local, remote) {
-				delta.Sessions = append(delta.Sessions, remote)
-			}
-		}
-	})
-	return &delta
-}
-func (s *MemDBStore) ApplyDelta(set *SessionList) {
-	set.Apply(func(remote *Session) {
-		s.insert(remote)
-	})
-}
-func (s *MemDBStore) Exists(id string) bool {
-	_, err := s.ById(id)
+
+func (s *memDBStore) Exists(id string) bool {
+	_, err := s.ByID(id)
 	return err == nil
 }
-func (s *MemDBStore) ById(id string) (*Session, error) {
+func (s *memDBStore) ByID(id string) (*Session, error) {
 	var session *Session
 	return session, s.read(func(tx *memdb.Txn) error {
 		sess, err := s.first(tx, "id", id)
@@ -139,13 +118,13 @@ func (s *MemDBStore) ById(id string) (*Session, error) {
 		return nil
 	})
 }
-func (s *MemDBStore) All() (SessionList, error) {
+func (s *memDBStore) All() (SessionList, error) {
 	return s.DumpState().Filter(func(s *Session) bool {
 		return s.IsAdded()
 	}), nil
 }
 
-func (s *MemDBStore) ByPeer(peer uint64) (SessionList, error) {
+func (s *memDBStore) ByPeer(peer uint64) (SessionList, error) {
 	var sessionList SessionList
 	return sessionList, s.read(func(tx *memdb.Txn) error {
 		iterator, err := tx.Get("sessions", "peer", peer)
@@ -165,42 +144,39 @@ func (s *MemDBStore) ByPeer(peer uint64) (SessionList, error) {
 	})
 }
 
-func (s *MemDBStore) Upsert(sess *Session) error {
-	sess.LastUpdated = now()
+func (s *memDBStore) Upsert(sess *Session) error {
+	sess.LastAdded = now()
 	if sess.Tenant == "" {
 		sess.Tenant = defaultTenant
 	}
-	defer s.gossip.GossipBroadcast(&SessionList{
-		Sessions: []*Session{sess},
-	})
-	return s.insert(sess)
+	return s.state.Upsert(sess)
 }
-func (s *MemDBStore) insert(sess *Session) error {
+func (s *memDBStore) insert(sessions []*Session) error {
 	return s.write(func(tx *memdb.Txn) error {
-		return tx.Insert("sessions", sess)
+		for _, sess := range sessions {
+			tx.Insert("sessions", sess)
+		}
+		return nil
 	})
 }
-func (s *MemDBStore) Delete(id string) error {
-	sess, err := s.ById(id)
+func (s *memDBStore) Delete(id string) error {
+	sess, err := s.ByID(id)
 	if err != nil {
 		return nil
 	}
 	sess.LastDeleted = now()
-	defer s.gossip.GossipBroadcast(&SessionList{
-		Sessions: []*Session{sess},
-	})
-	return s.insert(sess)
+	return s.state.Upsert(sess)
 }
 
-func (s *MemDBStore) read(statement func(tx *memdb.Txn) error) error {
-	tx := s.state.Txn(false)
+func (s *memDBStore) read(statement func(tx *memdb.Txn) error) error {
+	tx := s.db.Txn(false)
 	return s.run(tx, statement)
 }
-func (s *MemDBStore) write(statement func(tx *memdb.Txn) error) error {
-	tx := s.state.Txn(true)
+func (s *memDBStore) write(statement func(tx *memdb.Txn) error) error {
+	tx := s.db.Txn(true)
 	return s.run(tx, statement)
 }
-func (s *MemDBStore) run(tx *memdb.Txn, statement func(tx *memdb.Txn) error) error {
+func (s *memDBStore) run(tx *memdb.Txn, statement func(tx *memdb.Txn) error) error {
 	defer tx.Abort()
 	err := statement(tx)
 	if err != nil {
@@ -210,7 +186,7 @@ func (s *MemDBStore) run(tx *memdb.Txn, statement func(tx *memdb.Txn) error) err
 	return nil
 }
 
-func (s *MemDBStore) first(tx *memdb.Txn, idx, id string) (*Session, error) {
+func (s *memDBStore) first(tx *memdb.Txn, idx, id string) (*Session, error) {
 	data, err := tx.First("sessions", idx, id)
 	if err != nil || data == nil {
 		return &Session{}, ErrSessionNotFound

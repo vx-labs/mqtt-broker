@@ -44,14 +44,14 @@ func (set SubscriptionList) ApplyIdx(f func(idx int, s *Subscription)) {
 }
 
 func (s *Subscription) IsAdded() bool {
-	return s.LastUpdated > 0 && s.LastUpdated > s.LastDeleted
+	return s.LastAdded > 0 && s.LastAdded > s.LastDeleted
 }
 func (s *Subscription) IsRemoved() bool {
-	return s.LastDeleted > 0 && s.LastUpdated < s.LastDeleted
+	return s.LastDeleted > 0 && s.LastAdded < s.LastDeleted
 }
 
 func IsOutdated(s *Subscription, remote *Subscription) (outdated bool) {
-	if s.LastUpdated < remote.LastUpdated {
+	if s.LastAdded < remote.LastAdded {
 		outdated = true
 	}
 	if s.LastDeleted < remote.LastDeleted {

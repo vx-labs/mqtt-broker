@@ -26,19 +26,19 @@ func TestMemDB(t *testing.T) {
 	db, err := NewMemDBStore(&mockRouter{})
 	assert.Nil(t, err)
 	assert.Nil(t, db.Create(&RetainedMessage{
-		Id:      "a1",
+		ID:      "a1",
 		Payload: []byte("bla"),
 		Tenant:  "tenant1",
 		Topic:   []byte("devices/a/temperature"),
 	}))
 	assert.Nil(t, db.Create(&RetainedMessage{
-		Id:      "a2",
+		ID:      "a2",
 		Payload: []byte("bla"),
 		Tenant:  "tenant1",
 		Topic:   []byte("devices/b/temperature"),
 	}))
 	assert.Nil(t, db.Create(&RetainedMessage{
-		Id:      "b1",
+		ID:      "b1",
 		Payload: []byte("bla"),
 		Tenant:  "tenant2",
 		Topic:   []byte("devices/c/temperature"),
@@ -49,8 +49,8 @@ func TestMemDB(t *testing.T) {
 		t.Fail()
 		return
 	}
-	assert.Equal(t, "a1", m.RetainedMessages[0].Id)
-	assert.Equal(t, "a2", m.RetainedMessages[1].Id)
+	assert.Equal(t, "a1", m.RetainedMessages[0].ID)
+	assert.Equal(t, "a2", m.RetainedMessages[1].ID)
 	set, err := db.ByTopicPattern("tenant1", []byte("devices/+/+"))
 	assert.Nil(t, err)
 	assert.Equal(t, 2, len(set.RetainedMessages))
@@ -63,19 +63,19 @@ func TestMemDBDump(t *testing.T) {
 	db, err := NewMemDBStore(&mockRouter{})
 	assert.Nil(t, err)
 	assert.Nil(t, db.Create(&RetainedMessage{
-		Id:      "a1",
+		ID:      "a1",
 		Payload: []byte("bla"),
 		Tenant:  "tenant1",
 		Topic:   []byte("devices/a/temperature"),
 	}))
 	assert.Nil(t, db.Create(&RetainedMessage{
-		Id:      "a2",
+		ID:      "a2",
 		Payload: []byte("bla"),
 		Tenant:  "tenant1",
 		Topic:   []byte("devices/b/temperature"),
 	}))
 	assert.Nil(t, db.Create(&RetainedMessage{
-		Id:      "b1",
+		ID:      "b1",
 		Payload: []byte("bla"),
 		Tenant:  "tenant2",
 		Topic:   []byte("devices/c/temperature"),

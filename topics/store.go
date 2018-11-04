@@ -7,13 +7,14 @@ import (
 	"time"
 
 	"github.com/hashicorp/go-memdb"
+	"github.com/vx-labs/mqtt-broker/state"
 	"github.com/weaveworks/mesh"
 )
 
 type memDBStore struct {
 	db         *memdb.MemDB
+	state      *state.Store
 	topicIndex *topicIndexer
-	gossip     mesh.Gossip
 }
 
 var (
@@ -41,19 +42,6 @@ type Router interface {
 	NewGossip(channel string, gossiper mesh.Gossiper) (mesh.Gossip, error)
 }
 
-type ByteSliceIndexer struct {
-	i memdb.StringFieldIndex
-}
-
-func (b *ByteSliceIndexer) FromArgs(opts ...interface{}) ([]byte, error) {
-	return b.i.FromArgs(opts...)
-}
-
-func (b *ByteSliceIndexer) FromObject(obj interface{}) (bool, []byte, error) {
-	message := obj.(*RetainedMessage)
-	return true, append(message.GetTopic(), '\x00'), nil
-}
-
 func NewMemDBStore(router Router) (*memDBStore, error) {
 	db, err := memdb.NewMemDB(&memdb.DBSchema{
 		Tables: map[string]*memdb.TableSchema{
@@ -65,7 +53,7 @@ func NewMemDBStore(router Router) (*memDBStore, error) {
 						AllowMissing: false,
 						Unique:       true,
 						Indexer: &memdb.StringFieldIndex{
-							Field: "Id",
+							Field: "ID",
 						},
 					},
 					"tenant": &memdb.IndexSchema{
@@ -85,11 +73,11 @@ func NewMemDBStore(router Router) (*memDBStore, error) {
 		db:         db,
 		topicIndex: TenantTopicIndexer(),
 	}
-	gossip, err := router.NewGossip("mqtt-topics", s)
+	state, err := state.NewStore("mqtt-topics", s, router)
 	if err != nil {
 		return nil, err
 	}
-	s.gossip = gossip
+	s.state = state
 	return s, nil
 }
 
@@ -121,54 +109,6 @@ func (s *topicIndexer) Index(message *RetainedMessage) error {
 	node.Message = message
 	return nil
 }
-func (m *memDBStore) do(write bool, f func(*memdb.Txn) error) error {
-	tx := m.db.Txn(write)
-	defer tx.Abort()
-	return f(tx)
-}
-func (m *memDBStore) read(f func(*memdb.Txn) error) error {
-	return m.do(false, f)
-}
-func (m *memDBStore) write(f func(*memdb.Txn) error) error {
-	return m.do(true, f)
-}
-
-func (m *memDBStore) first(tx *memdb.Txn, index string, value ...interface{}) (*RetainedMessage, error) {
-	var ok bool
-	var res *RetainedMessage
-	data, err := tx.First("messages", index, value...)
-	if err != nil {
-		return res, err
-	}
-	res, ok = data.(*RetainedMessage)
-	if !ok {
-		return res, errors.New("invalid type fetched")
-	}
-	if res.IsRemoved() {
-		return nil, ErrRetainedMessageNotFound
-	}
-	return res, nil
-}
-func (m *memDBStore) all(tx *memdb.Txn, index string, value ...interface{}) (RetainedMessageList, error) {
-	var set RetainedMessageList
-	iterator, err := tx.Get("messages", index, value...)
-	if err != nil {
-		return set, err
-	}
-	for {
-		data := iterator.Next()
-		if data == nil {
-			return set, nil
-		}
-		res, ok := data.(*RetainedMessage)
-		if !ok {
-			return set, errors.New("invalid type fetched")
-		}
-		if res.IsAdded() {
-			set.RetainedMessages = append(set.RetainedMessages, res)
-		}
-	}
-}
 
 func (m *memDBStore) ByID(id string) (*RetainedMessage, error) {
 	var res *RetainedMessage
@@ -195,41 +135,40 @@ func (m *memDBStore) ByTopicPattern(tenant string, pattern []byte) (RetainedMess
 	return m.topicIndex.Lookup(tenant, pattern)
 }
 func (m *memDBStore) Create(message *RetainedMessage) error {
-	if message.Id == "" {
+	if message.ID == "" {
 		id, err := MakeTopicID(message.Tenant, message.Topic)
 		if err != nil {
 			return err
 		}
-		message.Id = id
+		message.ID = id
 	}
-	message.LastUpdated = now()
+	message.LastAdded = now()
 	err := m.topicIndex.Index(message)
 	if err != nil {
 		return err
 	}
-	defer m.gossip.GossipBroadcast(&RetainedMessageList{
-		RetainedMessages: []*RetainedMessage{message},
-	})
-	return m.insert(message)
+	return m.state.Upsert(message)
 }
-func (m *memDBStore) insert(message *RetainedMessage) error {
-	if message.IsAdded() {
-		err := m.topicIndex.Index(message)
-		if err != nil {
-			return err
-		}
-	}
-	if message.IsRemoved() {
-		message.Payload = nil
-		err := m.topicIndex.Index(message)
-		if err != nil {
-			return err
-		}
-	}
+func (m *memDBStore) insert(messages []*RetainedMessage) error {
 	return m.write(func(tx *memdb.Txn) error {
-		err := tx.Insert("messages", message)
-		if err != nil {
-			return err
+		for _, message := range messages {
+			if message.IsAdded() {
+				err := m.topicIndex.Index(message)
+				if err != nil {
+					return err
+				}
+			}
+			if message.IsRemoved() {
+				message.Payload = nil
+				err := m.topicIndex.Index(message)
+				if err != nil {
+					return err
+				}
+			}
+			err := tx.Insert("messages", message)
+			if err != nil {
+				return err
+			}
 		}
 		tx.Commit()
 		return nil

@@ -29,7 +29,7 @@ import (
 //go:generate protoc -I${GOPATH}/src -I${GOPATH}/src/github.com/vx-labs/mqtt-broker/broker/ --go_out=plugins=grpc:. events.proto
 
 type SessionStore interface {
-	ById(id string) (*sessions.Session, error)
+	ByID(id string) (*sessions.Session, error)
 	ByPeer(peer uint64) (sessions.SessionList, error)
 	All() (sessions.SessionList, error)
 	Exists(id string) bool
@@ -81,8 +81,10 @@ func New(id identity.Identity, config Config) *Broker {
 	if err != nil {
 		log.Fatal(err)
 	}
-	sessionsStore := sessions.NewSessionStore(broker.Peer.Router())
-
+	sessionsStore, err := sessions.NewSessionStore(broker.Peer.Router())
+	if err != nil {
+		log.Fatal(err)
+	}
 	broker.Topics = topicssStore
 	broker.Subscriptions = subscriptionsStore
 	broker.Sessions = sessionsStore

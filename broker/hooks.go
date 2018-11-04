@@ -96,7 +96,7 @@ func (b *Broker) OnSessionClosed(id, tenant string) {
 	if err != nil {
 		return
 	}
-	sess, err := b.Sessions.ById(id)
+	sess, err := b.Sessions.ByID(id)
 	if err != nil || sess.Peer != uint64(b.Peer.Name()) {
 		return
 	}
@@ -108,7 +108,7 @@ func (b *Broker) OnSessionClosed(id, tenant string) {
 }
 func (b *Broker) OnSessionLost(id, tenant string) {
 	defer b.OnSessionClosed(id, tenant)
-	sess, err := b.Sessions.ById(id)
+	sess, err := b.Sessions.ByID(id)
 	if err != nil {
 		return
 	}
@@ -136,7 +136,7 @@ func (b *Broker) closeLocalSession(sess *sessions.Session) {
 }
 func (b *Broker) OnConnect(id, tenant string, ch *listener.Session, transport string) {
 	connectPkt := ch.Connect()
-	sess, err := b.Sessions.ById(id)
+	sess, err := b.Sessions.ByID(id)
 	if err == nil && sess.Peer == uint64(b.Peer.Name()) {
 		b.closeLocalSession(sess)
 		log.Printf("INFO: session %s reconnected with client_id=%s, keepalive=%d", id, connectPkt.ClientId, connectPkt.KeepaliveTimer)
