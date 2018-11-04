@@ -187,10 +187,7 @@ func (m *memDBStore) insert(messages []*Subscription) error {
 				}
 			}
 			if message.IsRemoved() {
-				err := m.patternIndex.Remove(message.Tenant, message.ID, message.Pattern)
-				if err != nil {
-					return err
-				}
+				m.patternIndex.Remove(message.Tenant, message.ID, message.Pattern)
 			}
 			err := tx.Insert(table, message)
 			if err != nil {
