@@ -3,7 +3,6 @@ package sessions
 import (
 	"testing"
 
-	"github.com/stretchr/testify/require"
 	"github.com/weaveworks/mesh"
 
 	"github.com/stretchr/testify/assert"
@@ -30,7 +29,7 @@ func (m *mockRouter) NewGossip(channel string, gossiper mesh.Gossiper) (mesh.Gos
 }
 
 func TestSessionStore(t *testing.T) {
-	store := NewSessionStore(&mockRouter{})
+	store, _ := NewSessionStore(&mockRouter{})
 
 	t.Run("create", func(t *testing.T) {
 		err := store.Upsert(&Session{
@@ -61,33 +60,14 @@ func TestSessionStore(t *testing.T) {
 	t.Run("delete", func(t *testing.T) {
 		err := store.Delete(sessionID)
 		assert.Nil(t, err)
-		_, err = store.ById(sessionID)
+		_, err = store.ByID(sessionID)
 		assert.NotNil(t, err)
-	})
-	t.Run("merge", func(t *testing.T) {
-		remote := NewSessionStore(&mockRouter{})
-		require.NoError(t, remote.Upsert(&Session{
-			ID:   "a",
-			Peer: 5,
-		}))
-		delta := store.ComputeDelta(remote.DumpState())
-		require.Equal(t, 1, len(delta.Sessions))
-		require.Equal(t, "a", delta.Sessions[0].ID)
-
-		require.NoError(t, remote.Upsert(&Session{
-			ID:   "3",
-			Peer: 5,
-		}))
-		delta = store.ComputeDelta(remote.DumpState())
-		require.Equal(t, 2, len(delta.Sessions))
-		require.Equal(t, "a", delta.Sessions[1].ID)
-		require.Equal(t, "3", delta.Sessions[0].ID)
 	})
 }
 
 func lookup(store SessionStore, id string) func(*testing.T) {
 	return func(t *testing.T) {
-		sess, err := store.ById(id)
+		sess, err := store.ByID(id)
 		assert.Nil(t, err)
 		assert.Equal(t, id, sess.ID)
 	}
