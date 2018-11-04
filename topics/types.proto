@@ -2,12 +2,12 @@ syntax = "proto3";
 package topics;
 
 message RetainedMessage {
-   string id = 1;
-   string tenant = 2;
-   bytes topic = 3;
-   bytes payload = 4;
-   int32 qos = 5;
-  int64 LastUpdated = 6;
+   string ID = 1;
+   string Tenant = 2;
+   bytes Topic = 3;
+   bytes Payload = 4;
+   int32 Qos = 5;
+  int64 LastAdded = 6;
   int64 LastDeleted = 7;
 }
 

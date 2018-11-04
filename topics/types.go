@@ -46,7 +46,7 @@ func (set RetainedMessageList) ApplyE(f func(s *RetainedMessage) error) error {
 
 func HasID(id string) retainedMessageFilter {
 	return func(s *RetainedMessage) bool {
-		return s.Id == id
+		return s.ID == id
 	}
 }
 func MatchTopicPattern(pattern []byte) retainedMessageFilter {
@@ -61,7 +61,7 @@ func HasIDIn(set []string) retainedMessageFilter {
 		wantedIDs[id] = struct{}{}
 	}
 	return func(s *RetainedMessage) bool {
-		_, ok := wantedIDs[s.Id]
+		_, ok := wantedIDs[s.ID]
 		return ok
 	}
 }
@@ -77,14 +77,14 @@ func (set RetainedMessageList) ApplyIdx(f func(idx int, s *RetainedMessage)) {
 }
 
 func (s *RetainedMessage) IsAdded() bool {
-	return s.LastUpdated > 0 && s.LastUpdated > s.LastDeleted
+	return s.LastAdded > 0 && s.LastAdded > s.LastDeleted
 }
 func (s *RetainedMessage) IsRemoved() bool {
-	return s.LastDeleted > 0 && s.LastUpdated < s.LastDeleted
+	return s.LastDeleted > 0 && s.LastAdded < s.LastDeleted
 }
 
 func IsOutdated(s *RetainedMessage, remote *RetainedMessage) (outdated bool) {
-	if s.LastUpdated < remote.LastUpdated {
+	if s.LastAdded < remote.LastAdded {
 		outdated = true
 	}
 	if s.LastDeleted < remote.LastDeleted {
