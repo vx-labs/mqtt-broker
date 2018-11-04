@@ -78,6 +78,21 @@ func TestNode(t *testing.T) {
 		set = root.Select(tenant, nil, topic)
 		require.Equal(t, 1, len(set.Subscriptions))
 	})
+	t.Run("select mlw", func(t *testing.T) {
+		root := NewINode()
+		topic := Topic([]byte("devices/heater/state"))
+		a := NewNode(tenant, []byte("devices"))
+		b := NewNode(tenant, []byte("#"))
+		b = b.AddSubscription(tenant, sub_1)
+		a.inode.AddNode(b)
+		root.AddNode(a)
+
+		/*
+			a (devices) -> b (#)
+		*/
+		set := root.Select(tenant, nil, topic)
+		require.Equal(t, 1, len(set.Subscriptions))
+	})
 
 }
 

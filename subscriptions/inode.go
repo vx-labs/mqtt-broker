@@ -80,7 +80,7 @@ func (d *INode) Select(tenant string, set *SubscriptionList, topic Topic) *Subsc
 	topic, token, ok := topic.Chop()
 	for _, node := range d.nodes {
 		if node.tenant == tenant && matchPattern(token, node.pattern) {
-			if !ok {
+			if !ok || (len(node.pattern) == 1 && node.pattern[0] == '#') {
 				set.Subscriptions = append(set.Subscriptions, node.data.Subscriptions...)
 			} else {
 				set = node.inode.Select(tenant, set, topic)
