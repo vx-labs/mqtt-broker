@@ -1,6 +1,11 @@
 package state
 
-import "github.com/weaveworks/mesh"
+import (
+	"sync"
+	"time"
+
+	"github.com/weaveworks/mesh"
+)
 
 type Backend interface {
 	EntryByID(id string) (Entry, error)
@@ -18,10 +23,44 @@ type Router interface {
 var _ mesh.Gossiper = &Store{}
 
 type Store struct {
+	mutex   sync.Mutex
+	pending EntrySet
 	backend Backend
 	gossip  mesh.Gossip
 }
 
+func (s *Store) flusher() {
+	for range time.Tick(100 * time.Millisecond) {
+		s.flush()
+	}
+}
+func (s *Store) flush() {
+	s.mutex.Lock()
+	if s.pending.Length() > 0 {
+		s.gossip.GossipBroadcast(&Dataset{backend: s.pending})
+		s.pending = s.backend.Set()
+	}
+	if s.pending.Length() > 20 {
+		defer s.flush()
+	}
+	s.mutex.Unlock()
+}
+func (s *Store) queue(remote Entry) {
+	s.mutex.Lock()
+	foundIdx := -1
+	s.pending.Range(func(idx int, local Entry) {
+		if local.GetID() == remote.GetID() &&
+			isEntryOutdated(local, remote) {
+			foundIdx = idx
+		}
+	})
+	if foundIdx > -1 {
+		s.pending.Set(foundIdx, remote)
+	} else {
+		s.pending.Append(remote)
+	}
+	s.mutex.Unlock()
+}
 func (s *Store) ApplyDelta(set EntrySet) error {
 	return s.backend.InsertEntries(set)
 }
@@ -68,20 +107,20 @@ func (s *Store) OnGossipUnicast(src mesh.PeerName, msg []byte) error {
 }
 
 func (s *Store) Upsert(entry Entry) error {
-	set := s.backend.Set()
-	set.Append(entry)
-	s.gossip.GossipBroadcast(&Dataset{backend: set})
+	s.queue(entry)
 	return s.backend.InsertEntry(entry)
 }
 
 func NewStore(channel string, backend Backend, router Router) (*Store, error) {
 	s := &Store{
 		backend: backend,
+		pending: backend.Set(),
 	}
 	gossip, err := router.NewGossip(channel, s)
 	if err != nil {
 		return nil, err
 	}
 	s.gossip = gossip
+	go s.flusher()
 	return s, nil
 }
