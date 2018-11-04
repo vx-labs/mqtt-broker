@@ -12,7 +12,7 @@ job "mqtt-rpc" {
   }
 
   group "broker" {
-    count = 1
+    count = 2
 
     restart {
       attempts = 10
