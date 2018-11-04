@@ -8,7 +8,7 @@ message Subscription {
   bytes Pattern = 4;
   int32 Qos = 5;
   uint64 Peer = 6;
-  int64 LastUpdated = 7;
+  int64 LastAdded = 7;
   int64 LastDeleted = 8;
 }
 
