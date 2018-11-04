@@ -51,6 +51,9 @@ func (m *memDBStore) DecodeSet(buf []byte) (state.EntrySet, error) {
 	set := &RetainedMessageList{}
 	return set, proto.Unmarshal(buf, set)
 }
+func (m memDBStore) Set() state.EntrySet {
+	return &RetainedMessageList{}
+}
 func (m memDBStore) Dump() state.EntrySet {
 	RetainedMessageList := RetainedMessageList{}
 	m.read(func(tx *memdb.Txn) error {

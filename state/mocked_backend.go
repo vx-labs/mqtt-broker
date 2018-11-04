@@ -43,6 +43,9 @@ func (m MockedBackend) DeleteEntry(e Entry) error {
 	delete(m, e.GetID())
 	return nil
 }
+func (m MockedBackend) Set() EntrySet {
+	return &MockedEntryList{}
+}
 func (m MockedBackend) Dump() EntrySet {
 	set := &MockedEntryList{}
 	for _, e := range m {

@@ -8,6 +8,7 @@ type Backend interface {
 	InsertEntry(Entry) error
 	DeleteEntry(Entry) error
 	DecodeSet([]byte) (EntrySet, error)
+	Set() EntrySet
 	Dump() EntrySet
 }
 type Router interface {
@@ -67,7 +68,9 @@ func (s *Store) OnGossipUnicast(src mesh.PeerName, msg []byte) error {
 }
 
 func (s *Store) Upsert(entry Entry) error {
-	// TODO: broadcast to gossip layer
+	set := s.backend.Set()
+	set.Append(entry)
+	s.gossip.GossipBroadcast(&Dataset{backend: set})
 	return s.backend.InsertEntry(entry)
 }
 
