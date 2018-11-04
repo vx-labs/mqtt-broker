@@ -1,4 +1,6 @@
 .env*
 vendor/
-jobs/
 .vscode
+terraform/.terraform
+terraform/terraform.tfstate
+terraform/terraform.tfstate*
