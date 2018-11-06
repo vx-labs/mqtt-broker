@@ -29,21 +29,6 @@ type Store struct {
 	gossip  mesh.Gossip
 }
 
-func (s *Store) gCRunner() {
-	for range time.Tick(1 * time.Hour) {
-		s.gC()
-	}
-}
-func (s *Store) gC() {
-	set := s.backend.Dump()
-	set.Range(func(idx int, entry Entry) {
-		if isEntryRemoved(entry) {
-			if entry.GetLastDeleted() > time.Now().Truncate(8*time.Hour).UnixNano() {
-				s.backend.DeleteEntry(entry)
-			}
-		}
-	})
-}
 func (s *Store) flusher() {
 	for range time.Tick(100 * time.Millisecond) {
 		s.flush()
