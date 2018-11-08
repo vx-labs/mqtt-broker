@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/go-memdb"
+	"github.com/vx-labs/mqtt-broker/events"
 	"github.com/vx-labs/mqtt-broker/state"
 	"github.com/weaveworks/mesh"
 )
@@ -15,10 +16,16 @@ type memDBStore struct {
 	db         *memdb.MemDB
 	state      *state.Store
 	topicIndex *topicIndexer
+	events     *events.Bus
 }
 
 var (
 	ErrRetainedMessageNotFound = errors.New("retained message not found")
+)
+
+const (
+	RetainedMessageCreated string = "retained_message_created"
+	RetainedMessageDeleted string = "retained_message_deleted"
 )
 
 func MakeTopicID(tenant string, topic []byte) (string, error) {
@@ -72,6 +79,7 @@ func NewMemDBStore(router Router) (*memDBStore, error) {
 	s := &memDBStore{
 		db:         db,
 		topicIndex: TenantTopicIndexer(),
+		events:     events.NewEventBus(),
 	}
 	state, err := state.NewStore("mqtt-topics", s, router)
 	if err != nil {
@@ -153,12 +161,20 @@ func (m *memDBStore) insert(messages []*RetainedMessage) error {
 	return m.write(func(tx *memdb.Txn) error {
 		for _, message := range messages {
 			if message.IsAdded() {
+				m.events.Emit(events.Event{
+					Key:   RetainedMessageCreated,
+					Entry: message,
+				})
 				err := m.topicIndex.Index(message)
 				if err != nil {
 					return err
 				}
 			}
 			if message.IsRemoved() {
+				m.events.Emit(events.Event{
+					Key:   RetainedMessageDeleted,
+					Entry: message,
+				})
 				message.Payload = nil
 				err := m.topicIndex.Index(message)
 				if err != nil {
@@ -173,4 +189,15 @@ func (m *memDBStore) insert(messages []*RetainedMessage) error {
 		tx.Commit()
 		return nil
 	})
+}
+func (s *memDBStore) On(event string, handler func(*RetainedMessage)) func() {
+	ch, cancel := s.events.Subscribe()
+	go func() {
+		for ev := range ch {
+			if event == "*" || ev.Key == event {
+				handler(ev.Entry.(*RetainedMessage))
+			}
+		}
+	}()
+	return cancel
 }

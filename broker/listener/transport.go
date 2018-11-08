@@ -190,10 +190,10 @@ func (l *listener) runSession(t Transport) {
 	}
 	c.Close()
 	if err != nil && err != ErrSessionDisconnected {
-		log.Printf("WARN: listener %s: session %s lost: %v", t.Name(), session.id, err)
+		//log.Printf("WARN: listener %s: session %s lost: %v", t.Name(), session.id, err)
 		handler.OnSessionLost(session.id, session.tenant)
 	} else {
-		log.Printf("INFO: listener %s: session %s closed", t.Name(), session.id)
+		//log.Printf("INFO: listener %s: session %s closed", t.Name(), session.id)
 		handler.OnSessionClosed(session.id, session.tenant)
 	}
 }

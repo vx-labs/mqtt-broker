@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/go-memdb"
+	"github.com/vx-labs/mqtt-broker/events"
 	"github.com/vx-labs/mqtt-broker/state"
 )
 
@@ -19,13 +20,19 @@ type Store interface {
 	Sessions() ([]string, error)
 	Create(message *Subscription) error
 	Delete(id string) error
-	Gossiper() *state.Store
+	On(event string, handler func(*Subscription)) func()
 }
+
+const (
+	SubscriptionCreated string = "subscription_created"
+	SubscriptionDeleted string = "subscription_deleted"
+)
 
 type memDBStore struct {
 	db           *memdb.MemDB
 	state        *state.Store
 	patternIndex *topicIndexer
+	events       *events.Bus
 }
 
 var (
@@ -78,6 +85,7 @@ func NewMemDBStore(router state.Router) (Store, error) {
 	s := &memDBStore{
 		db:           db,
 		patternIndex: TenantTopicIndexer(),
+		events:       events.NewEventBus(),
 	}
 	state, err := state.NewStore("mqtt-subscriptions", s, router)
 	if err != nil {
@@ -181,12 +189,20 @@ func (m *memDBStore) insert(messages []*Subscription) error {
 	return m.write(func(tx *memdb.Txn) error {
 		for _, message := range messages {
 			if message.IsAdded() {
+				m.events.Emit(events.Event{
+					Key:   SubscriptionCreated,
+					Entry: message,
+				})
 				err := m.patternIndex.Index(message)
 				if err != nil {
 					return err
 				}
 			}
 			if message.IsRemoved() {
+				m.events.Emit(events.Event{
+					Key:   SubscriptionDeleted,
+					Entry: message,
+				})
 				m.patternIndex.Remove(message.Tenant, message.ID, message.Pattern)
 			}
 			err := tx.Insert(table, message)
@@ -209,4 +225,16 @@ func (m *memDBStore) Delete(id string) error {
 func (m *memDBStore) Create(message *Subscription) error {
 	message.LastAdded = now()
 	return m.state.Upsert(message)
+}
+
+func (s *memDBStore) On(event string, handler func(*Subscription)) func() {
+	ch, cancel := s.events.Subscribe()
+	go func() {
+		for ev := range ch {
+			if event == "*" || ev.Key == event {
+				handler(ev.Entry.(*Subscription))
+			}
+		}
+	}()
+	return cancel
 }

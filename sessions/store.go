@@ -4,6 +4,8 @@ import (
 	"errors"
 	"time"
 
+	"github.com/vx-labs/mqtt-broker/events"
+
 	"github.com/hashicorp/go-memdb"
 	"github.com/vx-labs/mqtt-broker/state"
 	"github.com/weaveworks/mesh"
@@ -11,6 +13,10 @@ import (
 
 const (
 	defaultTenant = "_default"
+)
+const (
+	SessionCreated string = "session_created"
+	SessionDeleted string = "session_deleted"
 )
 
 var (
@@ -28,11 +34,13 @@ type SessionStore interface {
 	Exists(id string) bool
 	Upsert(sess *Session) error
 	Delete(id string) error
+	On(event string, handler func(*Session)) func()
 }
 
 type memDBStore struct {
-	db    *memdb.MemDB
-	state *state.Store
+	db     *memdb.MemDB
+	state  *state.Store
+	events *events.Bus
 }
 
 type Router interface {
@@ -75,7 +83,8 @@ func NewSessionStore(router Router) (SessionStore, error) {
 		panic(err)
 	}
 	s := &memDBStore{
-		db: db,
+		db:     db,
+		events: events.NewEventBus(),
 	}
 	state, err := state.NewStore("mqtt-sessions", s, router)
 	if err != nil {
@@ -154,6 +163,17 @@ func (s *memDBStore) Upsert(sess *Session) error {
 func (s *memDBStore) insert(sessions []*Session) error {
 	return s.write(func(tx *memdb.Txn) error {
 		for _, sess := range sessions {
+			if sess.IsAdded() {
+				s.events.Emit(events.Event{
+					Entry: sess,
+					Key:   "session_created",
+				})
+			} else if sess.IsRemoved() {
+				s.events.Emit(events.Event{
+					Entry: sess,
+					Key:   "session_deleted",
+				})
+			}
 			tx.Insert("sessions", sess)
 		}
 		return nil
@@ -196,4 +216,16 @@ func (s *memDBStore) first(tx *memdb.Txn, idx, id string) (*Session, error) {
 		return nil, ErrSessionNotFound
 	}
 	return sess, nil
+}
+
+func (s *memDBStore) On(event string, handler func(*Session)) func() {
+	ch, cancel := s.events.Subscribe()
+	go func() {
+		for ev := range ch {
+			if event == "*" || ev.Key == event {
+				handler(ev.Entry.(*Session))
+			}
+		}
+	}()
+	return cancel
 }

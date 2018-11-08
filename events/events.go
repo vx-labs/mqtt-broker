@@ -1,7 +1,6 @@
 package events
 
 import (
-	"log"
 	"sync/atomic"
 	"unsafe"
 
@@ -46,7 +45,6 @@ func (e *Bus) Subscribe() (chan Event, func()) {
 		quit: make(chan struct{}),
 	}
 	id := uuid.New().String()
-	log.Println(id)
 	cancel := func() {
 		for {
 			old := e.state
