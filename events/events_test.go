@@ -7,7 +7,7 @@ import (
 )
 
 func TestEvents(t *testing.T) {
-	bus := EventBus{
+	bus := Bus{
 		state: iradix.New(),
 	}
 	events, cancel := bus.Subscribe()
@@ -26,7 +26,7 @@ func TestEvents(t *testing.T) {
 }
 
 func BenchmarkEvents(b *testing.B) {
-	bus := EventBus{
+	bus := Bus{
 		state: iradix.New(),
 	}
 	events, cancel := bus.Subscribe()

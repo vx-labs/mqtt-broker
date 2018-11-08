@@ -21,16 +21,16 @@ type subscription struct {
 
 type CancelFunc func()
 
-type EventBus struct {
+type Bus struct {
 	state *iradix.Tree
 }
 
-func (e *EventBus) cas(old, new *iradix.Tree) bool {
+func (e *Bus) cas(old, new *iradix.Tree) bool {
 	oldPtr := (*unsafe.Pointer)(unsafe.Pointer(&e.state))
 	return atomic.CompareAndSwapPointer(oldPtr, unsafe.Pointer(old), unsafe.Pointer(new))
 }
 
-func (e *EventBus) Emit(ev Event) {
+func (e *Bus) Emit(ev Event) {
 	e.state.Root().Walk(func(k []byte, v interface{}) bool {
 		sub := v.(*subscription)
 		select {
@@ -40,7 +40,7 @@ func (e *EventBus) Emit(ev Event) {
 		return false
 	})
 }
-func (e *EventBus) Subscribe() (chan Event, func()) {
+func (e *Bus) Subscribe() (chan Event, func()) {
 	sub := &subscription{
 		ch:   make(chan Event),
 		quit: make(chan struct{}),
@@ -67,8 +67,8 @@ func (e *EventBus) Subscribe() (chan Event, func()) {
 	}
 }
 
-func NewEventBus() *EventBus {
-	return &EventBus{
+func NewEventBus() *Bus {
+	return &Bus{
 		state: iradix.New(),
 	}
 }
