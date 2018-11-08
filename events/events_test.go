@@ -1,4 +1,4 @@
-package state
+package events
 
 import (
 	"testing"
@@ -10,7 +10,7 @@ func TestEvents(t *testing.T) {
 	bus := EventBus{
 		state: iradix.New(),
 	}
-	events, cancel := bus.Events()
+	events, cancel := bus.Subscribe()
 
 	done := make(chan struct{})
 	go func() {
@@ -18,7 +18,7 @@ func TestEvents(t *testing.T) {
 		close(done)
 	}()
 	bus.Emit(Event{
-		Kind:  EntryAdded,
+		Key:   "entry_added",
 		Entry: nil,
 	})
 	<-done
@@ -29,7 +29,7 @@ func BenchmarkEvents(b *testing.B) {
 	bus := EventBus{
 		state: iradix.New(),
 	}
-	events, cancel := bus.Events()
+	events, cancel := bus.Subscribe()
 	defer cancel()
 	go func() {
 		for range events {
@@ -37,7 +37,7 @@ func BenchmarkEvents(b *testing.B) {
 	}()
 	for i := 0; i < b.N; i++ {
 		bus.Emit(Event{
-			Kind:  EntryAdded,
+			Key:   "entry_added",
 			Entry: nil,
 		})
 	}

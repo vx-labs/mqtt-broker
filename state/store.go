@@ -23,11 +23,10 @@ type Router interface {
 var _ mesh.Gossiper = &Store{}
 
 type Store struct {
-	mutex       sync.Mutex
-	subscribers *EventBus
-	pending     EntrySet
-	backend     Backend
-	gossip      mesh.Gossip
+	mutex   sync.Mutex
+	pending EntrySet
+	backend Backend
+	gossip  mesh.Gossip
 }
 
 func (s *Store) flusher() {
@@ -92,20 +91,6 @@ func (s *Store) merge(msg []byte) (mesh.GossipData, error) {
 		return nil, err
 	}
 	delta := s.ComputeDelta(set)
-	delta.Range(func(_ int, entry Entry) {
-		if isEntryAdded(entry) {
-			s.subscribers.Emit(Event{
-				Entry: entry,
-				Kind:  EntryAdded,
-			})
-		}
-		if isEntryRemoved(entry) {
-			s.subscribers.Emit(Event{
-				Entry: entry,
-				Kind:  EntryRemoved,
-			})
-		}
-	})
 	return &Dataset{
 		backend: delta,
 	}, s.ApplyDelta(delta)
@@ -126,15 +111,10 @@ func (s *Store) Upsert(entry Entry) error {
 	return s.backend.InsertEntry(entry)
 }
 
-func (s *Store) Events() (chan Event, func()) {
-	return s.subscribers.Events()
-}
-
 func NewStore(channel string, backend Backend, router Router) (*Store, error) {
 	s := &Store{
-		backend:     backend,
-		pending:     backend.Set(),
-		subscribers: NewEventBus(),
+		backend: backend,
+		pending: backend.Set(),
 	}
 	gossip, err := router.NewGossip(channel, s)
 	if err != nil {

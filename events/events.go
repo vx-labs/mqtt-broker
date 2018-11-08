@@ -1,6 +1,7 @@
-package state
+package events
 
 import (
+	"log"
 	"sync/atomic"
 	"unsafe"
 
@@ -8,16 +9,9 @@ import (
 	"github.com/hashicorp/go-immutable-radix"
 )
 
-type EventKind int
-
-const (
-	EntryAdded EventKind = iota
-	EntryRemoved
-)
-
 type Event struct {
-	Kind  EventKind
-	Entry Entry
+	Key   string
+	Entry interface{}
 }
 
 type subscription struct {
@@ -35,6 +29,7 @@ func (e *EventBus) cas(old, new *iradix.Tree) bool {
 	oldPtr := (*unsafe.Pointer)(unsafe.Pointer(&e.state))
 	return atomic.CompareAndSwapPointer(oldPtr, unsafe.Pointer(old), unsafe.Pointer(new))
 }
+
 func (e *EventBus) Emit(ev Event) {
 	e.state.Root().Walk(func(k []byte, v interface{}) bool {
 		sub := v.(*subscription)
@@ -45,12 +40,13 @@ func (e *EventBus) Emit(ev Event) {
 		return false
 	})
 }
-func (e *EventBus) Events() (chan Event, func()) {
+func (e *EventBus) Subscribe() (chan Event, func()) {
 	sub := &subscription{
 		ch:   make(chan Event),
 		quit: make(chan struct{}),
 	}
 	id := uuid.New().String()
+	log.Println(id)
 	cancel := func() {
 		for {
 			old := e.state

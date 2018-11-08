@@ -62,6 +62,12 @@
   revision = "2e65f85255dbc3072edf28d6b5b8efc472979f5a"
 
 [[projects]]
+  name = "github.com/google/uuid"
+  packages = ["."]
+  revision = "d460ce9f8df2e77fb1ba55ca87fafed96c607494"
+  version = "v1.0.0"
+
+[[projects]]
   name = "github.com/hashicorp/consul"
   packages = ["api"]
   revision = "2c7715154d8d4568524b76d2d4deb7ca6fd1b285"
@@ -136,8 +142,8 @@
 [[projects]]
   name = "github.com/hashicorp/vault"
   packages = ["api","helper/compressutil","helper/consts","helper/hclutil","helper/jsonutil","helper/parseutil","helper/strutil"]
-  revision = "fb601237bfbe4bc16ff679f642248ee8a86e627b"
-  version = "v0.11.3"
+  revision = "612120e76de651ef669c9af5e77b27a749b0dba3"
+  version = "v0.11.4"
 
 [[projects]]
   name = "github.com/inconshreveable/mousetrap"
@@ -184,8 +190,8 @@
 [[projects]]
   name = "github.com/miekg/dns"
   packages = ["."]
-  revision = "915ca3d5ffd945235828a097c917311a9d86ebb4"
-  version = "v1.0.14"
+  revision = "7064f7248f5fa5fd79382a76328b4e200b79e4ae"
+  version = "v1.0.15"
 
 [[projects]]
   name = "github.com/mitchellh/go-homedir"
@@ -244,8 +250,8 @@
 [[projects]]
   name = "github.com/spf13/cast"
   packages = ["."]
-  revision = "8965335b8c7107321228e3e3702cab9832751bac"
-  version = "v1.2.0"
+  revision = "8c9545af88b134710ab1cd196795e7f2388358d7"
+  version = "v1.3.0"
 
 [[projects]]
   name = "github.com/spf13/cobra"
@@ -311,25 +317,25 @@
   branch = "master"
   name = "github.com/xenolf/lego"
   packages = ["acme","log","platform/config/env","providers/dns/cloudflare"]
-  revision = "55113731843f1c376bfb73875edab935d9106e52"
+  revision = "e89afae4f8d5ffda0ba22ee16427c0d873c3ba8f"
 
 [[projects]]
   branch = "master"
   name = "golang.org/x/crypto"
   packages = ["curve25519","ed25519","ed25519/internal/edwards25519","internal/subtle","nacl/box","nacl/secretbox","ocsp","pbkdf2","poly1305","salsa20/salsa","ssh/terminal"]
-  revision = "0c41d7ab0a0ee717d4590a44bcb987dfd9e183eb"
+  revision = "e4dc69e5b2fd71dcaf8bd5d054eb936deb78d1fa"
 
 [[projects]]
   branch = "master"
   name = "golang.org/x/net"
   packages = ["bpf","context","http/httpguts","http2","http2/hpack","idna","internal/iana","internal/socket","internal/timeseries","ipv4","ipv6","trace"]
-  revision = "04a2e542c03f1d053ab3e4d6e5abcd4b66e2be8e"
+  revision = "03003ca0c849e57b6ea29a4bab8d3cb6e4d568fe"
 
 [[projects]]
   branch = "master"
   name = "golang.org/x/sys"
   packages = ["unix","windows"]
-  revision = "8e24a49d80f82323e1c4db1b5da3e0f31171a151"
+  revision = "66b7b1311ac80bbafcd2daeef9a5e6e2cd1e2399"
 
 [[projects]]
   name = "golang.org/x/text"
@@ -341,19 +347,19 @@
   branch = "master"
   name = "golang.org/x/time"
   packages = ["rate"]
-  revision = "fbb02b2291d28baffd63558aa44b4b56f178d650"
+  revision = "85acf8d2951cb2a3bde7632f9ff273ef0379bcbd"
 
 [[projects]]
   branch = "master"
   name = "google.golang.org/genproto"
   packages = ["googleapis/rpc/status"]
-  revision = "94acd270e44e65579b9ee3cdab25034d33fed608"
+  revision = "5fc9ac5403620be16bcdb0c8e7644b1178472c3b"
 
 [[projects]]
   name = "google.golang.org/grpc"
   packages = [".","balancer","balancer/base","balancer/roundrobin","codes","connectivity","credentials","encoding","encoding/proto","grpclog","internal","internal/backoff","internal/channelz","internal/envconfig","internal/grpcrand","internal/transport","keepalive","metadata","naming","peer","resolver","resolver/dns","resolver/passthrough","stats","status","tap"]
-  revision = "8dea3dc473e90c8179e519d91302d0597c0ca1d1"
-  version = "v1.15.0"
+  revision = "2e463a05d100327ca47ac218281906921038fd95"
+  version = "v1.16.0"
 
 [[projects]]
   name = "gopkg.in/square/go-jose.v2"
@@ -370,6 +376,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "49b99a64dd36de08d9f3a6bfd3e42254f22658e5c87791e11c71bd008eb0c372"
+  inputs-digest = "e8a728392292dfd6958cc53119abfb51493d1b7810528a15a2aaafbf0bfc5180"
   solver-name = "gps-cdcl"
   solver-version = 1
