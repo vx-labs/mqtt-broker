@@ -15,8 +15,19 @@ type Event struct {
 }
 
 type subscription struct {
-	ch   chan Event
-	quit chan struct{}
+	handler func(Event)
+}
+
+func newSubscription(handler func(Event)) *subscription {
+	return &subscription{
+		handler: handler,
+	}
+}
+
+func (sub *subscription) send(ev Event) {
+	sub.handler(ev)
+}
+func (sub *subscription) close() {
 }
 
 type CancelFunc func()
@@ -33,26 +44,19 @@ func (e *Bus) cas(old, new *iradix.Tree) bool {
 func (e *Bus) Emit(ev Event) {
 	e.state.Root().WalkPrefix([]byte(ev.Key+"/"), func(k []byte, v interface{}) bool {
 		sub := v.(*subscription)
-		select {
-		case <-sub.quit:
-		case sub.ch <- ev:
-		}
+		sub.send(ev)
 		return false
 	})
 }
-func (e *Bus) Subscribe(key string) (chan Event, func()) {
-	sub := &subscription{
-		ch:   make(chan Event),
-		quit: make(chan struct{}),
-	}
+func (e *Bus) Subscribe(key string, handler func(Event)) func() {
+	sub := newSubscription(handler)
 	id := fmt.Sprintf("%s/%s", key, uuid.New().String())
 	cancel := func() {
 		for {
 			old := e.state
 			new, _, _ := old.Delete([]byte(id))
 			if e.cas(old, new) {
-				close(sub.quit)
-				close(sub.ch)
+				sub.close()
 				return
 			}
 		}
@@ -61,7 +65,7 @@ func (e *Bus) Subscribe(key string) (chan Event, func()) {
 		old := e.state
 		new, _, _ := old.Insert([]byte(id), sub)
 		if e.cas(old, new) {
-			return sub.ch, cancel
+			return cancel
 		}
 	}
 }

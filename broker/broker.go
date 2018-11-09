@@ -1,10 +1,13 @@
 package broker
 
 import (
+	"fmt"
 	"io"
 	"log"
 	"strings"
 	"sync"
+
+	"github.com/vx-labs/mqtt-broker/events"
 
 	"github.com/vx-labs/mqtt-broker/sessions"
 	"github.com/vx-labs/mqtt-broker/topics"
@@ -63,6 +66,7 @@ type Broker struct {
 	Topics        TopicStore
 	localSessions map[string]*listener.Session
 	mutex         sync.RWMutex
+	events        *events.Bus
 	Listener      io.Closer
 	TCPTransport  io.Closer
 	TLSTransport  io.Closer
@@ -74,6 +78,7 @@ func New(id identity.Identity, config Config) *Broker {
 	broker := &Broker{
 		localSessions: map[string]*listener.Session{},
 		authHelper:    config.AuthHelper,
+		events:        events.NewEventBus(),
 	}
 	broker.Peer = peer.NewPeer(id, broker.onPeerDown, broker.onUnicast)
 	subscriptionsStore, err := subscriptions.NewMemDBStore(broker.Peer.Router())
@@ -204,8 +209,6 @@ func (b *Broker) Join(hosts []string) {
 }
 
 func (b *Broker) dispatch(message *MessagePublished) {
-	b.mutex.RLock()
-	defer b.mutex.RUnlock()
 	for idx, recipient := range message.Recipient {
 		packet := &packet.Publish{
 			Header: &packet.Header{
@@ -217,10 +220,24 @@ func (b *Broker) dispatch(message *MessagePublished) {
 			Topic:     message.Topic,
 			MessageId: 1,
 		}
-		if ch, ok := b.localSessions[recipient]; ok {
-			ch.Channel() <- packet
-		}
+		b.events.Emit(events.Event{
+			Key:   fmt.Sprintf("message_published/%s", recipient),
+			Entry: packet,
+		})
 	}
+}
+
+func (b *Broker) OnMessagePublished(recipient string, f func(p *packet.Publish)) func() {
+	return b.events.Subscribe(fmt.Sprintf("message_published/%s", recipient), func(ev events.Event) {
+		f(ev.Entry.(*packet.Publish))
+	})
+
+}
+
+func (b *Broker) OnBrokerStopped(f func()) func() {
+	return b.events.Subscribe("broker_stopped", func(_ events.Event) {
+		f()
+	})
 }
 
 func (b *Broker) Stop() {

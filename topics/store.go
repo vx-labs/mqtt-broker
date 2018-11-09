@@ -191,12 +191,7 @@ func (m *memDBStore) insert(messages []*RetainedMessage) error {
 	})
 }
 func (s *memDBStore) On(event string, handler func(*RetainedMessage)) func() {
-	ch, cancel := s.events.Subscribe(event)
-	go func() {
-		for ev := range ch {
-			handler(ev.Entry.(*RetainedMessage))
-
-		}
-	}()
-	return cancel
+	return s.events.Subscribe(event, func(ev events.Event) {
+		handler(ev.Entry.(*RetainedMessage))
+	})
 }

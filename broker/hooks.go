@@ -206,6 +206,9 @@ func (b *Broker) OnConnect(transportSession *listener.Session) {
 				cancel()
 			}
 		}),
+		b.OnMessagePublished(transportSession.ID(), func(p *packet.Publish) {
+			transportSession.Publish(p)
+		}),
 	}
 }
 func (b *Broker) OnPublish(id, tenant string, packet *packet.Publish) error {

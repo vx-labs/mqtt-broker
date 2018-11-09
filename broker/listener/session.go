@@ -20,17 +20,17 @@ type Session struct {
 	transport Transport
 	connect   *packet.Connect
 	encoder   *encoder.Encoder
-	ch        chan *packet.Publish
 	events    *events.Bus
 }
 
 func newSession(transport Transport) *Session {
-	return &Session{
+	s := &Session{
 		events:    events.NewEventBus(),
-		ch:        make(chan *packet.Publish, 100),
 		keepalive: 30,
 		transport: transport,
 	}
+
+	return s
 }
 
 func (s *Session) TransportName() string {
@@ -41,10 +41,6 @@ func (s *Session) Close() error {
 }
 func (s *Session) Connect() *packet.Connect {
 	return s.connect
-}
-func (s *Session) Channel() chan<- *packet.Publish {
-	return s.ch
-
 }
 func (s *Session) ID() string {
 	return s.id
@@ -59,15 +55,14 @@ func (s *Session) emitPublish(packet *packet.Publish) {
 		Entry: packet,
 	})
 }
+func (s *Session) Publish(p *packet.Publish) error {
+	return s.encoder.Publish(p)
+}
 func (s *Session) OnPublish(f func(packet *packet.Publish)) func() {
-	ch, cancel := s.events.Subscribe("session_published")
-	go func() {
-		for event := range ch {
-			payload := event.Entry.(*packet.Publish)
-			f(payload)
-		}
-	}()
-	return cancel
+	return s.events.Subscribe("session_published", func(event events.Event) {
+		payload := event.Entry.(*packet.Publish)
+		f(payload)
+	})
 }
 func (s *Session) emitSubscribe(packet *packet.Subscribe) {
 	s.events.Emit(events.Event{
@@ -77,14 +72,10 @@ func (s *Session) emitSubscribe(packet *packet.Subscribe) {
 }
 
 func (s *Session) OnSubscribe(f func(packet *packet.Subscribe)) func() {
-	ch, cancel := s.events.Subscribe("session_subscribed")
-	go func() {
-		for event := range ch {
-			payload := event.Entry.(*packet.Subscribe)
-			f(payload)
-		}
-	}()
-	return cancel
+	return s.events.Subscribe("session_subscribed", func(event events.Event) {
+		payload := event.Entry.(*packet.Subscribe)
+		f(payload)
+	})
 }
 func (s *Session) emitUnsubscribe(packet *packet.Unsubscribe) {
 	s.events.Emit(events.Event{
@@ -94,14 +85,10 @@ func (s *Session) emitUnsubscribe(packet *packet.Unsubscribe) {
 }
 
 func (s *Session) OnUnsubscribe(f func(packet *packet.Unsubscribe)) func() {
-	ch, cancel := s.events.Subscribe("session_unsubscribed")
-	go func() {
-		for event := range ch {
-			payload := event.Entry.(*packet.Unsubscribe)
-			f(payload)
-		}
-	}()
-	return cancel
+	return s.events.Subscribe("session_unsubscribed", func(event events.Event) {
+		payload := event.Entry.(*packet.Unsubscribe)
+		f(payload)
+	})
 }
 func (s *Session) emitClosed() {
 	s.events.Emit(events.Event{
@@ -111,13 +98,9 @@ func (s *Session) emitClosed() {
 }
 
 func (s *Session) OnClosed(f func()) func() {
-	ch, cancel := s.events.Subscribe("session_closed")
-	go func() {
-		for range ch {
-			f()
-		}
-	}()
-	return cancel
+	return s.events.Subscribe("session_closed", func(_ events.Event) {
+		f()
+	})
 }
 func (s *Session) emitLost() {
 	s.events.Emit(events.Event{
@@ -127,13 +110,9 @@ func (s *Session) emitLost() {
 }
 
 func (s *Session) OnLost(f func()) func() {
-	ch, cancel := s.events.Subscribe("session_lost")
-	go func() {
-		for range ch {
-			f()
-		}
-	}()
-	return cancel
+	return s.events.Subscribe("session_lost", func(_ events.Event) {
+		f()
+	})
 }
 func (s *Session) SubAck(mid int32, grantedQoS []int32) error {
 	return s.encoder.SubAck(&packet.SubAck{
@@ -147,9 +126,6 @@ func (s *Session) PubAck(mid int32) error {
 		Header:    &packet.Header{},
 		MessageId: mid,
 	})
-}
-func (s *Session) Publish(p *packet.Publish) error {
-	return s.encoder.Publish(p)
 }
 
 func (s *Session) emitConnected(p *packet.Connect) {

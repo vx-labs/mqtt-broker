@@ -236,11 +236,7 @@ func (m *memDBStore) Create(message *Subscription) error {
 }
 
 func (s *memDBStore) On(event string, handler func(*Subscription)) func() {
-	ch, cancel := s.events.Subscribe(event)
-	go func() {
-		for ev := range ch {
-			handler(ev.Entry.(*Subscription))
-		}
-	}()
-	return cancel
+	return s.events.Subscribe(event, func(ev events.Event) {
+		handler(ev.Entry.(*Subscription))
+	})
 }

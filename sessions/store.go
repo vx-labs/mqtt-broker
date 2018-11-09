@@ -227,11 +227,7 @@ func (s *memDBStore) first(tx *memdb.Txn, idx, id string) (*Session, error) {
 }
 
 func (s *memDBStore) On(event string, handler func(*Session)) func() {
-	ch, cancel := s.events.Subscribe(event)
-	go func() {
-		for ev := range ch {
-			handler(ev.Entry.(*Session))
-		}
-	}()
-	return cancel
+	return s.events.Subscribe(event, func(ev events.Event) {
+		handler(ev.Entry.(*Session))
+	})
 }
