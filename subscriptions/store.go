@@ -193,6 +193,10 @@ func (m *memDBStore) insert(messages []*Subscription) error {
 					Key:   SubscriptionCreated,
 					Entry: message,
 				})
+				m.events.Emit(events.Event{
+					Key:   SubscriptionCreated + "/" + message.SessionID,
+					Entry: message,
+				})
 				err := m.patternIndex.Index(message)
 				if err != nil {
 					return err
@@ -201,6 +205,10 @@ func (m *memDBStore) insert(messages []*Subscription) error {
 			if message.IsRemoved() {
 				m.events.Emit(events.Event{
 					Key:   SubscriptionDeleted,
+					Entry: message,
+				})
+				m.events.Emit(events.Event{
+					Key:   SubscriptionDeleted + "/" + message.SessionID,
 					Entry: message,
 				})
 				m.patternIndex.Remove(message.Tenant, message.ID, message.Pattern)

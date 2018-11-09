@@ -168,10 +168,18 @@ func (s *memDBStore) insert(sessions []*Session) error {
 					Entry: sess,
 					Key:   SessionCreated,
 				})
+				s.events.Emit(events.Event{
+					Entry: sess,
+					Key:   SessionCreated + "/" + sess.ID,
+				})
 			} else if sess.IsRemoved() {
 				s.events.Emit(events.Event{
 					Entry: sess,
 					Key:   SessionDeleted,
+				})
+				s.events.Emit(events.Event{
+					Entry: sess,
+					Key:   SessionDeleted + "/" + sess.ID,
 				})
 			}
 			tx.Insert("sessions", sess)
