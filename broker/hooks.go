@@ -88,10 +88,6 @@ func (b *Broker) OnUnsubscribe(id string, tenant string, packet *packet.Unsubscr
 }
 
 func (b *Broker) OnSessionClosed(id, tenant string) {
-	b.mutex.Lock()
-	delete(b.localSessions, id)
-	b.mutex.Unlock()
-
 	set, err := b.Subscriptions.BySession(id)
 	if err != nil {
 		return
@@ -125,32 +121,12 @@ func (b *Broker) OnSessionLost(id, tenant string) {
 	}
 }
 
-func (b *Broker) closeLocalSession(sess *sessions.Session) {
-	b.mutex.Lock()
-	if _, ok := b.localSessions[sess.ID]; ok {
-		b.Sessions.Delete(sess.ID)
-		b.localSessions[sess.ID].Close()
-		delete(b.localSessions, sess.ID)
-	}
-	b.mutex.Unlock()
-}
-
 func (b *Broker) OnConnect(transportSession *listener.Session) {
 	connectPkt := transportSession.Connect()
 	id := transportSession.ID()
 	tenant := transportSession.Tenant()
 	transport := transportSession.TransportName()
-	sess, err := b.Sessions.ByID(id)
-	if err == nil && sess.Peer == uint64(b.Peer.Name()) {
-		b.closeLocalSession(sess)
-	}
-	b.mutex.Lock()
-	if _, ok := b.localSessions[id]; ok {
-		b.localSessions[id].Close()
-	}
-	b.localSessions[id] = transportSession
-	b.mutex.Unlock()
-	sess = &sessions.Session{
+	sess := &sessions.Session{
 		ID:          id,
 		ClientID:    connectPkt.ClientId,
 		Created:     time.Now().Unix(),
