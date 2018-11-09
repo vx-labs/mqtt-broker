@@ -142,6 +142,9 @@ func (m *memDBStore) ByID(id string) (*Subscription, error) {
 	var res *Subscription
 	return res, m.read(func(tx *memdb.Txn) (err error) {
 		res, err = m.first(tx, "id", id)
+		if res.IsRemoved() {
+			return ErrSubscriptionNotFound
+		}
 		return
 	})
 }

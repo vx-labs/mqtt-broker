@@ -122,6 +122,9 @@ func (m *memDBStore) ByID(id string) (*RetainedMessage, error) {
 	var res *RetainedMessage
 	return res, m.read(func(tx *memdb.Txn) (err error) {
 		res, err = m.first(tx, "id", id)
+		if res.IsRemoved() {
+			return ErrRetainedMessageNotFound
+		}
 		return
 	})
 }

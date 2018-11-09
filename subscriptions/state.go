@@ -33,7 +33,16 @@ func (e *SubscriptionList) Range(f func(idx int, entry state.Entry)) {
 }
 
 func (m *memDBStore) EntryByID(id string) (state.Entry, error) {
-	return m.ByID(id)
+	var session *Subscription
+	err := m.read(func(tx *memdb.Txn) error {
+		sess, err := m.first(tx, "id", id)
+		if err != nil {
+			return err
+		}
+		session = sess
+		return nil
+	})
+	return session, err
 }
 
 func (m *memDBStore) InsertEntries(entries state.EntrySet) error {
@@ -75,7 +84,6 @@ func (m memDBStore) Dump() state.EntrySet {
 
 func (m *memDBStore) DeleteEntry(entry state.Entry) error {
 	session := entry.(*Subscription)
-	session.LastDeleted = now()
 	return m.write(func(tx *memdb.Txn) error {
 		err := tx.Delete("subscriptions", session)
 		if err == nil {
