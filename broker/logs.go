@@ -29,12 +29,14 @@ func (b *Broker) setupLogs() {
 		sessionLogger.WithField("session-id", s.ID).
 			WithField("peer", s.Peer).
 			WithField("mutation", sessions.SessionCreated).
+			WithField("client_id", string(s.ClientID)).
 			Printf("session created")
 	})
 	b.Sessions.On(sessions.SessionDeleted, func(s *sessions.Session) {
 		sessionLogger.WithField("session-id", s.ID).
 			WithField("peer", s.Peer).
 			WithField("mutation", sessions.SessionDeleted).
+			WithField("client_id", string(s.ClientID)).
 			Printf("session closed")
 	})
 }
