@@ -130,6 +130,7 @@ func New(id identity.Identity, config Config) *Broker {
 	}
 	broker.Listener = l
 	broker.setupLogs()
+	broker.setupSYSTopic()
 	return broker
 }
 func (b *Broker) onUnicast(payload []byte) {
