@@ -19,7 +19,7 @@ func (b *Broker) setupLogs() {
 	b.Subscriptions.On(subscriptions.SubscriptionDeleted, func(s *subscriptions.Subscription) {
 		subscriptionLogger.WithField("session_id", s.SessionID).
 			WithField("peer", s.Peer).
-			WithField("mutation", subscriptions.SubscriptionCreated).
+			WithField("mutation", subscriptions.SubscriptionDeleted).
 			WithField("pattern", string(s.Pattern)).
 			Printf("session unsubscribed")
 	})
