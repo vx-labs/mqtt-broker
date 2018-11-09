@@ -10,7 +10,7 @@ func TestEvents(t *testing.T) {
 	bus := Bus{
 		state: iradix.New(),
 	}
-	events, cancel := bus.Subscribe()
+	events, cancel := bus.Subscribe("entry_added")
 
 	done := make(chan struct{})
 	go func() {
@@ -29,7 +29,7 @@ func BenchmarkEvents(b *testing.B) {
 	bus := Bus{
 		state: iradix.New(),
 	}
-	events, cancel := bus.Subscribe()
+	events, cancel := bus.Subscribe("entry_added")
 	defer cancel()
 	go func() {
 		for range events {

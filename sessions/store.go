@@ -166,12 +166,12 @@ func (s *memDBStore) insert(sessions []*Session) error {
 			if sess.IsAdded() {
 				s.events.Emit(events.Event{
 					Entry: sess,
-					Key:   "session_created",
+					Key:   SessionCreated,
 				})
 			} else if sess.IsRemoved() {
 				s.events.Emit(events.Event{
 					Entry: sess,
-					Key:   "session_deleted",
+					Key:   SessionDeleted,
 				})
 			}
 			tx.Insert("sessions", sess)
@@ -219,12 +219,10 @@ func (s *memDBStore) first(tx *memdb.Txn, idx, id string) (*Session, error) {
 }
 
 func (s *memDBStore) On(event string, handler func(*Session)) func() {
-	ch, cancel := s.events.Subscribe()
+	ch, cancel := s.events.Subscribe(event)
 	go func() {
 		for ev := range ch {
-			if event == "*" || ev.Key == event {
-				handler(ev.Entry.(*Session))
-			}
+			handler(ev.Entry.(*Session))
 		}
 	}()
 	return cancel

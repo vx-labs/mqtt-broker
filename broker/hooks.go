@@ -139,9 +139,6 @@ func (b *Broker) OnConnect(id, tenant string, ch *listener.Session, transport st
 	sess, err := b.Sessions.ByID(id)
 	if err == nil && sess.Peer == uint64(b.Peer.Name()) {
 		b.closeLocalSession(sess)
-		log.Printf("INFO: session %s reconnected with client_id=%s, keepalive=%d", id, connectPkt.ClientId, connectPkt.KeepaliveTimer)
-	} else {
-		log.Printf("INFO: session %s connected with client_id=%s, keepalive=%d", id, connectPkt.ClientId, connectPkt.KeepaliveTimer)
 	}
 	b.mutex.Lock()
 	if _, ok := b.localSessions[id]; ok {

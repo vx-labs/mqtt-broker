@@ -1,6 +1,7 @@
 package events
 
 import (
+	"fmt"
 	"sync/atomic"
 	"unsafe"
 
@@ -30,7 +31,7 @@ func (e *Bus) cas(old, new *iradix.Tree) bool {
 }
 
 func (e *Bus) Emit(ev Event) {
-	e.state.Root().Walk(func(k []byte, v interface{}) bool {
+	e.state.Root().WalkPrefix([]byte(ev.Key+"/"), func(k []byte, v interface{}) bool {
 		sub := v.(*subscription)
 		select {
 		case <-sub.quit:
@@ -39,12 +40,12 @@ func (e *Bus) Emit(ev Event) {
 		return false
 	})
 }
-func (e *Bus) Subscribe() (chan Event, func()) {
+func (e *Bus) Subscribe(key string) (chan Event, func()) {
 	sub := &subscription{
 		ch:   make(chan Event),
 		quit: make(chan struct{}),
 	}
-	id := uuid.New().String()
+	id := fmt.Sprintf("%s/%s", key, uuid.New().String())
 	cancel := func() {
 		for {
 			old := e.state
