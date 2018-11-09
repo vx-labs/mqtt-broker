@@ -13,12 +13,14 @@ func (b *Broker) setupLogs() {
 		subscriptionLogger.WithField("session-id", s.SessionID).
 			WithField("peer", s.Peer).
 			WithField("mutation", subscriptions.SubscriptionCreated).
+			WithField("pattern", string(s.Pattern)).
 			Printf("session subscribed")
 	})
 	b.Subscriptions.On(subscriptions.SubscriptionDeleted, func(s *subscriptions.Subscription) {
 		subscriptionLogger.WithField("session-id", s.SessionID).
 			WithField("peer", s.Peer).
 			WithField("mutation", subscriptions.SubscriptionCreated).
+			WithField("pattern", string(s.Pattern)).
 			Printf("session unsubscribed")
 	})
 
@@ -32,7 +34,7 @@ func (b *Broker) setupLogs() {
 	b.Sessions.On(sessions.SessionDeleted, func(s *sessions.Session) {
 		sessionLogger.WithField("session-id", s.ID).
 			WithField("peer", s.Peer).
-			WithField("mutation", sessions.SessionCreated).
+			WithField("mutation", sessions.SessionDeleted).
 			Printf("session closed")
 	})
 }
