@@ -39,7 +39,7 @@ func (l *listener) Close() error {
 	return nil
 }
 
-func New(handler Handler) (io.Closer, chan<- Transport) {
+func New(handler Handler, inflightSize int) (io.Closer, chan<- Transport) {
 	ch := make(chan Transport)
 
 	l := &listener{
@@ -48,23 +48,23 @@ func New(handler Handler) (io.Closer, chan<- Transport) {
 	}
 	go func() {
 		for transport := range ch {
-			go l.runSession(transport)
+			go l.runSession(transport, inflightSize)
 		}
 	}()
 	return l, l.ch
 }
 
 func validateClientID(clientID string) bool {
-	return len(clientID) > 0 && len(clientID) < 32
+	return len(clientID) > 0 && len(clientID) < 128
 }
 
-func (l *listener) runSession(t Transport) {
+func (l *listener) runSession(t Transport, inflightSize int) {
 	log.Printf("INFO: listener %s: accepted new connection from %s", t.Name(), t.RemoteAddress())
 	c := t.Channel()
 	handler := l.handler
-	session := newSession(t)
+	session := newSession(t, inflightSize)
 	session.encoder = encoder.New(c)
-
+	defer close(session.quit)
 	dec := decoder.New(
 		decoder.OnConnect(func(p *packet.Connect) error {
 			session.keepalive = p.KeepaliveTimer
@@ -109,7 +109,9 @@ func (l *listener) runSession(t Transport) {
 			session.emitUnsubscribe(p)
 			return nil
 		}),
-		decoder.OnPubAck(func(*packet.PubAck) error { return nil }),
+		decoder.OnPubAck(func(p *packet.PubAck) error {
+			return session.queue.Acknowledge(p.MessageId)
+		}),
 		decoder.OnPingReq(func(p *packet.PingReq) error {
 			c.SetDeadline(
 				time.Now().Add(time.Duration(session.keepalive) * time.Second * 2),

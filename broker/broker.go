@@ -93,7 +93,7 @@ func New(id identity.Identity, config Config) *Broker {
 	broker.Subscriptions = subscriptionsStore
 	broker.Sessions = sessionsStore
 
-	l, listenerCh := listener.New(broker)
+	l, listenerCh := listener.New(broker, config.Session.MaxInflightSize)
 	if config.RPCPort > 0 {
 		broker.RPC = rpc.New(config.RPCPort, broker)
 	}
