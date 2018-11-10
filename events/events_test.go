@@ -2,14 +2,10 @@ package events
 
 import (
 	"testing"
-
-	"github.com/hashicorp/go-immutable-radix"
 )
 
 func TestEvents(t *testing.T) {
-	bus := Bus{
-		state: iradix.New(),
-	}
+	bus := NewEventBus()
 	done := make(chan struct{})
 
 	cancel := bus.Subscribe("entry_added", func(_ Event) {
@@ -25,9 +21,7 @@ func TestEvents(t *testing.T) {
 }
 
 func BenchmarkEvents(b *testing.B) {
-	bus := Bus{
-		state: iradix.New(),
-	}
+	bus := NewEventBus()
 	cancel := bus.Subscribe("entry_added", func(_ Event) {})
 	defer cancel()
 	for i := 0; i < b.N; i++ {

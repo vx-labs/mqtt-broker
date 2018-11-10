@@ -34,6 +34,7 @@ type CancelFunc func()
 
 type Bus struct {
 	state *iradix.Tree
+	jobs  chan chan Event
 }
 
 func (e *Bus) cas(old, new *iradix.Tree) bool {
@@ -42,11 +43,7 @@ func (e *Bus) cas(old, new *iradix.Tree) bool {
 }
 
 func (e *Bus) Emit(ev Event) {
-	e.state.Root().WalkPrefix([]byte(ev.Key+"/"), func(k []byte, v interface{}) bool {
-		sub := v.(*subscription)
-		sub.send(ev)
-		return false
-	})
+	<-e.jobs <- ev
 }
 func (e *Bus) Subscribe(key string, handler func(Event)) func() {
 	sub := newSubscription(handler)
@@ -71,7 +68,23 @@ func (e *Bus) Subscribe(key string, handler func(Event)) func() {
 }
 
 func NewEventBus() *Bus {
-	return &Bus{
+	b := &Bus{
 		state: iradix.New(),
+		jobs:  make(chan chan Event),
 	}
+	for i := 0; i < 5; i++ {
+		go func() {
+			ch := make(chan Event)
+			for {
+				b.jobs <- ch
+				ev := <-ch
+				b.state.Root().WalkPrefix([]byte(ev.Key+"/"), func(k []byte, v interface{}) bool {
+					sub := v.(*subscription)
+					sub.send(ev)
+					return false
+				})
+			}
+		}()
+	}
+	return b
 }
