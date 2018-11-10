@@ -5,6 +5,7 @@ import (
 	"io"
 	"log"
 	"strings"
+	"sync"
 
 	"github.com/vx-labs/mqtt-broker/events"
 
@@ -63,6 +64,8 @@ type Broker struct {
 	Subscriptions SubscriptionStore
 	Sessions      SessionStore
 	Topics        TopicStore
+	localSessions map[string]*listener.Session
+	mutex         sync.RWMutex
 	events        *events.Bus
 	Listener      io.Closer
 	TCPTransport  io.Closer
@@ -73,8 +76,9 @@ type Broker struct {
 
 func New(id identity.Identity, config Config) *Broker {
 	broker := &Broker{
-		authHelper: config.AuthHelper,
-		events:     events.NewEventBus(),
+		localSessions: map[string]*listener.Session{},
+		authHelper:    config.AuthHelper,
+		events:        events.NewEventBus(),
 	}
 	broker.Peer = peer.NewPeer(id, broker.onPeerDown, broker.onUnicast)
 	subscriptionsStore, err := subscriptions.NewMemDBStore(broker.Peer.Router())
@@ -256,6 +260,15 @@ func (b *Broker) Stop() {
 		b.WSSTransport.Close()
 		log.Printf("INFO: WSS listener stopped")
 	}
+	b.mutex.Lock()
+	if len(b.localSessions) > 0 {
+		log.Printf("INFO: Closing client connections")
+		for _, session := range b.localSessions {
+			session.Close()
+		}
+		log.Printf("INFO: client connections closed")
+	}
+	b.mutex.Unlock()
 	if b.RPC != nil {
 		log.Printf("INFO: stopping RPC listener")
 		b.RPC.Close()
