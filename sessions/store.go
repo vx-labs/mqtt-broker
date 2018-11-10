@@ -235,4 +235,3 @@ func (s *memDBStore) On(event string, handler func(*Session)) func() {
 		handler(ev.Entry.(*Session))
 	})
 }
-e

@@ -134,12 +134,8 @@ func (b *Broker) closeLocalSession(sess *sessions.Session) {
 	}
 	b.mutex.Unlock()
 }
-
-func (b *Broker) OnConnect(transportSession *listener.Session) {
-	connectPkt := transportSession.Connect()
-	id := transportSession.ID()
-	tenant := transportSession.Tenant()
-	transport := transportSession.TransportName()
+func (b *Broker) OnConnect(id, tenant string, ch *listener.Session, transport string) {
+	connectPkt := ch.Connect()
 	sess, err := b.Sessions.ByID(id)
 	if err == nil && sess.Peer == uint64(b.Peer.Name()) {
 		b.closeLocalSession(sess)
@@ -148,7 +144,7 @@ func (b *Broker) OnConnect(transportSession *listener.Session) {
 	if _, ok := b.localSessions[id]; ok {
 		b.localSessions[id].Close()
 	}
-	b.localSessions[id] = transportSession
+	b.localSessions[id] = ch
 	b.mutex.Unlock()
 	sess = &sessions.Session{
 		ID:          id,
@@ -163,50 +159,6 @@ func (b *Broker) OnConnect(transportSession *listener.Session) {
 		Transport:   transport,
 	}
 	b.Sessions.Upsert(sess)
-	var cancels []func()
-	cancels = []func(){
-		transportSession.OnSubscribe(func(p *packet.Subscribe) {
-			err := b.OnSubscribe(id, tenant, p)
-			if err == nil {
-				qos := make([]int32, len(p.Qos))
-
-				// QoS2 is not supported for now
-				for idx := range p.Qos {
-					if p.Qos[idx] > 1 {
-						qos[idx] = 1
-					} else {
-						qos[idx] = p.Qos[idx]
-					}
-				}
-				transportSession.SubAck(p.MessageId, qos)
-			}
-		}),
-		transportSession.OnPublish(func(p *packet.Publish) {
-			err := b.OnPublish(transportSession.ID(), transportSession.Tenant(), p)
-			if p.Header.Qos == 0 {
-				return
-			}
-			if err != nil {
-				log.Printf("ERR: failed to handle message publish: %v", err)
-				return
-			}
-			if p.Header.Qos == 1 {
-				transportSession.PubAck(p.MessageId)
-			}
-		}),
-		transportSession.OnClosed(func() {
-			b.OnSessionClosed(transportSession.ID(), transportSession.Tenant())
-			for _, cancel := range cancels {
-				cancel()
-			}
-		}),
-		transportSession.OnLost(func() {
-			b.OnSessionLost(transportSession.ID(), transportSession.Tenant())
-			for _, cancel := range cancels {
-				cancel()
-			}
-		}),
-	}
 }
 func (b *Broker) OnPublish(id, tenant string, packet *packet.Publish) error {
 	if packet.Header.Retain {
