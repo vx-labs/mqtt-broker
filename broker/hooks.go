@@ -88,10 +88,6 @@ func (b *Broker) OnUnsubscribe(id string, tenant string, packet *packet.Unsubscr
 }
 
 func (b *Broker) OnSessionClosed(id, tenant string) {
-	b.mutex.Lock()
-	delete(b.localSessions, id)
-	b.mutex.Unlock()
-
 	set, err := b.Subscriptions.BySession(id)
 	if err != nil {
 		return
@@ -125,31 +121,12 @@ func (b *Broker) OnSessionLost(id, tenant string) {
 	}
 }
 
-func (b *Broker) closeLocalSession(sess *sessions.Session) {
-	b.mutex.Lock()
-	if _, ok := b.localSessions[sess.ID]; ok {
-		b.Sessions.Delete(sess.ID)
-		b.localSessions[sess.ID].Close()
-		delete(b.localSessions, sess.ID)
-	}
-	b.mutex.Unlock()
-}
-func (b *Broker) OnConnect(id, tenant string, ch *listener.Session, transport string) {
-	connectPkt := ch.Connect()
-	sess, err := b.Sessions.ByID(id)
-	if err == nil && sess.Peer == uint64(b.Peer.Name()) {
-		b.closeLocalSession(sess)
-		log.Printf("INFO: session %s reconnected with client_id=%s, keepalive=%d", id, connectPkt.ClientId, connectPkt.KeepaliveTimer)
-	} else {
-		log.Printf("INFO: session %s connected with client_id=%s, keepalive=%d", id, connectPkt.ClientId, connectPkt.KeepaliveTimer)
-	}
-	b.mutex.Lock()
-	if _, ok := b.localSessions[id]; ok {
-		b.localSessions[id].Close()
-	}
-	b.localSessions[id] = ch
-	b.mutex.Unlock()
-	sess = &sessions.Session{
+func (b *Broker) OnConnect(transportSession *listener.Session) {
+	connectPkt := transportSession.Connect()
+	id := transportSession.ID()
+	tenant := transportSession.Tenant()
+	transport := transportSession.TransportName()
+	sess := &sessions.Session{
 		ID:          id,
 		ClientID:    connectPkt.ClientId,
 		Created:     time.Now().Unix(),
@@ -162,6 +139,53 @@ func (b *Broker) OnConnect(id, tenant string, ch *listener.Session, transport st
 		Transport:   transport,
 	}
 	b.Sessions.Upsert(sess)
+	var cancels []func()
+	cancels = []func(){
+		transportSession.OnSubscribe(func(p *packet.Subscribe) {
+			err := b.OnSubscribe(id, tenant, p)
+			if err == nil {
+				qos := make([]int32, len(p.Qos))
+
+				// QoS2 is not supported for now
+				for idx := range p.Qos {
+					if p.Qos[idx] > 1 {
+						qos[idx] = 1
+					} else {
+						qos[idx] = p.Qos[idx]
+					}
+				}
+				transportSession.SubAck(p.MessageId, qos)
+			}
+		}),
+		transportSession.OnPublish(func(p *packet.Publish) {
+			err := b.OnPublish(transportSession.ID(), transportSession.Tenant(), p)
+			if p.Header.Qos == 0 {
+				return
+			}
+			if err != nil {
+				log.Printf("ERR: failed to handle message publish: %v", err)
+				return
+			}
+			if p.Header.Qos == 1 {
+				transportSession.PubAck(p.MessageId)
+			}
+		}),
+		transportSession.OnClosed(func() {
+			b.OnSessionClosed(transportSession.ID(), transportSession.Tenant())
+			for _, cancel := range cancels {
+				cancel()
+			}
+		}),
+		transportSession.OnLost(func() {
+			b.OnSessionLost(transportSession.ID(), transportSession.Tenant())
+			for _, cancel := range cancels {
+				cancel()
+			}
+		}),
+		b.OnMessagePublished(transportSession.ID(), func(p *packet.Publish) {
+			transportSession.Publish(p)
+		}),
+	}
 }
 func (b *Broker) OnPublish(id, tenant string, packet *packet.Publish) error {
 	if packet.Header.Retain {

@@ -1,10 +1,12 @@
 package broker
 
 import (
+	"fmt"
 	"io"
 	"log"
 	"strings"
-	"sync"
+
+	"github.com/vx-labs/mqtt-broker/events"
 
 	"github.com/vx-labs/mqtt-broker/sessions"
 	"github.com/vx-labs/mqtt-broker/topics"
@@ -61,8 +63,7 @@ type Broker struct {
 	Subscriptions SubscriptionStore
 	Sessions      SessionStore
 	Topics        TopicStore
-	localSessions map[string]*listener.Session
-	mutex         sync.RWMutex
+	events        *events.Bus
 	Listener      io.Closer
 	TCPTransport  io.Closer
 	TLSTransport  io.Closer
@@ -72,8 +73,8 @@ type Broker struct {
 
 func New(id identity.Identity, config Config) *Broker {
 	broker := &Broker{
-		localSessions: map[string]*listener.Session{},
-		authHelper:    config.AuthHelper,
+		authHelper: config.AuthHelper,
+		events:     events.NewEventBus(),
 	}
 	broker.Peer = peer.NewPeer(id, broker.onPeerDown, broker.onUnicast)
 	subscriptionsStore, err := subscriptions.NewMemDBStore(broker.Peer.Router())
@@ -92,7 +93,7 @@ func New(id identity.Identity, config Config) *Broker {
 	broker.Subscriptions = subscriptionsStore
 	broker.Sessions = sessionsStore
 
-	l, listenerCh := listener.New(broker)
+	l, listenerCh := listener.New(broker, config.Session.MaxInflightSize)
 	if config.RPCPort > 0 {
 		broker.RPC = rpc.New(config.RPCPort, broker)
 	}
@@ -129,6 +130,7 @@ func New(id identity.Identity, config Config) *Broker {
 	}
 	broker.Listener = l
 	broker.setupLogs()
+	broker.setupSYSTopic()
 	return broker
 }
 func (b *Broker) onUnicast(payload []byte) {
@@ -204,8 +206,6 @@ func (b *Broker) Join(hosts []string) {
 }
 
 func (b *Broker) dispatch(message *MessagePublished) {
-	b.mutex.RLock()
-	defer b.mutex.RUnlock()
 	for idx, recipient := range message.Recipient {
 		packet := &packet.Publish{
 			Header: &packet.Header{
@@ -217,10 +217,24 @@ func (b *Broker) dispatch(message *MessagePublished) {
 			Topic:     message.Topic,
 			MessageId: 1,
 		}
-		if ch, ok := b.localSessions[recipient]; ok {
-			ch.Channel() <- packet
-		}
+		b.events.Emit(events.Event{
+			Key:   fmt.Sprintf("message_published/%s", recipient),
+			Entry: packet,
+		})
 	}
+}
+
+func (b *Broker) OnMessagePublished(recipient string, f func(p *packet.Publish)) func() {
+	return b.events.Subscribe(fmt.Sprintf("message_published/%s", recipient), func(ev events.Event) {
+		f(ev.Entry.(*packet.Publish))
+	})
+
+}
+
+func (b *Broker) OnBrokerStopped(f func()) func() {
+	return b.events.Subscribe("broker_stopped", func(_ events.Event) {
+		f()
+	})
 }
 
 func (b *Broker) Stop() {
@@ -242,15 +256,6 @@ func (b *Broker) Stop() {
 		b.WSSTransport.Close()
 		log.Printf("INFO: WSS listener stopped")
 	}
-	b.mutex.Lock()
-	if len(b.localSessions) > 0 {
-		log.Printf("INFO: Closing client connections")
-		for _, session := range b.localSessions {
-			session.Close()
-		}
-		log.Printf("INFO: client connections closed")
-	}
-	b.mutex.Unlock()
 	if b.RPC != nil {
 		log.Printf("INFO: stopping RPC listener")
 		b.RPC.Close()

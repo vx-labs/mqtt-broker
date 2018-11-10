@@ -122,6 +122,9 @@ func (m *memDBStore) ByID(id string) (*RetainedMessage, error) {
 	var res *RetainedMessage
 	return res, m.read(func(tx *memdb.Txn) (err error) {
 		res, err = m.first(tx, "id", id)
+		if res.IsRemoved() {
+			return ErrRetainedMessageNotFound
+		}
 		return
 	})
 }
@@ -191,13 +194,7 @@ func (m *memDBStore) insert(messages []*RetainedMessage) error {
 	})
 }
 func (s *memDBStore) On(event string, handler func(*RetainedMessage)) func() {
-	ch, cancel := s.events.Subscribe()
-	go func() {
-		for ev := range ch {
-			if event == "*" || ev.Key == event {
-				handler(ev.Entry.(*RetainedMessage))
-			}
-		}
-	}()
-	return cancel
+	return s.events.Subscribe(event, func(ev events.Event) {
+		handler(ev.Entry.(*RetainedMessage))
+	})
 }

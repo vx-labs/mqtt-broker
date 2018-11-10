@@ -93,7 +93,7 @@ func NewSessionStore(router Router) (SessionStore, error) {
 	s.state = state
 	return s, nil
 }
-func (s *memDBStore) DumpState() *SessionList {
+func (s *memDBStore) all() *SessionList {
 	sessionList := SessionList{}
 	s.read(func(tx *memdb.Txn) error {
 		iterator, err := tx.Get("sessions", "id")
@@ -123,12 +123,15 @@ func (s *memDBStore) ByID(id string) (*Session, error) {
 		if err != nil {
 			return err
 		}
+		if sess.IsRemoved() {
+			return ErrSessionNotFound
+		}
 		session = sess
 		return nil
 	})
 }
 func (s *memDBStore) All() (SessionList, error) {
-	return s.DumpState().Filter(func(s *Session) bool {
+	return s.all().Filter(func(s *Session) bool {
 		return s.IsAdded()
 	}), nil
 }
@@ -166,16 +169,28 @@ func (s *memDBStore) insert(sessions []*Session) error {
 			if sess.IsAdded() {
 				s.events.Emit(events.Event{
 					Entry: sess,
-					Key:   "session_created",
+					Key:   SessionCreated,
+				})
+				s.events.Emit(events.Event{
+					Entry: sess,
+					Key:   SessionCreated + "/" + sess.ID,
 				})
 			} else if sess.IsRemoved() {
 				s.events.Emit(events.Event{
 					Entry: sess,
-					Key:   "session_deleted",
+					Key:   SessionDeleted,
+				})
+				s.events.Emit(events.Event{
+					Entry: sess,
+					Key:   SessionDeleted + "/" + sess.ID,
 				})
 			}
-			tx.Insert("sessions", sess)
+			err := tx.Insert("sessions", sess)
+			if err != nil {
+				return err
+			}
 		}
+		tx.Commit()
 		return nil
 	})
 }
@@ -212,20 +227,11 @@ func (s *memDBStore) first(tx *memdb.Txn, idx, id string) (*Session, error) {
 		return &Session{}, ErrSessionNotFound
 	}
 	sess := data.(*Session)
-	if sess.IsRemoved() {
-		return nil, ErrSessionNotFound
-	}
 	return sess, nil
 }
 
 func (s *memDBStore) On(event string, handler func(*Session)) func() {
-	ch, cancel := s.events.Subscribe()
-	go func() {
-		for ev := range ch {
-			if event == "*" || ev.Key == event {
-				handler(ev.Entry.(*Session))
-			}
-		}
-	}()
-	return cancel
+	return s.events.Subscribe(event, func(ev events.Event) {
+		handler(ev.Entry.(*Session))
+	})
 }

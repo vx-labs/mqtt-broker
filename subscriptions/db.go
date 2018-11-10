@@ -29,9 +29,6 @@ func (m *memDBStore) first(tx *memdb.Txn, index string, value ...interface{}) (*
 	if !ok {
 		return res, errors.New("invalid type fetched")
 	}
-	if res.IsRemoved() {
-		return nil, ErrSubscriptionNotFound
-	}
 	return res, nil
 }
 func (m *memDBStore) all(tx *memdb.Txn, index string, value ...interface{}) (SubscriptionList, error) {

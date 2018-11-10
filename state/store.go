@@ -40,9 +40,6 @@ func (s *Store) flush() {
 		s.gossip.GossipBroadcast(&Dataset{backend: s.pending})
 		s.pending = s.backend.Set()
 	}
-	if s.pending.Length() > 20 {
-		defer s.flush()
-	}
 	s.mutex.Unlock()
 }
 func (s *Store) queue(remote Entry) {

@@ -26,12 +26,7 @@ type Transport interface {
 }
 type Handler interface {
 	Authenticate(transport Transport, sessionID, username string, password string) (tenant string, id string, err error)
-	OnConnect(id, tenant string, sess *Session, transport string)
-	OnSubscribe(id string, tenant string, packet *packet.Subscribe) error
-	OnUnsubscribe(id string, tenant string, packet *packet.Unsubscribe) error
-	OnSessionClosed(id, tenant string)
-	OnSessionLost(id, tenant string)
-	OnPublish(id, tenant string, packet *packet.Publish) error
+	OnConnect(sess *Session)
 }
 
 type listener struct {
@@ -44,7 +39,7 @@ func (l *listener) Close() error {
 	return nil
 }
 
-func New(handler Handler) (io.Closer, chan<- Transport) {
+func New(handler Handler, inflightSize int) (io.Closer, chan<- Transport) {
 	ch := make(chan Transport)
 
 	l := &listener{
@@ -53,25 +48,23 @@ func New(handler Handler) (io.Closer, chan<- Transport) {
 	}
 	go func() {
 		for transport := range ch {
-			go l.runSession(transport)
+			go l.runSession(transport, inflightSize)
 		}
 	}()
 	return l, l.ch
 }
 
-func (l *listener) runSession(t Transport) {
+func validateClientID(clientID string) bool {
+	return len(clientID) > 0 && len(clientID) < 128
+}
+
+func (l *listener) runSession(t Transport, inflightSize int) {
 	log.Printf("INFO: listener %s: accepted new connection from %s", t.Name(), t.RemoteAddress())
 	c := t.Channel()
 	handler := l.handler
-	enc := encoder.New(c)
-	session := &Session{
-		ch:        make(chan *packet.Publish, 100),
-		tenant:    "_default",
-		keepalive: 30,
-		closer:    t.Close,
-	}
-	defer close(session.ch)
-
+	session := newSession(t, inflightSize)
+	session.encoder = encoder.New(c)
+	defer close(session.quit)
 	dec := decoder.New(
 		decoder.OnConnect(func(p *packet.Connect) error {
 			session.keepalive = p.KeepaliveTimer
@@ -79,77 +72,51 @@ func (l *listener) runSession(t Transport) {
 				time.Now().Add(time.Duration(session.keepalive) * time.Second * 2),
 			)
 			clientID := string(p.ClientId)
+			if !validateClientID(clientID) {
+				session.ConnAck(packet.CONNACK_REFUSED_IDENTIFIER_REJECTED)
+				return fmt.Errorf("invalid client ID")
+			}
 			tenant, id, err := handler.Authenticate(t, clientID, string(p.Username), string(p.Password))
 			if err != nil {
-				enc.ConnAck(&packet.ConnAck{
+				session.encoder.ConnAck(&packet.ConnAck{
 					Header:     p.Header,
 					ReturnCode: packet.CONNACK_REFUSED_BAD_USERNAME_OR_PASSWORD,
 				})
+				session.ConnAck(packet.CONNACK_REFUSED_BAD_USERNAME_OR_PASSWORD)
 				return fmt.Errorf("authentication failed")
 			}
 			session.id = id
 			session.connect = p
 			session.tenant = tenant
-			handler.OnConnect(session.id, tenant, session, t.Name())
-			log.Printf("INFO: listener %s: session %s started", t.Name(), session.id)
-			return enc.ConnAck(&packet.ConnAck{
-				Header:     p.Header,
-				ReturnCode: packet.CONNACK_CONNECTION_ACCEPTED,
-			})
+			handler.OnConnect(session)
+			return session.ConnAck(packet.CONNACK_CONNECTION_ACCEPTED)
 		}),
 		decoder.OnPublish(func(p *packet.Publish) error {
 			c.SetDeadline(
 				time.Now().Add(time.Duration(session.keepalive) * time.Second * 2),
 			)
-			err := handler.OnPublish(session.id, session.tenant, p)
-			if p.Header.Qos == 0 {
-				return nil
-			}
-			if err != nil {
-				log.Printf("ERR: failed to handle message publish: %v", err)
-				return err
-			}
-			if p.Header.Qos == 1 {
-				return enc.PubAck(&packet.PubAck{
-					Header:    &packet.Header{},
-					MessageId: p.MessageId,
-				})
-			}
+			session.emitPublish(p)
 			return nil
 		}),
 		decoder.OnSubscribe(func(p *packet.Subscribe) error {
 			c.SetDeadline(
 				time.Now().Add(time.Duration(session.keepalive) * time.Second * 2),
 			)
-			err := handler.OnSubscribe(session.id, session.tenant, p)
-			if err != nil {
-				return err
-			}
-			qos := make([]int32, len(p.Qos))
-
-			// QoS2 is not supported for now
-			for idx := range p.Qos {
-				if p.Qos[idx] > 1 {
-					qos[idx] = 1
-				} else {
-					qos[idx] = p.Qos[idx]
-				}
-			}
-			return enc.SubAck(&packet.SubAck{
-				Header:    p.Header,
-				MessageId: p.MessageId,
-				Qos:       qos,
-			})
+			session.emitSubscribe(p)
+			return nil
 		}),
 		decoder.OnUnsubscribe(func(p *packet.Unsubscribe) error {
-			return handler.OnUnsubscribe(session.id, session.tenant, p)
+			session.emitUnsubscribe(p)
+			return nil
 		}),
-		decoder.OnPubAck(func(*packet.PubAck) error { return nil }),
+		decoder.OnPubAck(func(p *packet.PubAck) error {
+			return session.queue.Acknowledge(p.MessageId)
+		}),
 		decoder.OnPingReq(func(p *packet.PingReq) error {
 			c.SetDeadline(
 				time.Now().Add(time.Duration(session.keepalive) * time.Second * 2),
 			)
-			return enc.PingResp(&packet.PingResp{
+			return session.encoder.PingResp(&packet.PingResp{
 				Header: p.Header,
 			})
 		}),
@@ -162,14 +129,6 @@ func (l *listener) runSession(t Transport) {
 	)
 	decoderCh := make(chan struct{})
 
-	go func() {
-		for p := range session.ch {
-			err := enc.Publish(p)
-			if err != nil {
-				log.Printf("ERR: failed to send message to %s: %v", session.id, err)
-			}
-		}
-	}()
 	var err error
 	go func() {
 		defer close(decoderCh)
@@ -187,13 +146,13 @@ func (l *listener) runSession(t Transport) {
 
 	select {
 	case <-decoderCh:
+		c.Close()
 	}
-	c.Close()
 	if err != nil && err != ErrSessionDisconnected {
 		//log.Printf("WARN: listener %s: session %s lost: %v", t.Name(), session.id, err)
-		handler.OnSessionLost(session.id, session.tenant)
+		session.emitLost()
 	} else {
 		//log.Printf("INFO: listener %s: session %s closed", t.Name(), session.id)
-		handler.OnSessionClosed(session.id, session.tenant)
+		session.emitClosed()
 	}
 }

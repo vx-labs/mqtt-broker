@@ -33,7 +33,16 @@ func (e *SessionList) Range(f func(idx int, entry state.Entry)) {
 }
 
 func (m *memDBStore) EntryByID(id string) (state.Entry, error) {
-	return m.ByID(id)
+	var session *Session
+	err := m.read(func(tx *memdb.Txn) error {
+		sess, err := m.first(tx, "id", id)
+		if err != nil {
+			return err
+		}
+		session = sess
+		return nil
+	})
+	return session, err
 }
 
 func (m *memDBStore) InsertEntries(entries state.EntrySet) error {
@@ -58,8 +67,8 @@ func (m memDBStore) Dump() state.EntrySet {
 	sessionList := SessionList{}
 	m.read(func(tx *memdb.Txn) error {
 		iterator, err := tx.Get("sessions", "id")
-		if err != nil || iterator == nil {
-			return nil
+		if (err != nil && err != ErrSessionNotFound) || iterator == nil {
+			return err
 		}
 		for {
 			payload := iterator.Next()
@@ -75,7 +84,6 @@ func (m memDBStore) Dump() state.EntrySet {
 
 func (m *memDBStore) DeleteEntry(entry state.Entry) error {
 	session := entry.(*Session)
-	session.LastDeleted = now()
 	return m.write(func(tx *memdb.Txn) error {
 		err := tx.Delete("sessions", session)
 		if err == nil {

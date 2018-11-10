@@ -142,6 +142,9 @@ func (m *memDBStore) ByID(id string) (*Subscription, error) {
 	var res *Subscription
 	return res, m.read(func(tx *memdb.Txn) (err error) {
 		res, err = m.first(tx, "id", id)
+		if res.IsRemoved() {
+			return ErrSubscriptionNotFound
+		}
 		return
 	})
 }
@@ -193,6 +196,10 @@ func (m *memDBStore) insert(messages []*Subscription) error {
 					Key:   SubscriptionCreated,
 					Entry: message,
 				})
+				m.events.Emit(events.Event{
+					Key:   SubscriptionCreated + "/" + message.SessionID,
+					Entry: message,
+				})
 				err := m.patternIndex.Index(message)
 				if err != nil {
 					return err
@@ -201,6 +208,10 @@ func (m *memDBStore) insert(messages []*Subscription) error {
 			if message.IsRemoved() {
 				m.events.Emit(events.Event{
 					Key:   SubscriptionDeleted,
+					Entry: message,
+				})
+				m.events.Emit(events.Event{
+					Key:   SubscriptionDeleted + "/" + message.SessionID,
 					Entry: message,
 				})
 				m.patternIndex.Remove(message.Tenant, message.ID, message.Pattern)
@@ -228,13 +239,7 @@ func (m *memDBStore) Create(message *Subscription) error {
 }
 
 func (s *memDBStore) On(event string, handler func(*Subscription)) func() {
-	ch, cancel := s.events.Subscribe()
-	go func() {
-		for ev := range ch {
-			if event == "*" || ev.Key == event {
-				handler(ev.Entry.(*Subscription))
-			}
-		}
-	}()
-	return cancel
+	return s.events.Subscribe(event, func(ev events.Event) {
+		handler(ev.Entry.(*Subscription))
+	})
 }
