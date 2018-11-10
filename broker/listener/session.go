@@ -72,6 +72,9 @@ func newSession(transport Transport, queueSize int) *Session {
 func (s *Session) TransportName() string {
 	return s.transport.Name()
 }
+func (s *Session) RemoteAddress() string {
+	return s.transport.RemoteAddress()
+}
 func (s *Session) Close() error {
 	return s.transport.Close()
 }

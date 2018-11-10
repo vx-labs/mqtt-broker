@@ -127,16 +127,17 @@ func (b *Broker) OnConnect(transportSession *listener.Session) {
 	tenant := transportSession.Tenant()
 	transport := transportSession.TransportName()
 	sess := &sessions.Session{
-		ID:          id,
-		ClientID:    connectPkt.ClientId,
-		Created:     time.Now().Unix(),
-		Tenant:      tenant,
-		Peer:        uint64(b.Peer.Name()),
-		WillPayload: connectPkt.WillPayload,
-		WillQoS:     connectPkt.WillQos,
-		WillRetain:  connectPkt.WillRetain,
-		WillTopic:   connectPkt.WillTopic,
-		Transport:   transport,
+		ID:            id,
+		ClientID:      connectPkt.ClientId,
+		Created:       time.Now().Unix(),
+		Tenant:        tenant,
+		Peer:          uint64(b.Peer.Name()),
+		WillPayload:   connectPkt.WillPayload,
+		WillQoS:       connectPkt.WillQos,
+		WillRetain:    connectPkt.WillRetain,
+		WillTopic:     connectPkt.WillTopic,
+		Transport:     transport,
+		RemoteAddress: transportSession.RemoteAddress(),
 	}
 	b.Sessions.Upsert(sess)
 	var cancels []func()

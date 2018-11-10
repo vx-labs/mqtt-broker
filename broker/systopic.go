@@ -1,6 +1,7 @@
 package broker
 
 import (
+	"encoding/json"
 	"fmt"
 
 	"github.com/vx-labs/mqtt-broker/sessions"
@@ -38,14 +39,17 @@ func (b *Broker) setupSYSTopic() {
 				Payload:   []byte(fmt.Sprintf("%s connected with client_id=%s", s.ID, string(s.ClientID))),
 				Topic:     []byte("$SYS/events/session_created"),
 			})
-			b.OnPublish("_sys", s.Tenant, &packet.Publish{
-				Header: &packet.Header{
-					Retain: true,
-				},
-				MessageId: 1,
-				Payload:   []byte(fmt.Sprintf("online since %d", s.Created)),
-				Topic:     []byte(fmt.Sprintf("$SYS/sessions/%s", s.ClientID)),
-			})
+			payload, err := json.Marshal(s)
+			if err == nil {
+				b.OnPublish("_sys", s.Tenant, &packet.Publish{
+					Header: &packet.Header{
+						Retain: true,
+					},
+					MessageId: 1,
+					Payload:   payload,
+					Topic:     []byte(fmt.Sprintf("$SYS/sessions/%s", s.ClientID)),
+				})
+			}
 		}
 	})
 	b.Sessions.On(sessions.SessionDeleted, func(s *sessions.Session) {
