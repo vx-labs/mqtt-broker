@@ -143,7 +143,13 @@ func (m *memDBStore) ByTenant(tenant string) (RetainedMessageList, error) {
 	})
 }
 func (m *memDBStore) ByTopicPattern(tenant string, pattern []byte) (RetainedMessageList, error) {
-	return m.topicIndex.Lookup(tenant, pattern)
+	set, err := m.topicIndex.Lookup(tenant, pattern)
+	if err != nil {
+		return RetainedMessageList{}, err
+	}
+	return set.Filter(func(m *RetainedMessage) bool {
+		return len(m.Payload) > 0
+	}), nil
 }
 func (m *memDBStore) Create(message *RetainedMessage) error {
 	if message.ID == "" {
