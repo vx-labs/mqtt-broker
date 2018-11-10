@@ -60,6 +60,7 @@ func (l *listener) runSession(t Transport) {
 	handler := l.handler
 	session := newSession(t)
 	session.encoder = encoder.New(c)
+	defer close(session.ch)
 
 	dec := decoder.New(
 		decoder.OnConnect(func(p *packet.Connect) error {
@@ -119,6 +120,14 @@ func (l *listener) runSession(t Transport) {
 	)
 	decoderCh := make(chan struct{})
 
+	go func() {
+		for p := range session.ch {
+			err := session.encoder.Publish(p)
+			if err != nil {
+				log.Printf("ERR: failed to send message to %s: %v", session.id, err)
+			}
+		}
+	}()
 	var err error
 	go func() {
 		defer close(decoderCh)
@@ -136,8 +145,8 @@ func (l *listener) runSession(t Transport) {
 
 	select {
 	case <-decoderCh:
-		c.Close()
 	}
+	c.Close()
 	if err != nil && err != ErrSessionDisconnected {
 		//log.Printf("WARN: listener %s: session %s lost: %v", t.Name(), session.id, err)
 		session.emitLost()

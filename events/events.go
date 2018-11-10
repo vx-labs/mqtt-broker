@@ -18,18 +18,6 @@ type subscription struct {
 	handler func(Event)
 }
 
-func newSubscription(handler func(Event)) *subscription {
-	return &subscription{
-		handler: handler,
-	}
-}
-
-func (sub *subscription) send(ev Event) {
-	sub.handler(ev)
-}
-func (sub *subscription) close() {
-}
-
 type CancelFunc func()
 
 type Bus struct {
@@ -46,6 +34,18 @@ func (e *Bus) Emit(ev Event) {
 	<-e.jobs <- ev
 }
 
+func newSubscription(handler func(Event)) *subscription {
+	return &subscription{
+		handler: handler,
+	}
+}
+
+func (sub *subscription) send(ev Event) {
+	sub.handler(ev)
+}
+func (sub *subscription) close() {
+}
+
 func (e *Bus) Subscribe(key string, handler func(Event)) func() {
 	sub := newSubscription(handler)
 	id := fmt.Sprintf("%s/%s", key, uuid.New().String())
@@ -54,7 +54,6 @@ func (e *Bus) Subscribe(key string, handler func(Event)) func() {
 			old := e.state
 			new, _, _ := old.Delete([]byte(id))
 			if e.cas(old, new) {
-				sub.close()
 				return
 			}
 		}
