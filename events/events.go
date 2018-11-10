@@ -45,6 +45,7 @@ func (e *Bus) cas(old, new *iradix.Tree) bool {
 func (e *Bus) Emit(ev Event) {
 	<-e.jobs <- ev
 }
+
 func (e *Bus) Subscribe(key string, handler func(Event)) func() {
 	sub := newSubscription(handler)
 	id := fmt.Sprintf("%s/%s", key, uuid.New().String())

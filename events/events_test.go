@@ -20,7 +20,7 @@ func TestEvents(t *testing.T) {
 	cancel()
 }
 
-func BenchmarkEvents(b *testing.B) {
+func BenchmarkEvents_Emit(b *testing.B) {
 	bus := NewEventBus()
 	cancel := bus.Subscribe("entry_added", func(_ Event) {})
 	defer cancel()
@@ -29,5 +29,12 @@ func BenchmarkEvents(b *testing.B) {
 			Key:   "entry_added",
 			Entry: nil,
 		})
+	}
+}
+func BenchmarkEvents_Subscribe(b *testing.B) {
+	bus := NewEventBus()
+	for i := 0; i < b.N; i++ {
+		cancel := bus.Subscribe("entry_added", func(_ Event) {})
+		cancel()
 	}
 }
