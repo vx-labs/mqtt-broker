@@ -54,6 +54,10 @@ func New(handler Handler) (io.Closer, chan<- Transport) {
 	return l, l.ch
 }
 
+func validateClientID(clientID string) bool {
+	return len(clientID) > 0 && len(clientID) < 32
+}
+
 func (l *listener) runSession(t Transport) {
 	log.Printf("INFO: listener %s: accepted new connection from %s", t.Name(), t.RemoteAddress())
 	c := t.Channel()
@@ -68,19 +72,23 @@ func (l *listener) runSession(t Transport) {
 				time.Now().Add(time.Duration(session.keepalive) * time.Second * 2),
 			)
 			clientID := string(p.ClientId)
+			if !validateClientID(clientID) {
+				session.ConnAck(packet.CONNACK_REFUSED_IDENTIFIER_REJECTED)
+				return fmt.Errorf("invalid client ID")
+			}
 			tenant, id, err := handler.Authenticate(t, clientID, string(p.Username), string(p.Password))
 			if err != nil {
 				session.encoder.ConnAck(&packet.ConnAck{
 					Header:     p.Header,
 					ReturnCode: packet.CONNACK_REFUSED_BAD_USERNAME_OR_PASSWORD,
 				})
+				session.ConnAck(packet.CONNACK_REFUSED_BAD_USERNAME_OR_PASSWORD)
 				return fmt.Errorf("authentication failed")
 			}
 			session.id = id
 			session.connect = p
 			session.tenant = tenant
 			handler.OnConnect(session)
-			log.Printf("INFO: listener %s: session %s started", t.Name(), session.id)
 			return session.ConnAck(packet.CONNACK_CONNECTION_ACCEPTED)
 		}),
 		decoder.OnPublish(func(p *packet.Publish) error {
