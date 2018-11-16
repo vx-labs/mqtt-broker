@@ -18,6 +18,17 @@ func (b *Broker) setupSYSTopic() {
 				Payload:   []byte(fmt.Sprintf("%s subscribed to %s", s.SessionID, string(s.Pattern))),
 				Topic:     []byte("$SYS/events/session_subscribed"),
 			})
+			payload, err := json.Marshal(s)
+			if err == nil {
+				b.OnPublish("_sys", s.Tenant, &packet.Publish{
+					Header: &packet.Header{
+						Retain: true,
+					},
+					MessageId: 1,
+					Payload:   payload,
+					Topic:     []byte(fmt.Sprintf("$SYS/subscriptions/%s", s.ID)),
+				})
+			}
 		}
 	})
 	b.Subscriptions.On(subscriptions.SubscriptionDeleted, func(s *subscriptions.Subscription) {
@@ -27,6 +38,14 @@ func (b *Broker) setupSYSTopic() {
 				MessageId: 1,
 				Payload:   []byte(fmt.Sprintf("%s unsubscribed to %s", s.SessionID, string(s.Pattern))),
 				Topic:     []byte("$SYS/events/session_unsubscribe"),
+			})
+			b.OnPublish("_sys", s.Tenant, &packet.Publish{
+				Header: &packet.Header{
+					Retain: true,
+				},
+				MessageId: 1,
+				Payload:   nil,
+				Topic:     []byte(fmt.Sprintf("$SYS/subscriptions/%s", s.ID)),
 			})
 		}
 	})
