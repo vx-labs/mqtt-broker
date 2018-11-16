@@ -47,7 +47,7 @@ func (b *Broker) setupSYSTopic() {
 					},
 					MessageId: 1,
 					Payload:   payload,
-					Topic:     []byte(fmt.Sprintf("$SYS/sessions/%s", s.ClientID)),
+					Topic:     []byte(fmt.Sprintf("$SYS/sessions/%s", s.ID)),
 				})
 			}
 		}
@@ -66,7 +66,7 @@ func (b *Broker) setupSYSTopic() {
 				},
 				MessageId: 1,
 				Payload:   nil,
-				Topic:     []byte(fmt.Sprintf("$SYS/sessions/%s", s.ClientID)),
+				Topic:     []byte(fmt.Sprintf("$SYS/sessions/%s", s.ID)),
 			})
 
 		}
