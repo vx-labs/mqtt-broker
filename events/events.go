@@ -49,7 +49,7 @@ func (e *Bus) Emit(ev Event) {
 
 func (e *Bus) Subscribe(key string, handler func(Event)) func() {
 	sub := newSubscription(handler)
-	id := fmt.Sprintf("%s/%s", key, uuid.New().String())
+	id := fmt.Sprintf("%s:%s", key, uuid.New().String())
 	cancel := func() {
 		for {
 			old := e.state
@@ -89,7 +89,7 @@ func NewEventBus() *Bus {
 					return
 				case b.jobs <- ch:
 					ev := <-ch
-					b.state.Root().WalkPrefix([]byte(ev.Key+"/"), func(k []byte, v interface{}) bool {
+					b.state.Root().WalkPrefix([]byte(ev.Key+":"), func(k []byte, v interface{}) bool {
 						sub := v.(*subscription)
 						sub.send(ev)
 						return false
