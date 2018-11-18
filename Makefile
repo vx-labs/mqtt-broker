@@ -6,3 +6,5 @@ release: build
 	docker push quay.io/vxlabs/mqtt-broker:${VERSION}
 deploy: release
 	cd terraform && terraform apply -var broker_version=${VERSION}
+nuke:
+	cd terraform && terraform destroy
