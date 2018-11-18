@@ -20,6 +20,7 @@ type Session struct {
 	id        string
 	tenant    string
 	keepalive int32
+	closed    bool
 	transport Transport
 	connect   *packet.Connect
 	encoder   *encoder.Encoder
@@ -76,6 +77,7 @@ func (s *Session) RemoteAddress() string {
 	return s.transport.RemoteAddress()
 }
 func (s *Session) Close() error {
+	s.closed = true
 	return s.transport.Close()
 }
 func (s *Session) Connect() *packet.Connect {

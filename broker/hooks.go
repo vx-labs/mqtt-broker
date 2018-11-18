@@ -186,6 +186,9 @@ func (b *Broker) OnConnect(transportSession *listener.Session) {
 		b.OnMessagePublished(transportSession.ID(), func(p *packet.Publish) {
 			transportSession.Publish(p)
 		}),
+		b.Sessions.On(sessions.SessionCreated+"/"+id, func(s *sessions.Session) {
+			transportSession.Close()
+		}),
 	}
 }
 func (b *Broker) OnPublish(id, tenant string, packet *packet.Publish) error {

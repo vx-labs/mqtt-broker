@@ -128,16 +128,15 @@ func (l *listener) runSession(t Transport, inflightSize int) {
 		time.Now().Add(10 * time.Second),
 	)
 	decoderCh := make(chan struct{})
-
 	var err error
 	go func() {
 		defer close(decoderCh)
 		for {
 			err = dec.Decode(c)
-			if err == io.EOF || err == ErrSessionDisconnected {
-				return
-			}
 			if err != nil {
+				if err == io.EOF || err == ErrSessionDisconnected || session.closed {
+					return
+				}
 				log.Printf("ERR: listener %s: decoding failed: %v", t.Name(), err)
 				return
 			}
@@ -148,7 +147,7 @@ func (l *listener) runSession(t Transport, inflightSize int) {
 	case <-decoderCh:
 		c.Close()
 	}
-	if err != nil && err != ErrSessionDisconnected {
+	if err != nil && err != ErrSessionDisconnected && !session.closed {
 		//log.Printf("WARN: listener %s: session %s lost: %v", t.Name(), session.id, err)
 		session.emitLost()
 	} else {
