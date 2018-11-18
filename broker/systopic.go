@@ -12,12 +12,6 @@ import (
 func (b *Broker) setupSYSTopic() {
 	b.Subscriptions.On(subscriptions.SubscriptionCreated, func(s *subscriptions.Subscription) {
 		if s.Peer == uint64(b.Peer.Name()) {
-			b.OnPublish("_sys", s.Tenant, &packet.Publish{
-				Header:    &packet.Header{},
-				MessageId: 1,
-				Payload:   []byte(fmt.Sprintf("%s subscribed to %s", s.SessionID, string(s.Pattern))),
-				Topic:     []byte("$SYS/events/session_subscribed"),
-			})
 			payload, err := json.Marshal(s)
 			if err == nil {
 				b.OnPublish("_sys", s.Tenant, &packet.Publish{
@@ -34,12 +28,6 @@ func (b *Broker) setupSYSTopic() {
 	b.Subscriptions.On(subscriptions.SubscriptionDeleted, func(s *subscriptions.Subscription) {
 		if s.Peer == uint64(b.Peer.Name()) {
 			b.OnPublish("_sys", s.Tenant, &packet.Publish{
-				Header:    &packet.Header{},
-				MessageId: 1,
-				Payload:   []byte(fmt.Sprintf("%s unsubscribed to %s", s.SessionID, string(s.Pattern))),
-				Topic:     []byte("$SYS/events/session_unsubscribe"),
-			})
-			b.OnPublish("_sys", s.Tenant, &packet.Publish{
 				Header: &packet.Header{
 					Retain: true,
 				},
@@ -52,12 +40,6 @@ func (b *Broker) setupSYSTopic() {
 
 	b.Sessions.On(sessions.SessionCreated, func(s *sessions.Session) {
 		if s.Peer == uint64(b.Peer.Name()) {
-			b.OnPublish("_sys", s.Tenant, &packet.Publish{
-				Header:    &packet.Header{},
-				MessageId: 1,
-				Payload:   []byte(fmt.Sprintf("%s connected with client_id=%s", s.ID, string(s.ClientID))),
-				Topic:     []byte("$SYS/events/session_created"),
-			})
 			payload, err := json.Marshal(s)
 			if err == nil {
 				b.OnPublish("_sys", s.Tenant, &packet.Publish{
@@ -73,12 +55,6 @@ func (b *Broker) setupSYSTopic() {
 	})
 	b.Sessions.On(sessions.SessionDeleted, func(s *sessions.Session) {
 		if s.Peer == uint64(b.Peer.Name()) {
-			b.OnPublish("_sys", s.Tenant, &packet.Publish{
-				Header:    &packet.Header{},
-				MessageId: 1,
-				Payload:   []byte(fmt.Sprintf("%s with client_id=%s disconnected", s.ID, string(s.ClientID))),
-				Topic:     []byte("$SYS/events/session_deleted"),
-			})
 			b.OnPublish("_sys", s.Tenant, &packet.Publish{
 				Header: &packet.Header{
 					Retain: true,
