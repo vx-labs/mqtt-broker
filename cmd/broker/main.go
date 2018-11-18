@@ -122,7 +122,7 @@ func ConsulPeers(api *consul.Client, service string, self identity.Identity) ([]
 }
 func makeSessionID(tenant, clientID string) (string, error) {
 	hash := sha1.New()
-	_, err := hash.Write([]byte(tenant + clientID + time.Now().String()))
+	_, err := hash.Write([]byte(tenant + clientID))
 	if err != nil {
 		return "", err
 	}
