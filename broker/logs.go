@@ -37,6 +37,7 @@ func (b *Broker) setupLogs() {
 			WithField("peer", s.Peer).
 			WithField("mutation", sessions.SessionDeleted).
 			WithField("client_id", string(s.ClientID)).
+			WithField("closure_reason", s.ClosureReason).
 			Printf("session closed")
 	})
 }

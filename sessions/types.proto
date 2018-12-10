@@ -15,6 +15,7 @@ message Session {
   int64 LastDeleted = 11;
   string Transport = 12;
   string RemoteAddress = 13;
+  string ClosureReason = 14;
 }
 
 message SessionList {

@@ -87,25 +87,31 @@ func (b *Broker) OnUnsubscribe(id string, tenant string, packet *packet.Unsubscr
 	return nil
 }
 
-func (b *Broker) OnSessionClosed(id, tenant string) {
+func (b *Broker) deleteSessionSubscriptions(id, tenant string) error {
 	set, err := b.Subscriptions.BySession(id)
 	if err != nil {
-		return
-	}
-	sess, err := b.Sessions.ByID(id)
-	if err != nil || sess.Peer != uint64(b.Peer.Name()) {
-		return
+		return err
 	}
 	set.Apply(func(sub *subscriptions.Subscription) {
 		b.Subscriptions.Delete(sub.ID)
 	})
-	b.Sessions.Delete(sess.ID)
+	return nil
+}
+func (b *Broker) OnSessionClosed(id, tenant string) {
+	sess, err := b.Sessions.ByID(id)
+	if err != nil || sess.Peer != uint64(b.Peer.Name()) {
+		return
+	}
+	err = b.deleteSessionSubscriptions(id, tenant)
+	if err != nil {
+		log.Printf("WARN: failed to delete session subscriptions: %v", err)
+	}
+	b.Sessions.Delete(sess.ID, "session_disconnected")
 	return
 }
 func (b *Broker) OnSessionLost(id, tenant string) {
-	defer b.OnSessionClosed(id, tenant)
 	sess, err := b.Sessions.ByID(id)
-	if err != nil {
+	if err != nil || sess.Peer != uint64(b.Peer.Name()) {
 		return
 	}
 	if len(sess.WillTopic) > 0 {
@@ -119,6 +125,11 @@ func (b *Broker) OnSessionLost(id, tenant string) {
 			Topic:   sess.WillTopic,
 		})
 	}
+	err = b.deleteSessionSubscriptions(id, tenant)
+	if err != nil {
+		log.Printf("WARN: failed to delete session subscriptions: %v", err)
+	}
+	b.Sessions.Delete(sess.ID, "session_lost")
 }
 
 func (b *Broker) OnConnect(transportSession *listener.Session) {

@@ -58,7 +58,7 @@ func TestSessionStore(t *testing.T) {
 	})
 
 	t.Run("delete", func(t *testing.T) {
-		err := store.Delete(sessionID)
+		err := store.Delete(sessionID, "test")
 		assert.Nil(t, err)
 		_, err = store.ByID(sessionID)
 		assert.NotNil(t, err)

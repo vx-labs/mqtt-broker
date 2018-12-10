@@ -36,7 +36,7 @@ type SessionStore interface {
 	All() (sessions.SessionList, error)
 	Exists(id string) bool
 	Upsert(sess *sessions.Session) error
-	Delete(id string) error
+	Delete(id, reason string) error
 	On(event string, handler func(*sessions.Session)) func()
 }
 
@@ -196,7 +196,7 @@ func (b *Broker) onPeerDown(name mesh.PeerName) {
 			message.Qos = append(message.Qos, qos)
 		})
 		b.dispatch(message)
-		b.Sessions.Delete(s.ID)
+		b.Sessions.Delete(s.ID, "peer_lost")
 	})
 }
 

@@ -33,7 +33,7 @@ type SessionStore interface {
 	All() (SessionList, error)
 	Exists(id string) bool
 	Upsert(sess *Session) error
-	Delete(id string) error
+	Delete(id, reason string) error
 	On(event string, handler func(*Session)) func()
 }
 
@@ -194,11 +194,12 @@ func (s *memDBStore) insert(sessions []*Session) error {
 		return nil
 	})
 }
-func (s *memDBStore) Delete(id string) error {
+func (s *memDBStore) Delete(id, reason string) error {
 	sess, err := s.ByID(id)
 	if err != nil {
 		return nil
 	}
+	sess.ClosureReason = reason
 	sess.LastDeleted = now()
 	return s.state.Upsert(sess)
 }
