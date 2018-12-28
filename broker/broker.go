@@ -4,9 +4,12 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"strings"
+	"os"
+
+	"github.com/google/uuid"
 
 	"github.com/vx-labs/mqtt-broker/events"
+	"github.com/vx-labs/mqtt-broker/peers"
 
 	"github.com/vx-labs/mqtt-broker/sessions"
 	"github.com/vx-labs/mqtt-broker/topics"
@@ -30,6 +33,14 @@ import (
 
 //go:generate protoc -I${GOPATH}/src -I${GOPATH}/src/github.com/vx-labs/mqtt-broker/broker/ --go_out=plugins=grpc:. events.proto
 
+type PeerStore interface {
+	ByID(id string) (*peers.Peer, error)
+	All() (peers.PeerList, error)
+	ByMeshID(id uint64) (*peers.Peer, error)
+	Upsert(sess *peers.Peer) error
+	Delete(id string) error
+	On(event string, handler func(*peers.Peer)) func()
+}
 type SessionStore interface {
 	ByID(id string) (*sessions.Session, error)
 	ByPeer(peer uint64) (sessions.SessionList, error)
@@ -58,11 +69,13 @@ type SubscriptionStore interface {
 	On(event string, handler func(*subscriptions.Subscription)) func()
 }
 type Broker struct {
+	ID            string
 	authHelper    func(transport listener.Transport, sessionID, username string, password string) (tenant string, id string, err error)
 	Peer          *peer.Peer
 	Subscriptions SubscriptionStore
 	Sessions      SessionStore
 	Topics        TopicStore
+	Peers         PeerStore
 	events        *events.Bus
 	Listener      io.Closer
 	TCPTransport  io.Closer
@@ -81,6 +94,10 @@ func New(id identity.Identity, config Config) *Broker {
 	if err != nil {
 		log.Fatal(err)
 	}
+	peersStore, err := peers.NewPeerStore(broker.Peer.Router())
+	if err != nil {
+		log.Fatal(err)
+	}
 	topicssStore, err := topics.NewMemDBStore(broker.Peer.Router())
 	if err != nil {
 		log.Fatal(err)
@@ -89,6 +106,7 @@ func New(id identity.Identity, config Config) *Broker {
 	if err != nil {
 		log.Fatal(err)
 	}
+	broker.Peers = peersStore
 	broker.Topics = topicssStore
 	broker.Subscriptions = subscriptionsStore
 	broker.Sessions = sessionsStore
@@ -131,6 +149,19 @@ func New(id identity.Identity, config Config) *Broker {
 	broker.Listener = l
 	broker.setupLogs()
 	broker.setupSYSTopic()
+	hostname, err := os.Hostname()
+	if err != nil {
+		hostname = os.Getenv("HOSTNAME")
+	}
+	if hostname == "" {
+		hostname = "not_available"
+	}
+	broker.ID = uuid.New().String()
+	broker.Peers.Upsert(&peers.Peer{
+		ID:       broker.ID,
+		MeshID:   uint64(broker.Peer.Name()),
+		Hostname: hostname,
+	})
 	return broker
 }
 func (b *Broker) onUnicast(payload []byte) {
@@ -143,15 +174,12 @@ func (b *Broker) onUnicast(payload []byte) {
 }
 
 func (b *Broker) onPeerDown(name mesh.PeerName) {
-	log.Printf("INFO: lost peer %s", name.String())
-	members := []string{}
-	for _, peer := range b.Peer.Members() {
-		if peer > 0 {
-			members = append(members, peer.String())
-		}
+	peer, err := b.Peers.ByMeshID(uint64(name))
+	if err != nil {
+		log.Printf("WARN: received lost event from an unknown peer %s", name.String())
+		return
 	}
-	log.Printf("INFO: current mesh members: %s", strings.Join(members, ","))
-
+	b.Peers.Delete(peer.ID)
 	set, err := b.Subscriptions.ByPeer(uint64(name))
 	if err != nil {
 		log.Printf("ERR: failed to remove subscriptions from peer %d: %v", name, err)

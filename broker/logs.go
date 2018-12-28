@@ -2,6 +2,7 @@ package broker
 
 import (
 	"github.com/sirupsen/logrus"
+	"github.com/vx-labs/mqtt-broker/peers"
 	"github.com/vx-labs/mqtt-broker/sessions"
 	"github.com/vx-labs/mqtt-broker/subscriptions"
 )
@@ -40,4 +41,20 @@ func (b *Broker) setupLogs() {
 			WithField("closure_reason", s.ClosureReason).
 			Printf("session closed")
 	})
+	peerLogger := logger.WithField("emitter", "peer-store")
+	b.Peers.On(peers.PeerCreated, func(s *peers.Peer) {
+		peerLogger.WithField("peer_id", s.ID).
+			WithField("mesh_id", s.MeshID).
+			WithField("mutation", peers.PeerCreated).
+			WithField("hostname", s.Hostname).
+			Printf("peer joined")
+	})
+	b.Peers.On(peers.PeerDeleted, func(s *peers.Peer) {
+		peerLogger.WithField("peer_id", s.ID).
+			WithField("mesh_id", s.MeshID).
+			WithField("mutation", peers.PeerCreated).
+			WithField("hostname", s.Hostname).
+			Printf("peer lost")
+	})
+
 }
