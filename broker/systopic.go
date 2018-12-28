@@ -68,7 +68,7 @@ func (b *Broker) setupSYSTopic() {
 		}
 	})
 	b.Sessions.On(sessions.SessionDeleted, func(s *sessions.Session) {
-		topic := []byte(fmt.Sprintf("$SYS/subscriptions/%s", s.ID))
+		topic := []byte(fmt.Sprintf("$SYS/sessions/%s", s.ID))
 		b.RetainThenDispatchToLocalSessions(s.Tenant, topic, nil, 1)
 	})
 }
