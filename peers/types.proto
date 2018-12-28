@@ -1,0 +1,15 @@
+syntax = "proto3";
+package peers;
+
+message Peer {
+  string ID = 1;
+  uint64 MeshID = 2;
+  string Hostname = 3;
+  string Address = 4;
+  int64 LastAdded = 5;
+  int64 LastDeleted = 6;
+}
+
+message PeerList {
+  repeated Peer Peers = 1;
+}
