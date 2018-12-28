@@ -172,7 +172,23 @@ func (b *Broker) onUnicast(payload []byte) {
 	}
 	b.dispatch(message)
 }
-
+func (b *Broker) resolveRecipients(tenant string, topic []byte, defaultQoS int32) ([]string, []int32) {
+	recipients, err := b.Subscriptions.ByTopic(tenant, topic)
+	if err != nil {
+		return []string{}, []int32{}
+	}
+	set := make([]string, 0, len(recipients.Subscriptions))
+	qosSet := make([]int32, 0, len(recipients.Subscriptions))
+	recipients.Apply(func(s *subscriptions.Subscription) {
+		set = append(set, s.SessionID)
+		qos := defaultQoS
+		if qos > s.Qos {
+			qos = s.Qos
+		}
+		qosSet = append(qosSet, qos)
+	})
+	return set, qosSet
+}
 func (b *Broker) onPeerDown(name mesh.PeerName) {
 	peer, err := b.Peers.ByMeshID(uint64(name))
 	if err != nil {
