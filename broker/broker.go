@@ -5,6 +5,8 @@ import (
 	"io"
 	"log"
 	"os"
+	"runtime"
+	"time"
 
 	"github.com/google/uuid"
 
@@ -162,6 +164,7 @@ func New(id identity.Identity, config Config) *Broker {
 		MeshID:   uint64(broker.Peer.Name()),
 		Hostname: hostname,
 	})
+	go broker.oSStatsReporter()
 	return broker
 }
 func (b *Broker) onUnicast(payload []byte) {
@@ -279,6 +282,28 @@ func (b *Broker) OnBrokerStopped(f func()) func() {
 	return b.events.Subscribe("broker_stopped", func(_ events.Event) {
 		f()
 	})
+}
+func memUsage() runtime.MemStats {
+	var m runtime.MemStats
+	runtime.ReadMemStats(&m)
+	return m
+}
+func (b *Broker) oSStatsReporter() {
+	ticker := time.NewTicker(10 * time.Second)
+	for range ticker.C {
+		m := memUsage()
+		self, err := b.Peers.ByID(b.ID)
+		if err != nil {
+			return
+		}
+		self.MemoryUsage = &peers.MemoryUsage{
+			Alloc:      m.Alloc,
+			TotalAlloc: m.TotalAlloc,
+			NumGC:      m.NumGC,
+			Sys:        m.Sys,
+		}
+		b.Peers.Upsert(self)
+	}
 }
 
 func (b *Broker) Stop() {

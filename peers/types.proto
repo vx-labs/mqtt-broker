@@ -8,6 +8,14 @@ message Peer {
   string Address = 4;
   int64 LastAdded = 5;
   int64 LastDeleted = 6;
+  MemoryUsage MemoryUsage = 7;
+}
+
+message MemoryUsage {
+  uint64 Alloc = 1;
+  uint64 TotalAlloc = 2;
+  uint64 Sys = 3;
+  uint32 NumGC = 4;
 }
 
 message PeerList {

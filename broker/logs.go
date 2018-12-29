@@ -42,13 +42,6 @@ func (b *Broker) setupLogs() {
 			Printf("session closed")
 	})
 	peerLogger := logger.WithField("emitter", "peer-store")
-	b.Peers.On(peers.PeerCreated, func(s *peers.Peer) {
-		peerLogger.WithField("peer_id", s.ID).
-			WithField("mesh_id", s.MeshID).
-			WithField("mutation", peers.PeerCreated).
-			WithField("hostname", s.Hostname).
-			Printf("peer joined")
-	})
 	b.Peers.On(peers.PeerDeleted, func(s *peers.Peer) {
 		peerLogger.WithField("peer_id", s.ID).
 			WithField("mesh_id", s.MeshID).

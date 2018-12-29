@@ -16,6 +16,7 @@ const (
 )
 const (
 	PeerCreated string = "peer_created"
+	PeerUpdated string = "peer_updated"
 	PeerDeleted string = "peer_deleted"
 )
 
