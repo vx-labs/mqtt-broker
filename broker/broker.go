@@ -163,6 +163,7 @@ func New(id identity.Identity, config Config) *Broker {
 		ID:       broker.ID,
 		MeshID:   uint64(broker.Peer.Name()),
 		Hostname: hostname,
+		Runtime:  runtime.Version(),
 	})
 	go broker.oSStatsReporter()
 	return broker
@@ -290,11 +291,17 @@ func memUsage() runtime.MemStats {
 }
 func (b *Broker) oSStatsReporter() {
 	ticker := time.NewTicker(10 * time.Second)
-	for range ticker.C {
+	for {
 		m := memUsage()
+		nbRoutines := runtime.NumGoroutine()
+		nbCores := runtime.NumCPU()
 		self, err := b.Peers.ByID(b.ID)
 		if err != nil {
 			return
+		}
+		self.ComputeUsage = &peers.ComputeUsage{
+			Cores:      int64(nbCores),
+			Goroutines: int64(nbRoutines),
 		}
 		self.MemoryUsage = &peers.MemoryUsage{
 			Alloc:      m.Alloc,
@@ -303,6 +310,7 @@ func (b *Broker) oSStatsReporter() {
 			Sys:        m.Sys,
 		}
 		b.Peers.Upsert(self)
+		<-ticker.C
 	}
 }
 

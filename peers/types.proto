@@ -9,8 +9,14 @@ message Peer {
   int64 LastAdded = 5;
   int64 LastDeleted = 6;
   MemoryUsage MemoryUsage = 7;
+  ComputeUsage ComputeUsage = 8;
+  string Runtime = 9;
 }
 
+message ComputeUsage {
+  int64 Cores = 1;
+  int64 Goroutines = 2;
+}
 message MemoryUsage {
   uint64 Alloc = 1;
   uint64 TotalAlloc = 2;
