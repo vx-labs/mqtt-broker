@@ -1,8 +1,6 @@
 provider "nomad" {}
 
-variable "broker_version" {
-  default = "v0.0.4"
-}
+variable "broker_version" {}
 
 data "template_file" "tcp-job" {
   template = "${file("${path.module}/jobs/tcp.nomad")}"
