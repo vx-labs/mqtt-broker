@@ -110,7 +110,8 @@ func (l *listener) runSession(t Transport, inflightSize int) {
 			return nil
 		}),
 		decoder.OnPubAck(func(p *packet.PubAck) error {
-			return session.queue.Acknowledge(p.MessageId)
+			session.queue.Acknowledge(p.MessageId)
+			return nil
 		}),
 		decoder.OnPingReq(func(p *packet.PingReq) error {
 			c.SetDeadline(
