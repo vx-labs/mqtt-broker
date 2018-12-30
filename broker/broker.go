@@ -174,6 +174,7 @@ func New(id identity.Identity, config Config) *Broker {
 		Hostname: hostname,
 		Runtime:  runtime.Version(),
 		Services: hostedServices,
+		Started:  time.Now().Unix(),
 	})
 	go broker.oSStatsReporter()
 	broker.Peer.Start()

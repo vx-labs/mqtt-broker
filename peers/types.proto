@@ -12,6 +12,7 @@ message Peer {
   ComputeUsage ComputeUsage = 8;
   string Runtime = 9;
   repeated string Services = 10;
+  int64 Started = 11;
 }
 
 message ComputeUsage {
