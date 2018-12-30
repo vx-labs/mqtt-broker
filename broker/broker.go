@@ -91,23 +91,28 @@ func New(id identity.Identity, config Config) *Broker {
 		authHelper: config.AuthHelper,
 		events:     events.NewEventBus(),
 	}
+	hostedServices := []string{}
 	broker.Peer = peer.NewPeer(id, broker.onPeerDown, broker.onUnicast)
 	subscriptionsStore, err := subscriptions.NewMemDBStore(broker.Peer.Router())
 	if err != nil {
 		log.Fatal(err)
 	}
+	hostedServices = append(hostedServices, "subscriptions-store")
 	peersStore, err := peers.NewPeerStore(broker.Peer.Router())
 	if err != nil {
 		log.Fatal(err)
 	}
+	hostedServices = append(hostedServices, "peers-store")
 	topicssStore, err := topics.NewMemDBStore(broker.Peer.Router())
 	if err != nil {
 		log.Fatal(err)
 	}
+	hostedServices = append(hostedServices, "topics-store")
 	sessionsStore, err := sessions.NewSessionStore(broker.Peer.Router())
 	if err != nil {
 		log.Fatal(err)
 	}
+	hostedServices = append(hostedServices, "sessions-store")
 	broker.Peers = peersStore
 	broker.Topics = topicssStore
 	broker.Subscriptions = subscriptionsStore
@@ -116,6 +121,7 @@ func New(id identity.Identity, config Config) *Broker {
 	l, listenerCh := listener.New(broker, config.Session.MaxInflightSize)
 	if config.RPCPort > 0 {
 		broker.RPC = rpc.New(config.RPCPort, broker)
+		hostedServices = append(hostedServices, "rpc-listener")
 	}
 	if config.TCPPort > 0 {
 		tcpTransport, err := transport.NewTCPTransport(config.TCPPort, listenerCh)
@@ -124,6 +130,7 @@ func New(id identity.Identity, config Config) *Broker {
 			log.Printf("WARN: failed to start TCP listener on port %d: %v", config.TCPPort, err)
 		} else {
 			log.Printf("INFO: started TCP listener on port %d", config.TCPPort)
+			hostedServices = append(hostedServices, "tcp-listener")
 		}
 	}
 	if config.TLS != nil {
@@ -134,6 +141,7 @@ func New(id identity.Identity, config Config) *Broker {
 				log.Printf("WARN: failed to start WSS listener on port %d: %v", config.TLSPort, err)
 			} else {
 				log.Printf("INFO: started WSS listener on port %d", config.TLSPort)
+				hostedServices = append(hostedServices, "wss-listener")
 			}
 		}
 		if config.TLSPort > 0 {
@@ -143,6 +151,7 @@ func New(id identity.Identity, config Config) *Broker {
 				log.Printf("WARN: failed to start TLS listener on port %d: %v", config.TLSPort, err)
 			} else {
 				log.Printf("INFO: started TLS listener on port %d", config.TLSPort)
+				hostedServices = append(hostedServices, "tls-listener")
 			}
 		} else {
 			log.Printf("WARN: failed to start TLS listener: TLS config not found")
@@ -164,6 +173,7 @@ func New(id identity.Identity, config Config) *Broker {
 		MeshID:   uint64(broker.Peer.Name()),
 		Hostname: hostname,
 		Runtime:  runtime.Version(),
+		Services: hostedServices,
 	})
 	go broker.oSStatsReporter()
 	broker.Peer.Start()
