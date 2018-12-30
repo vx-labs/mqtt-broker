@@ -166,6 +166,7 @@ func New(id identity.Identity, config Config) *Broker {
 		Runtime:  runtime.Version(),
 	})
 	go broker.oSStatsReporter()
+	broker.Peer.Start()
 	return broker
 }
 func (b *Broker) onUnicast(payload []byte) {

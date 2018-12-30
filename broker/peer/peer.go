@@ -51,10 +51,13 @@ func (p *Peer) Members() []mesh.PeerName {
 	return members
 }
 func (p *Peer) Join(hosts []string) {
-	p.router.ConnectionMaker.InitiateConnections(hosts, true)
+	p.router.ConnectionMaker.InitiateConnections(hosts, false)
 }
 func (p *Peer) Send(recipient mesh.PeerName, payload []byte) {
 	p.gossip.GossipUnicast(recipient, payload)
+}
+func (p *Peer) Start() {
+	p.router.Start()
 }
 func NewPeer(id identity.Identity, onLost func(mesh.PeerName), onUnicast func([]byte)) *Peer {
 	name, err := mesh.PeerNameFromString(nameFromID(id.ID()))
@@ -84,7 +87,6 @@ func NewPeer(id identity.Identity, onLost func(mesh.PeerName), onUnicast func([]
 	router.Peers.OnGC(func(peer *mesh.Peer) {
 		onLost(peer.Name)
 	})
-	router.Start()
 	self.gossip = gossip
 	self.router = router
 	return self
