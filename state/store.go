@@ -88,6 +88,9 @@ func (s *Store) merge(msg []byte) (mesh.GossipData, error) {
 		return nil, err
 	}
 	delta := s.ComputeDelta(set)
+	if delta.Length() == 0 {
+		return nil, nil
+	}
 	return &Dataset{
 		backend: delta,
 	}, s.ApplyDelta(delta)
