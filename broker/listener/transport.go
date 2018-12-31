@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"net"
 	"time"
 
 	"github.com/vx-labs/mqtt-protocol/decoder"
@@ -129,6 +130,12 @@ func (l *listener) runSession(t Transport, inflightSize int) {
 			if err != nil {
 				if err == io.EOF || err == ErrSessionDisconnected || session.closed {
 					return
+				}
+				if opErr, ok := err.(*net.OpError); ok {
+					if opErr.Timeout() {
+						log.Printf("ERR: listener %s: session_id=%q timedout", t.Name(), session.id)
+						return
+					}
 				}
 				log.Printf("ERR: listener %s: decoding from session_id=%q failed: %v", t.Name(), session.id, err)
 				return
