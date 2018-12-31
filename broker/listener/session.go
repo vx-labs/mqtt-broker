@@ -185,3 +185,8 @@ func (s *Session) ConnAck(returnCode int32) error {
 		ReturnCode: returnCode,
 	})
 }
+
+func (s *Session) RenewDeadline() {
+	conn := s.transport.Channel()
+	conn.SetDeadline(time.Now().Add(time.Duration(s.keepalive) * time.Second * 2))
+}

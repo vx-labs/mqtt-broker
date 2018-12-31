@@ -68,9 +68,7 @@ func (l *listener) runSession(t Transport, inflightSize int) {
 	dec := decoder.New(
 		decoder.OnConnect(func(p *packet.Connect) error {
 			session.keepalive = p.KeepaliveTimer
-			c.SetDeadline(
-				time.Now().Add(time.Duration(session.keepalive) * time.Second * 2),
-			)
+			session.RenewDeadline()
 			clientID := string(p.ClientId)
 			if !validateClientID(clientID) {
 				session.ConnAck(packet.CONNACK_REFUSED_IDENTIFIER_REJECTED)
@@ -92,16 +90,12 @@ func (l *listener) runSession(t Transport, inflightSize int) {
 			return session.ConnAck(packet.CONNACK_CONNECTION_ACCEPTED)
 		}),
 		decoder.OnPublish(func(p *packet.Publish) error {
-			c.SetDeadline(
-				time.Now().Add(time.Duration(session.keepalive) * time.Second * 2),
-			)
+			session.RenewDeadline()
 			session.emitPublish(p)
 			return nil
 		}),
 		decoder.OnSubscribe(func(p *packet.Subscribe) error {
-			c.SetDeadline(
-				time.Now().Add(time.Duration(session.keepalive) * time.Second * 2),
-			)
+			session.RenewDeadline()
 			session.emitSubscribe(p)
 			return nil
 		}),
@@ -114,9 +108,7 @@ func (l *listener) runSession(t Transport, inflightSize int) {
 			return nil
 		}),
 		decoder.OnPingReq(func(p *packet.PingReq) error {
-			c.SetDeadline(
-				time.Now().Add(time.Duration(session.keepalive) * time.Second * 2),
-			)
+			session.RenewDeadline()
 			return session.encoder.PingResp(&packet.PingResp{
 				Header: p.Header,
 			})
@@ -126,7 +118,7 @@ func (l *listener) runSession(t Transport, inflightSize int) {
 		}),
 	)
 	c.SetDeadline(
-		time.Now().Add(10 * time.Second),
+		time.Now().Add(15 * time.Second),
 	)
 	decoderCh := make(chan struct{})
 	var err error
