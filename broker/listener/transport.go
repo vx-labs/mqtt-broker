@@ -88,6 +88,7 @@ func (l *listener) runSession(t Transport, inflightSize int) {
 			session.connect = p
 			session.tenant = tenant
 			handler.OnConnect(session)
+			session.RenewDeadline()
 			return session.ConnAck(packet.CONNACK_CONNECTION_ACCEPTED)
 		}),
 		decoder.OnPublish(func(p *packet.Publish) error {
@@ -101,10 +102,12 @@ func (l *listener) runSession(t Transport, inflightSize int) {
 			return nil
 		}),
 		decoder.OnUnsubscribe(func(p *packet.Unsubscribe) error {
+			session.RenewDeadline()
 			session.emitUnsubscribe(p)
 			return nil
 		}),
 		decoder.OnPubAck(func(p *packet.PubAck) error {
+			session.RenewDeadline()
 			session.queue.Acknowledge(p.MessageId)
 			return nil
 		}),
@@ -115,6 +118,7 @@ func (l *listener) runSession(t Transport, inflightSize int) {
 			})
 		}),
 		decoder.OnDisconnect(func(p *packet.Disconnect) error {
+			session.RenewDeadline()
 			return ErrSessionDisconnected
 		}),
 	)
