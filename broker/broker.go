@@ -83,6 +83,7 @@ type Broker struct {
 	TCPTransport  io.Closer
 	TLSTransport  io.Closer
 	WSSTransport  io.Closer
+	WSTransport   io.Closer
 	RPC           io.Closer
 }
 
@@ -133,14 +134,24 @@ func New(id identity.Identity, config Config) *Broker {
 			hostedServices = append(hostedServices, "tcp-listener")
 		}
 	}
+	if config.WSPort > 0 {
+		wsTransport, err := transport.NewWSTransport(config.WSPort, listenerCh)
+		broker.WSTransport = wsTransport
+		if err != nil {
+			log.Printf("WARN: failed to start WS listener on port %d: %v", config.WSPort, err)
+		} else {
+			log.Printf("INFO: started WS listener on port %d", config.WSPort)
+			hostedServices = append(hostedServices, "ws-listener")
+		}
+	}
 	if config.TLS != nil {
 		if config.WSSPort > 0 {
 			wssTransport, err := transport.NewWSSTransport(config.WSSPort, config.TLS, listenerCh)
 			broker.WSSTransport = wssTransport
 			if err != nil {
-				log.Printf("WARN: failed to start WSS listener on port %d: %v", config.TLSPort, err)
+				log.Printf("WARN: failed to start WSS listener on port %d: %v", config.WSSPort, err)
 			} else {
-				log.Printf("INFO: started WSS listener on port %d", config.TLSPort)
+				log.Printf("INFO: started WSS listener on port %d", config.WSSPort)
 				hostedServices = append(hostedServices, "wss-listener")
 			}
 		}

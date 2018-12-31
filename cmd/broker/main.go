@@ -170,6 +170,7 @@ func main() {
 			tcpPort, _ := cmd.Flags().GetInt("tcp-port")
 			tlsPort, _ := cmd.Flags().GetInt("tls-port")
 			wssPort, _ := cmd.Flags().GetInt("wss-port")
+			wsPort, _ := cmd.Flags().GetInt("ws-port")
 			rpcPort, _ := cmd.Flags().GetInt("rpc-port")
 			gossipPort, _ := cmd.Flags().GetInt("gossip-port")
 			nomad, _ := cmd.Flags().GetBool("nomad")
@@ -207,6 +208,7 @@ func main() {
 			config.TLSPort = tlsPort
 			config.WSSPort = wssPort
 			config.RPCPort = rpcPort
+			config.WSPort = wsPort
 
 			if useVault || useConsul {
 				consulAPI, vaultAPI, err = mqttConfig.DefaultClients()
@@ -254,6 +256,7 @@ func main() {
 	root.Flags().IntP("tcp-port", "t", 0, "Start TCP listener on this port. Specify 0 to disable the listener")
 	root.Flags().IntP("tls-port", "s", 0, "Start TLS listener on this port. Specify 0 to disable the listener")
 	root.Flags().IntP("wss-port", "w", 0, "Start Secure WS listener on this port. Specify 0 to disable the listener")
+	root.Flags().IntP("ws-port", "", 0, "Start WS listener on this port. Specify 0 to disable the listener")
 	root.Flags().IntP("rpc-port", "r", 0, "Start GRPC listener on this port. Specify 0 to disable the listener")
 	root.Flags().IntP("gossip-port", "g", 0, "Use this port for Mesh traffic. Specify 0 to use a random port")
 	root.Execute()

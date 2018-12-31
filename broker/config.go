@@ -15,6 +15,7 @@ type Config struct {
 	TLS        *tls.Config
 	TLSPort    int
 	WSSPort    int
+	WSPort     int
 	RPCPort    int
 	GossipPort int
 	AuthHelper func(transport listener.Transport, sessionID, username string, password string) (tenant string, id string, err error)
