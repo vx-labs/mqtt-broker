@@ -138,7 +138,7 @@ func (l *listener) runSession(t Transport, inflightSize int) {
 				if err == io.EOF || err == ErrSessionDisconnected || session.closed {
 					return
 				}
-				log.Printf("ERR: listener %s: decoding from client_id=%q failed: %v", t.Name(), session.id, err)
+				log.Printf("ERR: listener %s: decoding from session_id=%q failed: %v", t.Name(), session.id, err)
 				return
 			}
 		}
