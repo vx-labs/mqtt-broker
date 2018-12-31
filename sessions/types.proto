@@ -16,6 +16,7 @@ message Session {
   string Transport = 12;
   string RemoteAddress = 13;
   string ClosureReason = 14;
+  int32 KeepaliveInterval = 15;
 }
 
 message SessionList {
