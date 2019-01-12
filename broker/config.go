@@ -18,6 +18,7 @@ type Config struct {
 	WSPort     int
 	RPCPort    int
 	GossipPort int
+	NATSURL    string
 	AuthHelper func(transport listener.Transport, sessionID, username string, password string) (tenant string, id string, err error)
 	Session    SessionConfig
 }

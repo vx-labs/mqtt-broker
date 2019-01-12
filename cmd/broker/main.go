@@ -178,6 +178,7 @@ func main() {
 			useVault, _ := cmd.Flags().GetBool("use-vault")
 			useConsul, _ := cmd.Flags().GetBool("use-consul")
 			useVXAuth, _ := cmd.Flags().GetBool("use-vx-auth")
+			natsURL, _ := cmd.Flags().GetString("nats-streaming-url")
 			sigc := make(chan os.Signal, 1)
 
 			var id identity.Identity
@@ -209,6 +210,7 @@ func main() {
 			config.WSSPort = wssPort
 			config.RPCPort = rpcPort
 			config.WSPort = wsPort
+			config.NATSURL = natsURL
 
 			if useVault || useConsul {
 				consulAPI, vaultAPI, err = mqttConfig.DefaultClients()
@@ -259,6 +261,7 @@ func main() {
 	root.Flags().IntP("ws-port", "", 0, "Start WS listener on this port. Specify 0 to disable the listener")
 	root.Flags().IntP("rpc-port", "r", 0, "Start GRPC listener on this port. Specify 0 to disable the listener")
 	root.Flags().IntP("gossip-port", "g", 0, "Use this port for Mesh traffic. Specify 0 to use a random port")
+	root.Flags().StringP("nats-streaming-url", "", "", "Export published message to this NATS-Streaming service")
 	root.Execute()
 }
 
