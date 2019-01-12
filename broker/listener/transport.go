@@ -93,7 +93,14 @@ func (l *listener) runSession(t Transport, inflightSize int) {
 		}),
 		decoder.OnPublish(func(p *packet.Publish) error {
 			session.RenewDeadline()
-			session.emitPublish(p)
+			err := session.incoming.Insert(p)
+			if err != nil {
+				log.Printf("WARN: failed to accept incomming message from session %s: %v", session.id, err)
+				return nil
+			}
+			if p.Header.Qos == 1 {
+				return session.PubAck(p.MessageId)
+			}
 			return nil
 		}),
 		decoder.OnSubscribe(func(p *packet.Subscribe) error {

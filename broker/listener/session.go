@@ -26,6 +26,7 @@ type Session struct {
 	encoder   *encoder.Encoder
 	events    *events.Bus
 	queue     *inflight.Queue
+	incoming  *inflight.Queue
 	quit      chan struct{}
 }
 
@@ -35,12 +36,22 @@ func newSession(transport Transport, queueSize int) *Session {
 		keepalive: 30,
 		transport: transport,
 		queue:     inflight.New(queueSize),
+		incoming:  inflight.New(queueSize),
 		quit:      make(chan struct{}),
 	}
 	go func() {
 		<-s.quit
 		s.queue.Close()
 		s.events.Close()
+	}()
+	go func() {
+		for {
+			p := s.incoming.Next()
+			if p == nil {
+				return
+			}
+			s.emitPublish(p.Publish)
+		}
 	}()
 	go func() {
 		ticker := time.NewTicker(1 * time.Second)

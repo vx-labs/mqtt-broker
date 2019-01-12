@@ -179,9 +179,6 @@ func (b *Broker) OnConnect(transportSession *listener.Session) {
 				log.Printf("ERR: failed to handle message publish: %v", err)
 				return
 			}
-			if p.Header.Qos == 1 {
-				transportSession.PubAck(p.MessageId)
-			}
 		}),
 		transportSession.OnClosed(func() {
 			b.OnSessionClosed(transportSession.ID(), transportSession.Tenant())
