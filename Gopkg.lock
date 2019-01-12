@@ -232,8 +232,8 @@
 [[projects]]
   name = "github.com/miekg/dns"
   packages = ["."]
-  revision = "56be65265e34e731425e0269a301774938827c60"
-  version = "v1.1.3"
+  revision = "ba6747e8a94115e9dc7738afb87850687611df1b"
+  version = "v1.0.12"
 
 [[projects]]
   name = "github.com/mitchellh/go-homedir"
@@ -394,8 +394,8 @@
 [[projects]]
   branch = "master"
   name = "github.com/xenolf/lego"
-  packages = ["acme","acme/api","acme/api/internal/nonces","acme/api/internal/secure","acme/api/internal/sender","certcrypto","challenge","challenge/dns01","log","platform/config/env","platform/wait","providers/dns/cloudflare"]
-  revision = "ec6c22d70b19d1e26203d2189c1594fe6508b3b4"
+  packages = ["acme","log","platform/config/env","providers/dns/cloudflare"]
+  revision = "ad20bf90ff5479cb8c63aef7e0f773b3c7e35835"
 
 [[projects]]
   branch = "master"

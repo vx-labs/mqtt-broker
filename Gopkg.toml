@@ -63,3 +63,7 @@
 [[constraint]]
   name = "github.com/gobwas/ws"
   version = "~v0.1.0"
+
+[[constraint]]
+  name = "github.com/xenolf/lego"
+  version = "v1.1.0"
