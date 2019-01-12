@@ -201,6 +201,14 @@ func (b *Broker) OnConnect(transportSession *listener.Session) {
 	}
 }
 func (b *Broker) OnPublish(id, tenant string, packet *packet.Publish) error {
+	if b.STANOutput != nil {
+		b.STANOutput <- STANMessage{
+			Timestamp: time.Now(),
+			Tenant:    tenant,
+			Payload:   packet.Payload,
+			Topic:     packet.Topic,
+		}
+	}
 	if packet.Header.Retain {
 		message := &topics.RetainedMessage{
 			Payload: packet.Payload,

@@ -79,6 +79,7 @@ type Broker struct {
 	Topics        TopicStore
 	Peers         PeerStore
 	events        *events.Bus
+	STANOutput    chan STANMessage
 	Listener      io.Closer
 	TCPTransport  io.Closer
 	TLSTransport  io.Closer
@@ -169,6 +170,15 @@ func New(id identity.Identity, config Config) *Broker {
 		}
 	}
 	broker.Listener = l
+	if config.NATSURL != "" {
+		ch := make(chan STANMessage)
+		if err := exportToSTAN(config, ch); err != nil {
+			log.Printf("WARN: failed to start STAN message exporter to %s: %v", config.NATSURL, err)
+		} else {
+			log.Printf("INFO: started NATS message exporter")
+			broker.STANOutput = ch
+		}
+	}
 	broker.setupLogs()
 	broker.setupSYSTopic()
 	hostname, err := os.Hostname()
