@@ -51,6 +51,7 @@ func newSession(transport Transport, queueSize int) *Session {
 				return
 			}
 			s.emitPublish(p.Publish)
+			s.incoming.Acknowledge(p.ID)
 		}
 	}()
 	go func() {
@@ -62,6 +63,7 @@ func newSession(transport Transport, queueSize int) *Session {
 				return
 			case <-ticker.C:
 				s.queue.ExpireInflight()
+				s.incoming.ExpireInflight()
 			}
 		}
 	}()
