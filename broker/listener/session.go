@@ -62,7 +62,7 @@ func newSession(transport Transport, queueSize int) *Session {
 			}
 			err := s.encoder.Publish(p.Publish)
 			if err != nil {
-				log.Printf("WARN: failed to re-publish non-acked message %d", p.ID)
+				log.Printf("WARN: failed to re-publish non-acked message %d: %v", p.ID, err)
 			}
 		}
 	}()
