@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"crypto/rand"
+	"crypto/sha1"
 	"crypto/tls"
 	"fmt"
 	"log"
@@ -11,8 +12,6 @@ import (
 	"os/signal"
 	"syscall"
 	"time"
-
-	"github.com/google/uuid"
 
 	"github.com/vx-labs/mqtt-broker/broker/listener"
 
@@ -122,7 +121,16 @@ func ConsulPeers(api *consul.Client, service string, self identity.Identity) ([]
 	}
 }
 func makeSessionID(tenant, clientID string) (string, error) {
-	return uuid.New().String(), nil
+	hash := sha1.New()
+	_, err := hash.Write([]byte(tenant))
+	if err != nil {
+		return "", err
+	}
+	_, err = hash.Write([]byte(clientID))
+	if err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("%x", hash.Sum(nil)), nil
 }
 
 func authHelper(ctx context.Context) func(transport listener.Transport, sessionID, username string, password string) (tenant string, id string, err error) {
