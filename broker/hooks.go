@@ -185,22 +185,39 @@ func (b *Broker) OnConnect(transportSession *listener.Session) (int32, error) {
 			}
 		}),
 		transportSession.OnClosed(func() {
-			b.OnSessionClosed(sess)
-			for _, cancel := range cancels {
-				cancel()
-			}
+			b.Sessions.Delete(sess.ID, "session_disconnected")
 		}),
 		transportSession.OnLost(func() {
-			b.OnSessionLost(sess)
-			for _, cancel := range cancels {
-				cancel()
-			}
+			b.Sessions.Delete(sess.ID, "session_lost")
 		}),
 		b.OnMessagePublished(transportSession.ID(), func(p *packet.Publish) {
 			transportSession.Publish(p)
 		}),
 		b.Sessions.On(sessions.SessionCreated+"/"+id, func(s *sessions.Session) {
 			transportSession.Close()
+		}),
+		b.Sessions.On(sessions.SessionDeleted+"/"+id, func(s *sessions.Session) {
+			err := b.deleteSessionSubscriptions(sess)
+			if err != nil {
+				log.Printf("WARN: failed to delete session subscriptions: %v", err)
+			}
+			for _, cancel := range cancels {
+				cancel()
+			}
+			transportSession.Close()
+			if s.ClosureReason == "session_lost" {
+				if len(sess.WillTopic) > 0 {
+					b.OnPublish(sess, &packet.Publish{
+						Header: &packet.Header{
+							Dup:    false,
+							Retain: sess.WillRetain,
+							Qos:    sess.WillQoS,
+						},
+						Payload: sess.WillPayload,
+						Topic:   sess.WillTopic,
+					})
+				}
+			}
 		}),
 	}
 	return packet.CONNACK_CONNECTION_ACCEPTED, nil

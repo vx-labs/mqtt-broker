@@ -15,6 +15,7 @@ import (
 
 type broker interface {
 	ListSessions() (sessions.SessionList, error)
+	CloseSession(id string) error
 }
 
 type server struct {
@@ -43,6 +44,9 @@ func New(port int, handler broker) io.Closer {
 func (s *server) Close() error {
 	s.server.Stop()
 	return s.listener.Close()
+}
+func (s *server) CloseSession(ctx context.Context, input *CloseSessionInput) (*CloseSessionOutput, error) {
+	return &CloseSessionOutput{ID: input.ID}, s.broker.CloseSession(input.ID)
 }
 func (s *server) ListSessions(ctx context.Context, filters *SessionFilter) (*ListSessionsOutput, error) {
 	set, err := s.broker.ListSessions()

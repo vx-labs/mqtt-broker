@@ -18,6 +18,10 @@ func New(conn *grpc.ClientConn) *Client {
 	}
 }
 
+func (c *Client) CloseSession(ctx context.Context, id string) error {
+	_, err := c.api.CloseSession(ctx, &rpc.CloseSessionInput{ID: id})
+	return err
+}
 func (c *Client) ListSessions(ctx context.Context) (sessions.SessionList, error) {
 	set, err := c.api.ListSessions(ctx, &rpc.SessionFilter{})
 	if err != nil {

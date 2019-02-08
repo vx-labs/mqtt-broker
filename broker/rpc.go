@@ -15,3 +15,6 @@ func (b *Broker) ListSubscriptions() (subscriptions.SubscriptionList, error) {
 func (b *Broker) ListRetainedMessages() (topics.RetainedMessageList, error) {
 	return b.Topics.All()
 }
+func (b *Broker) CloseSession(id string) error {
+	return b.Sessions.Delete(id, "session_lost")
+}

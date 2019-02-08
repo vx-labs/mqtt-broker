@@ -4,10 +4,17 @@ import "github.com/vx-labs/mqtt-broker/subscriptions/types.proto";
 import "github.com/vx-labs/mqtt-broker/sessions/types.proto";
 
 message SessionFilter {}
+message CloseSessionInput {
+  string ID = 1;
+}
+message CloseSessionOutput {
+  string ID = 1;
+}
 message ListSessionsOutput{
   repeated sessions.Session Sessions = 1;
 }
 
 service BrokerService {
     rpc ListSessions(SessionFilter) returns (ListSessionsOutput);
+    rpc CloseSession(CloseSessionInput) returns (CloseSessionOutput);
 }

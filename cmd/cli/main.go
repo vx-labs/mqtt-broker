@@ -84,6 +84,7 @@ func Sessions(ctx context.Context, helper *APIWrapper) *cobra.Command {
 		Use:     "sessions",
 		Aliases: []string{"session"}}
 	c.AddCommand(SessionsList(ctx, helper))
+	c.AddCommand(SessionClose(ctx, helper))
 	return c
 }
 
@@ -116,6 +117,21 @@ func SessionsList(ctx context.Context, helper *APIWrapper) *cobra.Command {
 			set.Apply(func(s *sessions.Session) {
 				tpl.Execute(os.Stdout, s)
 			})
+		},
+	}
+	return c
+}
+func SessionClose(ctx context.Context, helper *APIWrapper) *cobra.Command {
+	c := &cobra.Command{
+		Use:     "delete",
+		Aliases: []string{"rm", "close"},
+		Run: func(cmd *cobra.Command, args []string) {
+			for _, id := range args {
+				err := helper.API().CloseSession(ctx, id)
+				if err != nil {
+					log.Printf("WARN: failed to delete session %s: %v", id, err)
+				}
+			}
 		},
 	}
 	return c
