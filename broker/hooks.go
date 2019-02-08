@@ -31,6 +31,12 @@ func makeSubID(session string, pattern []byte) string {
 	return fmt.Sprintf("%x", hash.Sum(nil))
 }
 
+func getLowerQoS(a, b int32) int32 {
+	if a < b {
+		return a
+	}
+	return b
+}
 func (b *Broker) OnSubscribe(sess sessions.Session, packet *packet.Subscribe) error {
 	for idx, pattern := range packet.Topic {
 		subID := makeSubID(sess.ID, pattern)
@@ -51,12 +57,10 @@ func (b *Broker) OnSubscribe(sess sessions.Session, packet *packet.Subscribe) er
 		if err != nil {
 			return err
 		}
+		packetQoS := packet.Qos[idx]
 		go func() {
 			set.Apply(func(message *topics.RetainedMessage) {
-				qos := message.Qos
-				if packet.Qos[idx] < qos {
-					qos = packet.Qos[idx]
-				}
+				qos := getLowerQoS(message.Qos, packetQoS)
 				b.dispatch(&MessagePublished{
 					Payload:   message.Payload,
 					Retained:  true,
