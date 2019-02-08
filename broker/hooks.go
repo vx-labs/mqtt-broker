@@ -30,15 +30,15 @@ func makeSubID(session string, pattern []byte) string {
 	return fmt.Sprintf("%x", hash.Sum(nil))
 }
 
-func (b *Broker) OnSubscribe(id string, tenant string, packet *packet.Subscribe) error {
+func (b *Broker) OnSubscribe(sess sessions.Session, packet *packet.Subscribe) error {
 	for idx, pattern := range packet.Topic {
-		subID := makeSubID(id, pattern)
+		subID := makeSubID(sess.ID, pattern)
 		event := &subscriptions.Subscription{
 			ID:        subID,
 			Pattern:   pattern,
 			Qos:       packet.Qos[idx],
-			Tenant:    tenant,
-			SessionID: id,
+			Tenant:    sess.Tenant,
+			SessionID: sess.ID,
 			Peer:      uint64(b.Peer.Name()),
 		}
 		err := b.Subscriptions.Create(event)
@@ -46,7 +46,7 @@ func (b *Broker) OnSubscribe(id string, tenant string, packet *packet.Subscribe)
 			return err
 		}
 		// Look for retained messages
-		set, err := b.Topics.ByTopicPattern(tenant, pattern)
+		set, err := b.Topics.ByTopicPattern(sess.Tenant, pattern)
 		if err != nil {
 			return err
 		}
@@ -59,7 +59,7 @@ func (b *Broker) OnSubscribe(id string, tenant string, packet *packet.Subscribe)
 				b.dispatch(&MessagePublished{
 					Payload:   message.Payload,
 					Retained:  true,
-					Recipient: []string{id},
+					Recipient: []string{sess.ID},
 					Topic:     message.Topic,
 					Qos:       []int32{qos},
 				})
@@ -68,8 +68,8 @@ func (b *Broker) OnSubscribe(id string, tenant string, packet *packet.Subscribe)
 	}
 	return nil
 }
-func (b *Broker) OnUnsubscribe(id string, tenant string, packet *packet.Unsubscribe) error {
-	set, err := b.Subscriptions.BySession(id)
+func (b *Broker) OnUnsubscribe(sess sessions.Session, packet *packet.Unsubscribe) error {
+	set, err := b.Subscriptions.BySession(sess.ID)
 	if err != nil {
 		return err
 	}
@@ -87,8 +87,8 @@ func (b *Broker) OnUnsubscribe(id string, tenant string, packet *packet.Unsubscr
 	return nil
 }
 
-func (b *Broker) deleteSessionSubscriptions(id, tenant string) error {
-	set, err := b.Subscriptions.BySession(id)
+func (b *Broker) deleteSessionSubscriptions(sess sessions.Session) error {
+	set, err := b.Subscriptions.BySession(sess.ID)
 	if err != nil {
 		return err
 	}
@@ -97,25 +97,17 @@ func (b *Broker) deleteSessionSubscriptions(id, tenant string) error {
 	})
 	return nil
 }
-func (b *Broker) OnSessionClosed(id, tenant string) {
-	sess, err := b.Sessions.ByID(id)
-	if err != nil || sess.Peer != uint64(b.Peer.Name()) {
-		return
-	}
-	err = b.deleteSessionSubscriptions(id, tenant)
+func (b *Broker) OnSessionClosed(sess sessions.Session) {
+	err := b.deleteSessionSubscriptions(sess)
 	if err != nil {
 		log.Printf("WARN: failed to delete session subscriptions: %v", err)
 	}
 	b.Sessions.Delete(sess.ID, "session_disconnected")
 	return
 }
-func (b *Broker) OnSessionLost(id, tenant string) {
-	sess, err := b.Sessions.ByID(id)
-	if err != nil || sess.Peer != uint64(b.Peer.Name()) {
-		return
-	}
+func (b *Broker) OnSessionLost(sess sessions.Session) {
 	if len(sess.WillTopic) > 0 {
-		b.OnPublish(id, tenant, &packet.Publish{
+		b.OnPublish(sess, &packet.Publish{
 			Header: &packet.Header{
 				Dup:    false,
 				Retain: sess.WillRetain,
@@ -125,7 +117,7 @@ func (b *Broker) OnSessionLost(id, tenant string) {
 			Topic:   sess.WillTopic,
 		})
 	}
-	err = b.deleteSessionSubscriptions(id, tenant)
+	err := b.deleteSessionSubscriptions(sess)
 	if err != nil {
 		log.Printf("WARN: failed to delete session subscriptions: %v", err)
 	}
@@ -137,7 +129,7 @@ func (b *Broker) OnConnect(transportSession *listener.Session) {
 	id := transportSession.ID()
 	tenant := transportSession.Tenant()
 	transport := transportSession.TransportName()
-	sess := &sessions.Session{
+	sess := sessions.Session{
 		ID:                id,
 		ClientID:          connectPkt.ClientId,
 		Created:           time.Now().Unix(),
@@ -151,11 +143,11 @@ func (b *Broker) OnConnect(transportSession *listener.Session) {
 		RemoteAddress:     transportSession.RemoteAddress(),
 		KeepaliveInterval: connectPkt.KeepaliveTimer,
 	}
-	b.Sessions.Upsert(sess)
+	b.Sessions.Upsert(&sess)
 	var cancels []func()
 	cancels = []func(){
 		transportSession.OnSubscribe(func(p *packet.Subscribe) {
-			err := b.OnSubscribe(id, tenant, p)
+			err := b.OnSubscribe(sess, p)
 			if err == nil {
 				qos := make([]int32, len(p.Qos))
 
@@ -171,7 +163,7 @@ func (b *Broker) OnConnect(transportSession *listener.Session) {
 			}
 		}),
 		transportSession.OnPublish(func(p *packet.Publish) {
-			err := b.OnPublish(transportSession.ID(), transportSession.Tenant(), p)
+			err := b.OnPublish(sess, p)
 			if p.Header.Qos == 0 {
 				return
 			}
@@ -181,13 +173,13 @@ func (b *Broker) OnConnect(transportSession *listener.Session) {
 			}
 		}),
 		transportSession.OnClosed(func() {
-			b.OnSessionClosed(transportSession.ID(), transportSession.Tenant())
+			b.OnSessionClosed(sess)
 			for _, cancel := range cancels {
 				cancel()
 			}
 		}),
 		transportSession.OnLost(func() {
-			b.OnSessionLost(transportSession.ID(), transportSession.Tenant())
+			b.OnSessionLost(sess)
 			for _, cancel := range cancels {
 				cancel()
 			}
@@ -200,11 +192,11 @@ func (b *Broker) OnConnect(transportSession *listener.Session) {
 		}),
 	}
 }
-func (b *Broker) OnPublish(id, tenant string, packet *packet.Publish) error {
+func (b *Broker) OnPublish(sess sessions.Session, packet *packet.Publish) error {
 	if b.STANOutput != nil {
 		b.STANOutput <- STANMessage{
 			Timestamp: time.Now(),
-			Tenant:    tenant,
+			Tenant:    sess.Tenant,
 			Payload:   packet.Payload,
 			Topic:     packet.Topic,
 		}
@@ -213,7 +205,7 @@ func (b *Broker) OnPublish(id, tenant string, packet *packet.Publish) error {
 		message := &topics.RetainedMessage{
 			Payload: packet.Payload,
 			Qos:     packet.Header.Qos,
-			Tenant:  tenant,
+			Tenant:  sess.Tenant,
 			Topic:   packet.Topic,
 		}
 		err := b.Topics.Create(message)
@@ -221,7 +213,7 @@ func (b *Broker) OnPublish(id, tenant string, packet *packet.Publish) error {
 			log.Printf("WARN: failed to save retained message: %v", err)
 		}
 	}
-	recipients, err := b.Subscriptions.ByTopic(tenant, packet.Topic)
+	recipients, err := b.Subscriptions.ByTopic(sess.Tenant, packet.Topic)
 	if err != nil {
 		return err
 	}

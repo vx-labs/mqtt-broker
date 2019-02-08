@@ -6,7 +6,7 @@ import (
 
 	"github.com/vx-labs/mqtt-broker/events"
 
-	"github.com/hashicorp/go-memdb"
+	memdb "github.com/hashicorp/go-memdb"
 	"github.com/vx-labs/mqtt-broker/state"
 	"github.com/weaveworks/mesh"
 )
@@ -69,6 +69,14 @@ func NewSessionStore(router Router) (SessionStore, error) {
 						Unique:       false,
 						AllowMissing: false,
 					},
+					"client_id": {
+						Name: "client_id",
+						Indexer: &memdb.StringFieldIndex{
+							Field: "ClientID",
+						},
+						Unique:       false,
+						AllowMissing: false,
+					},
 					"peer": &memdb.IndexSchema{
 						Name:         "peer",
 						AllowMissing: false,
@@ -120,6 +128,20 @@ func (s *memDBStore) ByID(id string) (*Session, error) {
 	var session *Session
 	return session, s.read(func(tx *memdb.Txn) error {
 		sess, err := s.first(tx, "id", id)
+		if err != nil {
+			return err
+		}
+		if sess.IsRemoved() {
+			return ErrSessionNotFound
+		}
+		session = sess
+		return nil
+	})
+}
+func (s *memDBStore) ByClientID(id string) (*Session, error) {
+	var session *Session
+	return session, s.read(func(tx *memdb.Txn) error {
+		sess, err := s.first(tx, "client_id", id)
 		if err != nil {
 			return err
 		}
