@@ -3,7 +3,6 @@ package broker
 import (
 	"bytes"
 	"crypto/sha1"
-	"errors"
 	"fmt"
 	"log"
 	"time"
@@ -136,7 +135,11 @@ func (b *Broker) OnConnect(transportSession *listener.Session) (int32, error) {
 	transport := transportSession.TransportName()
 	_, err := b.Sessions.ByID(id)
 	if err == nil {
-		return packet.CONNACK_REFUSED_IDENTIFIER_REJECTED, errors.New("sessions already exist")
+		err = b.Sessions.Delete(id, "session_lost")
+		if err != nil {
+			log.Printf("WARN: failed to close old session %s: %v", id, err)
+			return packet.CONNACK_REFUSED_IDENTIFIER_REJECTED, err
+		}
 	}
 	sess := sessions.Session{
 		ID:                id,
