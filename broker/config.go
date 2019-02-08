@@ -19,7 +19,7 @@ type Config struct {
 	RPCPort    int
 	GossipPort int
 	NATSURL    string
-	AuthHelper func(transport listener.Transport, sessionID, username string, password string) (tenant string, id string, err error)
+	AuthHelper func(transport listener.Transport, sessionID []byte, username string, password string) (tenant string, id string, err error)
 	Session    SessionConfig
 }
 
@@ -29,9 +29,9 @@ func DefaultConfig() Config {
 			MaxInflightSize: 100,
 		},
 		RPCPort: 9090,
-		AuthHelper: func(transport listener.Transport, sessionID, username string, password string) (tenant string, id string, err error) {
+		AuthHelper: func(transport listener.Transport, sessionID []byte, username string, password string) (tenant string, id string, err error) {
 			log.Print("WARN: Default authentication mecanism is used, therefore all access will be granted")
-			return "_default", sessionID, nil
+			return "_default", string(sessionID), nil
 		},
 	}
 }

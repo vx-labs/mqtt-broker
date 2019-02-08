@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"crypto/rand"
+	"crypto/sha1"
 	"crypto/tls"
 	"fmt"
 	"log"
@@ -11,8 +12,6 @@ import (
 	"os/signal"
 	"syscall"
 	"time"
-
-	"github.com/google/uuid"
 
 	"github.com/vx-labs/mqtt-broker/broker/listener"
 
@@ -121,13 +120,22 @@ func ConsulPeers(api *consul.Client, service string, self identity.Identity) ([]
 		time.Sleep(3 * time.Second)
 	}
 }
-func makeSessionID(tenant, clientID string) (string, error) {
-	return uuid.New().String(), nil
+func makeSessionID(tenant string, clientID []byte) (string, error) {
+	hash := sha1.New()
+	_, err := hash.Write([]byte(tenant))
+	if err != nil {
+		return "", err
+	}
+	_, err = hash.Write(clientID)
+	if err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("%x", hash.Sum(nil)), nil
 }
 
-func authHelper(ctx context.Context) func(transport listener.Transport, sessionID, username string, password string) (tenant string, id string, err error) {
+func authHelper(ctx context.Context) func(transport listener.Transport, sessionID []byte, username string, password string) (tenant string, id string, err error) {
 	if os.Getenv("BYPASS_AUTH") == "true" {
-		return func(transport listener.Transport, sessionID, username string, password string) (tenant string, id string, err error) {
+		return func(transport listener.Transport, sessionID []byte, username string, password string) (tenant string, id string, err error) {
 			return "_default", "_root", nil
 		}
 	}
@@ -135,7 +143,7 @@ func authHelper(ctx context.Context) func(transport listener.Transport, sessionI
 	if err != nil {
 		panic(err)
 	}
-	return func(transport listener.Transport, sessionID, username string, password string) (tenant string, id string, err error) {
+	return func(transport listener.Transport, sessionID []byte, username string, password string) (tenant string, id string, err error) {
 		log.Println("INFO: calling VX auth handler")
 		defer func() {
 			log.Println("INFO: VX auth handler returned")

@@ -69,14 +69,6 @@ func NewSessionStore(router Router) (SessionStore, error) {
 						Unique:       false,
 						AllowMissing: false,
 					},
-					"client_id": {
-						Name: "client_id",
-						Indexer: &memdb.StringFieldIndex{
-							Field: "ClientID",
-						},
-						Unique:       false,
-						AllowMissing: false,
-					},
 					"peer": &memdb.IndexSchema{
 						Name:         "peer",
 						AllowMissing: false,

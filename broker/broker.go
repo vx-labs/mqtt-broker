@@ -72,7 +72,7 @@ type SubscriptionStore interface {
 }
 type Broker struct {
 	ID            string
-	authHelper    func(transport listener.Transport, sessionID, username string, password string) (tenant string, id string, err error)
+	authHelper    func(transport listener.Transport, sessionID []byte, username string, password string) (tenant string, id string, err error)
 	Peer          *peer.Peer
 	Subscriptions SubscriptionStore
 	Sessions      SessionStore

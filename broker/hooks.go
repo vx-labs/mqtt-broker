@@ -3,6 +3,7 @@ package broker
 import (
 	"bytes"
 	"crypto/sha1"
+	"errors"
 	"fmt"
 	"log"
 	"time"
@@ -124,11 +125,15 @@ func (b *Broker) OnSessionLost(sess sessions.Session) {
 	b.Sessions.Delete(sess.ID, "session_lost")
 }
 
-func (b *Broker) OnConnect(transportSession *listener.Session) {
+func (b *Broker) OnConnect(transportSession *listener.Session) (int32, error) {
 	connectPkt := transportSession.Connect()
 	id := transportSession.ID()
 	tenant := transportSession.Tenant()
 	transport := transportSession.TransportName()
+	_, err := b.Sessions.ByID(id)
+	if err == nil {
+		return packet.CONNACK_REFUSED_IDENTIFIER_REJECTED, errors.New("sessions already exist")
+	}
 	sess := sessions.Session{
 		ID:                id,
 		ClientID:          connectPkt.ClientId,
@@ -143,7 +148,10 @@ func (b *Broker) OnConnect(transportSession *listener.Session) {
 		RemoteAddress:     transportSession.RemoteAddress(),
 		KeepaliveInterval: connectPkt.KeepaliveTimer,
 	}
-	b.Sessions.Upsert(&sess)
+	err = b.Sessions.Upsert(&sess)
+	if err != nil {
+		return packet.CONNACK_REFUSED_SERVER_UNAVAILABLE, err
+	}
 	var cancels []func()
 	cancels = []func(){
 		transportSession.OnSubscribe(func(p *packet.Subscribe) {
@@ -191,6 +199,7 @@ func (b *Broker) OnConnect(transportSession *listener.Session) {
 			transportSession.Close()
 		}),
 	}
+	return packet.CONNACK_CONNECTION_ACCEPTED, nil
 }
 func (b *Broker) OnPublish(sess sessions.Session, packet *packet.Publish) error {
 	if b.STANOutput != nil {
@@ -249,7 +258,7 @@ func (b *Broker) OnPublish(sess sessions.Session, packet *packet.Publish) error 
 	return nil
 }
 
-func (b *Broker) Authenticate(transport listener.Transport, sessionID, username string, password string) (tenant string, id string, err error) {
+func (b *Broker) Authenticate(transport listener.Transport, sessionID []byte, username string, password string) (tenant string, id string, err error) {
 	tenant, id, err = b.authHelper(transport, sessionID, username, password)
 	if err != nil {
 		log.Printf("WARN: authentication failed from %s: %v", transport.RemoteAddress(), err)

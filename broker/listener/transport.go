@@ -26,8 +26,8 @@ type Transport interface {
 	RemoteAddress() string
 }
 type Handler interface {
-	Authenticate(transport Transport, sessionID, username string, password string) (tenant string, id string, err error)
-	OnConnect(sess *Session)
+	Authenticate(transport Transport, sessionID []byte, username string, password string) (tenant string, id string, err error)
+	OnConnect(sess *Session) (int32, error)
 }
 
 type listener struct {
@@ -55,7 +55,7 @@ func New(handler Handler, inflightSize int) (io.Closer, chan<- Transport) {
 	return l, l.ch
 }
 
-func validateClientID(clientID string) bool {
+func validateClientID(clientID []byte) bool {
 	return len(clientID) > 0 && len(clientID) < 128
 }
 
@@ -70,7 +70,7 @@ func (l *listener) runSession(t Transport, inflightSize int) {
 		decoder.OnConnect(func(p *packet.Connect) error {
 			session.keepalive = p.KeepaliveTimer
 			session.RenewDeadline()
-			clientID := string(p.ClientId)
+			clientID := p.ClientId
 			if !validateClientID(clientID) {
 				session.ConnAck(packet.CONNACK_REFUSED_IDENTIFIER_REJECTED)
 				return fmt.Errorf("invalid client ID")
@@ -87,9 +87,11 @@ func (l *listener) runSession(t Transport, inflightSize int) {
 			session.id = id
 			session.connect = p
 			session.tenant = tenant
-			handler.OnConnect(session)
-			session.RenewDeadline()
-			return session.ConnAck(packet.CONNACK_CONNECTION_ACCEPTED)
+			code, err := handler.OnConnect(session)
+			if err == nil {
+				session.RenewDeadline()
+			}
+			return session.ConnAck(code)
 		}),
 		decoder.OnPublish(func(p *packet.Publish) error {
 			session.RenewDeadline()
