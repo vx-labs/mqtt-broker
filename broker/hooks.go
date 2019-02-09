@@ -143,7 +143,7 @@ func (b *Broker) OnConnect(transportSession *listener.Session) (int32, error) {
 	}
 	sess := sessions.Session{
 		ID:                id,
-		ClientID:          connectPkt.ClientId,
+		ClientID:          string(connectPkt.ClientId),
 		Created:           time.Now().Unix(),
 		Tenant:            tenant,
 		Peer:              uint64(b.Peer.Name()),

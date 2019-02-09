@@ -29,6 +29,7 @@ var now = func() int64 {
 
 type SessionStore interface {
 	ByID(id string) (*Session, error)
+	ByClientID(id string) (SessionList, error)
 	ByPeer(peer uint64) (SessionList, error)
 	All() (SessionList, error)
 	Exists(id string) bool
@@ -65,6 +66,14 @@ func NewSessionStore(router Router) (SessionStore, error) {
 						Name: "tenant",
 						Indexer: &memdb.StringFieldIndex{
 							Field: "Tenant",
+						},
+						Unique:       false,
+						AllowMissing: false,
+					},
+					"client_id": {
+						Name: "client_id",
+						Indexer: &memdb.StringFieldIndex{
+							Field: "ClientID",
 						},
 						Unique:       false,
 						AllowMissing: false,
@@ -130,18 +139,23 @@ func (s *memDBStore) ByID(id string) (*Session, error) {
 		return nil
 	})
 }
-func (s *memDBStore) ByClientID(id string) (*Session, error) {
-	var session *Session
-	return session, s.read(func(tx *memdb.Txn) error {
-		sess, err := s.first(tx, "client_id", id)
-		if err != nil {
-			return err
-		}
-		if sess.IsRemoved() {
+func (s *memDBStore) ByClientID(id string) (SessionList, error) {
+	var sessionList SessionList
+	return sessionList, s.read(func(tx *memdb.Txn) error {
+		iterator, err := tx.Get("sessions", "client_id", id)
+		if err != nil || iterator == nil {
 			return ErrSessionNotFound
 		}
-		session = sess
-		return nil
+		for {
+			payload := iterator.Next()
+			if payload == nil {
+				return nil
+			}
+			sess := payload.(*Session)
+			if sess.IsAdded() {
+				sessionList.Sessions = append(sessionList.Sessions, sess)
+			}
+		}
 	})
 }
 func (s *memDBStore) All() (SessionList, error) {

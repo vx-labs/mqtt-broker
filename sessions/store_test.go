@@ -5,7 +5,7 @@ import (
 
 	"github.com/weaveworks/mesh"
 
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 const (
@@ -33,42 +33,51 @@ func TestSessionStore(t *testing.T) {
 
 	t.Run("create", func(t *testing.T) {
 		err := store.Upsert(&Session{
-			ID:   sessionID,
-			Peer: 1,
+			ID:       sessionID,
+			ClientID: "test1",
+			Peer:     1,
 		})
-		assert.Nil(t, err)
+		require.Nil(t, err)
 		err = store.Upsert(&Session{
-			ID:   "3",
-			Peer: 2,
+			ID:       "3",
+			ClientID: "test2",
+			Peer:     2,
 		})
-		assert.Nil(t, err)
+		require.Nil(t, err)
 	})
 
 	t.Run("lookup", lookup(store, sessionID))
 	t.Run("All", func(t *testing.T) {
 		set, err := store.All()
-		assert.Nil(t, err)
-		assert.Equal(t, 2, len(set.Sessions))
+		require.Nil(t, err)
+		require.Equal(t, 2, len(set.Sessions))
 	})
 	t.Run("lookup peer", func(t *testing.T) {
 		set, err := store.ByPeer(2)
-		assert.Nil(t, err)
-		assert.Equal(t, 1, len(set.Sessions))
-		assert.Equal(t, "3", set.Sessions[0].ID)
+		require.Nil(t, err)
+		require.Equal(t, 1, len(set.Sessions))
+		require.Equal(t, "3", set.Sessions[0].ID)
+	})
+	t.Run("lookup client id", func(t *testing.T) {
+		sessions, err := store.ByClientID("test1")
+		require.Nil(t, err)
+		session := sessions.Sessions[0]
+		require.NotNil(t, session)
+		require.Equal(t, sessionID, session.ID)
 	})
 
 	t.Run("delete", func(t *testing.T) {
 		err := store.Delete(sessionID, "test")
-		assert.Nil(t, err)
+		require.Nil(t, err)
 		_, err = store.ByID(sessionID)
-		assert.NotNil(t, err)
+		require.NotNil(t, err)
 	})
 }
 
 func lookup(store SessionStore, id string) func(*testing.T) {
 	return func(t *testing.T) {
 		sess, err := store.ByID(id)
-		assert.Nil(t, err)
-		assert.Equal(t, id, sess.ID)
+		require.Nil(t, err)
+		require.Equal(t, id, sess.ID)
 	}
 }

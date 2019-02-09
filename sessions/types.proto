@@ -10,7 +10,7 @@ message Session {
   bytes WillPayload = 6;
   bool WillRetain = 7;
   int64 Created = 8;
-  bytes ClientID = 9;
+  string ClientID = 9;
   int64 LastAdded = 10;
   int64 LastDeleted = 11;
   string Transport = 12;

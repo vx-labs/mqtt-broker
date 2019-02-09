@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/hashicorp/go-memdb"
+	memdb "github.com/hashicorp/go-memdb"
 	"github.com/vx-labs/mqtt-broker/events"
 	"github.com/vx-labs/mqtt-broker/state"
 	"github.com/weaveworks/mesh"
