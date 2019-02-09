@@ -66,7 +66,7 @@ func (s *Store) ComputeDelta(set EntrySet) EntrySet {
 	set.Range(func(_ int, remote Entry) {
 		local, err := s.backend.EntryByID(remote.GetID())
 		if err != nil {
-			// Session not found in our store, add it to delta
+			// Entry not found in our store, add it to delta
 			delta.Append(remote)
 		} else {
 			if isEntryOutdated(local, remote) {
