@@ -7,6 +7,8 @@ import (
 	"log"
 	"time"
 
+	"github.com/google/uuid"
+
 	"github.com/vx-labs/mqtt-broker/sessions"
 
 	proto "github.com/golang/protobuf/proto"
@@ -131,19 +133,21 @@ func (b *Broker) OnSessionLost(sess sessions.Session) {
 func (b *Broker) OnConnect(transportSession *listener.Session) (int32, error) {
 	connectPkt := transportSession.Connect()
 	id := transportSession.ID()
+	clientId := string(connectPkt.ClientId)
 	tenant := transportSession.Tenant()
 	transport := transportSession.TransportName()
-	_, err := b.Sessions.ByID(id)
-	if err == nil {
-		err = b.Sessions.Delete(id, "session_lost")
-		if err != nil {
-			log.Printf("WARN: failed to close old session %s: %v", id, err)
-			return packet.CONNACK_REFUSED_IDENTIFIER_REJECTED, err
-		}
+	set, err := b.Sessions.ByClientID(clientId)
+	if err != nil {
+		return packet.CONNACK_REFUSED_SERVER_UNAVAILABLE, err
+	}
+	if err := set.ApplyE(func(session *sessions.Session) error {
+		return b.Sessions.Delete(session.ID, "session_lost")
+	}); err != nil {
+		return packet.CONNACK_REFUSED_IDENTIFIER_REJECTED, err
 	}
 	sess := sessions.Session{
 		ID:                id,
-		ClientID:          string(connectPkt.ClientId),
+		ClientID:          clientId,
 		Created:           time.Now().Unix(),
 		Tenant:            tenant,
 		Peer:              uint64(b.Peer.Name()),
@@ -196,18 +200,15 @@ func (b *Broker) OnConnect(transportSession *listener.Session) (int32, error) {
 		b.OnMessagePublished(transportSession.ID(), func(p *packet.Publish) {
 			transportSession.Publish(p)
 		}),
-		b.Sessions.On(sessions.SessionCreated+"/"+id, func(s *sessions.Session) {
-			transportSession.Close()
-		}),
 		b.Sessions.On(sessions.SessionDeleted+"/"+id, func(s *sessions.Session) {
-			err := b.deleteSessionSubscriptions(sess)
-			if err != nil {
-				log.Printf("WARN: failed to delete session subscriptions: %v", err)
-			}
 			for _, cancel := range cancels {
 				cancel()
 			}
 			transportSession.Close()
+			err := b.deleteSessionSubscriptions(sess)
+			if err != nil {
+				log.Printf("WARN: failed to delete session subscriptions: %v", err)
+			}
 			if s.ClosureReason == "session_lost" {
 				if len(sess.WillTopic) > 0 {
 					b.OnPublish(sess, &packet.Publish{
@@ -283,9 +284,9 @@ func (b *Broker) OnPublish(sess sessions.Session, packet *packet.Publish) error 
 }
 
 func (b *Broker) Authenticate(transport listener.Transport, sessionID []byte, username string, password string) (tenant string, id string, err error) {
-	tenant, id, err = b.authHelper(transport, sessionID, username, password)
+	tenant, err = b.authHelper(transport, sessionID, username, password)
 	if err != nil {
 		log.Printf("WARN: authentication failed from %s: %v", transport.RemoteAddress(), err)
 	}
-	return tenant, id, err
+	return tenant, uuid.New().String(), err
 }

@@ -73,8 +73,8 @@ func main() {
 }
 
 var SessionTemplate = `• {{ .ID | green | bold }}
-  {{ "Client ID:"     | faint }} {{ .ClientID | bytesToString }}
-  {{ "Created:"     | faint }} {{ .Created | parseDate}}
+  {{ "Client ID:"     | faint }} {{ .ClientID }}
+  {{ "Created:"     | faint }} {{ .Created | parseDate}} ago
   {{ "Tenant:"     | faint }} {{ .Tenant }}
   {{ "Transport:"     | faint }} {{ .Transport }}
   {{ "Peer:"     | faint }} {{ .Peer }}`

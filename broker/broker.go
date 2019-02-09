@@ -46,6 +46,7 @@ type PeerStore interface {
 type SessionStore interface {
 	ByID(id string) (*sessions.Session, error)
 	ByPeer(peer uint64) (sessions.SessionList, error)
+	ByClientID(id string) (sessions.SessionList, error)
 	All() (sessions.SessionList, error)
 	Exists(id string) bool
 	Upsert(sess *sessions.Session) error
@@ -72,7 +73,7 @@ type SubscriptionStore interface {
 }
 type Broker struct {
 	ID            string
-	authHelper    func(transport listener.Transport, sessionID []byte, username string, password string) (tenant string, id string, err error)
+	authHelper    func(transport listener.Transport, sessionID []byte, username string, password string) (tenant string, err error)
 	Peer          *peer.Peer
 	Subscriptions SubscriptionStore
 	Sessions      SessionStore
