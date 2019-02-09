@@ -33,7 +33,7 @@ func (e *SessionList) Range(f func(idx int, entry state.Entry)) {
 }
 
 func (m *memDBStore) EntryByID(id string) (state.Entry, error) {
-	var session *Session
+	var session Session
 	err := m.read(func(tx *memdb.Txn) error {
 		sess, err := m.first(tx, "id", id)
 		if err != nil {
@@ -42,7 +42,7 @@ func (m *memDBStore) EntryByID(id string) (state.Entry, error) {
 		session = sess
 		return nil
 	})
-	return session, err
+	return &session, err
 }
 
 func (m *memDBStore) InsertEntries(entries state.EntrySet) error {

@@ -28,14 +28,14 @@ var now = func() int64 {
 }
 
 type SessionStore interface {
-	ByID(id string) (*Session, error)
+	ByID(id string) (Session, error)
 	ByClientID(id string) (SessionList, error)
 	ByPeer(peer uint64) (SessionList, error)
 	All() (SessionList, error)
 	Exists(id string) bool
-	Upsert(sess *Session) error
+	Upsert(sess Session) error
 	Delete(id, reason string) error
-	On(event string, handler func(*Session)) func()
+	On(event string, handler func(Session)) func()
 }
 
 type memDBStore struct {
@@ -102,7 +102,7 @@ func NewSessionStore(router Router) (SessionStore, error) {
 	s.state = state
 	return s, nil
 }
-func (s *memDBStore) all() *SessionList {
+func (s *memDBStore) all() SessionList {
 	sessionList := SessionList{}
 	s.read(func(tx *memdb.Txn) error {
 		iterator, err := tx.Get("sessions", "id")
@@ -114,19 +114,19 @@ func (s *memDBStore) all() *SessionList {
 			if payload == nil {
 				return nil
 			}
-			sess := payload.(*Session)
-			sessionList.Sessions = append(sessionList.Sessions, sess)
+			sess := payload.(Session)
+			sessionList.Sessions = append(sessionList.Sessions, &sess)
 		}
 	})
-	return &sessionList
+	return sessionList
 }
 
 func (s *memDBStore) Exists(id string) bool {
 	_, err := s.ByID(id)
 	return err == nil
 }
-func (s *memDBStore) ByID(id string) (*Session, error) {
-	var session *Session
+func (s *memDBStore) ByID(id string) (Session, error) {
+	var session Session
 	return session, s.read(func(tx *memdb.Txn) error {
 		sess, err := s.first(tx, "id", id)
 		if err != nil {
@@ -151,15 +151,15 @@ func (s *memDBStore) ByClientID(id string) (SessionList, error) {
 			if payload == nil {
 				return nil
 			}
-			sess := payload.(*Session)
+			sess := payload.(Session)
 			if sess.IsAdded() {
-				sessionList.Sessions = append(sessionList.Sessions, sess)
+				sessionList.Sessions = append(sessionList.Sessions, &sess)
 			}
 		}
 	})
 }
 func (s *memDBStore) All() (SessionList, error) {
-	return s.all().Filter(func(s *Session) bool {
+	return s.all().Filter(func(s Session) bool {
 		return s.IsAdded()
 	}), nil
 }
@@ -176,24 +176,25 @@ func (s *memDBStore) ByPeer(peer uint64) (SessionList, error) {
 			if payload == nil {
 				return nil
 			}
-			sess := payload.(*Session)
+			sess := payload.(Session)
 			if sess.IsAdded() {
-				sessionList.Sessions = append(sessionList.Sessions, sess)
+				sessionList.Sessions = append(sessionList.Sessions, &sess)
 			}
 		}
 	})
 }
 
-func (s *memDBStore) Upsert(sess *Session) error {
+func (s *memDBStore) Upsert(sess Session) error {
 	sess.LastAdded = now()
 	if sess.Tenant == "" {
 		sess.Tenant = defaultTenant
 	}
-	return s.state.Upsert(sess)
+	return s.state.Upsert(&sess)
 }
 func (s *memDBStore) insert(sessions []*Session) error {
 	return s.write(func(tx *memdb.Txn) error {
-		for _, sess := range sessions {
+		for _, ptr := range sessions {
+			sess := *ptr
 			if sess.IsAdded() {
 				s.events.Emit(events.Event{
 					Entry: sess,
@@ -229,7 +230,7 @@ func (s *memDBStore) Delete(id, reason string) error {
 	}
 	sess.ClosureReason = reason
 	sess.LastDeleted = now()
-	return s.state.Upsert(sess)
+	return s.state.Upsert(&sess)
 }
 
 func (s *memDBStore) read(statement func(tx *memdb.Txn) error) error {
@@ -250,17 +251,17 @@ func (s *memDBStore) run(tx *memdb.Txn, statement func(tx *memdb.Txn) error) err
 	return nil
 }
 
-func (s *memDBStore) first(tx *memdb.Txn, idx, id string) (*Session, error) {
+func (s *memDBStore) first(tx *memdb.Txn, idx, id string) (Session, error) {
 	data, err := tx.First("sessions", idx, id)
 	if err != nil || data == nil {
-		return &Session{}, ErrSessionNotFound
+		return Session{}, ErrSessionNotFound
 	}
-	sess := data.(*Session)
+	sess := data.(Session)
 	return sess, nil
 }
 
-func (s *memDBStore) On(event string, handler func(*Session)) func() {
+func (s *memDBStore) On(event string, handler func(Session)) func() {
 	return s.events.Subscribe(event, func(ev events.Event) {
-		handler(ev.Entry.(*Session))
+		handler(ev.Entry.(Session))
 	})
 }

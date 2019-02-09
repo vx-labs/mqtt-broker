@@ -26,14 +26,14 @@ func (b *Broker) setupLogs() {
 	})
 
 	sessionLogger := logger.WithField("emitter", "session-store")
-	b.Sessions.On(sessions.SessionCreated, func(s *sessions.Session) {
+	b.Sessions.On(sessions.SessionCreated, func(s sessions.Session) {
 		sessionLogger.WithField("session_id", s.ID).
 			WithField("peer", s.Peer).
 			WithField("mutation", sessions.SessionCreated).
 			WithField("client_id", string(s.ClientID)).
 			Printf("session created")
 	})
-	b.Sessions.On(sessions.SessionDeleted, func(s *sessions.Session) {
+	b.Sessions.On(sessions.SessionDeleted, func(s sessions.Session) {
 		sessionLogger.WithField("session_id", s.ID).
 			WithField("peer", s.Peer).
 			WithField("mutation", sessions.SessionDeleted).

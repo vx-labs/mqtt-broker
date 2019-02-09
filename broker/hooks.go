@@ -159,7 +159,7 @@ func (b *Broker) OnConnect(transportSession *listener.Session) (int32, error) {
 		RemoteAddress:     transportSession.RemoteAddress(),
 		KeepaliveInterval: connectPkt.KeepaliveTimer,
 	}
-	err = b.Sessions.Upsert(&sess)
+	err = b.Sessions.Upsert(sess)
 	if err != nil {
 		return packet.CONNACK_REFUSED_SERVER_UNAVAILABLE, err
 	}
@@ -200,7 +200,7 @@ func (b *Broker) OnConnect(transportSession *listener.Session) (int32, error) {
 		b.OnMessagePublished(transportSession.ID(), func(p *packet.Publish) {
 			transportSession.Publish(p)
 		}),
-		b.Sessions.On(sessions.SessionDeleted+"/"+id, func(s *sessions.Session) {
+		b.Sessions.On(sessions.SessionDeleted+"/"+id, func(s sessions.Session) {
 			for _, cancel := range cancels {
 				cancel()
 			}

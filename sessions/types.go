@@ -2,14 +2,14 @@ package sessions
 
 //go:generate protoc -I${GOPATH}/src -I${GOPATH}/src/github.com/vx-labs/mqtt-broker/sessions/ --go_out=plugins=grpc:. types.proto
 
-type sessionFilter func(*Session) bool
+type sessionFilter func(Session) bool
 
 func (set SessionList) Filter(filters ...sessionFilter) SessionList {
 	copy := make([]*Session, 0, len(set.Sessions))
 	for _, session := range set.Sessions {
 		accepted := true
 		for _, f := range filters {
-			if !f(session) {
+			if !f(*session) {
 				accepted = false
 				break
 			}

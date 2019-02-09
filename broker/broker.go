@@ -44,14 +44,14 @@ type PeerStore interface {
 	On(event string, handler func(*peers.Peer)) func()
 }
 type SessionStore interface {
-	ByID(id string) (*sessions.Session, error)
+	ByID(id string) (sessions.Session, error)
 	ByPeer(peer uint64) (sessions.SessionList, error)
 	ByClientID(id string) (sessions.SessionList, error)
 	All() (sessions.SessionList, error)
 	Exists(id string) bool
-	Upsert(sess *sessions.Session) error
+	Upsert(sess sessions.Session) error
 	Delete(id, reason string) error
-	On(event string, handler func(*sessions.Session)) func()
+	On(event string, handler func(sessions.Session)) func()
 }
 
 type TopicStore interface {

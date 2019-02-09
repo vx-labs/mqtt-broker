@@ -60,14 +60,14 @@ func (b *Broker) setupSYSTopic() {
 		b.RetainThenDispatchToLocalSessions(s.Tenant, topic, nil, 1)
 	})
 
-	b.Sessions.On(sessions.SessionCreated, func(s *sessions.Session) {
+	b.Sessions.On(sessions.SessionCreated, func(s sessions.Session) {
 		payload, err := json.Marshal(s)
 		if err == nil {
 			topic := []byte(fmt.Sprintf("$SYS/sessions/%s", s.ID))
 			b.RetainThenDispatchToLocalSessions(s.Tenant, topic, payload, 1)
 		}
 	})
-	b.Sessions.On(sessions.SessionDeleted, func(s *sessions.Session) {
+	b.Sessions.On(sessions.SessionDeleted, func(s sessions.Session) {
 		topic := []byte(fmt.Sprintf("$SYS/sessions/%s", s.ID))
 		b.RetainThenDispatchToLocalSessions(s.Tenant, topic, nil, 1)
 	})

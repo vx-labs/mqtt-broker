@@ -32,13 +32,13 @@ func TestSessionStore(t *testing.T) {
 	store, _ := NewSessionStore(&mockRouter{})
 
 	t.Run("create", func(t *testing.T) {
-		err := store.Upsert(&Session{
+		err := store.Upsert(Session{
 			ID:       sessionID,
 			ClientID: "test1",
 			Peer:     1,
 		})
 		require.Nil(t, err)
-		err = store.Upsert(&Session{
+		err = store.Upsert(Session{
 			ID:       "3",
 			ClientID: "test2",
 			Peer:     2,
