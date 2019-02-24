@@ -26,7 +26,7 @@ type Config struct {
 func DefaultConfig() Config {
 	return Config{
 		Session: SessionConfig{
-			MaxInflightSize: 100,
+			MaxInflightSize: 500,
 		},
 		RPCPort: 9090,
 		AuthHelper: func(transport listener.Transport, sessionID []byte, username string, password string) (tenant string, err error) {
