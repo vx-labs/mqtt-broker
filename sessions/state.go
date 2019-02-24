@@ -75,8 +75,8 @@ func (m memDBStore) Dump() state.EntrySet {
 			if payload == nil {
 				return nil
 			}
-			sess := payload.(*Session)
-			sessionList.Sessions = append(sessionList.Sessions, sess)
+			sess := payload.(Session)
+			sessionList.Sessions = append(sessionList.Sessions, &sess)
 		}
 	})
 	return &sessionList
@@ -85,7 +85,7 @@ func (m memDBStore) Dump() state.EntrySet {
 func (m *memDBStore) DeleteEntry(entry state.Entry) error {
 	session := entry.(*Session)
 	return m.write(func(tx *memdb.Txn) error {
-		err := tx.Delete("sessions", session)
+		err := tx.Delete("sessions", *session)
 		if err == nil {
 			tx.Commit()
 		}
