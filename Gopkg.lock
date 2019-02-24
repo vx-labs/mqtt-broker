@@ -32,12 +32,6 @@
   version = "v0.3.4"
 
 [[projects]]
-  name = "github.com/cloudflare/cloudflare-go"
-  packages = ["."]
-  revision = "1f9007fbecae20711133c60519338c41cef1ffb4"
-  version = "v0.8.5"
-
-[[projects]]
   name = "github.com/davecgh/go-spew"
   packages = ["spew"]
   revision = "8991bc29aa16c548c550c7ff78260e27b9ab7c73"
@@ -290,12 +284,6 @@
   version = "v2.0.7"
 
 [[projects]]
-  name = "github.com/pkg/errors"
-  packages = ["."]
-  revision = "ba968bfe8b2f7e042a574c888954fccecfa385b4"
-  version = "v0.8.1"
-
-[[projects]]
   name = "github.com/pmezard/go-difflib"
   packages = ["difflib"]
   revision = "792786c7400a136282c1664665ae0a8db921c6c2"
@@ -382,8 +370,8 @@
 [[projects]]
   name = "github.com/vx-labs/mqtt-protocol"
   packages = ["decoder","encoder","packet"]
-  revision = "d9a886392ecf924c789625394701b9efef47d22f"
-  version = "v4.0.2"
+  revision = "1bec82614272ea3ed87ed1d0f898f51c2506e761"
+  version = "v4.0.3"
 
 [[projects]]
   name = "github.com/weaveworks/mesh"
