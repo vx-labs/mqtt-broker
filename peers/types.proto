@@ -3,7 +3,7 @@ package peers;
 
 message Peer {
   string ID = 1;
-  uint64 MeshID = 2;
+  string MeshID = 2;
   string Hostname = 3;
   string Address = 4;
   int64 LastAdded = 5;

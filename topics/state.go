@@ -64,6 +64,9 @@ func (m memDBStore) Set() state.EntrySet {
 	return &RetainedMessageList{}
 }
 func (m memDBStore) Dump() state.EntrySet {
+	return m.DumpRetainedMessages()
+}
+func (m memDBStore) DumpRetainedMessages() *RetainedMessageList {
 	RetainedMessageList := RetainedMessageList{}
 	m.read(func(tx *memdb.Txn) error {
 		iterator, err := tx.Get("messages", "id")

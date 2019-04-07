@@ -4,7 +4,7 @@ package sessions;
 message Session {
   string ID = 1;
   string Tenant = 2;
-  uint64 Peer = 3;
+  string Peer = 3;
   bytes WillTopic = 4;
   int32 WillQoS = 5;
   bytes WillPayload = 6;

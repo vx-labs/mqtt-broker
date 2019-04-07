@@ -28,7 +28,7 @@ func DefaultConfig() Config {
 		Session: SessionConfig{
 			MaxInflightSize: 500,
 		},
-		RPCPort: 9090,
+		RPCPort: 0,
 		AuthHelper: func(transport listener.Transport, sessionID []byte, username string, password string) (tenant string, err error) {
 			log.Print("WARN: Default authentication mecanism is used, therefore all access will be granted")
 			return "_default", nil

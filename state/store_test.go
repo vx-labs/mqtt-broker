@@ -3,8 +3,6 @@ package state
 import (
 	"testing"
 
-	"github.com/golang/protobuf/proto"
-
 	"github.com/stretchr/testify/require"
 )
 
@@ -22,11 +20,8 @@ func TestMerge(t *testing.T) {
 				&MockedEntry{ID: "2", Data: "1", LastAdded: 1},
 			},
 		}
-		payload, err := proto.Marshal(remote)
+		err := store.MergeEntries(remote)
 		require.NoError(t, err)
-		data, err := store.merge(payload)
-		require.NoError(t, err)
-		require.Nil(t, data)
 	})
 }
 func TestComputeDelta(t *testing.T) {

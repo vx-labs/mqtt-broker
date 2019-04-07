@@ -57,13 +57,10 @@
   version = "4.0.2"
 
 [[constraint]]
-  name = "github.com/weaveworks/mesh"
-  version = "0.1.0"
-
-[[constraint]]
   name = "github.com/gobwas/ws"
   version = "~v0.1.0"
 
 [[constraint]]
   name = "github.com/xenolf/lego"
-  version = "v1.1.0"
+  version= "ad20bf90ff5479cb8c63aef7e0f773b3c7e35835"
+

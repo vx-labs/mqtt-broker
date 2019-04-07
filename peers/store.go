@@ -4,11 +4,11 @@ import (
 	"errors"
 	"time"
 
+	"github.com/vx-labs/mqtt-broker/broker/cluster"
 	"github.com/vx-labs/mqtt-broker/events"
 
 	memdb "github.com/hashicorp/go-memdb"
 	"github.com/vx-labs/mqtt-broker/state"
-	"github.com/weaveworks/mesh"
 )
 
 const (
@@ -30,12 +30,13 @@ var now = func() int64 {
 
 type PeerStore interface {
 	ByID(id string) (*Peer, error)
-	ByMeshID(id uint64) (*Peer, error)
+	ByMeshID(id string) (*Peer, error)
 	All() (PeerList, error)
 	Exists(id string) bool
 	Upsert(p *Peer) error
 	Delete(id string) error
 	On(event string, handler func(*Peer)) func()
+	DumpPeers() *PeerList
 }
 
 type memDBStore struct {
@@ -44,11 +45,7 @@ type memDBStore struct {
 	events *events.Bus
 }
 
-type Router interface {
-	NewGossip(channel string, gossiper mesh.Gossiper) (mesh.Gossip, error)
-}
-
-func NewPeerStore(router Router) (PeerStore, error) {
+func NewPeerStore(mesh cluster.Mesh) (PeerStore, error) {
 	db, err := memdb.NewMemDB(&memdb.DBSchema{
 		Tables: map[string]*memdb.TableSchema{
 			"peers": {
@@ -66,7 +63,7 @@ func NewPeerStore(router Router) (PeerStore, error) {
 						Name:         "meshID",
 						AllowMissing: false,
 						Unique:       true,
-						Indexer:      &memdb.UintFieldIndex{Field: "MeshID"},
+						Indexer:      &memdb.StringFieldIndex{Field: "MeshID"},
 					},
 				},
 			},
@@ -79,7 +76,7 @@ func NewPeerStore(router Router) (PeerStore, error) {
 		db:     db,
 		events: events.NewEventBus(),
 	}
-	state, err := state.NewStore("mqtt-peers", s, router)
+	state, err := state.NewStore("mqtt-peers", mesh, s)
 	if err != nil {
 		return nil, err
 	}
@@ -129,7 +126,7 @@ func (s *memDBStore) All() (PeerList, error) {
 	}), nil
 }
 
-func (s *memDBStore) ByMeshID(id uint64) (*Peer, error) {
+func (s *memDBStore) ByMeshID(id string) (*Peer, error) {
 	var peer *Peer
 	err := s.read(func(tx *memdb.Txn) error {
 		data, err := tx.First("peers", "meshID", id)

@@ -4,14 +4,16 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"net"
 	"os"
 	"runtime"
 	"time"
 
-	"github.com/google/uuid"
+	"github.com/vx-labs/mqtt-broker/broker/cluster"
 
 	"github.com/vx-labs/mqtt-broker/events"
 	"github.com/vx-labs/mqtt-broker/peers"
+	"github.com/vx-labs/mqtt-broker/state"
 
 	"github.com/vx-labs/mqtt-broker/sessions"
 	"github.com/vx-labs/mqtt-broker/topics"
@@ -19,35 +21,36 @@ import (
 	"github.com/vx-labs/mqtt-broker/broker/listener/transport"
 	"github.com/vx-labs/mqtt-broker/broker/rpc"
 
-	"github.com/weaveworks/mesh"
-
 	"github.com/vx-labs/mqtt-protocol/packet"
 
 	"github.com/vx-labs/mqtt-broker/broker/listener"
 
-	"github.com/golang/protobuf/proto"
-
 	"github.com/vx-labs/mqtt-broker/identity"
 
-	"github.com/vx-labs/mqtt-broker/broker/peer"
 	"github.com/vx-labs/mqtt-broker/subscriptions"
 )
 
-//go:generate protoc -I${GOPATH}/src -I${GOPATH}/src/github.com/vx-labs/mqtt-broker/broker/ --go_out=plugins=grpc:. events.proto
+const (
+	EVENT_MESSAGE_PUBLISHED = "message_published"
+	EVENT_STATE_UPDATED     = "state_updated"
+)
 
 type PeerStore interface {
 	ByID(id string) (*peers.Peer, error)
 	All() (peers.PeerList, error)
-	ByMeshID(id uint64) (*peers.Peer, error)
+	ByMeshID(id string) (*peers.Peer, error)
 	Upsert(sess *peers.Peer) error
 	Delete(id string) error
 	On(event string, handler func(*peers.Peer)) func()
+	DumpPeers() *peers.PeerList
 }
 type SessionStore interface {
+	state.Backend
 	ByID(id string) (sessions.Session, error)
-	ByPeer(peer uint64) (sessions.SessionList, error)
+	ByPeer(peer string) (sessions.SessionList, error)
 	ByClientID(id string) (sessions.SessionList, error)
 	All() (sessions.SessionList, error)
+	DumpSessions() *sessions.SessionList
 	Exists(id string) bool
 	Upsert(sess sessions.Session) error
 	Delete(id, reason string) error
@@ -55,16 +58,20 @@ type SessionStore interface {
 }
 
 type TopicStore interface {
+	state.Backend
 	Create(message *topics.RetainedMessage) error
 	ByTopicPattern(tenant string, pattern []byte) (topics.RetainedMessageList, error)
 	All() (topics.RetainedMessageList, error)
 	On(event string, handler func(*topics.RetainedMessage)) func()
+	DumpRetainedMessages() *topics.RetainedMessageList
 }
 type SubscriptionStore interface {
+	state.Backend
 	ByTopic(tenant string, pattern []byte) (*subscriptions.SubscriptionList, error)
 	ByID(id string) (*subscriptions.Subscription, error)
 	All() (subscriptions.SubscriptionList, error)
-	ByPeer(peer uint64) (subscriptions.SubscriptionList, error)
+	DumpSubscriptions() *subscriptions.SubscriptionList
+	ByPeer(peer string) (subscriptions.SubscriptionList, error)
 	BySession(id string) (subscriptions.SubscriptionList, error)
 	Sessions() ([]string, error)
 	Create(subscription *subscriptions.Subscription) error
@@ -74,7 +81,7 @@ type SubscriptionStore interface {
 type Broker struct {
 	ID            string
 	authHelper    func(transport listener.Transport, sessionID []byte, username string, password string) (tenant string, err error)
-	Peer          *peer.Peer
+	mesh          cluster.Mesh
 	Subscriptions SubscriptionStore
 	Sessions      SessionStore
 	Topics        TopicStore
@@ -86,7 +93,7 @@ type Broker struct {
 	TLSTransport  io.Closer
 	WSSTransport  io.Closer
 	WSTransport   io.Closer
-	RPC           io.Closer
+	RPC           net.Listener
 }
 
 func New(id identity.Identity, config Config) *Broker {
@@ -94,24 +101,35 @@ func New(id identity.Identity, config Config) *Broker {
 		authHelper: config.AuthHelper,
 		events:     events.NewEventBus(),
 	}
+
+	l, listenerCh := listener.New(broker, config.Session.MaxInflightSize)
+	broker.RPC = rpc.New(config.RPCPort, broker)
+	_, port, err := net.SplitHostPort(broker.RPC.Addr().String())
+	if err != nil {
+		panic(err)
+	}
+	broker.mesh = cluster.MemberlistMesh(id, broker, cluster.NodeMeta{
+		ID:      id.ID(),
+		RPCAddr: fmt.Sprintf("%s:%s", id.Private().Host(), port),
+	})
 	hostedServices := []string{}
-	broker.Peer = peer.NewPeer(id, broker.onPeerDown, broker.onUnicast)
-	subscriptionsStore, err := subscriptions.NewMemDBStore(broker.Peer.Router())
+	hostedServices = append(hostedServices, "rpc-listener")
+	subscriptionsStore, err := subscriptions.NewMemDBStore(broker.mesh)
 	if err != nil {
 		log.Fatal(err)
 	}
 	hostedServices = append(hostedServices, "subscriptions-store")
-	peersStore, err := peers.NewPeerStore(broker.Peer.Router())
+	peersStore, err := peers.NewPeerStore(broker.mesh)
 	if err != nil {
 		log.Fatal(err)
 	}
 	hostedServices = append(hostedServices, "peers-store")
-	topicssStore, err := topics.NewMemDBStore(broker.Peer.Router())
+	topicssStore, err := topics.NewMemDBStore(broker.mesh)
 	if err != nil {
 		log.Fatal(err)
 	}
 	hostedServices = append(hostedServices, "topics-store")
-	sessionsStore, err := sessions.NewSessionStore(broker.Peer.Router())
+	sessionsStore, err := sessions.NewSessionStore(broker.mesh)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -121,11 +139,6 @@ func New(id identity.Identity, config Config) *Broker {
 	broker.Subscriptions = subscriptionsStore
 	broker.Sessions = sessionsStore
 
-	l, listenerCh := listener.New(broker, config.Session.MaxInflightSize)
-	if config.RPCPort > 0 {
-		broker.RPC = rpc.New(config.RPCPort, broker)
-		hostedServices = append(hostedServices, "rpc-listener")
-	}
 	if config.TCPPort > 0 {
 		tcpTransport, err := transport.NewTCPTransport(config.TCPPort, listenerCh)
 		broker.TCPTransport = tcpTransport
@@ -189,26 +202,17 @@ func New(id identity.Identity, config Config) *Broker {
 	if hostname == "" {
 		hostname = "not_available"
 	}
-	broker.ID = uuid.New().String()
+	broker.ID = id.ID()
 	broker.Peers.Upsert(&peers.Peer{
 		ID:       broker.ID,
-		MeshID:   uint64(broker.Peer.Name()),
+		MeshID:   broker.ID,
 		Hostname: hostname,
 		Runtime:  runtime.Version(),
 		Services: hostedServices,
 		Started:  time.Now().Unix(),
 	})
 	go broker.oSStatsReporter()
-	broker.Peer.Start()
 	return broker
-}
-func (b *Broker) onUnicast(payload []byte) {
-	message := &MessagePublished{}
-	err := proto.Unmarshal(payload, message)
-	if err != nil {
-		return
-	}
-	b.dispatch(message)
 }
 func (b *Broker) resolveRecipients(tenant string, topic []byte, defaultQoS int32) ([]string, []int32) {
 	recipients, err := b.Subscriptions.ByTopic(tenant, topic)
@@ -227,25 +231,25 @@ func (b *Broker) resolveRecipients(tenant string, topic []byte, defaultQoS int32
 	})
 	return set, qosSet
 }
-func (b *Broker) onPeerDown(name mesh.PeerName) {
-	peer, err := b.Peers.ByMeshID(uint64(name))
+func (b *Broker) onPeerDown(name string) {
+	peer, err := b.Peers.ByMeshID(name)
 	if err != nil {
-		log.Printf("WARN: received lost event from an unknown peer %s", name.String())
+		log.Printf("WARN: received lost event from an unknown peer %s", name)
 		return
 	}
 	b.Peers.Delete(peer.ID)
-	set, err := b.Subscriptions.ByPeer(uint64(name))
+	set, err := b.Subscriptions.ByPeer(name)
 	if err != nil {
-		log.Printf("ERR: failed to remove subscriptions from peer %d: %v", name, err)
+		log.Printf("ERR: failed to remove subscriptions from peer %s: %v", name, err)
 		return
 	}
 	set.Apply(func(sub *subscriptions.Subscription) {
 		b.Subscriptions.Delete(sub.ID)
 	})
 
-	sessionSet, err := b.Sessions.ByPeer(uint64(name))
+	sessionSet, err := b.Sessions.ByPeer(name)
 	if err != nil {
-		log.Printf("ERR: failed to fetch sessions from peer %d: %v", name, err)
+		log.Printf("ERR: failed to fetch sessions from peer %s: %v", name, err)
 		return
 	}
 	sessionSet.Apply(func(s *sessions.Session) {
@@ -263,7 +267,7 @@ func (b *Broker) onPeerDown(name mesh.PeerName) {
 			return
 		}
 
-		message := &MessagePublished{
+		message := &rpc.MessagePublished{
 			Payload:   s.WillPayload,
 			Topic:     s.WillTopic,
 			Qos:       make([]int32, 0, len(recipients.Subscriptions)),
@@ -284,10 +288,10 @@ func (b *Broker) onPeerDown(name mesh.PeerName) {
 
 func (b *Broker) Join(hosts []string) {
 	log.Printf("INFO: joining hosts %v", hosts)
-	b.Peer.Join(hosts)
+	b.mesh.Join(hosts)
 }
 
-func (b *Broker) dispatch(message *MessagePublished) {
+func (b *Broker) dispatch(message *rpc.MessagePublished) {
 	for idx, recipient := range message.Recipient {
 		packet := &packet.Publish{
 			Header: &packet.Header{

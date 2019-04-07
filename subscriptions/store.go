@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/go-memdb"
+	"github.com/vx-labs/mqtt-broker/broker/cluster"
 	"github.com/vx-labs/mqtt-broker/events"
 	"github.com/vx-labs/mqtt-broker/state"
 )
@@ -12,15 +13,17 @@ import (
 const table = "subscriptions"
 
 type Store interface {
+	state.Backend
 	ByTopic(tenant string, pattern []byte) (*SubscriptionList, error)
 	ByID(id string) (*Subscription, error)
 	All() (SubscriptionList, error)
-	ByPeer(peer uint64) (SubscriptionList, error)
+	ByPeer(peer string) (SubscriptionList, error)
 	BySession(id string) (SubscriptionList, error)
 	Sessions() ([]string, error)
 	Create(message *Subscription) error
 	Delete(id string) error
 	On(event string, handler func(*Subscription)) func()
+	DumpSubscriptions() *SubscriptionList
 }
 
 const (
@@ -42,7 +45,7 @@ var now = func() int64 {
 	return time.Now().UnixNano()
 }
 
-func NewMemDBStore(router state.Router) (Store, error) {
+func NewMemDBStore(mesh cluster.Mesh) (Store, error) {
 	db, err := memdb.NewMemDB(&memdb.DBSchema{
 		Tables: map[string]*memdb.TableSchema{
 			table: &memdb.TableSchema{
@@ -72,7 +75,7 @@ func NewMemDBStore(router state.Router) (Store, error) {
 						Name:         "peer",
 						AllowMissing: false,
 						Unique:       false,
-						Indexer:      &memdb.UintFieldIndex{Field: "Peer"},
+						Indexer:      &memdb.StringFieldIndex{Field: "Peer"},
 					},
 				},
 			},
@@ -87,7 +90,7 @@ func NewMemDBStore(router state.Router) (Store, error) {
 		patternIndex: TenantTopicIndexer(),
 		events:       events.NewEventBus(),
 	}
-	state, err := state.NewStore("mqtt-subscriptions", s, router)
+	state, err := state.NewStore("mqtt-subscriptions", mesh, s)
 	if err != nil {
 		return nil, err
 	}
@@ -162,7 +165,7 @@ func (m *memDBStore) BySession(session string) (SubscriptionList, error) {
 		return
 	})
 }
-func (m *memDBStore) ByPeer(peer uint64) (SubscriptionList, error) {
+func (m *memDBStore) ByPeer(peer string) (SubscriptionList, error) {
 	var res SubscriptionList
 	return res, m.read(func(tx *memdb.Txn) (err error) {
 		res, err = m.all(tx, "peer", peer)

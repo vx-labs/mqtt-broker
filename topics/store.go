@@ -6,10 +6,11 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/vx-labs/mqtt-broker/broker/cluster"
+
 	memdb "github.com/hashicorp/go-memdb"
 	"github.com/vx-labs/mqtt-broker/events"
 	"github.com/vx-labs/mqtt-broker/state"
-	"github.com/weaveworks/mesh"
 )
 
 type memDBStore struct {
@@ -17,6 +18,9 @@ type memDBStore struct {
 	state      *state.Store
 	topicIndex *topicIndexer
 	events     *events.Bus
+}
+type Channel interface {
+	Broadcast([]byte)
 }
 
 var (
@@ -45,11 +49,7 @@ var now = func() int64 {
 	return time.Now().UnixNano()
 }
 
-type Router interface {
-	NewGossip(channel string, gossiper mesh.Gossiper) (mesh.Gossip, error)
-}
-
-func NewMemDBStore(router Router) (*memDBStore, error) {
+func NewMemDBStore(mesh cluster.Mesh) (*memDBStore, error) {
 	db, err := memdb.NewMemDB(&memdb.DBSchema{
 		Tables: map[string]*memdb.TableSchema{
 			"messages": &memdb.TableSchema{
@@ -81,7 +81,7 @@ func NewMemDBStore(router Router) (*memDBStore, error) {
 		topicIndex: TenantTopicIndexer(),
 		events:     events.NewEventBus(),
 	}
-	state, err := state.NewStore("mqtt-topics", s, router)
+	state, err := state.NewStore("mqtt-topics", mesh, s)
 	if err != nil {
 		return nil, err
 	}
