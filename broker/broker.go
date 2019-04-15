@@ -94,12 +94,14 @@ type Broker struct {
 	WSSTransport  io.Closer
 	WSTransport   io.Closer
 	RPC           net.Listener
+	RPCCaller     *rpc.Caller
 }
 
 func New(id identity.Identity, config Config) *Broker {
 	broker := &Broker{
 		authHelper: config.AuthHelper,
 		events:     events.NewEventBus(),
+		RPCCaller:  rpc.NewCaller(),
 	}
 
 	l, listenerCh := listener.New(broker, config.Session.MaxInflightSize)

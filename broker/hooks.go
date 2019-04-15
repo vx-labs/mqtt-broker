@@ -279,7 +279,7 @@ func (b *Broker) OnPublish(sess sessions.Session, packet *packet.Publish) error 
 			if err != nil {
 				log.Printf("WARN: unknown node found in message recipients: %s", peer)
 			} else {
-				err = rpc.Call(addr, func(c rpc.BrokerServiceClient) error {
+				err = b.RPCCaller.Call(addr, func(c rpc.BrokerServiceClient) error {
 					_, err := c.DistributeMessage(ctx, message)
 					return err
 				})
