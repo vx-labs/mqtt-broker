@@ -2,6 +2,7 @@ package rpc
 
 import (
 	"errors"
+	"log"
 	"sync/atomic"
 	"unsafe"
 
@@ -29,6 +30,7 @@ func (c *Caller) Call(addr string, job RPCJob) error {
 	var pool (*Pool)
 	data, ok := c.pools.Get([]byte(addr))
 	if !ok {
+		log.Printf("INFO: creating a new RPC Pool targeting address %s", addr)
 		var err error
 		pool, err = NewPool(addr)
 		if err != nil {

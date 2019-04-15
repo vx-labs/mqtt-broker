@@ -106,14 +106,21 @@ func New(id identity.Identity, config Config) *Broker {
 
 	l, listenerCh := listener.New(broker, config.Session.MaxInflightSize)
 	broker.RPC = rpc.New(config.RPCPort, broker)
-	_, port, err := net.SplitHostPort(broker.RPC.Addr().String())
-	if err != nil {
-		panic(err)
+	if config.RPCIdentity == nil {
+		_, port, err := net.SplitHostPort(broker.RPC.Addr().String())
+		if err != nil {
+			panic(err)
+		}
+		broker.mesh = cluster.MemberlistMesh(id, broker, cluster.NodeMeta{
+			ID:      id.ID(),
+			RPCAddr: fmt.Sprintf("%s:%s", id.Private().Host(), port),
+		})
+	} else {
+		broker.mesh = cluster.MemberlistMesh(id, broker, cluster.NodeMeta{
+			ID:      id.ID(),
+			RPCAddr: config.RPCIdentity.Public().String(),
+		})
 	}
-	broker.mesh = cluster.MemberlistMesh(id, broker, cluster.NodeMeta{
-		ID:      id.ID(),
-		RPCAddr: fmt.Sprintf("%s:%s", id.Private().Host(), port),
-	})
 	hostedServices := []string{}
 	hostedServices = append(hostedServices, "rpc-listener")
 	subscriptionsStore, err := subscriptions.NewMemDBStore(broker.mesh)

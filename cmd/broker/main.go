@@ -171,6 +171,7 @@ func main() {
 			sigc := make(chan os.Signal, 1)
 
 			var id identity.Identity
+			var rpcId identity.Identity
 			var err error
 			var tlsConfig *tls.Config
 			var consulAPI *consul.Client
@@ -184,6 +185,7 @@ func main() {
 
 			if nomad {
 				id, err = identity.NomadService("broker")
+				rpcId, err = identity.NomadService("rpc")
 			} else if gossipPort > 0 {
 				id = identity.StaticService(gossipPort)
 			} else {
@@ -200,6 +202,9 @@ func main() {
 			config.RPCPort = rpcPort
 			config.WSPort = wsPort
 			config.NATSURL = natsURL
+			if rpcId != nil {
+				config.RPCIdentity = rpcId
+			}
 
 			if useVault || useConsul {
 				consulAPI, vaultAPI, err = mqttConfig.DefaultClients()

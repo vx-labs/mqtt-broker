@@ -60,13 +60,3 @@ func (s *server) DistributeMessage(ctx context.Context, msg *MessagePublished) (
 	err := s.broker.DistributeMessage(msg)
 	return &MessagePublishedOutput{}, err
 }
-
-func Call(addr string, f func(BrokerServiceClient) error) error {
-	conn, err := grpc.Dial(addr, grpc.WithInsecure(), grpc.WithBlock())
-	if err != nil {
-		return err
-	}
-	defer conn.Close()
-	client := NewBrokerServiceClient(conn)
-	return f(client)
-}

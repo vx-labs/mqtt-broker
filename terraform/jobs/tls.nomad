@@ -46,12 +46,13 @@ job "mqtt-tls" {
 
       config {
         image      = "quay.io/vxlabs/mqtt-broker:${broker_version}"
-        args       = ["-s", "8883", "--use-vault", "--use-vx-auth", "--nomad", "--use-consul", "--nats-streaming-url", "nats://1.servers.nats.discovery.par1.vx-labs.net:4222,nats://2.servers.nats.discovery.par1.vx-labs.net:4222,nats://3.servers.nats.discovery.par1.vx-labs.net:4222"]
+        args       = ["-s", "8883", "-r", "9091","--use-vault", "--use-vx-auth", "--nomad", "--use-consul", "--nats-streaming-url", "nats://1.servers.nats.discovery.par1.vx-labs.net:4222,nats://2.servers.nats.discovery.par1.vx-labs.net:4222,nats://3.servers.nats.discovery.par1.vx-labs.net:4222"]
         force_pull = true
 
         port_map {
           health = 9000
-          broker = 9001
+          broker = 9090
+          rpc    = 9091
           mqtts  = 8883
         }
       }
@@ -64,6 +65,7 @@ job "mqtt-tls" {
           mbits = 10
           port  "mqtts"{}
           port  "broker"{}
+          port  "rpc"{}
           port  "health"{}
         }
       }
@@ -71,6 +73,18 @@ job "mqtt-tls" {
       service {
         name = "broker"
         port = "broker"
+
+        check {
+          type     = "http"
+          path     = "/health"
+          port     = "health"
+          interval = "5s"
+          timeout  = "2s"
+        }
+      }
+      service {
+        name = "rpc"
+        port = "rpc"
 
         check {
           type     = "http"
