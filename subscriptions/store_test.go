@@ -3,32 +3,18 @@ package subscriptions
 import (
 	"testing"
 
+	"github.com/vx-labs/mqtt-broker/broker/cluster"
+
 	"github.com/stretchr/testify/require"
-	"github.com/weaveworks/mesh"
 )
 
-type mockGossip struct{}
-
-func (m *mockGossip) GossipUnicast(dst mesh.PeerName, msg []byte) error {
-	return nil
-}
-
-func (m *mockGossip) GossipBroadcast(update mesh.GossipData) {
-}
-
-type mockRouter struct {
-}
-
-func (m *mockRouter) NewGossip(channel string, gossiper mesh.Gossiper) (mesh.Gossip, error) {
-	return &mockGossip{}, nil
-}
-
 func TestStore(t *testing.T) {
-	s, err := NewMemDBStore(&mockRouter{})
+	s, err := NewMemDBStore(cluster.MockedMesh())
 	require.NoError(t, err)
 	err = s.Create(&Subscription{
 		ID:        "1",
 		Tenant:    "_default",
+		Peer:      "1",
 		Qos:       1,
 		SessionID: "1",
 		Pattern:   []byte("devices/+/degrees"),

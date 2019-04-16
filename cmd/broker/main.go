@@ -27,23 +27,8 @@ import (
 
 	"github.com/vx-labs/mqtt-broker/broker"
 
-	"github.com/weaveworks/mesh"
-
 	"github.com/vx-labs/mqtt-broker/identity"
 )
-
-func nameFromID(id string) string {
-	return fmt.Sprintf("%s:%s:%s:%s:%s:%s", id[0:2], id[2:4], id[4:6], id[6:8], id[8:10], id[10:12])
-}
-
-type State interface {
-	mesh.GossipData
-	GossipData() mesh.GossipData
-	MergeDelta(buf []byte) (delta mesh.GossipData)
-	Add(ev string)
-	Remove(ev string)
-	Iterate(f func(ev string, added, deleted bool) error) error
-}
 
 func getTLSProvider(consulAPI *consul.Client, vaultAPI *vault.Client, email string) *tlsProvider.Client {
 	opts := []tlsProvider.Opt{
@@ -186,6 +171,7 @@ func main() {
 			sigc := make(chan os.Signal, 1)
 
 			var id identity.Identity
+			var rpcId identity.Identity
 			var err error
 			var tlsConfig *tls.Config
 			var consulAPI *consul.Client
@@ -199,6 +185,7 @@ func main() {
 
 			if nomad {
 				id, err = identity.NomadService("broker")
+				rpcId, err = identity.NomadService("rpc")
 			} else if gossipPort > 0 {
 				id = identity.StaticService(gossipPort)
 			} else {
@@ -215,6 +202,9 @@ func main() {
 			config.RPCPort = rpcPort
 			config.WSPort = wsPort
 			config.NATSURL = natsURL
+			if rpcId != nil {
+				config.RPCIdentity = rpcId
+			}
 
 			if useVault || useConsul {
 				consulAPI, vaultAPI, err = mqttConfig.DefaultClients()
@@ -233,7 +223,7 @@ func main() {
 			}
 			config.TLS = tlsConfig
 			instance := broker.New(id, config)
-			log.Printf("INFO: started broker instance %s", id.Public().String())
+			log.Printf("INFO: started broker instance %s on %s", id.ID(), id.Public().String())
 			if len(nodes) > 0 {
 				instance.Join(nodes)
 			}
@@ -263,7 +253,7 @@ func main() {
 	root.Flags().IntP("tls-port", "s", 0, "Start TLS listener on this port. Specify 0 to disable the listener")
 	root.Flags().IntP("wss-port", "w", 0, "Start Secure WS listener on this port. Specify 0 to disable the listener")
 	root.Flags().IntP("ws-port", "", 0, "Start WS listener on this port. Specify 0 to disable the listener")
-	root.Flags().IntP("rpc-port", "r", 0, "Start GRPC listener on this port. Specify 0 to disable the listener")
+	root.Flags().IntP("rpc-port", "r", 0, "Start GRPC listener on this port. Specify 0 to use a random port")
 	root.Flags().IntP("gossip-port", "g", 0, "Use this port for Mesh traffic. Specify 0 to use a random port")
 	root.Flags().StringP("nats-streaming-url", "", "", "Export published message to this NATS-Streaming service")
 	root.Execute()

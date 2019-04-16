@@ -3,43 +3,27 @@ package peers
 import (
 	"testing"
 
-	"github.com/weaveworks/mesh"
-
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/vx-labs/mqtt-broker/broker/cluster"
 )
 
 const (
 	peerID = "cb8f3900-4146-4499-a880-c01611a6d9ee"
 )
 
-type mockGossip struct{}
-
-func (m *mockGossip) GossipUnicast(dst mesh.PeerName, msg []byte) error {
-	return nil
-}
-
-func (m *mockGossip) GossipBroadcast(update mesh.GossipData) {
-}
-
-type mockRouter struct {
-}
-
-func (m *mockRouter) NewGossip(channel string, gossiper mesh.Gossiper) (mesh.Gossip, error) {
-	return &mockGossip{}, nil
-}
-
 func TestPeerStore(t *testing.T) {
-	store, _ := NewPeerStore(&mockRouter{})
+	store, _ := NewPeerStore(cluster.MockedMesh())
 
 	t.Run("create", func(t *testing.T) {
 		err := store.Upsert(&Peer{
-			ID: peerID,
+			ID:     peerID,
+			MeshID: "1",
 		})
 		assert.Nil(t, err)
 		err = store.Upsert(&Peer{
 			ID:     "3",
-			MeshID: 2,
+			MeshID: "2",
 		})
 		assert.Nil(t, err)
 	})
@@ -51,7 +35,7 @@ func TestPeerStore(t *testing.T) {
 		assert.Equal(t, 2, len(set.Peers))
 	})
 	t.Run("lookup peer", func(t *testing.T) {
-		set, err := store.ByMeshID(2)
+		set, err := store.ByMeshID("2")
 		require.Nil(t, err)
 		assert.Equal(t, "3", set.ID)
 	})

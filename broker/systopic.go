@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/vx-labs/mqtt-broker/broker/rpc"
 	"github.com/vx-labs/mqtt-broker/topics"
 
 	"github.com/vx-labs/mqtt-broker/peers"
@@ -22,7 +23,7 @@ func (b *Broker) retainMessage(tenant string, topic []byte, payload []byte, qos 
 }
 func (b *Broker) dispatchToLocalSessions(tenant string, topic []byte, payload []byte, defaultQoS int32) {
 	recipients, qos := b.resolveRecipients(tenant, topic, defaultQoS)
-	message := &MessagePublished{
+	message := &rpc.MessagePublished{
 		Payload:   payload,
 		Recipient: recipients,
 		Qos:       qos,

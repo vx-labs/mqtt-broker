@@ -2,6 +2,7 @@ package broker
 
 import (
 	"bytes"
+	"context"
 	"crypto/sha1"
 	"fmt"
 	"log"
@@ -11,12 +12,11 @@ import (
 
 	"github.com/vx-labs/mqtt-broker/sessions"
 
-	proto "github.com/golang/protobuf/proto"
 	"github.com/vx-labs/mqtt-broker/broker/listener"
+	"github.com/vx-labs/mqtt-broker/broker/rpc"
 	subscriptions "github.com/vx-labs/mqtt-broker/subscriptions"
 	topics "github.com/vx-labs/mqtt-broker/topics"
 	"github.com/vx-labs/mqtt-protocol/packet"
-	"github.com/weaveworks/mesh"
 )
 
 func makeSubID(session string, pattern []byte) string {
@@ -47,7 +47,7 @@ func (b *Broker) OnSubscribe(sess sessions.Session, packet *packet.Subscribe) er
 			Qos:       packet.Qos[idx],
 			Tenant:    sess.Tenant,
 			SessionID: sess.ID,
-			Peer:      uint64(b.Peer.Name()),
+			Peer:      b.ID,
 		}
 		err := b.Subscriptions.Create(event)
 		if err != nil {
@@ -62,7 +62,7 @@ func (b *Broker) OnSubscribe(sess sessions.Session, packet *packet.Subscribe) er
 		go func() {
 			set.Apply(func(message *topics.RetainedMessage) {
 				qos := getLowerQoS(message.Qos, packetQoS)
-				b.dispatch(&MessagePublished{
+				b.dispatch(&rpc.MessagePublished{
 					Payload:   message.Payload,
 					Retained:  true,
 					Recipient: []string{sess.ID},
@@ -150,7 +150,7 @@ func (b *Broker) OnConnect(transportSession *listener.Session) (int32, error) {
 		ClientID:          clientId,
 		Created:           time.Now().Unix(),
 		Tenant:            tenant,
-		Peer:              uint64(b.Peer.Name()),
+		Peer:              b.ID,
 		WillPayload:       connectPkt.WillPayload,
 		WillQoS:           connectPkt.WillQos,
 		WillRetain:        connectPkt.WillRetain,
@@ -252,10 +252,10 @@ func (b *Broker) OnPublish(sess sessions.Session, packet *packet.Publish) error 
 		return err
 	}
 
-	peers := map[uint64]*MessagePublished{}
+	peers := map[string]*rpc.MessagePublished{}
 	recipients.Apply(func(sub *subscriptions.Subscription) {
 		if _, ok := peers[sub.Peer]; !ok {
-			peers[sub.Peer] = &MessagePublished{
+			peers[sub.Peer] = &rpc.MessagePublished{
 				Payload:   packet.Payload,
 				Qos:       make([]int32, 0, len(recipients.Subscriptions)),
 				Recipient: make([]string, 0, len(recipients.Subscriptions)),
@@ -269,15 +269,24 @@ func (b *Broker) OnPublish(sess sessions.Session, packet *packet.Publish) error 
 		}
 		peers[sub.Peer].Qos = append(peers[sub.Peer].Qos, qos)
 	})
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 	for peer, message := range peers {
-		payload, err := proto.Marshal(message)
-		if err != nil {
-			return err
-		}
-		if peer == uint64(b.Peer.Name()) {
+		if peer == b.ID {
 			b.dispatch(message)
 		} else {
-			b.Peer.Send(mesh.PeerName(peer), payload)
+			addr, err := b.mesh.MemberRPCAddress(peer)
+			if err != nil {
+				log.Printf("WARN: unknown node found in message recipients: %s", peer)
+			} else {
+				err = b.RPCCaller.Call(addr, func(c rpc.BrokerServiceClient) error {
+					_, err := c.DistributeMessage(ctx, message)
+					return err
+				})
+				if err != nil {
+					log.Printf("WARN: failed to send message: %v", err)
+				}
+			}
 		}
 	}
 	return nil

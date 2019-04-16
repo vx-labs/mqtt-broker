@@ -64,6 +64,9 @@ func (m memDBStore) Set() state.EntrySet {
 	return &PeerList{}
 }
 func (m memDBStore) Dump() state.EntrySet {
+	return m.DumpPeers()
+}
+func (m memDBStore) DumpPeers() *PeerList {
 	peerList := PeerList{}
 	m.read(func(tx *memdb.Txn) error {
 		iterator, err := tx.Get("peers", "id")

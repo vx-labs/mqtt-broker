@@ -4,26 +4,11 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/weaveworks/mesh"
+	"github.com/vx-labs/mqtt-broker/broker/cluster"
 )
 
-type mockGossip struct{}
-
-func (m *mockGossip) GossipUnicast(dst mesh.PeerName, msg []byte) error {
-	return nil
-}
-
-func (m *mockGossip) GossipBroadcast(update mesh.GossipData) {
-}
-
-type mockRouter struct {
-}
-
-func (m *mockRouter) NewGossip(channel string, gossiper mesh.Gossiper) (mesh.Gossip, error) {
-	return &mockGossip{}, nil
-}
 func TestMemDB(t *testing.T) {
-	db, err := NewMemDBStore(&mockRouter{})
+	db, err := NewMemDBStore(cluster.MockedMesh())
 	assert.Nil(t, err)
 	assert.Nil(t, db.Create(&RetainedMessage{
 		ID:      "a1",
@@ -60,7 +45,7 @@ func TestMemDB(t *testing.T) {
 }
 
 func TestMemDBDump(t *testing.T) {
-	db, err := NewMemDBStore(&mockRouter{})
+	db, err := NewMemDBStore(cluster.MockedMesh())
 	assert.Nil(t, err)
 	assert.Nil(t, db.Create(&RetainedMessage{
 		ID:      "a1",

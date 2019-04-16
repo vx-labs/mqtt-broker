@@ -16,6 +16,7 @@ import (
 type broker interface {
 	ListSessions() (sessions.SessionList, error)
 	CloseSession(id string) error
+	DistributeMessage(*MessagePublished) error
 }
 
 type server struct {
@@ -24,7 +25,7 @@ type server struct {
 	server   *grpc.Server
 }
 
-func New(port int, handler broker) io.Closer {
+func New(port int, handler broker) net.Listener {
 	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
 	if err != nil {
 		log.Printf("WARN: failed to start rpc listener: %v", err)
@@ -38,8 +39,8 @@ func New(port int, handler broker) io.Closer {
 	}
 	RegisterBrokerServiceServer(s, server)
 	go s.Serve(lis)
-	log.Printf("INFO: started RPC listener on port %d", port)
-	return server
+	log.Printf("INFO: started RPC listener on %s", lis.Addr().String())
+	return lis
 }
 func (s *server) Close() error {
 	s.server.Stop()
@@ -54,4 +55,8 @@ func (s *server) ListSessions(ctx context.Context, filters *SessionFilter) (*Lis
 		return nil, err
 	}
 	return &ListSessionsOutput{Sessions: set.Sessions}, nil
+}
+func (s *server) DistributeMessage(ctx context.Context, msg *MessagePublished) (*MessagePublishedOutput, error) {
+	err := s.broker.DistributeMessage(msg)
+	return &MessagePublishedOutput{}, err
 }

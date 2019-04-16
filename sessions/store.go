@@ -4,11 +4,11 @@ import (
 	"errors"
 	"time"
 
+	"github.com/vx-labs/mqtt-broker/broker/cluster"
 	"github.com/vx-labs/mqtt-broker/events"
 
 	memdb "github.com/hashicorp/go-memdb"
 	"github.com/vx-labs/mqtt-broker/state"
-	"github.com/weaveworks/mesh"
 )
 
 const (
@@ -19,6 +19,10 @@ const (
 	SessionDeleted string = "session_deleted"
 )
 
+type Channel interface {
+	Broadcast([]byte)
+}
+
 var (
 	ErrSessionNotFound = errors.New("session not found")
 )
@@ -28,12 +32,14 @@ var now = func() int64 {
 }
 
 type SessionStore interface {
+	state.Backend
 	ByID(id string) (Session, error)
 	ByClientID(id string) (SessionList, error)
-	ByPeer(peer uint64) (SessionList, error)
+	ByPeer(peer string) (SessionList, error)
 	All() (SessionList, error)
 	Exists(id string) bool
 	Upsert(sess Session) error
+	DumpSessions() *SessionList
 	Delete(id, reason string) error
 	On(event string, handler func(Session)) func()
 }
@@ -44,11 +50,7 @@ type memDBStore struct {
 	events *events.Bus
 }
 
-type Router interface {
-	NewGossip(channel string, gossiper mesh.Gossiper) (mesh.Gossip, error)
-}
-
-func NewSessionStore(router Router) (SessionStore, error) {
+func NewSessionStore(mesh cluster.Mesh) (SessionStore, error) {
 	db, err := memdb.NewMemDB(&memdb.DBSchema{
 		Tables: map[string]*memdb.TableSchema{
 			"sessions": {
@@ -82,7 +84,7 @@ func NewSessionStore(router Router) (SessionStore, error) {
 						Name:         "peer",
 						AllowMissing: false,
 						Unique:       false,
-						Indexer:      &memdb.UintFieldIndex{Field: "Peer"},
+						Indexer:      &memdb.StringFieldIndex{Field: "Peer"},
 					},
 				},
 			},
@@ -95,7 +97,7 @@ func NewSessionStore(router Router) (SessionStore, error) {
 		db:     db,
 		events: events.NewEventBus(),
 	}
-	state, err := state.NewStore("mqtt-sessions", s, router)
+	state, err := state.NewStore("mqtt-sessions", mesh, s)
 	if err != nil {
 		return nil, err
 	}
@@ -164,7 +166,7 @@ func (s *memDBStore) All() (SessionList, error) {
 	}), nil
 }
 
-func (s *memDBStore) ByPeer(peer uint64) (SessionList, error) {
+func (s *memDBStore) ByPeer(peer string) (SessionList, error) {
 	var sessionList SessionList
 	return sessionList, s.read(func(tx *memdb.Txn) error {
 		iterator, err := tx.Get("sessions", "peer", peer)

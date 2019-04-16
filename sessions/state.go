@@ -64,6 +64,9 @@ func (m memDBStore) Set() state.EntrySet {
 	return &SessionList{}
 }
 func (m memDBStore) Dump() state.EntrySet {
+	return m.DumpSessions()
+}
+func (m memDBStore) DumpSessions() *SessionList {
 	sessionList := SessionList{}
 	m.read(func(tx *memdb.Txn) error {
 		iterator, err := tx.Get("sessions", "id")
