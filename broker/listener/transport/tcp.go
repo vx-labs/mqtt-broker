@@ -3,7 +3,6 @@ package transport
 import (
 	"crypto/tls"
 	"fmt"
-	"io"
 	"log"
 	"net"
 	"time"
@@ -41,7 +40,7 @@ func (t *tcpTransport) Close() error {
 	return t.ch.Close()
 }
 
-func NewTCPTransport(port int, ch chan<- listener.Transport) (io.Closer, error) {
+func NewTCPTransport(port int, ch chan<- listener.Transport) (net.Listener, error) {
 	listener := &tcp{
 		port: port,
 	}

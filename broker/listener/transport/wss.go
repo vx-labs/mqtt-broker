@@ -3,7 +3,6 @@ package transport
 import (
 	"crypto/tls"
 	"fmt"
-	"io"
 	"log"
 	"net"
 	"net/http"
@@ -44,7 +43,7 @@ func (t *wssTransport) Close() error {
 	return t.ch.Close()
 }
 
-func NewWSSTransport(port int, TLSConfig *tls.Config, ch chan<- listener.Transport) (io.Closer, error) {
+func NewWSSTransport(port int, TLSConfig *tls.Config, ch chan<- listener.Transport) (net.Listener, error) {
 	listener := &wssListener{
 		port: port,
 	}

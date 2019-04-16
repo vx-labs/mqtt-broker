@@ -104,7 +104,7 @@ func (t *wsTransport) Close() error {
 	return t.ch.Close()
 }
 
-func NewWSTransport(port int, ch chan<- listener.Transport) (io.Closer, error) {
+func NewWSTransport(port int, ch chan<- listener.Transport) (net.Listener, error) {
 	listener := &wsListener{
 		port: port,
 	}
