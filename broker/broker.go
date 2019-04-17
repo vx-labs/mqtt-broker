@@ -45,7 +45,6 @@ type PeerStore interface {
 	DumpPeers() *peers.PeerList
 }
 type SessionStore interface {
-	state.Backend
 	ByID(id string) (sessions.Session, error)
 	ByPeer(peer string) (sessions.SessionList, error)
 	ByClientID(id string) (sessions.SessionList, error)

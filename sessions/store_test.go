@@ -50,10 +50,12 @@ func TestSessionStore(t *testing.T) {
 	})
 
 	t.Run("delete", func(t *testing.T) {
-		err := store.Delete(sessionID, "test")
-		require.Nil(t, err)
+		_, err := store.ByID(sessionID)
+		require.NoError(t, err)
+		err = store.Delete(sessionID, "test")
+		require.NoError(t, err)
 		_, err = store.ByID(sessionID)
-		require.NotNil(t, err)
+		require.Error(t, err)
 	})
 }
 

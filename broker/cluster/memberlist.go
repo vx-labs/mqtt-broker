@@ -84,7 +84,7 @@ func (m *memberlistMesh) LocalState(join bool) []byte {
 		Parts: make([]*Part, 0, len(m.states)),
 	}
 	for key, state := range m.states {
-		dump.Parts = append(dump.Parts, &Part{Key: key, Data: state.Dump()})
+		dump.Parts = append(dump.Parts, &Part{Key: key, Data: state.MarshalBinary()})
 	}
 	payload, err := proto.Marshal(dump)
 	if err != nil {

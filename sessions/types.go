@@ -41,20 +41,3 @@ func (set SessionList) ApplyE(f func(s *Session) error) error {
 	}
 	return nil
 }
-
-func (s *Session) IsAdded() bool {
-	return s.LastAdded > 0 && s.LastAdded > s.LastDeleted
-}
-func (s *Session) IsRemoved() bool {
-	return s.LastDeleted > 0 && s.LastAdded < s.LastDeleted
-}
-
-func IsOutdated(s *Session, remote *Session) (outdated bool) {
-	if s.LastAdded < remote.LastAdded {
-		outdated = true
-	}
-	if s.LastDeleted < remote.LastDeleted {
-		outdated = true
-	}
-	return outdated
-}

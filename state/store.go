@@ -58,7 +58,7 @@ func (s *Store) MergeEntries(set EntrySet) error {
 	}
 	return s.ApplyDelta(delta)
 }
-func (s *Store) Dump() []byte {
+func (s *Store) MarshalBinary() []byte {
 	set := s.backend.Dump()
 	payload, err := proto.Marshal(set)
 	if err != nil {

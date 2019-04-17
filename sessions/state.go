@@ -1,70 +1,22 @@
 package sessions
 
 import (
+	"io"
+	"log"
+
 	"github.com/golang/protobuf/proto"
 	memdb "github.com/hashicorp/go-memdb"
-	"github.com/vx-labs/mqtt-broker/state"
+	"github.com/vx-labs/mqtt-broker/crdt"
 )
 
-var _ state.Backend = &memDBStore{}
-var _ state.EntrySet = &SessionList{}
-
-func (e *SessionList) Append(entry state.Entry) {
-	sub := entry.(*Session)
-	e.Sessions = append(e.Sessions, sub)
-}
-func (e *SessionList) Length() int {
-	return len(e.Sessions)
-}
-func (e *SessionList) New() state.EntrySet {
-	return &SessionList{}
-}
-func (e *SessionList) AtIndex(idx int) state.Entry {
-	return e.Sessions[idx]
-}
-func (e *SessionList) Set(idx int, entry state.Entry) {
-	sub := entry.(*Session)
-	e.Sessions[idx] = sub
-}
-func (e *SessionList) Range(f func(idx int, entry state.Entry)) {
-	for idx, entry := range e.Sessions {
-		f(idx, entry)
-	}
-}
-
-func (m *memDBStore) EntryByID(id string) (state.Entry, error) {
-	var session Session
-	err := m.read(func(tx *memdb.Txn) error {
-		sess, err := m.first(tx, "id", id)
-		if err != nil {
-			return err
-		}
-		session = sess
+func (m memDBStore) MarshalBinary() []byte {
+	set := m.DumpSessions()
+	payload, err := proto.Marshal(set)
+	if err != nil {
+		log.Printf("ERR: failed to marshal state: %v", err)
 		return nil
-	})
-	return &session, err
-}
-
-func (m *memDBStore) InsertEntries(entries state.EntrySet) error {
-	set := entries.(*SessionList)
-	return m.insert(set.Sessions)
-}
-func (m *memDBStore) InsertEntry(entry state.Entry) error {
-	sub := entry.(*Session)
-	return m.insert([]*Session{
-		sub,
-	})
-}
-
-func (m *memDBStore) DecodeSet(buf []byte) (state.EntrySet, error) {
-	set := &SessionList{}
-	return set, proto.Unmarshal(buf, set)
-}
-func (m memDBStore) Set() state.EntrySet {
-	return &SessionList{}
-}
-func (m memDBStore) Dump() state.EntrySet {
-	return m.DumpSessions()
+	}
+	return payload
 }
 func (m memDBStore) DumpSessions() *SessionList {
 	sessionList := SessionList{}
@@ -85,13 +37,54 @@ func (m memDBStore) DumpSessions() *SessionList {
 	return &sessionList
 }
 
-func (m *memDBStore) DeleteEntry(entry state.Entry) error {
-	session := entry.(*Session)
+func (m *memDBStore) runGC() error {
 	return m.write(func(tx *memdb.Txn) error {
-		err := tx.Delete("sessions", *session)
-		if err == nil {
-			tx.Commit()
+		iterator, err := tx.Get("sessions", "id")
+		if err != nil || iterator == nil {
+			return err
 		}
+		return crdt.GCEntries(crdt.ExpireAfter8Hours(), func() (crdt.Entry, error) {
+			payload := iterator.Next()
+			if payload == nil {
+				return nil, io.EOF
+			}
+			sess := payload.(Session)
+			return &sess, nil
+		}, func(id string) error {
+			return tx.Delete("sessions", Session{ID: id})
+		},
+		)
+	})
+}
+
+func (m *memDBStore) Merge(inc []byte) error {
+	set := &SessionList{}
+	err := proto.Unmarshal(inc, set)
+	if err != nil {
 		return err
+	}
+	return m.write(func(tx *memdb.Txn) error {
+		for _, remote := range set.Sessions {
+			localData, err := tx.First("sessions", "id", remote.ID)
+			if err != nil || localData == nil {
+				err := tx.Insert("sessions", *remote)
+				if err != nil {
+					return err
+				}
+				continue
+			}
+			local, ok := localData.(Session)
+			if !ok {
+				log.Printf("WARN: invalid data found in store")
+				continue
+			}
+			if crdt.IsEntryOutdated(&local, remote) {
+				err := tx.Insert("sessions", *remote)
+				if err != nil {
+					return err
+				}
+			}
+		}
+		return nil
 	})
 }
