@@ -19,7 +19,7 @@ job "mqtt-wss" {
       env           = false
     }
 
-    count = 1
+    count = 2
 
     restart {
       attempts = 10
@@ -46,7 +46,7 @@ job "mqtt-wss" {
 
       config {
         image      = "quay.io/vxlabs/mqtt-broker:${broker_version}"
-        args       = ["-w", "8008","-r", "9091", "--use-vault", "--use-vx-auth", "--nomad", "--use-consul", "--nats-streaming-url", "nats://1.servers.nats.discovery.par1.vx-labs.net:4222,nats://2.servers.nats.discovery.par1.vx-labs.net:4222,nats://3.servers.nats.discovery.par1.vx-labs.net:4222"]
+        args       = ["-w", "8008", "-r", "9091", "--use-vault", "--use-vx-auth", "--nomad", "--use-consul", "--nats-streaming-url", "nats://1.servers.nats.discovery.par1.vx-labs.net:4222,nats://2.servers.nats.discovery.par1.vx-labs.net:4222,nats://3.servers.nats.discovery.par1.vx-labs.net:4222"]
         force_pull = true
 
         port_map {
@@ -65,7 +65,7 @@ job "mqtt-wss" {
           mbits = 10
           port  "wss" {}
           port  "broker"{}
-          port  "rpc"{}
+          port  "rpc" {}
           port  "health"{}
         }
       }
@@ -82,6 +82,7 @@ job "mqtt-wss" {
           timeout  = "2s"
         }
       }
+
       service {
         name = "broker"
         port = "broker"

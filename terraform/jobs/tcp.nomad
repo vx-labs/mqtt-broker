@@ -12,7 +12,7 @@ job "mqtt-tcp" {
   }
 
   group "broker" {
-    count = 1
+    count = 2
 
     restart {
       attempts = 10
@@ -58,7 +58,7 @@ job "mqtt-tcp" {
           mbits = 10
           port  "mqtt"{}
           port  "broker"{}
-          port  "rpc"{}
+          port  "rpc" {}
           port  "health"{}
         }
       }
@@ -75,6 +75,7 @@ job "mqtt-tcp" {
           timeout  = "2s"
         }
       }
+
       service {
         name = "rpc"
         port = "rpc"
