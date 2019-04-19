@@ -5,11 +5,16 @@ import (
 	"time"
 )
 
-func ExpireAfter8Hours() int64 {
-	return time.Now().Truncate(8 * time.Hour).UnixNano()
+type ExpirationPolicy func() int64
+
+func ExpireAfter8Hours() ExpirationPolicy {
+	return func() int64 {
+		return time.Now().Truncate(8 * time.Hour).UnixNano()
+	}
 }
 
-func GCEntries(limit int64, next func() (Entry, error), gc func(id string) error) error {
+func GCEntries(policy ExpirationPolicy, next func() (Entry, error), gc func(id string) error) error {
+	limit := policy()
 	for {
 		entry, err := next()
 		if err == io.EOF {
