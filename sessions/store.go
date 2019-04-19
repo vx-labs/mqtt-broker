@@ -40,7 +40,6 @@ type SessionStore interface {
 	All() (SessionList, error)
 	Exists(id string) bool
 	Upsert(sess Session) error
-	DumpSessions() *SessionList
 	Delete(id, reason string) error
 	On(event string, handler func(Session)) func()
 }
@@ -103,7 +102,7 @@ func NewSessionStore(mesh cluster.Mesh) (SessionStore, error) {
 		for range time.Tick(1 * time.Hour) {
 			err := s.runGC()
 			if err != nil {
-				log.Printf("WARN: failed to GC sessios: %v", err)
+				log.Printf("WARN: failed to GC sessions: %v", err)
 			}
 		}
 	}()

@@ -10,7 +10,7 @@ import (
 )
 
 func (m memDBStore) MarshalBinary() []byte {
-	set := m.DumpSessions()
+	set := m.dumpSessions()
 	payload, err := proto.Marshal(set)
 	if err != nil {
 		log.Printf("ERR: failed to marshal state: %v", err)
@@ -18,7 +18,7 @@ func (m memDBStore) MarshalBinary() []byte {
 	}
 	return payload
 }
-func (m memDBStore) DumpSessions() *SessionList {
+func (m memDBStore) dumpSessions() *SessionList {
 	sessionList := SessionList{}
 	m.read(func(tx *memdb.Txn) error {
 		iterator, err := tx.Get("sessions", "id")
