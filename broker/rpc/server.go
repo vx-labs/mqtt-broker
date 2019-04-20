@@ -14,7 +14,7 @@ import (
 //go:generate protoc -I${GOPATH}/src -I${GOPATH}/src/github.com/vx-labs/mqtt-broker/broker/rpc --go_out=plugins=grpc:. rpc.proto
 
 type broker interface {
-	ListSessions() (sessions.SessionList, error)
+	ListSessions() (sessions.SessionSet, error)
 	CloseSession(id string) error
 	DistributeMessage(*MessagePublished) error
 }
@@ -54,7 +54,11 @@ func (s *server) ListSessions(ctx context.Context, filters *SessionFilter) (*Lis
 	if err != nil {
 		return nil, err
 	}
-	return &ListSessionsOutput{Sessions: set.Sessions}, nil
+	out := []*sessions.Session{}
+	for _, session := range set {
+		out = append(out, &session.Session)
+	}
+	return &ListSessionsOutput{Sessions: out}, nil
 }
 func (s *server) DistributeMessage(ctx context.Context, msg *MessagePublished) (*MessagePublishedOutput, error) {
 	err := s.broker.DistributeMessage(msg)

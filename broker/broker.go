@@ -45,15 +45,14 @@ type PeerStore interface {
 	DumpPeers() *peers.PeerList
 }
 type SessionStore interface {
-	ByID(id string) (sessions.Session, error)
-	ByPeer(peer string) (sessions.SessionList, error)
-	ByClientID(id string) (sessions.SessionList, error)
-	All() (sessions.SessionList, error)
-	DumpSessions() *sessions.SessionList
+	ByID(id string) (sessions.SessionWrapper, error)
+	ByClientID(id string) (sessions.SessionSet, error)
+	ByPeer(peer string) (sessions.SessionSet, error)
+	All() (sessions.SessionSet, error)
 	Exists(id string) bool
-	Upsert(sess sessions.Session) error
+	Upsert(sess sessions.SessionWrapper, closer func() error) error
 	Delete(id, reason string) error
-	On(event string, handler func(sessions.Session)) func()
+	On(event string, handler func(sessions.SessionWrapper)) func()
 }
 
 type TopicStore interface {
@@ -260,7 +259,7 @@ func (b *Broker) onPeerDown(name string) {
 		log.Printf("ERR: failed to fetch sessions from peer %s: %v", name, err)
 		return
 	}
-	sessionSet.Apply(func(s *sessions.Session) {
+	sessionSet.Apply(func(s sessions.SessionWrapper) {
 		if s.WillRetain {
 			retainedMessage := &topics.RetainedMessage{
 				Payload: s.WillPayload,
@@ -290,7 +289,7 @@ func (b *Broker) onPeerDown(name string) {
 			message.Qos = append(message.Qos, qos)
 		})
 		b.dispatch(message)
-		b.Sessions.Delete(s.ID, "peer_lost")
+		s.Close()
 	})
 }
 

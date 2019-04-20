@@ -30,8 +30,8 @@ func (m memDBStore) dumpSessions() *SessionList {
 			if payload == nil {
 				return nil
 			}
-			sess := payload.(Session)
-			sessionList.Sessions = append(sessionList.Sessions, &sess)
+			sess := payload.(SessionWrapper)
+			sessionList.Sessions = append(sessionList.Sessions, &sess.Session)
 		}
 	})
 	return &sessionList
@@ -48,15 +48,25 @@ func (m *memDBStore) runGC() error {
 			if payload == nil {
 				return nil, io.EOF
 			}
-			sess := payload.(Session)
+			sess := payload.(SessionWrapper)
 			return &sess, nil
 		}, func(id string) error {
-			return tx.Delete("sessions", Session{ID: id})
+			return tx.Delete("sessions", SessionWrapper{
+				Session: Session{ID: id},
+			})
 		},
 		)
 	})
 }
-
+func insertPBRemoteSession(remote Session, tx *memdb.Txn) error {
+	return tx.Insert("sessions", SessionWrapper{
+		Close: func() error {
+			log.Printf("WARN: tried to close a remote session")
+			return nil
+		},
+		Session: remote,
+	})
+}
 func (m *memDBStore) Merge(inc []byte) error {
 	set := &SessionList{}
 	err := proto.Unmarshal(inc, set)
@@ -67,22 +77,23 @@ func (m *memDBStore) Merge(inc []byte) error {
 		for _, remote := range set.Sessions {
 			localData, err := tx.First("sessions", "id", remote.ID)
 			if err != nil || localData == nil {
-				err := tx.Insert("sessions", *remote)
+				err := insertPBRemoteSession(*remote, tx)
 				if err != nil {
 					return err
 				}
 				continue
 			}
-			local, ok := localData.(Session)
+			local, ok := localData.(SessionWrapper)
 			if !ok {
 				log.Printf("WARN: invalid data found in store")
 				continue
 			}
 			if crdt.IsEntryOutdated(&local, remote) {
-				err := tx.Insert("sessions", *remote)
+				err := insertPBRemoteSession(*remote, tx)
 				if err != nil {
 					return err
 				}
+				local.Close()
 			}
 		}
 		return nil

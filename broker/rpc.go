@@ -7,7 +7,7 @@ import (
 	"github.com/vx-labs/mqtt-broker/topics"
 )
 
-func (b *Broker) ListSessions() (sessions.SessionList, error) {
+func (b *Broker) ListSessions() (sessions.SessionSet, error) {
 	return b.Sessions.All()
 }
 func (b *Broker) ListSubscriptions() (subscriptions.SubscriptionList, error) {
@@ -17,7 +17,11 @@ func (b *Broker) ListRetainedMessages() (topics.RetainedMessageList, error) {
 	return b.Topics.All()
 }
 func (b *Broker) CloseSession(id string) error {
-	return b.Sessions.Delete(id, "session_lost")
+	session, err := b.Sessions.ByID(id)
+	if err != nil {
+		return err
+	}
+	return session.Close()
 }
 func (b *Broker) DistributeMessage(message *rpc.MessagePublished) error {
 	b.dispatch(message)

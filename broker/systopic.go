@@ -23,6 +23,9 @@ func (b *Broker) retainMessage(tenant string, topic []byte, payload []byte, qos 
 }
 func (b *Broker) dispatchToLocalSessions(tenant string, topic []byte, payload []byte, defaultQoS int32) {
 	recipients, qos := b.resolveRecipients(tenant, topic, defaultQoS)
+	if len(recipients) == 0 {
+		return
+	}
 	message := &rpc.MessagePublished{
 		Payload:   payload,
 		Recipient: recipients,
@@ -61,14 +64,14 @@ func (b *Broker) setupSYSTopic() {
 		b.RetainThenDispatchToLocalSessions(s.Tenant, topic, nil, 1)
 	})
 
-	b.Sessions.On(sessions.SessionCreated, func(s sessions.Session) {
+	b.Sessions.On(sessions.SessionCreated, func(s sessions.SessionWrapper) {
 		payload, err := json.Marshal(s)
 		if err == nil {
 			topic := []byte(fmt.Sprintf("$SYS/sessions/%s", s.ID))
 			b.RetainThenDispatchToLocalSessions(s.Tenant, topic, payload, 1)
 		}
 	})
-	b.Sessions.On(sessions.SessionDeleted, func(s sessions.Session) {
+	b.Sessions.On(sessions.SessionDeleted, func(s sessions.SessionWrapper) {
 		topic := []byte(fmt.Sprintf("$SYS/sessions/%s", s.ID))
 		b.RetainThenDispatchToLocalSessions(s.Tenant, topic, nil, 1)
 	})
