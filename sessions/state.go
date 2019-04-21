@@ -30,7 +30,7 @@ func (m memDBStore) dumpSessions() *SessionMDList {
 			if payload == nil {
 				return nil
 			}
-			sess := payload.(SessionWrapper)
+			sess := payload.(Session)
 			sessionList.SessionMDs = append(sessionList.SessionMDs, &sess.SessionMD)
 		}
 	})
@@ -48,10 +48,10 @@ func (m *memDBStore) runGC() error {
 			if payload == nil {
 				return nil, io.EOF
 			}
-			sess := payload.(SessionWrapper)
+			sess := payload.(Session)
 			return &sess, nil
 		}, func(id string) error {
-			return tx.Delete("sessions", SessionWrapper{
+			return tx.Delete("sessions", Session{
 				SessionMD: SessionMD{ID: id},
 			})
 		},
@@ -59,7 +59,7 @@ func (m *memDBStore) runGC() error {
 	})
 }
 func insertPBRemoteSession(remote SessionMD, tx *memdb.Txn) error {
-	return tx.Insert("sessions", SessionWrapper{
+	return tx.Insert("sessions", Session{
 		Close: func() error {
 			log.Printf("WARN: tried to close a remote session")
 			return nil
@@ -83,7 +83,7 @@ func (m *memDBStore) Merge(inc []byte) error {
 				}
 				continue
 			}
-			local, ok := localData.(SessionWrapper)
+			local, ok := localData.(Session)
 			if !ok {
 				log.Printf("WARN: invalid data found in store")
 				continue

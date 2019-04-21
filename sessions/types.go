@@ -2,8 +2,8 @@ package sessions
 
 //go:generate protoc -I${GOPATH}/src -I${GOPATH}/src/github.com/vx-labs/mqtt-broker/sessions/ --go_out=plugins=grpc:. types.proto
 
-type sessionFilter func(SessionWrapper) bool
-type SessionSet []SessionWrapper
+type sessionFilter func(Session) bool
+type SessionSet []Session
 
 func (set SessionSet) Filter(filters ...sessionFilter) SessionSet {
 	copy := make(SessionSet, 0)
@@ -21,18 +21,18 @@ func (set SessionSet) Filter(filters ...sessionFilter) SessionSet {
 	}
 	return copy
 }
-func (set SessionSet) Apply(f func(s SessionWrapper)) {
+func (set SessionSet) Apply(f func(s Session)) {
 	for _, session := range set {
 		f(session)
 	}
 }
-func (set SessionSet) ApplyIdx(f func(idx int, s SessionWrapper)) {
+func (set SessionSet) ApplyIdx(f func(idx int, s Session)) {
 	for idx, session := range set {
 		f(idx, session)
 	}
 }
 
-func (set SessionSet) ApplyE(f func(s SessionWrapper) error) error {
+func (set SessionSet) ApplyE(f func(s Session) error) error {
 	for _, session := range set {
 		if err := f(session); err != nil {
 			return err

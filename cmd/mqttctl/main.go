@@ -115,7 +115,7 @@ func SessionsList(ctx context.Context, helper *APIWrapper) *cobra.Command {
 				log.Printf("ERR: failed to parse session template: %v", err)
 				return
 			}
-			set.ApplyE(func(session sessions.SessionWrapper) error {
+			set.ApplyE(func(session sessions.Session) error {
 				return tpl.Execute(os.Stdout, session)
 			})
 		},

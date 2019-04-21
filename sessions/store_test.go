@@ -18,7 +18,7 @@ func TestSessionStore(t *testing.T) {
 	store, _ := NewSessionStore(cluster.MockedMesh())
 
 	t.Run("create", func(t *testing.T) {
-		err := store.Upsert(SessionWrapper{
+		err := store.Upsert(Session{
 			SessionMD: SessionMD{
 				ID:       sessionID,
 				ClientID: "test1",
@@ -26,7 +26,7 @@ func TestSessionStore(t *testing.T) {
 			},
 		}, returnNilErr)
 		require.Nil(t, err)
-		err = store.Upsert(SessionWrapper{
+		err = store.Upsert(Session{
 			SessionMD: SessionMD{
 				ID:       "3",
 				ClientID: "test2",

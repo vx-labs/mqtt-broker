@@ -29,7 +29,7 @@ func (c *Client) ListSessions(ctx context.Context) (sessions.SessionSet, error) 
 	}
 	set := make(sessions.SessionSet, len(out.Sessions))
 	for idx := range set {
-		set[idx] = sessions.SessionWrapper{
+		set[idx] = sessions.Session{
 			Close: func() error {
 				return c.CloseSession(ctx, out.Sessions[idx].ID)
 			},

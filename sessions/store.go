@@ -33,19 +33,19 @@ var now = func() int64 {
 	return time.Now().UnixNano()
 }
 
-type SessionWrapper struct {
+type Session struct {
 	SessionMD
 	Close func() error
 }
 type SessionStore interface {
-	ByID(id string) (SessionWrapper, error)
+	ByID(id string) (Session, error)
 	ByClientID(id string) (SessionSet, error)
 	ByPeer(peer string) (SessionSet, error)
 	All() (SessionSet, error)
 	Exists(id string) bool
 	Delete(id, reason string) error
-	Upsert(sess SessionWrapper, closer func() error) error
-	On(event string, handler func(SessionWrapper)) func()
+	Upsert(sess Session, closer func() error) error
+	On(event string, handler func(Session)) func()
 }
 
 type memDBStore struct {
@@ -124,7 +124,7 @@ func (s *memDBStore) all() SessionSet {
 			if payload == nil {
 				return nil
 			}
-			sess := payload.(SessionWrapper)
+			sess := payload.(Session)
 			sessionList = append(sessionList, sess)
 		}
 	})
@@ -135,8 +135,8 @@ func (s *memDBStore) Exists(id string) bool {
 	_, err := s.ByID(id)
 	return err == nil
 }
-func (s *memDBStore) ByID(id string) (SessionWrapper, error) {
-	var session SessionWrapper
+func (s *memDBStore) ByID(id string) (Session, error) {
+	var session Session
 	return session, s.read(func(tx *memdb.Txn) error {
 		sess, err := s.first(tx, "id", id)
 		if err != nil {
@@ -161,7 +161,7 @@ func (s *memDBStore) ByClientID(id string) (SessionSet, error) {
 			if payload == nil {
 				return nil
 			}
-			sess := payload.(SessionWrapper)
+			sess := payload.(Session)
 			if crdt.IsEntryAdded(&sess) {
 				sessionList = append(sessionList, sess)
 			}
@@ -169,7 +169,7 @@ func (s *memDBStore) ByClientID(id string) (SessionSet, error) {
 	})
 }
 func (s *memDBStore) All() (SessionSet, error) {
-	return s.all().Filter(func(s SessionWrapper) bool {
+	return s.all().Filter(func(s Session) bool {
 		return crdt.IsEntryAdded(&s)
 	}), nil
 }
@@ -186,7 +186,7 @@ func (s *memDBStore) ByPeer(peer string) (SessionSet, error) {
 			if payload == nil {
 				return nil
 			}
-			sess := payload.(SessionWrapper)
+			sess := payload.(Session)
 			if crdt.IsEntryAdded(&sess) {
 				sessionList = append(sessionList, sess)
 			}
@@ -194,7 +194,7 @@ func (s *memDBStore) ByPeer(peer string) (SessionSet, error) {
 	})
 }
 
-func (s *memDBStore) Upsert(sess SessionWrapper, closer func() error) error {
+func (s *memDBStore) Upsert(sess Session, closer func() error) error {
 	sess.LastAdded = now()
 	sess.Close = closer
 	if sess.Tenant == "" {
@@ -202,7 +202,7 @@ func (s *memDBStore) Upsert(sess SessionWrapper, closer func() error) error {
 	}
 	return s.insert(sess)
 }
-func (s *memDBStore) emitSessionEvent(sess SessionWrapper) {
+func (s *memDBStore) emitSessionEvent(sess Session) {
 	if crdt.IsEntryAdded(&sess) {
 		s.events.Emit(events.Event{
 			Entry: sess,
@@ -224,7 +224,7 @@ func (s *memDBStore) emitSessionEvent(sess SessionWrapper) {
 		})
 	}
 }
-func (s *memDBStore) insert(sess SessionWrapper) error {
+func (s *memDBStore) insert(sess Session) error {
 	return s.write(func(tx *memdb.Txn) error {
 		defer s.emitSessionEvent(sess)
 		return tx.Insert("sessions", sess)
@@ -258,17 +258,17 @@ func (s *memDBStore) run(tx *memdb.Txn, statement func(tx *memdb.Txn) error) err
 	return nil
 }
 
-func (s *memDBStore) first(tx *memdb.Txn, idx, id string) (SessionWrapper, error) {
+func (s *memDBStore) first(tx *memdb.Txn, idx, id string) (Session, error) {
 	data, err := tx.First("sessions", idx, id)
 	if err != nil || data == nil {
-		return SessionWrapper{}, ErrSessionNotFound
+		return Session{}, ErrSessionNotFound
 	}
-	sess := data.(SessionWrapper)
+	sess := data.(Session)
 	return sess, nil
 }
 
-func (s *memDBStore) On(event string, handler func(SessionWrapper)) func() {
+func (s *memDBStore) On(event string, handler func(Session)) func() {
 	return s.events.Subscribe(event, func(ev events.Event) {
-		handler(ev.Entry.(SessionWrapper))
+		handler(ev.Entry.(Session))
 	})
 }

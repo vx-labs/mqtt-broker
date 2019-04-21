@@ -38,7 +38,7 @@ func getLowerQoS(a, b int32) int32 {
 	}
 	return b
 }
-func (b *Broker) OnSubscribe(sess sessions.SessionWrapper, packet *packet.Subscribe) error {
+func (b *Broker) OnSubscribe(sess sessions.Session, packet *packet.Subscribe) error {
 	for idx, pattern := range packet.Topic {
 		subID := makeSubID(sess.ID, pattern)
 		event := &subscriptions.Subscription{
@@ -74,7 +74,7 @@ func (b *Broker) OnSubscribe(sess sessions.SessionWrapper, packet *packet.Subscr
 	}
 	return nil
 }
-func (b *Broker) OnUnsubscribe(sess sessions.SessionWrapper, packet *packet.Unsubscribe) error {
+func (b *Broker) OnUnsubscribe(sess sessions.Session, packet *packet.Unsubscribe) error {
 	set, err := b.Subscriptions.BySession(sess.ID)
 	if err != nil {
 		return err
@@ -93,7 +93,7 @@ func (b *Broker) OnUnsubscribe(sess sessions.SessionWrapper, packet *packet.Unsu
 	return nil
 }
 
-func (b *Broker) deleteSessionSubscriptions(sess sessions.SessionWrapper) error {
+func (b *Broker) deleteSessionSubscriptions(sess sessions.Session) error {
 	set, err := b.Subscriptions.BySession(sess.ID)
 	if err != nil {
 		return err
@@ -103,7 +103,7 @@ func (b *Broker) deleteSessionSubscriptions(sess sessions.SessionWrapper) error 
 	})
 	return nil
 }
-func (b *Broker) OnSessionClosed(sess sessions.SessionWrapper) {
+func (b *Broker) OnSessionClosed(sess sessions.Session) {
 	err := b.deleteSessionSubscriptions(sess)
 	if err != nil {
 		log.Printf("WARN: failed to delete session subscriptions: %v", err)
@@ -111,7 +111,7 @@ func (b *Broker) OnSessionClosed(sess sessions.SessionWrapper) {
 	b.Sessions.Delete(sess.ID, "session_closed")
 	return
 }
-func (b *Broker) OnSessionLost(sess sessions.SessionWrapper) {
+func (b *Broker) OnSessionLost(sess sessions.Session) {
 	if len(sess.WillTopic) > 0 {
 		b.OnPublish(sess, &packet.Publish{
 			Header: &packet.Header{
@@ -140,12 +140,12 @@ func (b *Broker) OnConnect(transportSession *listener.Session) (int32, error) {
 	if err != nil {
 		return packet.CONNACK_REFUSED_SERVER_UNAVAILABLE, err
 	}
-	if err := set.ApplyE(func(session sessions.SessionWrapper) error {
+	if err := set.ApplyE(func(session sessions.Session) error {
 		return session.Close()
 	}); err != nil {
 		return packet.CONNACK_REFUSED_IDENTIFIER_REJECTED, err
 	}
-	sess := sessions.SessionWrapper{
+	sess := sessions.Session{
 		SessionMD: sessions.SessionMD{
 			ID:                id,
 			ClientID:          clientId,
@@ -202,7 +202,7 @@ func (b *Broker) OnConnect(transportSession *listener.Session) (int32, error) {
 		b.OnMessagePublished(transportSession.ID(), func(p *packet.Publish) {
 			transportSession.Publish(p)
 		}),
-		b.Sessions.On(sessions.SessionDeleted+"/"+id, func(s sessions.SessionWrapper) {
+		b.Sessions.On(sessions.SessionDeleted+"/"+id, func(s sessions.Session) {
 			for _, cancel := range cancels {
 				cancel()
 			}
@@ -228,7 +228,7 @@ func (b *Broker) OnConnect(transportSession *listener.Session) (int32, error) {
 	}
 	return packet.CONNACK_CONNECTION_ACCEPTED, nil
 }
-func (b *Broker) OnPublish(sess sessions.SessionWrapper, packet *packet.Publish) error {
+func (b *Broker) OnPublish(sess sessions.Session, packet *packet.Publish) error {
 	if b.STANOutput != nil {
 		b.STANOutput <- STANMessage{
 			Timestamp: time.Now(),
