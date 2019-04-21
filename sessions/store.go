@@ -15,6 +15,7 @@ import (
 
 const (
 	defaultTenant = "_default"
+	memdbTable    = "sessions"
 )
 const (
 	SessionCreated string = "session_created"
@@ -57,8 +58,8 @@ type memDBStore struct {
 func NewSessionStore(mesh cluster.Mesh) (SessionStore, error) {
 	db, err := memdb.NewMemDB(&memdb.DBSchema{
 		Tables: map[string]*memdb.TableSchema{
-			"sessions": {
-				Name: "sessions",
+			memdbTable: {
+				Name: memdbTable,
 				Indexes: map[string]*memdb.IndexSchema{
 					"id": {
 						Name: "id",
@@ -115,7 +116,7 @@ func NewSessionStore(mesh cluster.Mesh) (SessionStore, error) {
 func (s *memDBStore) all() SessionSet {
 	sessionList := make(SessionSet, 0)
 	s.read(func(tx *memdb.Txn) error {
-		iterator, err := tx.Get("sessions", "id")
+		iterator, err := tx.Get(memdbTable, "id")
 		if err != nil || iterator == nil {
 			return ErrSessionNotFound
 		}
@@ -152,7 +153,7 @@ func (s *memDBStore) ByID(id string) (Session, error) {
 func (s *memDBStore) ByClientID(id string) (SessionSet, error) {
 	var sessionList SessionSet
 	return sessionList, s.read(func(tx *memdb.Txn) error {
-		iterator, err := tx.Get("sessions", "client_id", id)
+		iterator, err := tx.Get(memdbTable, "client_id", id)
 		if err != nil || iterator == nil {
 			return ErrSessionNotFound
 		}
@@ -177,7 +178,7 @@ func (s *memDBStore) All() (SessionSet, error) {
 func (s *memDBStore) ByPeer(peer string) (SessionSet, error) {
 	sessionList := make(SessionSet, 0)
 	return sessionList, s.read(func(tx *memdb.Txn) error {
-		iterator, err := tx.Get("sessions", "peer", peer)
+		iterator, err := tx.Get(memdbTable, "peer", peer)
 		if err != nil || iterator == nil {
 			return ErrSessionNotFound
 		}
@@ -227,7 +228,7 @@ func (s *memDBStore) emitSessionEvent(sess Session) {
 func (s *memDBStore) insert(sess Session) error {
 	return s.write(func(tx *memdb.Txn) error {
 		defer s.emitSessionEvent(sess)
-		return tx.Insert("sessions", sess)
+		return tx.Insert(memdbTable, sess)
 	})
 }
 func (s *memDBStore) Delete(id, reason string) error {
@@ -259,7 +260,7 @@ func (s *memDBStore) run(tx *memdb.Txn, statement func(tx *memdb.Txn) error) err
 }
 
 func (s *memDBStore) first(tx *memdb.Txn, idx, id string) (Session, error) {
-	data, err := tx.First("sessions", idx, id)
+	data, err := tx.First(memdbTable, idx, id)
 	if err != nil || data == nil {
 		return Session{}, ErrSessionNotFound
 	}
