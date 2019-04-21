@@ -10,7 +10,7 @@ import (
 func (b *Broker) ListSessions() (sessions.SessionSet, error) {
 	return b.Sessions.All()
 }
-func (b *Broker) ListSubscriptions() (subscriptions.SubscriptionList, error) {
+func (b *Broker) ListSubscriptions() (subscriptions.SubscriptionSet, error) {
 	return b.Subscriptions.All()
 }
 func (b *Broker) ListRetainedMessages() (topics.RetainedMessageList, error) {

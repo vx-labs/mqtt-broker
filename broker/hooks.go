@@ -41,15 +41,19 @@ func getLowerQoS(a, b int32) int32 {
 func (b *Broker) OnSubscribe(sess sessions.Session, packet *packet.Subscribe) error {
 	for idx, pattern := range packet.Topic {
 		subID := makeSubID(sess.ID, pattern)
-		event := &subscriptions.Subscription{
-			ID:        subID,
-			Pattern:   pattern,
-			Qos:       packet.Qos[idx],
-			Tenant:    sess.Tenant,
-			SessionID: sess.ID,
-			Peer:      b.ID,
+		event := subscriptions.Subscription{
+			Metadata: subscriptions.Metadata{
+				ID:        subID,
+				Pattern:   pattern,
+				Qos:       packet.Qos[idx],
+				Tenant:    sess.Tenant,
+				SessionID: sess.ID,
+				Peer:      b.ID,
+			},
 		}
-		err := b.Subscriptions.Create(event)
+		err := b.Subscriptions.Create(event, func() error {
+			return nil
+		})
 		if err != nil {
 			return err
 		}
@@ -79,7 +83,7 @@ func (b *Broker) OnUnsubscribe(sess sessions.Session, packet *packet.Unsubscribe
 	if err != nil {
 		return err
 	}
-	set = set.Filter(func(sub *subscriptions.Subscription) bool {
+	set = set.Filter(func(sub subscriptions.Subscription) bool {
 		for _, topic := range packet.Topic {
 			if bytes.Compare(topic, sub.Pattern) == 0 {
 				return true
@@ -87,7 +91,7 @@ func (b *Broker) OnUnsubscribe(sess sessions.Session, packet *packet.Unsubscribe
 		}
 		return false
 	})
-	set.Apply(func(sub *subscriptions.Subscription) {
+	set.Apply(func(sub subscriptions.Subscription) {
 		b.Subscriptions.Delete(sub.ID)
 	})
 	return nil
@@ -98,7 +102,7 @@ func (b *Broker) deleteSessionSubscriptions(sess sessions.Session) error {
 	if err != nil {
 		return err
 	}
-	set.Apply(func(sub *subscriptions.Subscription) {
+	set.Apply(func(sub subscriptions.Subscription) {
 		b.Subscriptions.Delete(sub.ID)
 	})
 	return nil
@@ -255,12 +259,12 @@ func (b *Broker) OnPublish(sess sessions.Session, packet *packet.Publish) error 
 	}
 
 	peers := map[string]*rpc.MessagePublished{}
-	recipients.Apply(func(sub *subscriptions.Subscription) {
+	recipients.Apply(func(sub subscriptions.Subscription) {
 		if _, ok := peers[sub.Peer]; !ok {
 			peers[sub.Peer] = &rpc.MessagePublished{
 				Payload:   packet.Payload,
-				Qos:       make([]int32, 0, len(recipients.Subscriptions)),
-				Recipient: make([]string, 0, len(recipients.Subscriptions)),
+				Qos:       make([]int32, 0, len(recipients)),
+				Recipient: make([]string, 0, len(recipients)),
 				Topic:     packet.Topic,
 			}
 		}

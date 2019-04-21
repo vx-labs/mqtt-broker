@@ -52,14 +52,14 @@ func (b *Broker) setupSYSTopic() {
 		topic := []byte(fmt.Sprintf("$SYS/peers/%s", s.ID))
 		b.RetainThenDispatchToLocalSessions("_default", topic, nil, 1)
 	})
-	b.Subscriptions.On(subscriptions.SubscriptionCreated, func(s *subscriptions.Subscription) {
+	b.Subscriptions.On(subscriptions.SubscriptionCreated, func(s subscriptions.Subscription) {
 		payload, err := json.Marshal(s)
 		if err == nil {
 			topic := []byte(fmt.Sprintf("$SYS/subscriptions/%s", s.ID))
 			b.RetainThenDispatchToLocalSessions(s.Tenant, topic, payload, 1)
 		}
 	})
-	b.Subscriptions.On(subscriptions.SubscriptionDeleted, func(s *subscriptions.Subscription) {
+	b.Subscriptions.On(subscriptions.SubscriptionDeleted, func(s subscriptions.Subscription) {
 		topic := []byte(fmt.Sprintf("$SYS/subscriptions/%s", s.ID))
 		b.RetainThenDispatchToLocalSessions(s.Tenant, topic, nil, 1)
 	})

@@ -7,10 +7,10 @@ import (
 )
 
 var (
-	sub_1 = &Subscription{ID: "1", Pattern: []byte("devices/+/degrees")}
-	sub_2 = &Subscription{ID: "2"}
-	sub_3 = &Subscription{ID: "3"}
-	sub_4 = &Subscription{ID: "4"}
+	sub_1 = Subscription{Metadata: Metadata{ID: "1", Pattern: []byte("devices/+/degrees")}}
+	sub_2 = Subscription{Metadata: Metadata{ID: "2"}}
+	sub_3 = Subscription{Metadata: Metadata{ID: "3"}}
+	sub_4 = Subscription{Metadata: Metadata{ID: "4"}}
 )
 
 func TestNode(t *testing.T) {
@@ -18,16 +18,16 @@ func TestNode(t *testing.T) {
 	t.Run("add subscription", func(t *testing.T) {
 		a := NewNode(tenant, []byte("test"))
 		a = a.AddSubscription(tenant, sub_1)
-		require.Equal(t, 1, len(a.data.Subscriptions))
+		require.Equal(t, 1, len(a.data))
 		a = a.AddSubscription(tenant, sub_2)
 		a = a.AddSubscription(tenant, sub_3)
-		require.Equal(t, 3, len(a.data.Subscriptions))
+		require.Equal(t, 3, len(a.data))
 	})
 	t.Run("del subscription", func(t *testing.T) {
 		a := NewNode(tenant, []byte("test"))
-		a.data = SubscriptionList{Subscriptions: []*Subscription{sub_1, sub_2, sub_3}}
+		a.data = SubscriptionSet{sub_1, sub_2, sub_3}
 		a = a.DelSubscription("2")
-		require.Equal(t, 2, len(a.data.Subscriptions))
+		require.Equal(t, 2, len(a.data))
 	})
 	t.Run("add subscription", func(t *testing.T) {
 		a := NewNode(tenant, []byte("test"))
@@ -43,9 +43,9 @@ func TestNode(t *testing.T) {
 		require.Equal(t, []byte("a"), root.nodes[0].inode.nodes[0].pattern)
 		require.Equal(t, 1, len(root.nodes[0].inode.nodes[0].inode.nodes))
 		require.Equal(t, []byte("degrees"), root.nodes[0].inode.nodes[0].inode.nodes[0].pattern)
-		require.Equal(t, 1, len(root.nodes[0].inode.nodes[0].inode.nodes[0].data.Subscriptions))
+		require.Equal(t, 1, len(root.nodes[0].inode.nodes[0].inode.nodes[0].data))
 		root.Insert(Topic([]byte("devices/a/degrees")), tenant, sub_2)
-		require.Equal(t, 2, len(root.nodes[0].inode.nodes[0].inode.nodes[0].data.Subscriptions))
+		require.Equal(t, 2, len(root.nodes[0].inode.nodes[0].inode.nodes[0].data))
 
 	})
 
@@ -73,10 +73,10 @@ func TestNode(t *testing.T) {
 			 	        `->  c (a)  -> e (degrees)
 		*/
 		set := root.Select(tenant, nil, topic)
-		require.Equal(t, 2, len(set.Subscriptions))
+		require.Equal(t, 2, len(set))
 		require.NoError(t, root.Remove(tenant, sub_1.ID, Topic(sub_1.Pattern)))
 		set = root.Select(tenant, nil, topic)
-		require.Equal(t, 1, len(set.Subscriptions))
+		require.Equal(t, 1, len(set))
 	})
 	t.Run("select mlw", func(t *testing.T) {
 		root := NewINode()
@@ -91,7 +91,7 @@ func TestNode(t *testing.T) {
 			a (devices) -> b (#)
 		*/
 		set := root.Select(tenant, nil, topic)
-		require.Equal(t, 1, len(set.Subscriptions))
+		require.Equal(t, 1, len(set))
 	})
 
 }

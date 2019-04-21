@@ -64,17 +64,15 @@ type TopicStore interface {
 	DumpRetainedMessages() *topics.RetainedMessageList
 }
 type SubscriptionStore interface {
-	state.Backend
-	ByTopic(tenant string, pattern []byte) (*subscriptions.SubscriptionList, error)
-	ByID(id string) (*subscriptions.Subscription, error)
-	All() (subscriptions.SubscriptionList, error)
-	DumpSubscriptions() *subscriptions.SubscriptionList
-	ByPeer(peer string) (subscriptions.SubscriptionList, error)
-	BySession(id string) (subscriptions.SubscriptionList, error)
+	ByTopic(tenant string, pattern []byte) (subscriptions.SubscriptionSet, error)
+	ByID(id string) (subscriptions.Subscription, error)
+	All() (subscriptions.SubscriptionSet, error)
+	ByPeer(peer string) (subscriptions.SubscriptionSet, error)
+	BySession(id string) (subscriptions.SubscriptionSet, error)
 	Sessions() ([]string, error)
-	Create(subscription *subscriptions.Subscription) error
+	Create(message subscriptions.Subscription, sender func() error) error
 	Delete(id string) error
-	On(event string, handler func(*subscriptions.Subscription)) func()
+	On(event string, handler func(subscriptions.Subscription)) func()
 }
 type Broker struct {
 	ID            string
@@ -226,9 +224,9 @@ func (b *Broker) resolveRecipients(tenant string, topic []byte, defaultQoS int32
 	if err != nil {
 		return []string{}, []int32{}
 	}
-	set := make([]string, 0, len(recipients.Subscriptions))
-	qosSet := make([]int32, 0, len(recipients.Subscriptions))
-	recipients.Apply(func(s *subscriptions.Subscription) {
+	set := make([]string, 0, len(recipients))
+	qosSet := make([]int32, 0, len(recipients))
+	recipients.Apply(func(s subscriptions.Subscription) {
 		set = append(set, s.SessionID)
 		qos := defaultQoS
 		if qos > s.Qos {
@@ -250,7 +248,7 @@ func (b *Broker) onPeerDown(name string) {
 		log.Printf("ERR: failed to remove subscriptions from peer %s: %v", name, err)
 		return
 	}
-	set.Apply(func(sub *subscriptions.Subscription) {
+	set.Apply(func(sub subscriptions.Subscription) {
 		b.Subscriptions.Delete(sub.ID)
 	})
 
@@ -277,10 +275,10 @@ func (b *Broker) onPeerDown(name string) {
 		message := &rpc.MessagePublished{
 			Payload:   s.WillPayload,
 			Topic:     s.WillTopic,
-			Qos:       make([]int32, 0, len(recipients.Subscriptions)),
-			Recipient: make([]string, 0, len(recipients.Subscriptions)),
+			Qos:       make([]int32, 0, len(recipients)),
+			Recipient: make([]string, 0, len(recipients)),
 		}
-		recipients.Apply(func(sub *subscriptions.Subscription) {
+		recipients.Apply(func(sub subscriptions.Subscription) {
 			message.Recipient = append(message.Recipient, sub.SessionID)
 			qos := s.WillQoS
 			if qos > sub.Qos {
