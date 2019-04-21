@@ -1,6 +1,7 @@
 package broker
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"log"
@@ -70,7 +71,7 @@ type SubscriptionStore interface {
 	ByPeer(peer string) (subscriptions.SubscriptionSet, error)
 	BySession(id string) (subscriptions.SubscriptionSet, error)
 	Sessions() ([]string, error)
-	Create(message subscriptions.Subscription, sender func() error) error
+	Create(message subscriptions.Subscription, sender func(packet.Publish) error) error
 	Delete(id string) error
 	On(event string, handler func(subscriptions.Subscription)) func()
 }
@@ -119,7 +120,27 @@ func New(id identity.Identity, config Config) *Broker {
 	}
 	hostedServices := []string{}
 	hostedServices = append(hostedServices, "rpc-listener")
-	subscriptionsStore, err := subscriptions.NewMemDBStore(broker.mesh)
+	subscriptionsStore, err := subscriptions.NewMemDBStore(broker.mesh, func(host string, session string, publish packet.Publish) error {
+		ctx := context.Background()
+		addr, err := broker.mesh.MemberRPCAddress(host)
+		if err != nil {
+			log.Printf("ERROR: failed to resove peer %s addr: %v", host, err)
+			return err
+		}
+		return broker.RPCCaller.Call(addr, func(c rpc.BrokerServiceClient) error {
+			_, err := c.DistributeMessage(ctx, &rpc.MessagePublished{
+				Dup:       publish.Header.Dup,
+				Payload:   publish.Payload,
+				Qos:       publish.Header.Qos,
+				Recipient: session,
+				Topic:     publish.Topic,
+			})
+			if err != nil {
+				log.Printf("ERROR: failed to send message to peer %s: %v", host, err)
+			}
+			return err
+		})
+	})
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -219,23 +240,6 @@ func New(id identity.Identity, config Config) *Broker {
 	go broker.oSStatsReporter()
 	return broker
 }
-func (b *Broker) resolveRecipients(tenant string, topic []byte, defaultQoS int32) ([]string, []int32) {
-	recipients, err := b.Subscriptions.ByTopic(tenant, topic)
-	if err != nil {
-		return []string{}, []int32{}
-	}
-	set := make([]string, 0, len(recipients))
-	qosSet := make([]int32, 0, len(recipients))
-	recipients.Apply(func(s subscriptions.Subscription) {
-		set = append(set, s.SessionID)
-		qos := defaultQoS
-		if qos > s.Qos {
-			qos = s.Qos
-		}
-		qosSet = append(qosSet, qos)
-	})
-	return set, qosSet
-}
 func (b *Broker) onPeerDown(name string) {
 	peer, err := b.Peers.ByMeshID(name)
 	if err != nil {
@@ -272,21 +276,16 @@ func (b *Broker) onPeerDown(name string) {
 			return
 		}
 
-		message := &rpc.MessagePublished{
-			Payload:   s.WillPayload,
-			Topic:     s.WillTopic,
-			Qos:       make([]int32, 0, len(recipients)),
-			Recipient: make([]string, 0, len(recipients)),
+		lwt := packet.Publish{
+			Payload: s.WillPayload,
+			Topic:   s.WillTopic,
+			Header: &packet.Header{
+				Qos: s.WillQoS,
+			},
 		}
 		recipients.Apply(func(sub subscriptions.Subscription) {
-			message.Recipient = append(message.Recipient, sub.SessionID)
-			qos := s.WillQoS
-			if qos > sub.Qos {
-				qos = sub.Qos
-			}
-			message.Qos = append(message.Qos, qos)
+			sub.Sender(lwt)
 		})
-		b.dispatch(message)
 		s.Close()
 	})
 }
@@ -297,22 +296,20 @@ func (b *Broker) Join(hosts []string) {
 }
 
 func (b *Broker) dispatch(message *rpc.MessagePublished) {
-	for idx, recipient := range message.Recipient {
-		packet := &packet.Publish{
-			Header: &packet.Header{
-				Dup:    message.Dup,
-				Qos:    message.Qos[idx],
-				Retain: message.Retained,
-			},
-			Payload:   message.Payload,
-			Topic:     message.Topic,
-			MessageId: 1,
-		}
-		b.events.Emit(events.Event{
-			Key:   fmt.Sprintf("message_published/%s", recipient),
-			Entry: packet,
-		})
+	packet := &packet.Publish{
+		Header: &packet.Header{
+			Dup:    message.Dup,
+			Qos:    message.Qos,
+			Retain: message.Retained,
+		},
+		Payload:   message.Payload,
+		Topic:     message.Topic,
+		MessageId: 1,
 	}
+	b.events.Emit(events.Event{
+		Key:   fmt.Sprintf("message_published/%s", message.Recipient),
+		Entry: packet,
+	})
 }
 
 func (b *Broker) OnMessagePublished(recipient string, f func(p *packet.Publish)) func() {

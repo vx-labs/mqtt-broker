@@ -2,7 +2,6 @@ package broker
 
 import (
 	"bytes"
-	"context"
 	"crypto/sha1"
 	"fmt"
 	"log"
@@ -13,7 +12,6 @@ import (
 	"github.com/vx-labs/mqtt-broker/sessions"
 
 	"github.com/vx-labs/mqtt-broker/broker/listener"
-	"github.com/vx-labs/mqtt-broker/broker/rpc"
 	subscriptions "github.com/vx-labs/mqtt-broker/subscriptions"
 	topics "github.com/vx-labs/mqtt-broker/topics"
 	"github.com/vx-labs/mqtt-protocol/packet"
@@ -38,21 +36,21 @@ func getLowerQoS(a, b int32) int32 {
 	}
 	return b
 }
-func (b *Broker) OnSubscribe(sess sessions.Session, packet *packet.Subscribe) error {
-	for idx, pattern := range packet.Topic {
+func (b *Broker) OnSubscribe(transportSession *listener.Session, sess sessions.Session, p *packet.Subscribe) error {
+	for idx, pattern := range p.Topic {
 		subID := makeSubID(sess.ID, pattern)
 		event := subscriptions.Subscription{
 			Metadata: subscriptions.Metadata{
 				ID:        subID,
 				Pattern:   pattern,
-				Qos:       packet.Qos[idx],
+				Qos:       p.Qos[idx],
 				Tenant:    sess.Tenant,
 				SessionID: sess.ID,
 				Peer:      b.ID,
 			},
 		}
-		err := b.Subscriptions.Create(event, func() error {
-			return nil
+		err := b.Subscriptions.Create(event, func(publish packet.Publish) error {
+			return transportSession.Publish(&publish)
 		})
 		if err != nil {
 			return err
@@ -62,16 +60,17 @@ func (b *Broker) OnSubscribe(sess sessions.Session, packet *packet.Subscribe) er
 		if err != nil {
 			return err
 		}
-		packetQoS := packet.Qos[idx]
+		packetQoS := p.Qos[idx]
 		go func() {
 			set.Apply(func(message *topics.RetainedMessage) {
 				qos := getLowerQoS(message.Qos, packetQoS)
-				b.dispatch(&rpc.MessagePublished{
-					Payload:   message.Payload,
-					Retained:  true,
-					Recipient: []string{sess.ID},
-					Topic:     message.Topic,
-					Qos:       []int32{qos},
+				transportSession.Publish(&packet.Publish{
+					Header: &packet.Header{
+						Qos:    qos,
+						Retain: true,
+					},
+					Topic:   message.Topic,
+					Payload: message.Payload,
 				})
 			})
 		}()
@@ -172,7 +171,7 @@ func (b *Broker) OnConnect(transportSession *listener.Session) (int32, error) {
 	var cancels []func()
 	cancels = []func(){
 		transportSession.OnSubscribe(func(p *packet.Subscribe) {
-			err := b.OnSubscribe(sess, p)
+			err := b.OnSubscribe(transportSession, sess, p)
 			if err == nil {
 				qos := make([]int32, len(p.Qos))
 
@@ -232,69 +231,36 @@ func (b *Broker) OnConnect(transportSession *listener.Session) (int32, error) {
 	}
 	return packet.CONNACK_CONNECTION_ACCEPTED, nil
 }
-func (b *Broker) OnPublish(sess sessions.Session, packet *packet.Publish) error {
+func (b *Broker) OnPublish(sess sessions.Session, p *packet.Publish) error {
 	if b.STANOutput != nil {
 		b.STANOutput <- STANMessage{
 			Timestamp: time.Now(),
 			Tenant:    sess.Tenant,
-			Payload:   packet.Payload,
-			Topic:     packet.Topic,
+			Payload:   p.Payload,
+			Topic:     p.Topic,
 		}
 	}
-	if packet.Header.Retain {
+	if p.Header.Retain {
 		message := &topics.RetainedMessage{
-			Payload: packet.Payload,
-			Qos:     packet.Header.Qos,
+			Payload: p.Payload,
+			Qos:     p.Header.Qos,
 			Tenant:  sess.Tenant,
-			Topic:   packet.Topic,
+			Topic:   p.Topic,
 		}
 		err := b.Topics.Create(message)
 		if err != nil {
 			log.Printf("WARN: failed to save retained message: %v", err)
 		}
 	}
-	recipients, err := b.Subscriptions.ByTopic(sess.Tenant, packet.Topic)
+	recipients, err := b.Subscriptions.ByTopic(sess.Tenant, p.Topic)
 	if err != nil {
 		return err
 	}
 
-	peers := map[string]*rpc.MessagePublished{}
+	message := *p
 	recipients.Apply(func(sub subscriptions.Subscription) {
-		if _, ok := peers[sub.Peer]; !ok {
-			peers[sub.Peer] = &rpc.MessagePublished{
-				Payload:   packet.Payload,
-				Qos:       make([]int32, 0, len(recipients)),
-				Recipient: make([]string, 0, len(recipients)),
-				Topic:     packet.Topic,
-			}
-		}
-		peers[sub.Peer].Recipient = append(peers[sub.Peer].Recipient, sub.SessionID)
-		qos := packet.Header.Qos
-		if qos > sub.Qos {
-			qos = sub.Qos
-		}
-		peers[sub.Peer].Qos = append(peers[sub.Peer].Qos, qos)
+		sub.Sender(message)
 	})
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	for peer, message := range peers {
-		if peer == b.ID {
-			b.dispatch(message)
-		} else {
-			addr, err := b.mesh.MemberRPCAddress(peer)
-			if err != nil {
-				log.Printf("WARN: unknown node found in message recipients: %s", peer)
-			} else {
-				err = b.RPCCaller.Call(addr, func(c rpc.BrokerServiceClient) error {
-					_, err := c.DistributeMessage(ctx, message)
-					return err
-				})
-				if err != nil {
-					log.Printf("WARN: failed to send message: %v", err)
-				}
-			}
-		}
-	}
 	return nil
 }
 

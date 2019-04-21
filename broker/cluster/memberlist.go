@@ -128,6 +128,10 @@ func (m *memberlistMesh) MemberRPCAddress(id string) (string, error) {
 	return "", ErrNodeNotFound
 }
 
+func (m *memberlistMesh) ID() string {
+	return m.mlist.LocalNode().Name
+}
+
 func MemberlistMesh(id identity.Identity, eventHandler memberlist.EventDelegate, meta NodeMeta) Mesh {
 	self := &memberlistMesh{
 		states: map[string]State{},

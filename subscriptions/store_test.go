@@ -4,16 +4,20 @@ import (
 	"testing"
 
 	"github.com/vx-labs/mqtt-broker/broker/cluster"
+	"github.com/vx-labs/mqtt-protocol/packet"
 
 	"github.com/stretchr/testify/require"
 )
 
-func returnNilErr() error {
+func returnNilErr(packet.Publish) error {
+	return nil
+}
+func nillSender(string, string, packet.Publish) error {
 	return nil
 }
 
 func TestStore(t *testing.T) {
-	s, err := NewMemDBStore(cluster.MockedMesh())
+	s, err := NewMemDBStore(cluster.MockedMesh(), nillSender)
 	require.NoError(t, err)
 	err = s.Create(Subscription{Metadata: Metadata{
 		ID:        "1",

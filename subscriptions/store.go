@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/vx-labs/mqtt-broker/crdt"
+	"github.com/vx-labs/mqtt-protocol/packet"
 
 	"github.com/hashicorp/go-memdb"
 	"github.com/vx-labs/mqtt-broker/broker/cluster"
@@ -16,12 +17,14 @@ const table = "subscriptions"
 
 type Subscription struct {
 	Metadata
-	Close func() error
+	Sender func(packet.Publish) error
 }
 
 type Channel interface {
 	Broadcast([]byte)
 }
+
+type RemoteSender func(host string, session string, publish packet.Publish) error
 
 type Store interface {
 	ByTopic(tenant string, pattern []byte) (SubscriptionSet, error)
@@ -30,7 +33,7 @@ type Store interface {
 	ByPeer(peer string) (SubscriptionSet, error)
 	BySession(id string) (SubscriptionSet, error)
 	Sessions() ([]string, error)
-	Create(message Subscription, sender func() error) error
+	Create(message Subscription, sender func(packet.Publish) error) error
 	Delete(id string) error
 	On(event string, handler func(Subscription)) func()
 }
@@ -45,6 +48,7 @@ type memDBStore struct {
 	patternIndex *topicIndexer
 	events       *events.Bus
 	channel      Channel
+	sender       RemoteSender
 }
 
 var (
@@ -54,7 +58,7 @@ var now = func() int64 {
 	return time.Now().UnixNano()
 }
 
-func NewMemDBStore(mesh cluster.Mesh) (Store, error) {
+func NewMemDBStore(mesh cluster.Mesh, sender RemoteSender) (Store, error) {
 	db, err := memdb.NewMemDB(&memdb.DBSchema{
 		Tables: map[string]*memdb.TableSchema{
 			table: &memdb.TableSchema{
@@ -108,6 +112,7 @@ func NewMemDBStore(mesh cluster.Mesh) (Store, error) {
 			}
 		}
 	}()
+	s.sender = sender
 	return s, err
 }
 
@@ -242,9 +247,9 @@ func (s *memDBStore) Delete(id string) error {
 	sess.LastDeleted = now()
 	return s.insert(sess)
 }
-func (s *memDBStore) Create(sess Subscription, closer func() error) error {
+func (s *memDBStore) Create(sess Subscription, closer func(packet.Publish) error) error {
 	sess.LastAdded = now()
-	sess.Close = closer
+	sess.Sender = closer
 	err := s.patternIndex.Index(sess)
 	if err != nil {
 		return err

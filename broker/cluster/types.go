@@ -14,6 +14,7 @@ type Channel interface {
 
 // Mesh represents the mesh network, being able to broadcast state across the nodes.
 type Mesh interface {
+	ID() string
 	AddState(key string, state State) (Channel, error)
 	Join(hosts []string) error
 	MemberRPCAddress(id string) (string, error)

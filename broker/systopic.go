@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/vx-labs/mqtt-broker/broker/rpc"
 	"github.com/vx-labs/mqtt-broker/topics"
+	"github.com/vx-labs/mqtt-protocol/packet"
 
 	"github.com/vx-labs/mqtt-broker/peers"
 
@@ -22,17 +22,23 @@ func (b *Broker) retainMessage(tenant string, topic []byte, payload []byte, qos 
 	})
 }
 func (b *Broker) dispatchToLocalSessions(tenant string, topic []byte, payload []byte, defaultQoS int32) {
-	recipients, qos := b.resolveRecipients(tenant, topic, defaultQoS)
-	if len(recipients) == 0 {
+	recipients, err := b.Subscriptions.ByTopic(tenant, topic)
+	if err != nil {
 		return
 	}
-	message := &rpc.MessagePublished{
-		Payload:   payload,
-		Recipient: recipients,
-		Qos:       qos,
-		Topic:     topic,
+	recipients = recipients.Filter(func(sub subscriptions.Subscription) bool {
+		return sub.Peer == b.mesh.ID()
+	})
+	message := packet.Publish{
+		Payload: payload,
+		Topic:   topic,
+		Header: &packet.Header{
+			Qos: defaultQoS,
+		},
 	}
-	b.dispatch(message)
+	recipients.Apply(func(sub subscriptions.Subscription) {
+		sub.Sender(message)
+	})
 }
 
 func (b *Broker) RetainThenDispatchToLocalSessions(tenant string, topic []byte, payload []byte, qos int32) {

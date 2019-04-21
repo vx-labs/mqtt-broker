@@ -11,7 +11,11 @@ import (
 func (m *memDBStore) do(write bool, f func(*memdb.Txn) error) error {
 	tx := m.db.Txn(write)
 	defer tx.Abort()
-	return f(tx)
+	err := f(tx)
+	if write && err == nil {
+		tx.Commit()
+	}
+	return err
 }
 func (m *memDBStore) read(f func(*memdb.Txn) error) error {
 	return m.do(false, f)

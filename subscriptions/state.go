@@ -7,6 +7,7 @@ import (
 	"github.com/golang/protobuf/proto"
 	memdb "github.com/hashicorp/go-memdb"
 	"github.com/vx-labs/mqtt-broker/crdt"
+	"github.com/vx-labs/mqtt-protocol/packet"
 )
 
 func (m memDBStore) MarshalBinary() []byte {
@@ -58,14 +59,16 @@ func (m *memDBStore) runGC() error {
 		)
 	})
 }
-func insertPBRemoteSession(remote Metadata, tx *memdb.Txn) error {
-	return tx.Insert(table, Subscription{
-		Close: func() error {
-			log.Printf("WARN: tried to close a remote session")
-			return nil
+func (m *memDBStore) insertPBRemoteSubscription(remote Metadata, tx *memdb.Txn) error {
+	sub := Subscription{
+		Sender: func(p packet.Publish) error {
+			log.Printf("INFO: forwarding message to remote session %s", remote.SessionID)
+			return m.sender(remote.Peer, remote.SessionID, p)
 		},
 		Metadata: remote,
-	})
+	}
+	m.patternIndex.Index(sub)
+	return tx.Insert(table, sub)
 }
 func (m *memDBStore) Merge(inc []byte) error {
 	set := &SubscriptionMetadataList{}
@@ -77,7 +80,7 @@ func (m *memDBStore) Merge(inc []byte) error {
 		for _, remote := range set.Metadatas {
 			localData, err := tx.First(table, "id", remote.ID)
 			if err != nil || localData == nil {
-				err := insertPBRemoteSession(*remote, tx)
+				err := m.insertPBRemoteSubscription(*remote, tx)
 				if err != nil {
 					return err
 				}
@@ -89,11 +92,11 @@ func (m *memDBStore) Merge(inc []byte) error {
 				continue
 			}
 			if crdt.IsEntryOutdated(&local, remote) {
-				err := insertPBRemoteSession(*remote, tx)
+				m.patternIndex.Remove(local.Tenant, local.ID, local.Pattern)
+				err := m.insertPBRemoteSubscription(*remote, tx)
 				if err != nil {
 					return err
 				}
-				local.Close()
 			}
 		}
 		return nil
