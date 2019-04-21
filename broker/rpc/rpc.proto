@@ -11,7 +11,7 @@ message CloseSessionOutput {
   string ID = 1;
 }
 message ListSessionsOutput{
-  repeated sessions.Session Sessions = 1;
+  repeated sessions.SessionMD Sessions = 1;
 }
 message MessagePublished {
   repeated string Recipient = 1;

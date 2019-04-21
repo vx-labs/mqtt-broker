@@ -9,6 +9,8 @@ import (
 	"text/template"
 	"time"
 
+	"github.com/vx-labs/mqtt-broker/sessions"
+
 	"github.com/spf13/viper"
 
 	"github.com/manifoldco/promptui"
@@ -97,8 +99,8 @@ func SessionsList(ctx context.Context, helper *APIWrapper) *cobra.Command {
 				log.Printf("ERR: failed to list sessions: %v", err)
 				return
 			}
-			sort.SliceStable(set.Sessions, func(i, j int) bool {
-				return set.Sessions[i].Created < set.Sessions[j].Created
+			sort.SliceStable(set, func(i, j int) bool {
+				return set[i].Created < set[j].Created
 			})
 			tpl, err := template.New("").Funcs(promptui.FuncMap).Funcs(template.FuncMap{
 				"parseDate": func(in int64) string {
@@ -113,9 +115,9 @@ func SessionsList(ctx context.Context, helper *APIWrapper) *cobra.Command {
 				log.Printf("ERR: failed to parse session template: %v", err)
 				return
 			}
-			for _, session := range set.Sessions {
-				tpl.Execute(os.Stdout, session)
-			}
+			set.ApplyE(func(session sessions.SessionWrapper) error {
+				return tpl.Execute(os.Stdout, session)
+			})
 		},
 	}
 	return c

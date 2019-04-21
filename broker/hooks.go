@@ -74,7 +74,7 @@ func (b *Broker) OnSubscribe(sess sessions.SessionWrapper, packet *packet.Subscr
 	}
 	return nil
 }
-func (b *Broker) OnUnsubscribe(sess sessions.Session, packet *packet.Unsubscribe) error {
+func (b *Broker) OnUnsubscribe(sess sessions.SessionWrapper, packet *packet.Unsubscribe) error {
 	set, err := b.Subscriptions.BySession(sess.ID)
 	if err != nil {
 		return err
@@ -146,7 +146,7 @@ func (b *Broker) OnConnect(transportSession *listener.Session) (int32, error) {
 		return packet.CONNACK_REFUSED_IDENTIFIER_REJECTED, err
 	}
 	sess := sessions.SessionWrapper{
-		Session: sessions.Session{
+		SessionMD: sessions.SessionMD{
 			ID:                id,
 			ClientID:          clientId,
 			Created:           time.Now().Unix(),

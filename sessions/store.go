@@ -34,7 +34,7 @@ var now = func() int64 {
 }
 
 type SessionWrapper struct {
-	Session
+	SessionMD
 	Close func() error
 }
 type SessionStore interface {
