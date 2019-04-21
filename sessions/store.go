@@ -34,7 +34,7 @@ var now = func() int64 {
 }
 
 type Session struct {
-	SessionMD
+	Metadata
 	Close func() error
 }
 type SessionStore interface {

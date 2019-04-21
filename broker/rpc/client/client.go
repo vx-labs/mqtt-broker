@@ -33,7 +33,7 @@ func (c *Client) ListSessions(ctx context.Context) (sessions.SessionSet, error) 
 			Close: func() error {
 				return c.CloseSession(ctx, out.Sessions[idx].ID)
 			},
-			SessionMD: *out.Sessions[idx],
+			Metadata: *out.Sessions[idx],
 		}
 	}
 	return set, nil

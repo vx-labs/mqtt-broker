@@ -146,7 +146,7 @@ func (b *Broker) OnConnect(transportSession *listener.Session) (int32, error) {
 		return packet.CONNACK_REFUSED_IDENTIFIER_REJECTED, err
 	}
 	sess := sessions.Session{
-		SessionMD: sessions.SessionMD{
+		Metadata: sessions.Metadata{
 			ID:                id,
 			ClientID:          clientId,
 			Created:           time.Now().Unix(),

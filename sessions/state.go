@@ -18,8 +18,8 @@ func (m memDBStore) MarshalBinary() []byte {
 	}
 	return payload
 }
-func (m memDBStore) dumpSessions() *SessionMDList {
-	sessionList := SessionMDList{}
+func (m memDBStore) dumpSessions() *SessionMetadataList {
+	sessionList := SessionMetadataList{}
 	m.read(func(tx *memdb.Txn) error {
 		iterator, err := tx.Get("sessions", "id")
 		if (err != nil && err != ErrSessionNotFound) || iterator == nil {
@@ -31,7 +31,7 @@ func (m memDBStore) dumpSessions() *SessionMDList {
 				return nil
 			}
 			sess := payload.(Session)
-			sessionList.SessionMDs = append(sessionList.SessionMDs, &sess.SessionMD)
+			sessionList.Metadatas = append(sessionList.Metadatas, &sess.Metadata)
 		}
 	})
 	return &sessionList
@@ -52,29 +52,29 @@ func (m *memDBStore) runGC() error {
 			return &sess, nil
 		}, func(id string) error {
 			return tx.Delete("sessions", Session{
-				SessionMD: SessionMD{ID: id},
+				Metadata: Metadata{ID: id},
 			})
 		},
 		)
 	})
 }
-func insertPBRemoteSession(remote SessionMD, tx *memdb.Txn) error {
+func insertPBRemoteSession(remote Metadata, tx *memdb.Txn) error {
 	return tx.Insert("sessions", Session{
 		Close: func() error {
 			log.Printf("WARN: tried to close a remote session")
 			return nil
 		},
-		SessionMD: remote,
+		Metadata: remote,
 	})
 }
 func (m *memDBStore) Merge(inc []byte) error {
-	set := &SessionMDList{}
+	set := &SessionMetadataList{}
 	err := proto.Unmarshal(inc, set)
 	if err != nil {
 		return err
 	}
 	return m.write(func(tx *memdb.Txn) error {
-		for _, remote := range set.SessionMDs {
+		for _, remote := range set.Metadatas {
 			localData, err := tx.First("sessions", "id", remote.ID)
 			if err != nil || localData == nil {
 				err := insertPBRemoteSession(*remote, tx)

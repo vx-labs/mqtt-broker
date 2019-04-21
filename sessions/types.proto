@@ -1,7 +1,7 @@
 syntax = "proto3";
 package sessions;
 
-message SessionMD {
+message Metadata {
   string ID = 1;
   string Tenant = 2;
   string Peer = 3;
@@ -19,6 +19,6 @@ message SessionMD {
   int32 KeepaliveInterval = 15;
 }
 
-message SessionMDList {
-  repeated SessionMD SessionMDs = 1;
+message SessionMetadataList {
+  repeated Metadata Metadatas = 1;
 }

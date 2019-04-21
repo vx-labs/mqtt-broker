@@ -54,9 +54,9 @@ func (s *server) ListSessions(ctx context.Context, filters *SessionFilter) (*Lis
 	if err != nil {
 		return nil, err
 	}
-	out := []*sessions.SessionMD{}
+	out := []*sessions.Metadata{}
 	for _, session := range set {
-		out = append(out, &session.SessionMD)
+		out = append(out, &session.Metadata)
 	}
 	return &ListSessionsOutput{Sessions: out}, nil
 }
