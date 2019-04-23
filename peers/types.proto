@@ -1,7 +1,7 @@
 syntax = "proto3";
 package peers;
 
-message Peer {
+message Metadata {
   string ID = 1;
   string MeshID = 2;
   string Hostname = 3;
@@ -26,6 +26,6 @@ message MemoryUsage {
   uint32 NumGC = 4;
 }
 
-message PeerList {
-  repeated Peer Peers = 1;
+message PeerMetadataList {
+  repeated Metadata Metadatas = 1;
 }

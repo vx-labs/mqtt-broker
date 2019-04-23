@@ -2,10 +2,10 @@ package peers
 
 //go:generate protoc -I${GOPATH}/src -I${GOPATH}/src/github.com/vx-labs/mqtt-broker/peers/ --go_out=plugins=grpc:. types.proto
 
-type peerFilter func(*Peer) bool
+type peerFilter func(*Metadata) bool
 
-func (set PeerList) Filter(filters ...peerFilter) PeerList {
-	copy := make([]*Peer, 0, len(set.Peers))
+func (set PeerMetadataList) Filter(filters ...peerFilter) PeerMetadataList {
+	copy := make([]*Metadata, 0, len(set.Peers))
 	for _, peer := range set.Peers {
 		accepted := true
 		for _, f := range filters {
@@ -18,22 +18,22 @@ func (set PeerList) Filter(filters ...peerFilter) PeerList {
 			copy = append(copy, peer)
 		}
 	}
-	return PeerList{
+	return PeerMetadataList{
 		Peers: copy,
 	}
 }
-func (set PeerList) Apply(f func(s *Peer)) {
+func (set PeerMetadataList) Apply(f func(s *Metadata)) {
 	for _, peer := range set.Peers {
 		f(peer)
 	}
 }
-func (set PeerList) ApplyIdx(f func(idx int, s *Peer)) {
+func (set PeerMetadataList) ApplyIdx(f func(idx int, s *Metadata)) {
 	for idx, peer := range set.Peers {
 		f(idx, peer)
 	}
 }
 
-func (set PeerList) ApplyE(f func(s *Peer) error) error {
+func (set PeerMetadataList) ApplyE(f func(s *Metadata) error) error {
 	for _, peer := range set.Peers {
 		if err := f(peer); err != nil {
 			return err
@@ -42,14 +42,14 @@ func (set PeerList) ApplyE(f func(s *Peer) error) error {
 	return nil
 }
 
-func (s *Peer) IsAdded() bool {
+func (s *Metadata) IsAdded() bool {
 	return s.LastAdded > 0 && s.LastAdded > s.LastDeleted
 }
-func (s *Peer) IsRemoved() bool {
+func (s *Metadata) IsRemoved() bool {
 	return s.LastDeleted > 0 && s.LastAdded < s.LastDeleted
 }
 
-func IsOutdated(s *Peer, remote *Peer) (outdated bool) {
+func IsOutdated(s *Metadata, remote *Metadata) (outdated bool) {
 	if s.LastAdded < remote.LastAdded {
 		outdated = true
 	}

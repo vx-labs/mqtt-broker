@@ -16,12 +16,12 @@ func TestPeerStore(t *testing.T) {
 	store, _ := NewPeerStore(cluster.MockedMesh())
 
 	t.Run("create", func(t *testing.T) {
-		err := store.Upsert(&Peer{
+		err := store.Upsert(&Metadata{
 			ID:     peerID,
 			MeshID: "1",
 		})
 		assert.Nil(t, err)
-		err = store.Upsert(&Peer{
+		err = store.Upsert(&Metadata{
 			ID:     "3",
 			MeshID: "2",
 		})

@@ -36,13 +36,13 @@ const (
 )
 
 type PeerStore interface {
-	ByID(id string) (*peers.Peer, error)
-	All() (peers.PeerList, error)
-	ByMeshID(id string) (*peers.Peer, error)
-	Upsert(sess *peers.Peer) error
+	ByID(id string) (*peers.Metadata, error)
+	All() (peers.PeerMetadataList, error)
+	ByMeshID(id string) (*peers.Metadata, error)
+	Upsert(sess *peers.Metadata) error
 	Delete(id string) error
-	On(event string, handler func(*peers.Peer)) func()
-	DumpPeers() *peers.PeerList
+	On(event string, handler func(*peers.Metadata)) func()
+	DumpPeers() *peers.PeerMetadataList
 }
 type SessionStore interface {
 	ByID(id string) (sessions.Session, error)
@@ -226,7 +226,7 @@ func New(id identity.Identity, config Config) *Broker {
 		hostname = "not_available"
 	}
 	broker.ID = id.ID()
-	broker.Peers.Upsert(&peers.Peer{
+	broker.Peers.Upsert(&peers.Metadata{
 		ID:       broker.ID,
 		MeshID:   broker.ID,
 		Hostname: hostname,

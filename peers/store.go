@@ -12,7 +12,7 @@ import (
 )
 
 const (
-	defaultTenant = "_default"
+	table = "peers"
 )
 const (
 	PeerCreated string = "peer_created"
@@ -29,27 +29,31 @@ var now = func() int64 {
 }
 
 type PeerStore interface {
-	ByID(id string) (*Peer, error)
-	ByMeshID(id string) (*Peer, error)
-	All() (PeerList, error)
+	ByID(id string) (*Metadata, error)
+	ByMeshID(id string) (*Metadata, error)
+	All() (PeerMetadataList, error)
 	Exists(id string) bool
-	Upsert(p *Peer) error
+	Upsert(p *Metadata) error
 	Delete(id string) error
-	On(event string, handler func(*Peer)) func()
-	DumpPeers() *PeerList
+	On(event string, handler func(*Metadata)) func()
+	DumpPeers() *PeerMetadataList
 }
 
 type memDBStore struct {
-	db     *memdb.MemDB
-	state  *state.Store
-	events *events.Bus
+	db      *memdb.MemDB
+	state   *state.Store
+	events  *events.Bus
+	channel Channel
+}
+type Channel interface {
+	Broadcast([]byte)
 }
 
 func NewPeerStore(mesh cluster.Mesh) (PeerStore, error) {
 	db, err := memdb.NewMemDB(&memdb.DBSchema{
 		Tables: map[string]*memdb.TableSchema{
-			"peers": {
-				Name: "peers",
+			table: {
+				Name: table,
 				Indexes: map[string]*memdb.IndexSchema{
 					"id": {
 						Name: "id",
@@ -76,17 +80,12 @@ func NewPeerStore(mesh cluster.Mesh) (PeerStore, error) {
 		db:     db,
 		events: events.NewEventBus(),
 	}
-	state, err := state.NewStore("mqtt-peers", mesh, s)
-	if err != nil {
-		return nil, err
-	}
-	s.state = state
 	return s, nil
 }
-func (s *memDBStore) all() *PeerList {
-	peerList := PeerList{}
+func (s *memDBStore) all() *PeerMetadataList {
+	peerList := PeerMetadataList{}
 	s.read(func(tx *memdb.Txn) error {
-		iterator, err := tx.Get("peers", "id")
+		iterator, err := tx.Get(table, "id")
 		if err != nil || iterator == nil {
 			return ErrPeerNotFound
 		}
@@ -95,7 +94,7 @@ func (s *memDBStore) all() *PeerList {
 			if payload == nil {
 				return nil
 			}
-			p := payload.(*Peer)
+			p := payload.(*Metadata)
 			peerList.Peers = append(peerList.Peers, p)
 		}
 	})
@@ -106,8 +105,8 @@ func (s *memDBStore) Exists(id string) bool {
 	_, err := s.ByID(id)
 	return err == nil
 }
-func (s *memDBStore) ByID(id string) (*Peer, error) {
-	var peer *Peer
+func (s *memDBStore) ByID(id string) (*Metadata, error) {
+	var peer *Metadata
 	return peer, s.read(func(tx *memdb.Txn) error {
 		p, err := s.first(tx, "id", id)
 		if err != nil {
@@ -120,31 +119,31 @@ func (s *memDBStore) ByID(id string) (*Peer, error) {
 		return nil
 	})
 }
-func (s *memDBStore) All() (PeerList, error) {
-	return s.all().Filter(func(s *Peer) bool {
+func (s *memDBStore) All() (PeerMetadataList, error) {
+	return s.all().Filter(func(s *Metadata) bool {
 		return s.IsAdded()
 	}), nil
 }
 
-func (s *memDBStore) ByMeshID(id string) (*Peer, error) {
-	var peer *Peer
+func (s *memDBStore) ByMeshID(id string) (*Metadata, error) {
+	var peer *Metadata
 	err := s.read(func(tx *memdb.Txn) error {
-		data, err := tx.First("peers", "meshID", id)
+		data, err := tx.First(table, "meshID", id)
 		if err != nil || data == nil {
 			return ErrPeerNotFound
 		}
-		p := data.(*Peer)
+		p := data.(*Metadata)
 		peer = p
 		return nil
 	})
 	return peer, err
 }
 
-func (s *memDBStore) Upsert(p *Peer) error {
+func (s *memDBStore) Upsert(p *Metadata) error {
 	p.LastAdded = now()
 	return s.state.Upsert(p)
 }
-func (s *memDBStore) insert(peers []*Peer) error {
+func (s *memDBStore) insert(peers []*Metadata) error {
 	return s.write(func(tx *memdb.Txn) error {
 		for _, p := range peers {
 			if p.IsAdded() {
@@ -166,7 +165,7 @@ func (s *memDBStore) insert(peers []*Peer) error {
 					Key:   PeerDeleted + "/" + p.ID,
 				})
 			}
-			err := tx.Insert("peers", p)
+			err := tx.Insert(table, p)
 			if err != nil {
 				return err
 			}
@@ -202,17 +201,17 @@ func (s *memDBStore) run(tx *memdb.Txn, statement func(tx *memdb.Txn) error) err
 	return nil
 }
 
-func (s *memDBStore) first(tx *memdb.Txn, idx, id string) (*Peer, error) {
-	data, err := tx.First("peers", idx, id)
+func (s *memDBStore) first(tx *memdb.Txn, idx, id string) (*Metadata, error) {
+	data, err := tx.First(table, idx, id)
 	if err != nil || data == nil {
-		return &Peer{}, ErrPeerNotFound
+		return &Metadata{}, ErrPeerNotFound
 	}
-	p := data.(*Peer)
+	p := data.(*Metadata)
 	return p, nil
 }
 
-func (s *memDBStore) On(event string, handler func(*Peer)) func() {
+func (s *memDBStore) On(event string, handler func(*Metadata)) func() {
 	return s.events.Subscribe(event, func(ev events.Event) {
-		handler(ev.Entry.(*Peer))
+		handler(ev.Entry.(*Metadata))
 	})
 }
