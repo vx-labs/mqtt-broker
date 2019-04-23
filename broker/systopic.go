@@ -49,14 +49,14 @@ func (b *Broker) RetainThenDispatchToLocalSessions(tenant string, topic []byte, 
 	}
 }
 func (b *Broker) setupSYSTopic() {
-	b.Peers.On(peers.PeerCreated, func(s *peers.Metadata) {
+	b.Peers.On(peers.PeerCreated, func(s peers.Peer) {
 		payload, err := json.Marshal(s)
 		if err == nil {
 			topic := []byte(fmt.Sprintf("$SYS/peers/%s", s.ID))
 			b.RetainThenDispatchToLocalSessions("_default", topic, payload, 1)
 		}
 	})
-	b.Peers.On(peers.PeerDeleted, func(s *peers.Metadata) {
+	b.Peers.On(peers.PeerDeleted, func(s peers.Peer) {
 		topic := []byte(fmt.Sprintf("$SYS/peers/%s", s.ID))
 		b.RetainThenDispatchToLocalSessions("_default", topic, nil, 1)
 	})

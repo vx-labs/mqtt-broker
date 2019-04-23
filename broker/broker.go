@@ -36,13 +36,12 @@ const (
 )
 
 type PeerStore interface {
-	ByID(id string) (*peers.Metadata, error)
-	All() (peers.PeerMetadataList, error)
-	ByMeshID(id string) (*peers.Metadata, error)
-	Upsert(sess *peers.Metadata) error
+	ByID(id string) (peers.Peer, error)
+	All() (peers.SubscriptionSet, error)
+	ByMeshID(id string) (peers.Peer, error)
+	Upsert(sess peers.Peer) error
 	Delete(id string) error
-	On(event string, handler func(*peers.Metadata)) func()
-	DumpPeers() *peers.PeerMetadataList
+	On(event string, handler func(peers.Peer)) func()
 }
 type SessionStore interface {
 	ByID(id string) (sessions.Session, error)
@@ -226,13 +225,15 @@ func New(id identity.Identity, config Config) *Broker {
 		hostname = "not_available"
 	}
 	broker.ID = id.ID()
-	broker.Peers.Upsert(&peers.Metadata{
-		ID:       broker.ID,
-		MeshID:   broker.ID,
-		Hostname: hostname,
-		Runtime:  runtime.Version(),
-		Services: hostedServices,
-		Started:  time.Now().Unix(),
+	broker.Peers.Upsert(peers.Peer{
+		Metadata: peers.Metadata{
+			ID:       broker.ID,
+			MeshID:   broker.ID,
+			Hostname: hostname,
+			Runtime:  runtime.Version(),
+			Services: hostedServices,
+			Started:  time.Now().Unix(),
+		},
 	})
 	go broker.oSStatsReporter()
 	return broker

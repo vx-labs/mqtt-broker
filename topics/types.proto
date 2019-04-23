@@ -12,5 +12,5 @@ message Metadata {
 }
 
 message RetainedMessageMetadataList {
-  repeated Metadata RetainedMessages = 1;
+  repeated Metadata Metadatas = 1;
 }

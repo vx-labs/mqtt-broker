@@ -16,15 +16,15 @@ func TestPeerStore(t *testing.T) {
 	store, _ := NewPeerStore(cluster.MockedMesh())
 
 	t.Run("create", func(t *testing.T) {
-		err := store.Upsert(&Metadata{
+		err := store.Upsert(Peer{Metadata: Metadata{
 			ID:     peerID,
 			MeshID: "1",
-		})
+		}})
 		assert.Nil(t, err)
-		err = store.Upsert(&Metadata{
+		err = store.Upsert(Peer{Metadata: Metadata{
 			ID:     "3",
 			MeshID: "2",
-		})
+		}})
 		assert.Nil(t, err)
 	})
 
@@ -32,7 +32,7 @@ func TestPeerStore(t *testing.T) {
 	t.Run("All", func(t *testing.T) {
 		set, err := store.All()
 		require.Nil(t, err)
-		assert.Equal(t, 2, len(set.Peers))
+		assert.Equal(t, 2, len(set))
 	})
 	t.Run("lookup peer", func(t *testing.T) {
 		set, err := store.ByMeshID("2")
