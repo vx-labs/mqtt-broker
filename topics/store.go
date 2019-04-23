@@ -29,7 +29,8 @@ var (
 
 const (
 	RetainedMessageCreated string = "retained_message_created"
-	RetainedMessageDeleted string = "retained_message_deleted"
+	RetainedMessageDeleted        = "retained_message_deleted"
+	table                         = "messages"
 )
 
 func MakeTopicID(tenant string, topic []byte) (string, error) {
@@ -52,8 +53,8 @@ var now = func() int64 {
 func NewMemDBStore(mesh cluster.Mesh) (*memDBStore, error) {
 	db, err := memdb.NewMemDB(&memdb.DBSchema{
 		Tables: map[string]*memdb.TableSchema{
-			"messages": &memdb.TableSchema{
-				Name: "messages",
+			table: &memdb.TableSchema{
+				Name: table,
 				Indexes: map[string]*memdb.IndexSchema{
 					"id": &memdb.IndexSchema{
 						Name:         "id",
@@ -190,7 +191,7 @@ func (m *memDBStore) insert(messages []*RetainedMessage) error {
 					return err
 				}
 			}
-			err := tx.Insert("messages", message)
+			err := tx.Insert(table, message)
 			if err != nil {
 				return err
 			}
