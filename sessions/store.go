@@ -8,7 +8,6 @@ import (
 	"github.com/vx-labs/mqtt-broker/crdt"
 
 	"github.com/vx-labs/mqtt-broker/broker/cluster"
-	"github.com/vx-labs/mqtt-broker/events"
 
 	memdb "github.com/hashicorp/go-memdb"
 )
@@ -46,16 +45,18 @@ type SessionStore interface {
 	Exists(id string) bool
 	Delete(id, reason string) error
 	Upsert(sess Session, closer func() error) error
-	On(event string, handler func(Session)) func()
 }
 
+type Logger interface {
+	Printf(string, ...interface{})
+}
 type memDBStore struct {
 	db      *memdb.MemDB
-	events  *events.Bus
+	logger  Logger
 	channel Channel
 }
 
-func NewSessionStore(mesh cluster.Mesh) (SessionStore, error) {
+func NewSessionStore(mesh cluster.Mesh, logger Logger) (SessionStore, error) {
 	db, err := memdb.NewMemDB(&memdb.DBSchema{
 		Tables: map[string]*memdb.TableSchema{
 			memdbTable: {
@@ -100,7 +101,7 @@ func NewSessionStore(mesh cluster.Mesh) (SessionStore, error) {
 	}
 	s := &memDBStore{
 		db:     db,
-		events: events.NewEventBus(),
+		logger: logger,
 	}
 	s.channel, err = mesh.AddState("mqtt-sessions", s)
 	go func() {
@@ -205,24 +206,10 @@ func (s *memDBStore) Upsert(sess Session, closer func() error) error {
 }
 func (s *memDBStore) emitSessionEvent(sess Session) {
 	if crdt.IsEntryAdded(&sess) {
-		s.events.Emit(events.Event{
-			Entry: sess,
-			Key:   SessionCreated,
-		})
-		s.events.Emit(events.Event{
-			Entry: sess,
-			Key:   SessionCreated + "/" + sess.ID,
-		})
+		s.logger.Printf("session created: %s", sess.ClientID)
 	}
 	if crdt.IsEntryRemoved(&sess) {
-		s.events.Emit(events.Event{
-			Entry: sess,
-			Key:   SessionDeleted,
-		})
-		s.events.Emit(events.Event{
-			Entry: sess,
-			Key:   SessionDeleted + "/" + sess.ID,
-		})
+		s.logger.Printf("session deleted: %s", sess.ClientID)
 	}
 }
 func (s *memDBStore) insert(sess Session) error {
@@ -266,10 +253,4 @@ func (s *memDBStore) first(tx *memdb.Txn, idx, id string) (Session, error) {
 	}
 	sess := data.(Session)
 	return sess, nil
-}
-
-func (s *memDBStore) On(event string, handler func(Session)) func() {
-	return s.events.Subscribe(event, func(ev events.Event) {
-		handler(ev.Entry.(Session))
-	})
 }

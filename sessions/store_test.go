@@ -1,6 +1,8 @@
 package sessions
 
 import (
+	"io/ioutil"
+	"log"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -15,7 +17,7 @@ func returnNilErr() error {
 	return nil
 }
 func TestSessionStore(t *testing.T) {
-	store, _ := NewSessionStore(cluster.MockedMesh())
+	store, _ := NewSessionStore(cluster.MockedMesh(), log.New(ioutil.Discard, "", 0))
 
 	t.Run("create", func(t *testing.T) {
 		err := store.Upsert(Session{

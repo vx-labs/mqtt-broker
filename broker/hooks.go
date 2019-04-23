@@ -164,10 +164,7 @@ func (b *Broker) OnConnect(transportSession *listener.Session) (int32, error) {
 			KeepaliveInterval: connectPkt.KeepaliveTimer,
 		},
 	}
-	err = b.Sessions.Upsert(sess, transportSession.Close)
-	if err != nil {
-		return packet.CONNACK_REFUSED_SERVER_UNAVAILABLE, err
-	}
+
 	var cancels []func()
 	cancels = []func(){
 		transportSession.OnSubscribe(func(p *packet.Subscribe) {
@@ -201,33 +198,35 @@ func (b *Broker) OnConnect(transportSession *listener.Session) (int32, error) {
 		}),
 		transportSession.OnLost(func() {
 			b.Sessions.Delete(sess.ID, "session_lost")
+			if len(sess.WillTopic) > 0 {
+				b.OnPublish(sess, &packet.Publish{
+					Header: &packet.Header{
+						Dup:    false,
+						Retain: sess.WillRetain,
+						Qos:    sess.WillQoS,
+					},
+					Payload: sess.WillPayload,
+					Topic:   sess.WillTopic,
+				})
+			}
 		}),
 		b.OnMessagePublished(transportSession.ID(), func(p *packet.Publish) {
 			transportSession.Publish(p)
 		}),
-		b.Sessions.On(sessions.SessionDeleted+"/"+id, func(s sessions.Session) {
-			for _, cancel := range cancels {
-				cancel()
-			}
-			transportSession.Close()
-			err := b.deleteSessionSubscriptions(sess)
-			if err != nil {
-				log.Printf("WARN: failed to delete session subscriptions: %v", err)
-			}
-			if s.ClosureReason == "session_lost" {
-				if len(sess.WillTopic) > 0 {
-					b.OnPublish(sess, &packet.Publish{
-						Header: &packet.Header{
-							Dup:    false,
-							Retain: sess.WillRetain,
-							Qos:    sess.WillQoS,
-						},
-						Payload: sess.WillPayload,
-						Topic:   sess.WillTopic,
-					})
-				}
-			}
-		}),
+	}
+	err = b.Sessions.Upsert(sess, func() error {
+		for _, cancel := range cancels {
+			cancel()
+		}
+		transportSession.Close()
+		err := b.deleteSessionSubscriptions(sess)
+		if err != nil {
+			log.Printf("WARN: failed to delete session subscriptions: %v", err)
+		}
+		return nil
+	})
+	if err != nil {
+		return packet.CONNACK_REFUSED_SERVER_UNAVAILABLE, err
 	}
 	return packet.CONNACK_CONNECTION_ACCEPTED, nil
 }

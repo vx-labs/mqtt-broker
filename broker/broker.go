@@ -10,6 +10,7 @@ import (
 	"runtime"
 	"time"
 
+	"github.com/sirupsen/logrus"
 	"github.com/vx-labs/mqtt-broker/broker/cluster"
 
 	"github.com/vx-labs/mqtt-broker/events"
@@ -51,7 +52,6 @@ type SessionStore interface {
 	Exists(id string) bool
 	Upsert(sess sessions.Session, closer func() error) error
 	Delete(id, reason string) error
-	On(event string, handler func(sessions.Session)) func()
 }
 
 type TopicStore interface {
@@ -151,7 +151,7 @@ func New(id identity.Identity, config Config) *Broker {
 		log.Fatal(err)
 	}
 	hostedServices = append(hostedServices, "topics-store")
-	sessionsStore, err := sessions.NewSessionStore(broker.mesh)
+	sessionsStore, err := sessions.NewSessionStore(broker.mesh, logrus.New().WithField("source", "session_store"))
 	if err != nil {
 		log.Fatal(err)
 	}
