@@ -13,12 +13,10 @@ import (
 
 	memdb "github.com/hashicorp/go-memdb"
 	"github.com/vx-labs/mqtt-broker/events"
-	"github.com/vx-labs/mqtt-broker/state"
 )
 
 type memDBStore struct {
 	db         *memdb.MemDB
-	state      *state.Store
 	topicIndex *topicIndexer
 	events     *events.Bus
 	channel    Channel

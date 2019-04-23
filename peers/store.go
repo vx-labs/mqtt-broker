@@ -10,7 +10,6 @@ import (
 	"github.com/vx-labs/mqtt-broker/events"
 
 	memdb "github.com/hashicorp/go-memdb"
-	"github.com/vx-labs/mqtt-broker/state"
 )
 
 const (
@@ -45,7 +44,6 @@ type PeerStore interface {
 
 type memDBStore struct {
 	db      *memdb.MemDB
-	state   *state.Store
 	events  *events.Bus
 	channel Channel
 }
