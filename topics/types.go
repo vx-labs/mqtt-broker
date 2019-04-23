@@ -8,11 +8,12 @@ type Store interface {
 	All() (RetainedMessageMetadataList, error)
 }
 
-type retainedMessageFilter func(*Metadata) bool
+type retainedMessageFilter func(RetainedMessage) bool
+type RetainedMessageSet []RetainedMessage
 
-func (set RetainedMessageMetadataList) Filter(filters ...retainedMessageFilter) RetainedMessageMetadataList {
-	copy := make([]*Metadata, 0, len(set.Metadatas))
-	for _, message := range set.Metadatas {
+func (set RetainedMessageSet) Filter(filters ...retainedMessageFilter) RetainedMessageSet {
+	copy := make(RetainedMessageSet, 0, len(set))
+	for _, message := range set {
 		accepted := true
 		for _, f := range filters {
 			if !f(message) {
@@ -24,19 +25,17 @@ func (set RetainedMessageMetadataList) Filter(filters ...retainedMessageFilter) 
 			copy = append(copy, message)
 		}
 	}
-	return RetainedMessageMetadataList{
-		Metadatas: copy,
-	}
+	return copy
 }
 
-func (set RetainedMessageMetadataList) Apply(f func(s *Metadata)) {
-	for _, message := range set.Metadatas {
+func (set RetainedMessageSet) Apply(f func(s RetainedMessage)) {
+	for _, message := range set {
 		f(message)
 	}
 }
 
-func (set RetainedMessageMetadataList) ApplyE(f func(s *Metadata) error) error {
-	for _, message := range set.Metadatas {
+func (set RetainedMessageSet) ApplyE(f func(s RetainedMessage) error) error {
+	for _, message := range set {
 		if err := f(message); err != nil {
 			return err
 		}
@@ -45,12 +44,12 @@ func (set RetainedMessageMetadataList) ApplyE(f func(s *Metadata) error) error {
 }
 
 func HasID(id string) retainedMessageFilter {
-	return func(s *Metadata) bool {
+	return func(s RetainedMessage) bool {
 		return s.ID == id
 	}
 }
 func MatchTopicPattern(pattern []byte) retainedMessageFilter {
-	return func(s *Metadata) bool {
+	return func(s RetainedMessage) bool {
 		t := NewTopic(s.Topic)
 		return t.Match(pattern)
 	}
@@ -60,35 +59,18 @@ func HasIDIn(set []string) retainedMessageFilter {
 	for _, id := range set {
 		wantedIDs[id] = struct{}{}
 	}
-	return func(s *Metadata) bool {
+	return func(s RetainedMessage) bool {
 		_, ok := wantedIDs[s.ID]
 		return ok
 	}
 }
 func HasTenant(tenant string) retainedMessageFilter {
-	return func(s *Metadata) bool {
+	return func(s RetainedMessage) bool {
 		return s.Tenant == tenant
 	}
 }
-func (set RetainedMessageMetadataList) ApplyIdx(f func(idx int, s *Metadata)) {
-	for idx, session := range set.Metadatas {
+func (set RetainedMessageSet) ApplyIdx(f func(idx int, s RetainedMessage)) {
+	for idx, session := range set {
 		f(idx, session)
 	}
-}
-
-func (s *Metadata) IsAdded() bool {
-	return s.LastAdded > 0 && s.LastAdded > s.LastDeleted
-}
-func (s *Metadata) IsRemoved() bool {
-	return s.LastDeleted > 0 && s.LastAdded < s.LastDeleted
-}
-
-func IsOutdated(s *Metadata, remote *Metadata) (outdated bool) {
-	if s.LastAdded < remote.LastAdded {
-		outdated = true
-	}
-	if s.LastDeleted < remote.LastDeleted {
-		outdated = true
-	}
-	return outdated
 }

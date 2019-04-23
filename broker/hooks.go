@@ -62,7 +62,7 @@ func (b *Broker) OnSubscribe(transportSession *listener.Session, sess sessions.S
 		}
 		packetQoS := p.Qos[idx]
 		go func() {
-			set.Apply(func(message *topics.Metadata) {
+			set.Apply(func(message topics.RetainedMessage) {
 				qos := getLowerQoS(message.Qos, packetQoS)
 				transportSession.Publish(&packet.Publish{
 					Header: &packet.Header{
@@ -241,11 +241,13 @@ func (b *Broker) OnPublish(sess sessions.Session, p *packet.Publish) error {
 		}
 	}
 	if p.Header.Retain {
-		message := &topics.Metadata{
-			Payload: p.Payload,
-			Qos:     p.Header.Qos,
-			Tenant:  sess.Tenant,
-			Topic:   p.Topic,
+		message := topics.RetainedMessage{
+			Metadata: topics.Metadata{
+				Payload: p.Payload,
+				Qos:     p.Header.Qos,
+				Tenant:  sess.Tenant,
+				Topic:   p.Topic,
+			},
 		}
 		err := b.Topics.Create(message)
 		if err != nil {

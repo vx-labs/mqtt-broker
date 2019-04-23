@@ -11,7 +11,7 @@ var (
 
 type Node struct {
 	Id       string
-	Message  *Metadata
+	Message  RetainedMessage
 	Tenant   string
 	mutex    sync.RWMutex
 	children map[string]*Node
@@ -100,7 +100,6 @@ func (n *Node) Upsert(tenant string, topic *Topic) *Node {
 	}
 	if read {
 		return child.Upsert(tenant, topic)
-	} else {
-		return child
 	}
+	return child
 }

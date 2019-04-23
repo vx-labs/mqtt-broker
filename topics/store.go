@@ -4,7 +4,10 @@ import (
 	"crypto/sha1"
 	"errors"
 	"fmt"
+	"log"
 	"time"
+
+	"github.com/vx-labs/mqtt-broker/crdt"
 
 	"github.com/vx-labs/mqtt-broker/broker/cluster"
 
@@ -18,6 +21,7 @@ type memDBStore struct {
 	state      *state.Store
 	topicIndex *topicIndexer
 	events     *events.Bus
+	channel    Channel
 }
 type Channel interface {
 	Broadcast([]byte)
@@ -33,7 +37,11 @@ const (
 	table                         = "messages"
 )
 
-func MakeTopicID(tenant string, topic []byte) (string, error) {
+type RetainedMessage struct {
+	Metadata
+}
+
+func makeTopicID(tenant string, topic []byte) (string, error) {
 	hash := sha1.New()
 	_, err := hash.Write([]byte(tenant))
 	if err != nil {
@@ -82,97 +90,95 @@ func NewMemDBStore(mesh cluster.Mesh) (*memDBStore, error) {
 		topicIndex: TenantTopicIndexer(),
 		events:     events.NewEventBus(),
 	}
-	state, err := state.NewStore("mqtt-topics", mesh, s)
-	if err != nil {
-		return nil, err
-	}
-	s.state = state
+	s.channel, err = mesh.AddState("mqtt-topics", s)
+	go func() {
+		for range time.Tick(1 * time.Hour) {
+			err := s.runGC()
+			if err != nil {
+				log.Printf("WARN: failed to GC sessions: %v", err)
+			}
+		}
+	}()
 	return s, nil
 }
 
-func (m *memDBStore) ByID(id string) (*Metadata, error) {
-	var res *Metadata
+func (m *memDBStore) ByID(id string) (RetainedMessage, error) {
+	var res RetainedMessage
 	return res, m.read(func(tx *memdb.Txn) (err error) {
 		res, err = m.first(tx, "id", id)
-		if res.IsRemoved() {
+		if crdt.IsEntryRemoved(&res) {
 			return ErrRetainedMessageNotFound
 		}
 		return
 	})
 }
-func (m *memDBStore) All() (RetainedMessageMetadataList, error) {
-	var res RetainedMessageMetadataList
+func (m *memDBStore) All() (RetainedMessageSet, error) {
+	var res RetainedMessageSet
 	return res, m.read(func(tx *memdb.Txn) (err error) {
 		res, err = m.all(tx, "id")
 		return
 	})
 }
-func (m *memDBStore) ByTenant(tenant string) (RetainedMessageMetadataList, error) {
-	var res RetainedMessageMetadataList
+func (m *memDBStore) ByTenant(tenant string) (RetainedMessageSet, error) {
+	var res RetainedMessageSet
 	return res, m.read(func(tx *memdb.Txn) (err error) {
 		res, err = m.all(tx, "tenant", tenant)
 		return
 	})
 }
-func (m *memDBStore) ByTopicPattern(tenant string, pattern []byte) (RetainedMessageMetadataList, error) {
+func (m *memDBStore) ByTopicPattern(tenant string, pattern []byte) (RetainedMessageSet, error) {
 	set, err := m.topicIndex.Lookup(tenant, pattern)
 	if err != nil {
-		return RetainedMessageMetadataList{}, err
+		return RetainedMessageSet{}, err
 	}
-	return set.Filter(func(m *Metadata) bool {
+	return set.Filter(func(m RetainedMessage) bool {
 		return len(m.Payload) > 0
 	}), nil
 }
-func (m *memDBStore) Create(message *Metadata) error {
-	if message.ID == "" {
-		id, err := MakeTopicID(message.Tenant, message.Topic)
-		if err != nil {
-			return err
-		}
-		message.ID = id
-	}
-	message.LastAdded = now()
-	err := m.topicIndex.Index(message)
+func (s *memDBStore) Create(sess RetainedMessage) error {
+	sess.LastAdded = now()
+	err := s.topicIndex.Index(sess)
 	if err != nil {
 		return err
 	}
-	return m.state.Upsert(message)
+	return s.insert(sess)
 }
-func (m *memDBStore) insert(messages []*Metadata) error {
+func (m *memDBStore) insert(message RetainedMessage) error {
 	return m.write(func(tx *memdb.Txn) error {
-		for _, message := range messages {
-			if message.IsAdded() {
-				m.events.Emit(events.Event{
-					Key:   RetainedMessageCreated,
-					Entry: message,
-				})
-				err := m.topicIndex.Index(message)
-				if err != nil {
-					return err
-				}
-			}
-			if message.IsRemoved() {
-				m.events.Emit(events.Event{
-					Key:   RetainedMessageDeleted,
-					Entry: message,
-				})
-				message.Payload = nil
-				err := m.topicIndex.Index(message)
-				if err != nil {
-					return err
-				}
-			}
-			err := tx.Insert(table, message)
-			if err != nil {
-				return err
-			}
+		m.emitRetainedMessageEvent(message)
+		err := tx.Insert(table, message)
+		if err != nil {
+			return err
 		}
 		tx.Commit()
 		return nil
 	})
 }
-func (s *memDBStore) On(event string, handler func(*Metadata)) func() {
+func (s *memDBStore) On(event string, handler func(RetainedMessage)) func() {
 	return s.events.Subscribe(event, func(ev events.Event) {
-		handler(ev.Entry.(*Metadata))
+		handler(ev.Entry.(RetainedMessage))
 	})
+}
+
+func (s *memDBStore) emitRetainedMessageEvent(sess RetainedMessage) {
+	if crdt.IsEntryAdded(&sess) {
+		s.events.Emit(events.Event{
+			Entry: sess,
+			Key:   RetainedMessageCreated,
+		})
+		s.events.Emit(events.Event{
+			Entry: sess,
+			Key:   RetainedMessageCreated + "/" + sess.ID,
+		})
+	}
+	if crdt.IsEntryRemoved(&sess) {
+		s.events.Emit(events.Event{
+			Entry: sess,
+			Key:   RetainedMessageDeleted,
+		})
+		s.events.Emit(events.Event{
+			Entry: sess,
+			Key:   RetainedMessageDeleted + "/" + sess.ID,
+		})
+	}
 }

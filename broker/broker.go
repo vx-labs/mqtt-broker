@@ -14,7 +14,6 @@ import (
 
 	"github.com/vx-labs/mqtt-broker/events"
 	"github.com/vx-labs/mqtt-broker/peers"
-	"github.com/vx-labs/mqtt-broker/state"
 
 	"github.com/vx-labs/mqtt-broker/sessions"
 	"github.com/vx-labs/mqtt-broker/topics"
@@ -57,12 +56,10 @@ type SessionStore interface {
 }
 
 type TopicStore interface {
-	state.Backend
-	Create(message *topics.Metadata) error
-	ByTopicPattern(tenant string, pattern []byte) (topics.RetainedMessageMetadataList, error)
-	All() (topics.RetainedMessageMetadataList, error)
-	On(event string, handler func(*topics.Metadata)) func()
-	DumpRetainedMessages() *topics.RetainedMessageMetadataList
+	Create(message topics.RetainedMessage) error
+	ByTopicPattern(tenant string, pattern []byte) (topics.RetainedMessageSet, error)
+	All() (topics.RetainedMessageSet, error)
+	On(event string, handler func(topics.RetainedMessage)) func()
 }
 type SubscriptionStore interface {
 	ByTopic(tenant string, pattern []byte) (subscriptions.SubscriptionSet, error)
@@ -263,11 +260,13 @@ func (b *Broker) onPeerDown(name string) {
 	}
 	sessionSet.Apply(func(s sessions.Session) {
 		if s.WillRetain {
-			retainedMessage := &topics.Metadata{
-				Payload: s.WillPayload,
-				Qos:     s.WillQoS,
-				Tenant:  s.Tenant,
-				Topic:   s.WillTopic,
+			retainedMessage := topics.RetainedMessage{
+				Metadata: topics.Metadata{
+					Payload: s.WillPayload,
+					Qos:     s.WillQoS,
+					Tenant:  s.Tenant,
+					Topic:   s.WillTopic,
+				},
 			}
 			b.Topics.Create(retainedMessage)
 		}

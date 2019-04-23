@@ -10,19 +10,19 @@ func TenantTopicIndexer() *topicIndexer {
 	}
 }
 
-func (t *topicIndexer) Lookup(tenant string, pattern []byte) (RetainedMessageMetadataList, error) {
-	var vals RetainedMessageMetadataList
+func (t *topicIndexer) Lookup(tenant string, pattern []byte) (RetainedMessageSet, error) {
+	var vals RetainedMessageSet
 	topic := NewTopic(pattern)
 	t.root.Apply(tenant, topic, func(node *Node) bool {
-		if node.Message != nil {
-			vals.Metadatas = append(vals.Metadatas, node.Message)
+		if len(node.Message.Payload) > 0 {
+			vals = append(vals, node.Message)
 		}
 		return false
 	})
 	return vals, nil
 }
 
-func (s *topicIndexer) Index(message *Metadata) error {
+func (s *topicIndexer) Index(message RetainedMessage) error {
 	topic := NewTopic(message.GetTopic())
 	node := s.root.Upsert(message.GetTenant(), topic)
 	node.Message = message

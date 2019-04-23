@@ -3,6 +3,8 @@ package topics
 import (
 	"errors"
 
+	"github.com/vx-labs/mqtt-broker/crdt"
+
 	memdb "github.com/hashicorp/go-memdb"
 )
 
@@ -18,21 +20,21 @@ func (m *memDBStore) write(f func(*memdb.Txn) error) error {
 	return m.do(true, f)
 }
 
-func (m *memDBStore) first(tx *memdb.Txn, index string, value ...interface{}) (*Metadata, error) {
+func (m *memDBStore) first(tx *memdb.Txn, index string, value ...interface{}) (RetainedMessage, error) {
 	var ok bool
-	var res *Metadata
+	var res RetainedMessage
 	data, err := tx.First("messages", index, value...)
 	if err != nil {
 		return res, err
 	}
-	res, ok = data.(*Metadata)
+	res, ok = data.(RetainedMessage)
 	if !ok {
 		return res, errors.New("invalid type fetched")
 	}
 	return res, nil
 }
-func (m *memDBStore) all(tx *memdb.Txn, index string, value ...interface{}) (RetainedMessageMetadataList, error) {
-	var set RetainedMessageMetadataList
+func (m *memDBStore) all(tx *memdb.Txn, index string, value ...interface{}) (RetainedMessageSet, error) {
+	var set RetainedMessageSet
 	iterator, err := tx.Get("messages", index, value...)
 	if err != nil {
 		return set, err
@@ -42,12 +44,12 @@ func (m *memDBStore) all(tx *memdb.Txn, index string, value ...interface{}) (Ret
 		if data == nil {
 			return set, nil
 		}
-		res, ok := data.(*Metadata)
+		res, ok := data.(RetainedMessage)
 		if !ok {
 			return set, errors.New("invalid type fetched")
 		}
-		if res.IsAdded() {
-			set.Metadatas = append(set.Metadatas, res)
+		if crdt.IsEntryAdded(&res) {
+			set = append(set, res)
 		}
 	}
 }

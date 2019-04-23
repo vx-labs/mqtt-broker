@@ -14,11 +14,13 @@ import (
 )
 
 func (b *Broker) retainMessage(tenant string, topic []byte, payload []byte, qos int32) error {
-	return b.Topics.Create(&topics.Metadata{
-		Tenant:  tenant,
-		Topic:   topic,
-		Payload: payload,
-		Qos:     qos,
+	return b.Topics.Create(topics.RetainedMessage{
+		Metadata: topics.Metadata{
+			Tenant:  tenant,
+			Topic:   topic,
+			Payload: payload,
+			Qos:     qos,
+		},
 	})
 }
 func (b *Broker) dispatchToLocalSessions(tenant string, topic []byte, payload []byte, defaultQoS int32) {
