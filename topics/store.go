@@ -136,9 +136,11 @@ func (m *memDBStore) ByTopicPattern(tenant string, pattern []byte) (RetainedMess
 func (s *memDBStore) Create(sess RetainedMessage) error {
 	sess.LastAdded = now()
 	var err error
-	sess.ID, err = makeTopicID(sess.Tenant, sess.Topic)
-	if err != nil {
-		return err
+	if sess.ID == "" {
+		sess.ID, err = makeTopicID(sess.Tenant, sess.Topic)
+		if err != nil {
+			return err
+		}
 	}
 	err = s.topicIndex.Index(sess)
 	if err != nil {
