@@ -7,33 +7,33 @@ import (
 )
 
 var _ state.Backend = &memDBStore{}
-var _ state.EntrySet = &RetainedMessageList{}
+var _ state.EntrySet = &RetainedMessageMetadataList{}
 
-func (e *RetainedMessageList) Append(entry state.Entry) {
-	sub := entry.(*RetainedMessage)
-	e.RetainedMessages = append(e.RetainedMessages, sub)
+func (e *RetainedMessageMetadataList) Append(entry state.Entry) {
+	sub := entry.(*Metadata)
+	e.Metadatas = append(e.Metadatas, sub)
 }
-func (e *RetainedMessageList) Length() int {
-	return len(e.RetainedMessages)
+func (e *RetainedMessageMetadataList) Length() int {
+	return len(e.Metadatas)
 }
-func (e *RetainedMessageList) New() state.EntrySet {
-	return &RetainedMessageList{}
+func (e *RetainedMessageMetadataList) New() state.EntrySet {
+	return &RetainedMessageMetadataList{}
 }
-func (e *RetainedMessageList) AtIndex(idx int) state.Entry {
-	return e.RetainedMessages[idx]
+func (e *RetainedMessageMetadataList) AtIndex(idx int) state.Entry {
+	return e.Metadatas[idx]
 }
-func (e *RetainedMessageList) Set(idx int, entry state.Entry) {
-	sub := entry.(*RetainedMessage)
-	e.RetainedMessages[idx] = sub
+func (e *RetainedMessageMetadataList) Set(idx int, entry state.Entry) {
+	sub := entry.(*Metadata)
+	e.Metadatas[idx] = sub
 }
-func (e *RetainedMessageList) Range(f func(idx int, entry state.Entry)) {
-	for idx, entry := range e.RetainedMessages {
+func (e *RetainedMessageMetadataList) Range(f func(idx int, entry state.Entry)) {
+	for idx, entry := range e.Metadatas {
 		f(idx, entry)
 	}
 }
 
 func (m *memDBStore) EntryByID(id string) (state.Entry, error) {
-	var session *RetainedMessage
+	var session *Metadata
 	err := m.read(func(tx *memdb.Txn) error {
 		sess, err := m.first(tx, "id", id)
 		if err != nil {
@@ -46,28 +46,28 @@ func (m *memDBStore) EntryByID(id string) (state.Entry, error) {
 }
 
 func (m *memDBStore) InsertEntries(entries state.EntrySet) error {
-	set := entries.(*RetainedMessageList)
-	return m.insert(set.RetainedMessages)
+	set := entries.(*RetainedMessageMetadataList)
+	return m.insert(set.Metadatas)
 }
 func (m *memDBStore) InsertEntry(entry state.Entry) error {
-	sub := entry.(*RetainedMessage)
-	return m.insert([]*RetainedMessage{
+	sub := entry.(*Metadata)
+	return m.insert([]*Metadata{
 		sub,
 	})
 }
 
 func (m *memDBStore) DecodeSet(buf []byte) (state.EntrySet, error) {
-	set := &RetainedMessageList{}
+	set := &RetainedMessageMetadataList{}
 	return set, proto.Unmarshal(buf, set)
 }
 func (m memDBStore) Set() state.EntrySet {
-	return &RetainedMessageList{}
+	return &RetainedMessageMetadataList{}
 }
 func (m memDBStore) Dump() state.EntrySet {
 	return m.DumpRetainedMessages()
 }
-func (m memDBStore) DumpRetainedMessages() *RetainedMessageList {
-	RetainedMessageList := RetainedMessageList{}
+func (m memDBStore) DumpRetainedMessages() *RetainedMessageMetadataList {
+	RetainedMessageList := RetainedMessageMetadataList{}
 	m.read(func(tx *memdb.Txn) error {
 		iterator, err := tx.Get("messages", "id")
 		if err != nil || iterator == nil {
@@ -78,15 +78,15 @@ func (m memDBStore) DumpRetainedMessages() *RetainedMessageList {
 			if payload == nil {
 				return nil
 			}
-			sess := payload.(*RetainedMessage)
-			RetainedMessageList.RetainedMessages = append(RetainedMessageList.RetainedMessages, sess)
+			sess := payload.(*Metadata)
+			RetainedMessageList.Metadatas = append(RetainedMessageList.Metadatas, sess)
 		}
 	})
 	return &RetainedMessageList
 }
 
 func (m *memDBStore) DeleteEntry(entry state.Entry) error {
-	RetainedMessage := entry.(*RetainedMessage)
+	RetainedMessage := entry.(*Metadata)
 	return m.write(func(tx *memdb.Txn) error {
 		err := tx.Delete("messages", RetainedMessage)
 		if err == nil {

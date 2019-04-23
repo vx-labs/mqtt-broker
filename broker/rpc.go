@@ -13,7 +13,7 @@ func (b *Broker) ListSessions() (sessions.SessionSet, error) {
 func (b *Broker) ListSubscriptions() (subscriptions.SubscriptionSet, error) {
 	return b.Subscriptions.All()
 }
-func (b *Broker) ListRetainedMessages() (topics.RetainedMessageList, error) {
+func (b *Broker) ListRetainedMessages() (topics.RetainedMessageMetadataList, error) {
 	return b.Topics.All()
 }
 func (b *Broker) CloseSession(id string) error {

@@ -1,16 +1,16 @@
 syntax = "proto3";
 package topics;
 
-message RetainedMessage {
-   string ID = 1;
-   string Tenant = 2;
-   bytes Topic = 3;
-   bytes Payload = 4;
-   int32 Qos = 5;
+message Metadata {
+  string ID = 1;
+  string Tenant = 2;
+  bytes Topic = 3;
+  bytes Payload = 4;
+  int32 Qos = 5;
   int64 LastAdded = 6;
   int64 LastDeleted = 7;
 }
 
-message RetainedMessageList {
-  repeated RetainedMessage RetainedMessages = 1;
+message RetainedMessageMetadataList {
+  repeated Metadata RetainedMessages = 1;
 }

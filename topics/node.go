@@ -11,7 +11,7 @@ var (
 
 type Node struct {
 	Id       string
-	Message  *RetainedMessage
+	Message  *Metadata
 	Tenant   string
 	mutex    sync.RWMutex
 	children map[string]*Node

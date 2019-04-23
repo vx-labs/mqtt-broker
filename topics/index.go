@@ -11,6 +11,6 @@ func (b *ByteSliceIndexer) FromArgs(opts ...interface{}) ([]byte, error) {
 }
 
 func (b *ByteSliceIndexer) FromObject(obj interface{}) (bool, []byte, error) {
-	message := obj.(*RetainedMessage)
+	message := obj.(*Metadata)
 	return true, append(message.GetTopic(), '\x00'), nil
 }

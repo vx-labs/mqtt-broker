@@ -3,16 +3,16 @@ package topics
 //go:generate protoc -I${GOPATH}/src -I${GOPATH}/src/github.com/vx-labs/mqtt-broker/topics/ --go_out=plugins=grpc:. types.proto
 
 type Store interface {
-	Create(message *RetainedMessage) error
-	ByTopicPattern(tenant string, pattern []byte) (RetainedMessageList, error)
-	All() (RetainedMessageList, error)
+	Create(message *Metadata) error
+	ByTopicPattern(tenant string, pattern []byte) (RetainedMessageMetadataList, error)
+	All() (RetainedMessageMetadataList, error)
 }
 
-type retainedMessageFilter func(*RetainedMessage) bool
+type retainedMessageFilter func(*Metadata) bool
 
-func (set RetainedMessageList) Filter(filters ...retainedMessageFilter) RetainedMessageList {
-	copy := make([]*RetainedMessage, 0, len(set.RetainedMessages))
-	for _, message := range set.RetainedMessages {
+func (set RetainedMessageMetadataList) Filter(filters ...retainedMessageFilter) RetainedMessageMetadataList {
+	copy := make([]*Metadata, 0, len(set.Metadatas))
+	for _, message := range set.Metadatas {
 		accepted := true
 		for _, f := range filters {
 			if !f(message) {
@@ -24,19 +24,19 @@ func (set RetainedMessageList) Filter(filters ...retainedMessageFilter) Retained
 			copy = append(copy, message)
 		}
 	}
-	return RetainedMessageList{
-		RetainedMessages: copy,
+	return RetainedMessageMetadataList{
+		Metadatas: copy,
 	}
 }
 
-func (set RetainedMessageList) Apply(f func(s *RetainedMessage)) {
-	for _, message := range set.RetainedMessages {
+func (set RetainedMessageMetadataList) Apply(f func(s *Metadata)) {
+	for _, message := range set.Metadatas {
 		f(message)
 	}
 }
 
-func (set RetainedMessageList) ApplyE(f func(s *RetainedMessage) error) error {
-	for _, message := range set.RetainedMessages {
+func (set RetainedMessageMetadataList) ApplyE(f func(s *Metadata) error) error {
+	for _, message := range set.Metadatas {
 		if err := f(message); err != nil {
 			return err
 		}
@@ -45,12 +45,12 @@ func (set RetainedMessageList) ApplyE(f func(s *RetainedMessage) error) error {
 }
 
 func HasID(id string) retainedMessageFilter {
-	return func(s *RetainedMessage) bool {
+	return func(s *Metadata) bool {
 		return s.ID == id
 	}
 }
 func MatchTopicPattern(pattern []byte) retainedMessageFilter {
-	return func(s *RetainedMessage) bool {
+	return func(s *Metadata) bool {
 		t := NewTopic(s.Topic)
 		return t.Match(pattern)
 	}
@@ -60,30 +60,30 @@ func HasIDIn(set []string) retainedMessageFilter {
 	for _, id := range set {
 		wantedIDs[id] = struct{}{}
 	}
-	return func(s *RetainedMessage) bool {
+	return func(s *Metadata) bool {
 		_, ok := wantedIDs[s.ID]
 		return ok
 	}
 }
 func HasTenant(tenant string) retainedMessageFilter {
-	return func(s *RetainedMessage) bool {
+	return func(s *Metadata) bool {
 		return s.Tenant == tenant
 	}
 }
-func (set RetainedMessageList) ApplyIdx(f func(idx int, s *RetainedMessage)) {
-	for idx, session := range set.RetainedMessages {
+func (set RetainedMessageMetadataList) ApplyIdx(f func(idx int, s *Metadata)) {
+	for idx, session := range set.Metadatas {
 		f(idx, session)
 	}
 }
 
-func (s *RetainedMessage) IsAdded() bool {
+func (s *Metadata) IsAdded() bool {
 	return s.LastAdded > 0 && s.LastAdded > s.LastDeleted
 }
-func (s *RetainedMessage) IsRemoved() bool {
+func (s *Metadata) IsRemoved() bool {
 	return s.LastDeleted > 0 && s.LastAdded < s.LastDeleted
 }
 
-func IsOutdated(s *RetainedMessage, remote *RetainedMessage) (outdated bool) {
+func IsOutdated(s *Metadata, remote *Metadata) (outdated bool) {
 	if s.LastAdded < remote.LastAdded {
 		outdated = true
 	}

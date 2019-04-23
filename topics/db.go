@@ -18,21 +18,21 @@ func (m *memDBStore) write(f func(*memdb.Txn) error) error {
 	return m.do(true, f)
 }
 
-func (m *memDBStore) first(tx *memdb.Txn, index string, value ...interface{}) (*RetainedMessage, error) {
+func (m *memDBStore) first(tx *memdb.Txn, index string, value ...interface{}) (*Metadata, error) {
 	var ok bool
-	var res *RetainedMessage
+	var res *Metadata
 	data, err := tx.First("messages", index, value...)
 	if err != nil {
 		return res, err
 	}
-	res, ok = data.(*RetainedMessage)
+	res, ok = data.(*Metadata)
 	if !ok {
 		return res, errors.New("invalid type fetched")
 	}
 	return res, nil
 }
-func (m *memDBStore) all(tx *memdb.Txn, index string, value ...interface{}) (RetainedMessageList, error) {
-	var set RetainedMessageList
+func (m *memDBStore) all(tx *memdb.Txn, index string, value ...interface{}) (RetainedMessageMetadataList, error) {
+	var set RetainedMessageMetadataList
 	iterator, err := tx.Get("messages", index, value...)
 	if err != nil {
 		return set, err
@@ -42,12 +42,12 @@ func (m *memDBStore) all(tx *memdb.Txn, index string, value ...interface{}) (Ret
 		if data == nil {
 			return set, nil
 		}
-		res, ok := data.(*RetainedMessage)
+		res, ok := data.(*Metadata)
 		if !ok {
 			return set, errors.New("invalid type fetched")
 		}
 		if res.IsAdded() {
-			set.RetainedMessages = append(set.RetainedMessages, res)
+			set.Metadatas = append(set.Metadatas, res)
 		}
 	}
 }

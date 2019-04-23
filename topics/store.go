@@ -90,8 +90,8 @@ func NewMemDBStore(mesh cluster.Mesh) (*memDBStore, error) {
 	return s, nil
 }
 
-func (m *memDBStore) ByID(id string) (*RetainedMessage, error) {
-	var res *RetainedMessage
+func (m *memDBStore) ByID(id string) (*Metadata, error) {
+	var res *Metadata
 	return res, m.read(func(tx *memdb.Txn) (err error) {
 		res, err = m.first(tx, "id", id)
 		if res.IsRemoved() {
@@ -100,30 +100,30 @@ func (m *memDBStore) ByID(id string) (*RetainedMessage, error) {
 		return
 	})
 }
-func (m *memDBStore) All() (RetainedMessageList, error) {
-	var res RetainedMessageList
+func (m *memDBStore) All() (RetainedMessageMetadataList, error) {
+	var res RetainedMessageMetadataList
 	return res, m.read(func(tx *memdb.Txn) (err error) {
 		res, err = m.all(tx, "id")
 		return
 	})
 }
-func (m *memDBStore) ByTenant(tenant string) (RetainedMessageList, error) {
-	var res RetainedMessageList
+func (m *memDBStore) ByTenant(tenant string) (RetainedMessageMetadataList, error) {
+	var res RetainedMessageMetadataList
 	return res, m.read(func(tx *memdb.Txn) (err error) {
 		res, err = m.all(tx, "tenant", tenant)
 		return
 	})
 }
-func (m *memDBStore) ByTopicPattern(tenant string, pattern []byte) (RetainedMessageList, error) {
+func (m *memDBStore) ByTopicPattern(tenant string, pattern []byte) (RetainedMessageMetadataList, error) {
 	set, err := m.topicIndex.Lookup(tenant, pattern)
 	if err != nil {
-		return RetainedMessageList{}, err
+		return RetainedMessageMetadataList{}, err
 	}
-	return set.Filter(func(m *RetainedMessage) bool {
+	return set.Filter(func(m *Metadata) bool {
 		return len(m.Payload) > 0
 	}), nil
 }
-func (m *memDBStore) Create(message *RetainedMessage) error {
+func (m *memDBStore) Create(message *Metadata) error {
 	if message.ID == "" {
 		id, err := MakeTopicID(message.Tenant, message.Topic)
 		if err != nil {
@@ -138,7 +138,7 @@ func (m *memDBStore) Create(message *RetainedMessage) error {
 	}
 	return m.state.Upsert(message)
 }
-func (m *memDBStore) insert(messages []*RetainedMessage) error {
+func (m *memDBStore) insert(messages []*Metadata) error {
 	return m.write(func(tx *memdb.Txn) error {
 		for _, message := range messages {
 			if message.IsAdded() {
@@ -171,8 +171,8 @@ func (m *memDBStore) insert(messages []*RetainedMessage) error {
 		return nil
 	})
 }
-func (s *memDBStore) On(event string, handler func(*RetainedMessage)) func() {
+func (s *memDBStore) On(event string, handler func(*Metadata)) func() {
 	return s.events.Subscribe(event, func(ev events.Event) {
-		handler(ev.Entry.(*RetainedMessage))
+		handler(ev.Entry.(*Metadata))
 	})
 }

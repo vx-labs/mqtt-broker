@@ -58,11 +58,11 @@ type SessionStore interface {
 
 type TopicStore interface {
 	state.Backend
-	Create(message *topics.RetainedMessage) error
-	ByTopicPattern(tenant string, pattern []byte) (topics.RetainedMessageList, error)
-	All() (topics.RetainedMessageList, error)
-	On(event string, handler func(*topics.RetainedMessage)) func()
-	DumpRetainedMessages() *topics.RetainedMessageList
+	Create(message *topics.Metadata) error
+	ByTopicPattern(tenant string, pattern []byte) (topics.RetainedMessageMetadataList, error)
+	All() (topics.RetainedMessageMetadataList, error)
+	On(event string, handler func(*topics.Metadata)) func()
+	DumpRetainedMessages() *topics.RetainedMessageMetadataList
 }
 type SubscriptionStore interface {
 	ByTopic(tenant string, pattern []byte) (subscriptions.SubscriptionSet, error)
@@ -263,7 +263,7 @@ func (b *Broker) onPeerDown(name string) {
 	}
 	sessionSet.Apply(func(s sessions.Session) {
 		if s.WillRetain {
-			retainedMessage := &topics.RetainedMessage{
+			retainedMessage := &topics.Metadata{
 				Payload: s.WillPayload,
 				Qos:     s.WillQoS,
 				Tenant:  s.Tenant,

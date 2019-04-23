@@ -10,19 +10,19 @@ import (
 func TestMemDB(t *testing.T) {
 	db, err := NewMemDBStore(cluster.MockedMesh())
 	assert.Nil(t, err)
-	assert.Nil(t, db.Create(&RetainedMessage{
+	assert.Nil(t, db.Create(&Metadata{
 		ID:      "a1",
 		Payload: []byte("bla"),
 		Tenant:  "tenant1",
 		Topic:   []byte("devices/a/temperature"),
 	}))
-	assert.Nil(t, db.Create(&RetainedMessage{
+	assert.Nil(t, db.Create(&Metadata{
 		ID:      "a2",
 		Payload: []byte("bla"),
 		Tenant:  "tenant1",
 		Topic:   []byte("devices/b/temperature"),
 	}))
-	assert.Nil(t, db.Create(&RetainedMessage{
+	assert.Nil(t, db.Create(&Metadata{
 		ID:      "b1",
 		Payload: []byte("bla"),
 		Tenant:  "tenant2",
@@ -30,36 +30,36 @@ func TestMemDB(t *testing.T) {
 	}))
 	m, err := db.ByTenant("tenant1")
 	assert.Nil(t, err)
-	if !assert.Equal(t, 2, len(m.RetainedMessages)) {
+	if !assert.Equal(t, 2, len(m.Metadatas)) {
 		t.Fail()
 		return
 	}
-	assert.Equal(t, "a1", m.RetainedMessages[0].ID)
-	assert.Equal(t, "a2", m.RetainedMessages[1].ID)
+	assert.Equal(t, "a1", m.Metadatas[0].ID)
+	assert.Equal(t, "a2", m.Metadatas[1].ID)
 	set, err := db.ByTopicPattern("tenant1", []byte("devices/+/+"))
 	assert.Nil(t, err)
-	assert.Equal(t, 2, len(set.RetainedMessages))
+	assert.Equal(t, 2, len(set.Metadatas))
 	set, err = db.ByTopicPattern("tenant1", []byte("devices/#"))
 	assert.Nil(t, err)
-	assert.Equal(t, 2, len(set.RetainedMessages))
+	assert.Equal(t, 2, len(set.Metadatas))
 }
 
 func TestMemDBDump(t *testing.T) {
 	db, err := NewMemDBStore(cluster.MockedMesh())
 	assert.Nil(t, err)
-	assert.Nil(t, db.Create(&RetainedMessage{
+	assert.Nil(t, db.Create(&Metadata{
 		ID:      "a1",
 		Payload: []byte("bla"),
 		Tenant:  "tenant1",
 		Topic:   []byte("devices/a/temperature"),
 	}))
-	assert.Nil(t, db.Create(&RetainedMessage{
+	assert.Nil(t, db.Create(&Metadata{
 		ID:      "a2",
 		Payload: []byte("bla"),
 		Tenant:  "tenant1",
 		Topic:   []byte("devices/b/temperature"),
 	}))
-	assert.Nil(t, db.Create(&RetainedMessage{
+	assert.Nil(t, db.Create(&Metadata{
 		ID:      "b1",
 		Payload: []byte("bla"),
 		Tenant:  "tenant2",
