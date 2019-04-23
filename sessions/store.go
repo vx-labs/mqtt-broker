@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/vx-labs/mqtt-broker/crdt"
+	"github.com/vx-labs/mqtt-broker/events"
 
 	"github.com/vx-labs/mqtt-broker/broker/cluster"
 
@@ -45,6 +46,7 @@ type SessionStore interface {
 	Exists(id string) bool
 	Delete(id, reason string) error
 	Upsert(sess Session, closer func() error) error
+	On(event string, handler func(Session)) func()
 }
 
 type Logger interface {
@@ -53,6 +55,7 @@ type Logger interface {
 type memDBStore struct {
 	db      *memdb.MemDB
 	logger  Logger
+	events  *events.Bus
 	channel Channel
 }
 
@@ -102,6 +105,7 @@ func NewSessionStore(mesh cluster.Mesh, logger Logger) (SessionStore, error) {
 	s := &memDBStore{
 		db:     db,
 		logger: logger,
+		events: events.NewEventBus(),
 	}
 	s.channel, err = mesh.AddState("mqtt-sessions", s)
 	go func() {
@@ -206,10 +210,24 @@ func (s *memDBStore) Upsert(sess Session, closer func() error) error {
 }
 func (s *memDBStore) emitSessionEvent(sess Session) {
 	if crdt.IsEntryAdded(&sess) {
-		s.logger.Printf("session created: %s", sess.ClientID)
+		s.events.Emit(events.Event{
+			Entry: sess,
+			Key:   SessionCreated,
+		})
+		s.events.Emit(events.Event{
+			Entry: sess,
+			Key:   SessionCreated + "/" + sess.ID,
+		})
 	}
 	if crdt.IsEntryRemoved(&sess) {
-		s.logger.Printf("session deleted: %s", sess.ClientID)
+		s.events.Emit(events.Event{
+			Entry: sess,
+			Key:   SessionDeleted,
+		})
+		s.events.Emit(events.Event{
+			Entry: sess,
+			Key:   SessionDeleted + "/" + sess.ID,
+		})
 	}
 }
 func (s *memDBStore) insert(sess Session) error {
@@ -253,4 +271,9 @@ func (s *memDBStore) first(tx *memdb.Txn, idx, id string) (Session, error) {
 	}
 	sess := data.(Session)
 	return sess, nil
+}
+func (s *memDBStore) On(event string, handler func(Session)) func() {
+	return s.events.Subscribe(event, func(ev events.Event) {
+		handler(ev.Entry.(Session))
+	})
 }

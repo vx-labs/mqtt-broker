@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/vx-labs/mqtt-broker/sessions"
 	"github.com/vx-labs/mqtt-broker/topics"
 	"github.com/vx-labs/mqtt-protocol/packet"
 
@@ -70,4 +71,16 @@ func (b *Broker) setupSYSTopic() {
 		topic := []byte(fmt.Sprintf("$SYS/subscriptions/%s", s.ID))
 		b.RetainThenDispatchToLocalSessions(s.Tenant, topic, nil, 1)
 	})
+	b.Sessions.On(sessions.SessionCreated, func(s sessions.Session) {
+		payload, err := json.Marshal(s)
+		if err == nil {
+			topic := []byte(fmt.Sprintf("$SYS/sessions/%s", s.ID))
+			b.RetainThenDispatchToLocalSessions(s.Tenant, topic, payload, 1)
+		}
+	})
+	b.Sessions.On(sessions.SessionDeleted, func(s sessions.Session) {
+		topic := []byte(fmt.Sprintf("$SYS/sessions/%s", s.ID))
+		b.RetainThenDispatchToLocalSessions(s.Tenant, topic, nil, 1)
+	})
+
 }

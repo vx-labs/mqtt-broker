@@ -52,6 +52,7 @@ type SessionStore interface {
 	Exists(id string) bool
 	Upsert(sess sessions.Session, closer func() error) error
 	Delete(id, reason string) error
+	On(event string, handler func(sessions.Session)) func()
 }
 
 type TopicStore interface {
