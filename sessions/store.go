@@ -231,8 +231,8 @@ func (s *memDBStore) emitSessionEvent(sess Session) {
 	}
 }
 func (s *memDBStore) insert(sess Session) error {
+	defer s.emitSessionEvent(sess)
 	return s.write(func(tx *memdb.Txn) error {
-		defer s.emitSessionEvent(sess)
 		return tx.Insert(memdbTable, sess)
 	})
 }

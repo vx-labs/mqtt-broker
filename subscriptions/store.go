@@ -229,8 +229,8 @@ func (s *memDBStore) emitSubscriptionEvent(sess Subscription) {
 	}
 }
 func (m *memDBStore) insert(message Subscription) error {
+	defer m.emitSubscriptionEvent(message)
 	return m.write(func(tx *memdb.Txn) error {
-		m.emitSubscriptionEvent(message)
 		err := tx.Insert(table, message)
 		if err != nil {
 			return err

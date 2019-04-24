@@ -50,9 +50,9 @@ func (b *Broker) RetainThenDispatchToLocalSessions(tenant string, topic []byte, 
 }
 func (b *Broker) setupSYSTopic() {
 	b.Peers.On(peers.PeerCreated, func(s peers.Peer) {
-		payload, err := json.Marshal(s)
+		payload, err := json.Marshal(s.Metadata)
 		if err == nil {
-			topic := []byte(fmt.Sprintf("$SY S/peers/%s", s.ID))
+			topic := []byte(fmt.Sprintf("$SYS/peers/%s", s.ID))
 			b.RetainThenDispatchToLocalSessions("_default", topic, payload, 1)
 		}
 	})
@@ -61,7 +61,7 @@ func (b *Broker) setupSYSTopic() {
 		b.RetainThenDispatchToLocalSessions("_default", topic, nil, 1)
 	})
 	b.Subscriptions.On(subscriptions.SubscriptionCreated, func(s subscriptions.Subscription) {
-		payload, err := json.Marshal(s)
+		payload, err := json.Marshal(s.Metadata)
 		if err == nil {
 			topic := []byte(fmt.Sprintf("$SYS/subscriptions/%s", s.ID))
 			b.RetainThenDispatchToLocalSessions(s.Tenant, topic, payload, 1)
@@ -72,7 +72,7 @@ func (b *Broker) setupSYSTopic() {
 		b.RetainThenDispatchToLocalSessions(s.Tenant, topic, nil, 1)
 	})
 	b.Sessions.On(sessions.SessionCreated, func(s sessions.Session) {
-		payload, err := json.Marshal(s)
+		payload, err := json.Marshal(s.Metadata)
 		if err == nil {
 			topic := []byte(fmt.Sprintf("$SYS/sessions/%s", s.ID))
 			b.RetainThenDispatchToLocalSessions(s.Tenant, topic, payload, 1)

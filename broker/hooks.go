@@ -195,9 +195,17 @@ func (b *Broker) OnConnect(transportSession *listener.Session) (int32, error) {
 		}),
 		transportSession.OnClosed(func() {
 			b.Sessions.Delete(sess.ID, "session_disconnected")
+			err := b.deleteSessionSubscriptions(sess)
+			if err != nil {
+				log.Printf("WARN: failed to delete session subscriptions: %v", err)
+			}
 		}),
 		transportSession.OnLost(func() {
 			b.Sessions.Delete(sess.ID, "session_lost")
+			err := b.deleteSessionSubscriptions(sess)
+			if err != nil {
+				log.Printf("WARN: failed to delete session subscriptions: %v", err)
+			}
 			if len(sess.WillTopic) > 0 {
 				b.OnPublish(sess, &packet.Publish{
 					Header: &packet.Header{
@@ -219,10 +227,6 @@ func (b *Broker) OnConnect(transportSession *listener.Session) (int32, error) {
 			cancel()
 		}
 		transportSession.Close()
-		err := b.deleteSessionSubscriptions(sess)
-		if err != nil {
-			log.Printf("WARN: failed to delete session subscriptions: %v", err)
-		}
 		return nil
 	})
 	if err != nil {

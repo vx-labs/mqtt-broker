@@ -149,8 +149,8 @@ func (s *memDBStore) Create(sess RetainedMessage) error {
 	return s.insert(sess)
 }
 func (m *memDBStore) insert(message RetainedMessage) error {
+	defer m.emitRetainedMessageEvent(message)
 	return m.write(func(tx *memdb.Txn) error {
-		m.emitRetainedMessageEvent(message)
 		err := tx.Insert(table, message)
 		if err != nil {
 			return err
