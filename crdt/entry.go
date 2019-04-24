@@ -1,28 +1,26 @@
-package state
+package crdt
 
-import "github.com/golang/protobuf/proto"
-
+// An Entry is a CRDT struct
 type Entry interface {
-	proto.Message
+	GetID() string
 	GetLastAdded() int64
 	GetLastDeleted() int64
-	GetID() string
 }
 
-func isEntryAdded(s Entry) bool {
+func IsEntryAdded(s Entry) bool {
 	return s.GetLastAdded() > 0 && s.GetLastAdded() > s.GetLastDeleted()
 }
-func isEntryRemoved(s Entry) bool {
+func IsEntryRemoved(s Entry) bool {
 	return s.GetLastDeleted() > 0 && s.GetLastAdded() < s.GetLastDeleted()
 }
 
-func getLastEntryUpdate(s Entry) int64 {
+func GetLastEntryUpdate(s Entry) int64 {
 	if s.GetLastAdded() > s.GetLastDeleted() {
 		return s.GetLastAdded()
 	}
 	return s.GetLastDeleted()
 }
 
-func isEntryOutdated(s Entry, remote Entry) (outdated bool) {
-	return getLastEntryUpdate(s) < getLastEntryUpdate(remote)
+func IsEntryOutdated(s Entry, remote Entry) (outdated bool) {
+	return GetLastEntryUpdate(s) < GetLastEntryUpdate(remote)
 }

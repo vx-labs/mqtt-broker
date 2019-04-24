@@ -2,28 +2,40 @@ package subscriptions
 
 import (
 	"errors"
+	"log"
 	"time"
+
+	"github.com/vx-labs/mqtt-broker/crdt"
+	"github.com/vx-labs/mqtt-protocol/packet"
 
 	"github.com/hashicorp/go-memdb"
 	"github.com/vx-labs/mqtt-broker/broker/cluster"
 	"github.com/vx-labs/mqtt-broker/events"
-	"github.com/vx-labs/mqtt-broker/state"
 )
 
 const table = "subscriptions"
 
+type Subscription struct {
+	Metadata
+	Sender func(packet.Publish) error
+}
+
+type Channel interface {
+	Broadcast([]byte)
+}
+
+type RemoteSender func(host string, session string, publish packet.Publish) error
+
 type Store interface {
-	state.Backend
-	ByTopic(tenant string, pattern []byte) (*SubscriptionList, error)
-	ByID(id string) (*Subscription, error)
-	All() (SubscriptionList, error)
-	ByPeer(peer string) (SubscriptionList, error)
-	BySession(id string) (SubscriptionList, error)
+	ByTopic(tenant string, pattern []byte) (SubscriptionSet, error)
+	ByID(id string) (Subscription, error)
+	All() (SubscriptionSet, error)
+	ByPeer(peer string) (SubscriptionSet, error)
+	BySession(id string) (SubscriptionSet, error)
 	Sessions() ([]string, error)
-	Create(message *Subscription) error
+	Create(message Subscription, sender func(packet.Publish) error) error
 	Delete(id string) error
-	On(event string, handler func(*Subscription)) func()
-	DumpSubscriptions() *SubscriptionList
+	On(event string, handler func(Subscription)) func()
 }
 
 const (
@@ -33,9 +45,10 @@ const (
 
 type memDBStore struct {
 	db           *memdb.MemDB
-	state        *state.Store
 	patternIndex *topicIndexer
 	events       *events.Bus
+	channel      Channel
+	sender       RemoteSender
 }
 
 var (
@@ -45,7 +58,7 @@ var now = func() int64 {
 	return time.Now().UnixNano()
 }
 
-func NewMemDBStore(mesh cluster.Mesh) (Store, error) {
+func NewMemDBStore(mesh cluster.Mesh, sender RemoteSender) (Store, error) {
 	db, err := memdb.NewMemDB(&memdb.DBSchema{
 		Tables: map[string]*memdb.TableSchema{
 			table: &memdb.TableSchema{
@@ -90,12 +103,17 @@ func NewMemDBStore(mesh cluster.Mesh) (Store, error) {
 		patternIndex: TenantTopicIndexer(),
 		events:       events.NewEventBus(),
 	}
-	state, err := state.NewStore("mqtt-subscriptions", mesh, s)
-	if err != nil {
-		return nil, err
-	}
-	s.state = state
-	return s, nil
+	s.channel, err = mesh.AddState("mqtt-subscriptions", s)
+	go func() {
+		for range time.Tick(1 * time.Hour) {
+			err := s.runGC()
+			if err != nil {
+				log.Printf("WARN: failed to GC sessions: %v", err)
+			}
+		}
+	}()
+	s.sender = sender
+	return s, err
 }
 
 type topicIndexer struct {
@@ -110,14 +128,14 @@ func TenantTopicIndexer() *topicIndexer {
 func (t *topicIndexer) Remove(tenant, id string, pattern []byte) error {
 	return t.root.Remove(tenant, id, Topic(pattern))
 }
-func (t *topicIndexer) Lookup(tenant string, pattern []byte) (*SubscriptionList, error) {
-	set := t.root.Select(tenant, nil, Topic(pattern)).Filter(func(s *Subscription) bool {
-		return s.IsAdded()
+func (t *topicIndexer) Lookup(tenant string, pattern []byte) (SubscriptionSet, error) {
+	set := t.root.Select(tenant, nil, Topic(pattern)).Filter(func(s Subscription) bool {
+		return crdt.IsEntryAdded(&s)
 	})
-	return &set, nil
+	return set, nil
 }
 
-func (s *topicIndexer) Index(subscription *Subscription) error {
+func (s *topicIndexer) Index(subscription Subscription) error {
 	s.root.Insert(
 		Topic(subscription.Pattern),
 		subscription.Tenant,
@@ -126,8 +144,8 @@ func (s *topicIndexer) Index(subscription *Subscription) error {
 	return nil
 }
 
-func (m *memDBStore) All() (SubscriptionList, error) {
-	var set SubscriptionList
+func (m *memDBStore) All() (SubscriptionSet, error) {
+	var set SubscriptionSet
 	var err error
 	return set, m.read(func(tx *memdb.Txn) error {
 		set, err = m.all(tx, "id")
@@ -138,45 +156,42 @@ func (m *memDBStore) All() (SubscriptionList, error) {
 	})
 }
 
-func (m *memDBStore) Gossiper() *state.Store {
-	return m.state
-}
-func (m *memDBStore) ByID(id string) (*Subscription, error) {
-	var res *Subscription
+func (m *memDBStore) ByID(id string) (Subscription, error) {
+	var res Subscription
 	return res, m.read(func(tx *memdb.Txn) (err error) {
 		res, err = m.first(tx, "id", id)
-		if res.IsRemoved() {
+		if crdt.IsEntryRemoved(&res) {
 			return ErrSubscriptionNotFound
 		}
 		return
 	})
 }
-func (m *memDBStore) ByTenant(tenant string) (SubscriptionList, error) {
-	var res SubscriptionList
+func (m *memDBStore) ByTenant(tenant string) (SubscriptionSet, error) {
+	var res SubscriptionSet
 	return res, m.read(func(tx *memdb.Txn) (err error) {
 		res, err = m.all(tx, "tenant", tenant)
 		return
 	})
 }
-func (m *memDBStore) BySession(session string) (SubscriptionList, error) {
-	var res SubscriptionList
+func (m *memDBStore) BySession(session string) (SubscriptionSet, error) {
+	var res SubscriptionSet
 	return res, m.read(func(tx *memdb.Txn) (err error) {
 		res, err = m.all(tx, "session", session)
 		return
 	})
 }
-func (m *memDBStore) ByPeer(peer string) (SubscriptionList, error) {
-	var res SubscriptionList
+func (m *memDBStore) ByPeer(peer string) (SubscriptionSet, error) {
+	var res SubscriptionSet
 	return res, m.read(func(tx *memdb.Txn) (err error) {
 		res, err = m.all(tx, "peer", peer)
 		return
 	})
 }
-func (m *memDBStore) ByTopic(tenant string, pattern []byte) (*SubscriptionList, error) {
+func (m *memDBStore) ByTopic(tenant string, pattern []byte) (SubscriptionSet, error) {
 	return m.patternIndex.Lookup(tenant, pattern)
 }
 func (m *memDBStore) Sessions() ([]string, error) {
-	var res SubscriptionList
+	var res SubscriptionSet
 	err := m.read(func(tx *memdb.Txn) (err error) {
 		res, err = m.all(tx, "session")
 		return
@@ -184,65 +199,66 @@ func (m *memDBStore) Sessions() ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	out := make([]string, len(res.Subscriptions))
-	for idx := range res.Subscriptions {
-		out[idx] = res.Subscriptions[idx].SessionID
+	out := make([]string, len(res))
+	for idx := range res {
+		out[idx] = res[idx].SessionID
 	}
 	return out, nil
 }
 
-func (m *memDBStore) insert(messages []*Subscription) error {
+func (s *memDBStore) emitSubscriptionEvent(sess Subscription) {
+	if crdt.IsEntryAdded(&sess) {
+		s.events.Emit(events.Event{
+			Entry: sess,
+			Key:   SubscriptionCreated,
+		})
+		s.events.Emit(events.Event{
+			Entry: sess,
+			Key:   SubscriptionCreated + "/" + sess.ID,
+		})
+	}
+	if crdt.IsEntryRemoved(&sess) {
+		s.events.Emit(events.Event{
+			Entry: sess,
+			Key:   SubscriptionDeleted,
+		})
+		s.events.Emit(events.Event{
+			Entry: sess,
+			Key:   SubscriptionDeleted + "/" + sess.ID,
+		})
+	}
+}
+func (m *memDBStore) insert(message Subscription) error {
+	defer m.emitSubscriptionEvent(message)
 	return m.write(func(tx *memdb.Txn) error {
-		for _, message := range messages {
-			if message.IsAdded() {
-				m.events.Emit(events.Event{
-					Key:   SubscriptionCreated,
-					Entry: message,
-				})
-				m.events.Emit(events.Event{
-					Key:   SubscriptionCreated + "/" + message.SessionID,
-					Entry: message,
-				})
-				err := m.patternIndex.Index(message)
-				if err != nil {
-					return err
-				}
-			}
-			if message.IsRemoved() {
-				m.events.Emit(events.Event{
-					Key:   SubscriptionDeleted,
-					Entry: message,
-				})
-				m.events.Emit(events.Event{
-					Key:   SubscriptionDeleted + "/" + message.SessionID,
-					Entry: message,
-				})
-				m.patternIndex.Remove(message.Tenant, message.ID, message.Pattern)
-			}
-			err := tx.Insert(table, message)
-			if err != nil {
-				return err
-			}
+		err := tx.Insert(table, message)
+		if err != nil {
+			return err
 		}
 		tx.Commit()
 		return nil
 	})
 }
-func (m *memDBStore) Delete(id string) error {
-	sub, err := m.ByID(id)
+func (s *memDBStore) Delete(id string) error {
+	sess, err := s.ByID(id)
 	if err != nil {
 		return err
 	}
-	sub.LastDeleted = now()
-	return m.state.Upsert(sub)
+	sess.LastDeleted = now()
+	return s.insert(sess)
 }
-func (m *memDBStore) Create(message *Subscription) error {
-	message.LastAdded = now()
-	return m.state.Upsert(message)
+func (s *memDBStore) Create(sess Subscription, closer func(packet.Publish) error) error {
+	sess.LastAdded = now()
+	sess.Sender = closer
+	err := s.patternIndex.Index(sess)
+	if err != nil {
+		return err
+	}
+	return s.insert(sess)
 }
 
-func (s *memDBStore) On(event string, handler func(*Subscription)) func() {
+func (s *memDBStore) On(event string, handler func(Subscription)) func() {
 	return s.events.Subscribe(event, func(ev events.Event) {
-		handler(ev.Entry.(*Subscription))
+		handler(ev.Entry.(Subscription))
 	})
 }

@@ -1,75 +1,27 @@
 package peers
 
 import (
+	"io"
+	"log"
+
 	"github.com/golang/protobuf/proto"
 	memdb "github.com/hashicorp/go-memdb"
-	"github.com/vx-labs/mqtt-broker/state"
+	"github.com/vx-labs/mqtt-broker/crdt"
 )
 
-var _ state.Backend = &memDBStore{}
-var _ state.EntrySet = &PeerList{}
-
-func (e *PeerList) Append(entry state.Entry) {
-	sub := entry.(*Peer)
-	e.Peers = append(e.Peers, sub)
-}
-func (e *PeerList) Length() int {
-	return len(e.Peers)
-}
-func (e *PeerList) New() state.EntrySet {
-	return &PeerList{}
-}
-func (e *PeerList) AtIndex(idx int) state.Entry {
-	return e.Peers[idx]
-}
-func (e *PeerList) Set(idx int, entry state.Entry) {
-	sub := entry.(*Peer)
-	e.Peers[idx] = sub
-}
-func (e *PeerList) Range(f func(idx int, entry state.Entry)) {
-	for idx, entry := range e.Peers {
-		f(idx, entry)
-	}
-}
-
-func (m *memDBStore) EntryByID(id string) (state.Entry, error) {
-	var peer *Peer
-	err := m.read(func(tx *memdb.Txn) error {
-		sess, err := m.first(tx, "id", id)
-		if err != nil {
-			return err
-		}
-		peer = sess
+func (m memDBStore) MarshalBinary() []byte {
+	set := m.dumpSubscriptions()
+	payload, err := proto.Marshal(set)
+	if err != nil {
+		log.Printf("ERR: failed to marshal state: %v", err)
 		return nil
-	})
-	return peer, err
+	}
+	return payload
 }
-
-func (m *memDBStore) InsertEntries(entries state.EntrySet) error {
-	set := entries.(*PeerList)
-	return m.insert(set.Peers)
-}
-func (m *memDBStore) InsertEntry(entry state.Entry) error {
-	sub := entry.(*Peer)
-	return m.insert([]*Peer{
-		sub,
-	})
-}
-
-func (m *memDBStore) DecodeSet(buf []byte) (state.EntrySet, error) {
-	set := &PeerList{}
-	return set, proto.Unmarshal(buf, set)
-}
-func (m memDBStore) Set() state.EntrySet {
-	return &PeerList{}
-}
-func (m memDBStore) Dump() state.EntrySet {
-	return m.DumpPeers()
-}
-func (m memDBStore) DumpPeers() *PeerList {
-	peerList := PeerList{}
+func (m memDBStore) dumpSubscriptions() *PeerMetadataList {
+	sessionList := PeerMetadataList{}
 	m.read(func(tx *memdb.Txn) error {
-		iterator, err := tx.Get("peers", "id")
+		iterator, err := tx.Get(table, "id")
 		if (err != nil && err != ErrPeerNotFound) || iterator == nil {
 			return err
 		}
@@ -78,20 +30,68 @@ func (m memDBStore) DumpPeers() *PeerList {
 			if payload == nil {
 				return nil
 			}
-			sess := payload.(*Peer)
-			peerList.Peers = append(peerList.Peers, sess)
+			sess := payload.(Peer)
+			sessionList.Metadatas = append(sessionList.Metadatas, &sess.Metadata)
 		}
 	})
-	return &peerList
+	return &sessionList
 }
 
-func (m *memDBStore) DeleteEntry(entry state.Entry) error {
-	peer := entry.(*Peer)
+func (m *memDBStore) runGC() error {
 	return m.write(func(tx *memdb.Txn) error {
-		err := tx.Delete("peers", peer)
-		if err == nil {
-			tx.Commit()
+		iterator, err := tx.Get(table, "id")
+		if err != nil || iterator == nil {
+			return err
 		}
+		return crdt.GCEntries(crdt.ExpireAfter8Hours(), func() (crdt.Entry, error) {
+			payload := iterator.Next()
+			if payload == nil {
+				return nil, io.EOF
+			}
+			sess := payload.(Peer)
+			return &sess, nil
+		}, func(id string) error {
+			return tx.Delete(table, Peer{
+				Metadata: Metadata{ID: id},
+			})
+		},
+		)
+	})
+}
+func (m *memDBStore) insertPBRemoteSubscription(remote Metadata, tx *memdb.Txn) error {
+	sub := Peer{
+		Metadata: remote,
+	}
+	return tx.Insert(table, sub)
+}
+func (m *memDBStore) Merge(inc []byte) error {
+	set := &PeerMetadataList{}
+	err := proto.Unmarshal(inc, set)
+	if err != nil {
 		return err
+	}
+	return m.write(func(tx *memdb.Txn) error {
+		for _, remote := range set.Metadatas {
+			localData, err := tx.First(table, "id", remote.ID)
+			if err != nil || localData == nil {
+				err := m.insertPBRemoteSubscription(*remote, tx)
+				if err != nil {
+					return err
+				}
+				continue
+			}
+			local, ok := localData.(Peer)
+			if !ok {
+				log.Printf("WARN: invalid data found in store")
+				continue
+			}
+			if crdt.IsEntryOutdated(&local, remote) {
+				err := m.insertPBRemoteSubscription(*remote, tx)
+				if err != nil {
+					return err
+				}
+			}
+		}
+		return nil
 	})
 }

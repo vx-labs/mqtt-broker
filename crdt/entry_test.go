@@ -1,4 +1,4 @@
-package state
+package crdt
 
 import (
 	"testing"
@@ -7,11 +7,11 @@ import (
 )
 
 func TestEntry(t *testing.T) {
-	require.True(t, isEntryAdded(&MockedEntry{
+	require.True(t, IsEntryAdded(&MockedEntry{
 		LastAdded:   1,
 		LastDeleted: 0,
 	}))
-	require.True(t, isEntryRemoved(&MockedEntry{
+	require.True(t, IsEntryRemoved(&MockedEntry{
 		LastAdded:   1,
 		LastDeleted: 2,
 	}))
@@ -25,14 +25,14 @@ func TestEntry(t *testing.T) {
 				LastAdded:   4,
 				LastDeleted: 0,
 			}
-			require.True(t, isEntryOutdated(local, remote))
+			require.True(t, IsEntryOutdated(local, remote))
 		})
 		t.Run("if remote was removed later", func(t *testing.T) {
 			remote := &MockedEntry{
 				LastAdded:   2,
 				LastDeleted: 5,
 			}
-			require.True(t, isEntryOutdated(local, remote))
+			require.True(t, IsEntryOutdated(local, remote))
 		})
 	})
 }

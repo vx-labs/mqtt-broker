@@ -11,12 +11,12 @@ message CloseSessionOutput {
   string ID = 1;
 }
 message ListSessionsOutput{
-  repeated sessions.Session Sessions = 1;
+  repeated sessions.Metadata Sessions = 1;
 }
 message MessagePublished {
-  repeated string Recipient = 1;
+  string Recipient = 1;
   bytes Topic = 2;
-  repeated int32 Qos = 3;
+  int32 Qos = 3;
   bytes Payload = 4;
   bool Retained = 5;
   bool Dup = 6;

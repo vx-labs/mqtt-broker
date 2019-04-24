@@ -8,7 +8,7 @@ import (
 type Node struct {
 	pattern []byte
 	tenant  string
-	data    SubscriptionList
+	data    SubscriptionSet
 	inode   *INode
 }
 
@@ -25,17 +25,17 @@ func (n *Node) casINode(old, cur unsafe.Pointer) bool {
 	return atomic.CompareAndSwapPointer(dest, old, cur)
 }
 
-func (n *Node) AddSubscription(tenant string, subscription *Subscription) *Node {
+func (n *Node) AddSubscription(tenant string, subscription Subscription) *Node {
 	newNode := NewNode(tenant, n.pattern)
-	newNode.data.Subscriptions = append(n.data.Subscriptions, subscription)
+	newNode.data = append(n.data, subscription)
 	newNode.inode = n.inode
 	return newNode
 }
 func (n *Node) DelSubscription(id string) *Node {
 	newNode := NewNode(n.tenant, n.pattern)
-	for _, subscription := range n.data.Subscriptions {
+	for _, subscription := range n.data {
 		if subscription.ID != id {
-			newNode.data.Subscriptions = append(newNode.data.Subscriptions, subscription)
+			newNode.data = append(newNode.data, subscription)
 		}
 	}
 	newNode.inode = n.inode

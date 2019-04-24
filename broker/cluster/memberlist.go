@@ -84,7 +84,7 @@ func (m *memberlistMesh) LocalState(join bool) []byte {
 		Parts: make([]*Part, 0, len(m.states)),
 	}
 	for key, state := range m.states {
-		dump.Parts = append(dump.Parts, &Part{Key: key, Data: state.Dump()})
+		dump.Parts = append(dump.Parts, &Part{Key: key, Data: state.MarshalBinary()})
 	}
 	payload, err := proto.Marshal(dump)
 	if err != nil {
@@ -126,6 +126,10 @@ func (m *memberlistMesh) MemberRPCAddress(id string) (string, error) {
 		}
 	}
 	return "", ErrNodeNotFound
+}
+
+func (m *memberlistMesh) ID() string {
+	return m.mlist.LocalNode().Name
 }
 
 func MemberlistMesh(id identity.Identity, eventHandler memberlist.EventDelegate, meta NodeMeta) Mesh {

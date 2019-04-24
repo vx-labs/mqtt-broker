@@ -2,17 +2,20 @@ package sessions
 
 import (
 	"errors"
+	"log"
 	"time"
 
-	"github.com/vx-labs/mqtt-broker/broker/cluster"
+	"github.com/vx-labs/mqtt-broker/crdt"
 	"github.com/vx-labs/mqtt-broker/events"
 
+	"github.com/vx-labs/mqtt-broker/broker/cluster"
+
 	memdb "github.com/hashicorp/go-memdb"
-	"github.com/vx-labs/mqtt-broker/state"
 )
 
 const (
 	defaultTenant = "_default"
+	memdbTable    = "sessions"
 )
 const (
 	SessionCreated string = "session_created"
@@ -31,30 +34,36 @@ var now = func() int64 {
 	return time.Now().UnixNano()
 }
 
+type Session struct {
+	Metadata
+	Close func() error
+}
 type SessionStore interface {
-	state.Backend
 	ByID(id string) (Session, error)
-	ByClientID(id string) (SessionList, error)
-	ByPeer(peer string) (SessionList, error)
-	All() (SessionList, error)
+	ByClientID(id string) (SessionSet, error)
+	ByPeer(peer string) (SessionSet, error)
+	All() (SessionSet, error)
 	Exists(id string) bool
-	Upsert(sess Session) error
-	DumpSessions() *SessionList
 	Delete(id, reason string) error
+	Upsert(sess Session, closer func() error) error
 	On(event string, handler func(Session)) func()
 }
 
+type Logger interface {
+	Printf(string, ...interface{})
+}
 type memDBStore struct {
-	db     *memdb.MemDB
-	state  *state.Store
-	events *events.Bus
+	db      *memdb.MemDB
+	logger  Logger
+	events  *events.Bus
+	channel Channel
 }
 
-func NewSessionStore(mesh cluster.Mesh) (SessionStore, error) {
+func NewSessionStore(mesh cluster.Mesh, logger Logger) (SessionStore, error) {
 	db, err := memdb.NewMemDB(&memdb.DBSchema{
 		Tables: map[string]*memdb.TableSchema{
-			"sessions": {
-				Name: "sessions",
+			memdbTable: {
+				Name: memdbTable,
 				Indexes: map[string]*memdb.IndexSchema{
 					"id": {
 						Name: "id",
@@ -95,19 +104,24 @@ func NewSessionStore(mesh cluster.Mesh) (SessionStore, error) {
 	}
 	s := &memDBStore{
 		db:     db,
+		logger: logger,
 		events: events.NewEventBus(),
 	}
-	state, err := state.NewStore("mqtt-sessions", mesh, s)
-	if err != nil {
-		return nil, err
-	}
-	s.state = state
-	return s, nil
+	s.channel, err = mesh.AddState("mqtt-sessions", s)
+	go func() {
+		for range time.Tick(1 * time.Hour) {
+			err := s.runGC()
+			if err != nil {
+				log.Printf("WARN: failed to GC sessions: %v", err)
+			}
+		}
+	}()
+	return s, err
 }
-func (s *memDBStore) all() SessionList {
-	sessionList := SessionList{}
+func (s *memDBStore) all() SessionSet {
+	sessionList := make(SessionSet, 0)
 	s.read(func(tx *memdb.Txn) error {
-		iterator, err := tx.Get("sessions", "id")
+		iterator, err := tx.Get(memdbTable, "id")
 		if err != nil || iterator == nil {
 			return ErrSessionNotFound
 		}
@@ -117,7 +131,7 @@ func (s *memDBStore) all() SessionList {
 				return nil
 			}
 			sess := payload.(Session)
-			sessionList.Sessions = append(sessionList.Sessions, &sess)
+			sessionList = append(sessionList, sess)
 		}
 	})
 	return sessionList
@@ -134,17 +148,17 @@ func (s *memDBStore) ByID(id string) (Session, error) {
 		if err != nil {
 			return err
 		}
-		if sess.IsRemoved() {
+		if crdt.IsEntryRemoved(&sess) {
 			return ErrSessionNotFound
 		}
 		session = sess
 		return nil
 	})
 }
-func (s *memDBStore) ByClientID(id string) (SessionList, error) {
-	var sessionList SessionList
+func (s *memDBStore) ByClientID(id string) (SessionSet, error) {
+	var sessionList SessionSet
 	return sessionList, s.read(func(tx *memdb.Txn) error {
-		iterator, err := tx.Get("sessions", "client_id", id)
+		iterator, err := tx.Get(memdbTable, "client_id", id)
 		if err != nil || iterator == nil {
 			return ErrSessionNotFound
 		}
@@ -154,22 +168,22 @@ func (s *memDBStore) ByClientID(id string) (SessionList, error) {
 				return nil
 			}
 			sess := payload.(Session)
-			if sess.IsAdded() {
-				sessionList.Sessions = append(sessionList.Sessions, &sess)
+			if crdt.IsEntryAdded(&sess) {
+				sessionList = append(sessionList, sess)
 			}
 		}
 	})
 }
-func (s *memDBStore) All() (SessionList, error) {
+func (s *memDBStore) All() (SessionSet, error) {
 	return s.all().Filter(func(s Session) bool {
-		return s.IsAdded()
+		return crdt.IsEntryAdded(&s)
 	}), nil
 }
 
-func (s *memDBStore) ByPeer(peer string) (SessionList, error) {
-	var sessionList SessionList
+func (s *memDBStore) ByPeer(peer string) (SessionSet, error) {
+	sessionList := make(SessionSet, 0)
 	return sessionList, s.read(func(tx *memdb.Txn) error {
-		iterator, err := tx.Get("sessions", "peer", peer)
+		iterator, err := tx.Get(memdbTable, "peer", peer)
 		if err != nil || iterator == nil {
 			return ErrSessionNotFound
 		}
@@ -179,60 +193,57 @@ func (s *memDBStore) ByPeer(peer string) (SessionList, error) {
 				return nil
 			}
 			sess := payload.(Session)
-			if sess.IsAdded() {
-				sessionList.Sessions = append(sessionList.Sessions, &sess)
+			if crdt.IsEntryAdded(&sess) {
+				sessionList = append(sessionList, sess)
 			}
 		}
 	})
 }
 
-func (s *memDBStore) Upsert(sess Session) error {
+func (s *memDBStore) Upsert(sess Session, closer func() error) error {
 	sess.LastAdded = now()
+	sess.Close = closer
 	if sess.Tenant == "" {
 		sess.Tenant = defaultTenant
 	}
-	return s.state.Upsert(&sess)
+	return s.insert(sess)
 }
-func (s *memDBStore) insert(sessions []*Session) error {
+func (s *memDBStore) emitSessionEvent(sess Session) {
+	if crdt.IsEntryAdded(&sess) {
+		s.events.Emit(events.Event{
+			Entry: sess,
+			Key:   SessionCreated,
+		})
+		s.events.Emit(events.Event{
+			Entry: sess,
+			Key:   SessionCreated + "/" + sess.ID,
+		})
+	}
+	if crdt.IsEntryRemoved(&sess) {
+		s.events.Emit(events.Event{
+			Entry: sess,
+			Key:   SessionDeleted,
+		})
+		s.events.Emit(events.Event{
+			Entry: sess,
+			Key:   SessionDeleted + "/" + sess.ID,
+		})
+	}
+}
+func (s *memDBStore) insert(sess Session) error {
+	defer s.emitSessionEvent(sess)
 	return s.write(func(tx *memdb.Txn) error {
-		for _, ptr := range sessions {
-			sess := *ptr
-			if sess.IsAdded() {
-				s.events.Emit(events.Event{
-					Entry: sess,
-					Key:   SessionCreated,
-				})
-				s.events.Emit(events.Event{
-					Entry: sess,
-					Key:   SessionCreated + "/" + sess.ID,
-				})
-			} else if sess.IsRemoved() {
-				s.events.Emit(events.Event{
-					Entry: sess,
-					Key:   SessionDeleted,
-				})
-				s.events.Emit(events.Event{
-					Entry: sess,
-					Key:   SessionDeleted + "/" + sess.ID,
-				})
-			}
-			err := tx.Insert("sessions", sess)
-			if err != nil {
-				return err
-			}
-		}
-		tx.Commit()
-		return nil
+		return tx.Insert(memdbTable, sess)
 	})
 }
 func (s *memDBStore) Delete(id, reason string) error {
 	sess, err := s.ByID(id)
 	if err != nil {
-		return nil
+		return err
 	}
 	sess.ClosureReason = reason
 	sess.LastDeleted = now()
-	return s.state.Upsert(&sess)
+	return s.insert(sess)
 }
 
 func (s *memDBStore) read(statement func(tx *memdb.Txn) error) error {
@@ -254,14 +265,13 @@ func (s *memDBStore) run(tx *memdb.Txn, statement func(tx *memdb.Txn) error) err
 }
 
 func (s *memDBStore) first(tx *memdb.Txn, idx, id string) (Session, error) {
-	data, err := tx.First("sessions", idx, id)
+	data, err := tx.First(memdbTable, idx, id)
 	if err != nil || data == nil {
 		return Session{}, ErrSessionNotFound
 	}
 	sess := data.(Session)
 	return sess, nil
 }
-
 func (s *memDBStore) On(event string, handler func(Session)) func() {
 	return s.events.Subscribe(event, func(ev events.Event) {
 		handler(ev.Entry.(Session))

@@ -1,7 +1,7 @@
 syntax = "proto3";
 package subscriptions;
 
-message Subscription {
+message Metadata {
   string ID = 1;
   string SessionID = 2;
   string Tenant = 3;
@@ -12,6 +12,6 @@ message Subscription {
   int64 LastDeleted = 8;
 }
 
-message SubscriptionList {
-  repeated Subscription Subscriptions = 1;
+message SubscriptionMetadataList {
+  repeated Metadata Metadatas = 1;
 }

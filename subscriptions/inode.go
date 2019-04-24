@@ -28,7 +28,7 @@ func findChild(d *INode, tenant string, pattern []byte) *Node {
 	return node
 }
 
-func (d *INode) Insert(topic Topic, tenant string, subscription *Subscription) {
+func (d *INode) Insert(topic Topic, tenant string, subscription Subscription) {
 	inode := d
 	var (
 		token []byte
@@ -57,10 +57,10 @@ func (d *INode) Remove(tenant, id string, topic Topic) error {
 	for idx, node := range d.nodes {
 		if bytes.Equal(token, node.pattern) {
 			if !ok {
-				target := node.data.Filter(func(sub *Subscription) bool {
+				target := node.data.Filter(func(sub Subscription) bool {
 					return sub.ID == id
 				})
-				if len(target.Subscriptions) == 0 {
+				if len(target) == 0 {
 					return errors.New("subscription not found in index")
 				}
 				d.nodes[idx] = node.DelSubscription(id)
@@ -73,15 +73,15 @@ func (d *INode) Remove(tenant, id string, topic Topic) error {
 	return errors.New("subscription not found in index")
 }
 
-func (d *INode) Select(tenant string, set *SubscriptionList, topic Topic) *SubscriptionList {
+func (d *INode) Select(tenant string, set SubscriptionSet, topic Topic) SubscriptionSet {
 	if set == nil {
-		set = &SubscriptionList{}
+		set = SubscriptionSet{}
 	}
 	topic, token, ok := topic.Chop()
 	for _, node := range d.nodes {
 		if node.tenant == tenant && matchPattern(token, node.pattern) {
 			if !ok || (len(node.pattern) == 1 && node.pattern[0] == '#') {
-				set.Subscriptions = append(set.Subscriptions, node.data.Subscriptions...)
+				set = append(set, node.data...)
 			} else {
 				set = node.inode.Select(tenant, set, topic)
 			}

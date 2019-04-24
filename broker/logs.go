@@ -8,16 +8,17 @@ import (
 )
 
 func (b *Broker) setupLogs() {
+
 	logger := logrus.New()
 	subscriptionLogger := logger.WithField("emitter", "subscription-store")
-	b.Subscriptions.On(subscriptions.SubscriptionCreated, func(s *subscriptions.Subscription) {
+	b.Subscriptions.On(subscriptions.SubscriptionCreated, func(s subscriptions.Subscription) {
 		subscriptionLogger.WithField("session_id", s.SessionID).
 			WithField("peer", s.Peer).
 			WithField("mutation", subscriptions.SubscriptionCreated).
 			WithField("pattern", string(s.Pattern)).
 			Printf("session subscribed")
 	})
-	b.Subscriptions.On(subscriptions.SubscriptionDeleted, func(s *subscriptions.Subscription) {
+	b.Subscriptions.On(subscriptions.SubscriptionDeleted, func(s subscriptions.Subscription) {
 		subscriptionLogger.WithField("session_id", s.SessionID).
 			WithField("peer", s.Peer).
 			WithField("mutation", subscriptions.SubscriptionDeleted).
@@ -42,12 +43,11 @@ func (b *Broker) setupLogs() {
 			Printf("session closed")
 	})
 	peerLogger := logger.WithField("emitter", "peer-store")
-	b.Peers.On(peers.PeerDeleted, func(s *peers.Peer) {
+	b.Peers.On(peers.PeerDeleted, func(s peers.Peer) {
 		peerLogger.WithField("peer_id", s.ID).
 			WithField("mesh_id", s.MeshID).
 			WithField("mutation", peers.PeerCreated).
 			WithField("hostname", s.Hostname).
 			Printf("peer lost")
 	})
-
 }

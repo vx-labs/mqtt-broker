@@ -9,12 +9,13 @@ import (
 	"text/template"
 	"time"
 
+	"github.com/vx-labs/mqtt-broker/sessions"
+
 	"github.com/spf13/viper"
 
 	"github.com/manifoldco/promptui"
 	"github.com/spf13/cobra"
 	"github.com/vx-labs/mqtt-broker/broker/rpc/client"
-	"github.com/vx-labs/mqtt-broker/sessions"
 
 	"google.golang.org/grpc"
 )
@@ -98,8 +99,8 @@ func SessionsList(ctx context.Context, helper *APIWrapper) *cobra.Command {
 				log.Printf("ERR: failed to list sessions: %v", err)
 				return
 			}
-			sort.SliceStable(set.Sessions, func(i, j int) bool {
-				return set.Sessions[i].Created < set.Sessions[j].Created
+			sort.SliceStable(set, func(i, j int) bool {
+				return set[i].Created < set[j].Created
 			})
 			tpl, err := template.New("").Funcs(promptui.FuncMap).Funcs(template.FuncMap{
 				"parseDate": func(in int64) string {
@@ -114,8 +115,8 @@ func SessionsList(ctx context.Context, helper *APIWrapper) *cobra.Command {
 				log.Printf("ERR: failed to parse session template: %v", err)
 				return
 			}
-			set.Apply(func(s *sessions.Session) {
-				tpl.Execute(os.Stdout, s)
+			set.ApplyE(func(session sessions.Session) error {
+				return tpl.Execute(os.Stdout, session)
 			})
 		},
 	}
