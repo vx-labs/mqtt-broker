@@ -154,7 +154,7 @@ func (b *Broker) OnConnect(transportSession *listener.Session) (int32, error) {
 			ClientID:          clientId,
 			Created:           time.Now().Unix(),
 			Tenant:            tenant,
-			Peer:              b.ID,
+			Peer:              b.mesh.ID(),
 			WillPayload:       connectPkt.WillPayload,
 			WillQoS:           connectPkt.WillQos,
 			WillRetain:        connectPkt.WillRetain,

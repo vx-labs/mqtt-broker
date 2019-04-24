@@ -229,7 +229,7 @@ func New(id identity.Identity, config Config) *Broker {
 	broker.Peers.Upsert(peers.Peer{
 		Metadata: peers.Metadata{
 			ID:       broker.ID,
-			MeshID:   broker.ID,
+			MeshID:   broker.mesh.ID(),
 			Hostname: hostname,
 			Runtime:  runtime.Version(),
 			Services: hostedServices,
