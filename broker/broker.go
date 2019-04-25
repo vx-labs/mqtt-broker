@@ -122,7 +122,6 @@ func New(id identity.Identity, config Config) *Broker {
 		addr, err := broker.mesh.MemberRPCAddress(host)
 		if err != nil {
 			log.Printf("ERROR: failed to resove peer %s addr: %v", host, err)
-			go broker.onPeerDown(host)
 			return err
 		}
 		return broker.RPCCaller.Call(addr, func(c rpc.BrokerServiceClient) error {

@@ -13,6 +13,8 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/google/uuid"
+
 	"github.com/vx-labs/mqtt-broker/broker/listener"
 
 	_ "net/http/pprof"
@@ -222,6 +224,7 @@ func main() {
 				config.AuthHelper = authHelper(context.Background())
 			}
 			config.TLS = tlsConfig
+			id = id.WithID(uuid.New().String())
 			instance := broker.New(id, config)
 			log.Printf("INFO: started broker instance %s on %s", id.ID(), id.Public().String())
 			if len(nodes) > 0 {
