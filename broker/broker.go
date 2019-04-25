@@ -286,6 +286,7 @@ func (b *Broker) onPeerDown(name string) {
 		recipients.Apply(func(sub subscriptions.Subscription) {
 			sub.Sender(lwt)
 		})
+		b.Sessions.Delete(s.ID, "session_lost")
 	})
 }
 
