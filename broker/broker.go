@@ -239,12 +239,12 @@ func New(id identity.Identity, config Config) *Broker {
 	return broker
 }
 func (b *Broker) onPeerDown(name string) {
-	log.Printf("WARN: peer %s lost", name)
 	peer, err := b.Peers.ByID(name)
 	if err != nil {
 		log.Printf("WARN: received lost event from an unknown peer %s", name)
 		return
 	}
+	log.Printf("WARN: peer %s lost", name)
 	b.Peers.Delete(peer.ID)
 	set, err := b.Subscriptions.ByPeer(name)
 	if err != nil {
