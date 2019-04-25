@@ -144,7 +144,10 @@ func (b *Broker) OnConnect(transportSession *listener.Session) (int32, error) {
 		return packet.CONNACK_REFUSED_SERVER_UNAVAILABLE, err
 	}
 	if err := set.ApplyE(func(session sessions.Session) error {
-		return session.Close()
+		if session.Transport != nil {
+			return session.Transport.Close()
+		}
+		return nil
 	}); err != nil {
 		return packet.CONNACK_REFUSED_IDENTIFIER_REJECTED, err
 	}
@@ -207,6 +210,9 @@ func (b *Broker) OnConnect(transportSession *listener.Session) (int32, error) {
 					log.Printf("WARN: failed to delete session subscriptions: %v", err)
 					return err
 				}
+				for _, cancel := range cancels {
+					cancel()
+				}
 				return nil
 			})
 		}),
@@ -228,17 +234,14 @@ func (b *Broker) OnConnect(transportSession *listener.Session) (int32, error) {
 						Topic:   sess.WillTopic,
 					})
 				}
+				for _, cancel := range cancels {
+					cancel()
+				}
 				return nil
 			})
 		}),
 	}
-	err = b.Sessions.Upsert(sess, func() error {
-		for _, cancel := range cancels {
-			cancel()
-		}
-		transportSession.Close()
-		return nil
-	})
+	err = b.Sessions.Upsert(sess, transportSession)
 	if err != nil {
 		return packet.CONNACK_REFUSED_SERVER_UNAVAILABLE, err
 	}

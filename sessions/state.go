@@ -59,12 +59,10 @@ func (m *memDBStore) runGC() error {
 	})
 }
 func insertPBRemoteSession(remote Metadata, tx *memdb.Txn) error {
+	// TODO: implem remote transport
 	return tx.Insert(memdbTable, Session{
-		Close: func() error {
-			log.Printf("WARN: tried to close a remote session")
-			return nil
-		},
-		Metadata: remote,
+		Transport: nil,
+		Metadata:  remote,
 	})
 }
 func (m *memDBStore) Merge(inc []byte) error {
@@ -93,7 +91,9 @@ func (m *memDBStore) Merge(inc []byte) error {
 				if err != nil {
 					return err
 				}
-				local.Close()
+				if local.Transport != nil {
+					local.Transport.Close()
+				}
 			}
 		}
 		return nil

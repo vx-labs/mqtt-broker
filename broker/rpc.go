@@ -1,6 +1,8 @@
 package broker
 
 import (
+	"errors"
+
 	"github.com/vx-labs/mqtt-broker/broker/rpc"
 	"github.com/vx-labs/mqtt-broker/sessions"
 	"github.com/vx-labs/mqtt-broker/subscriptions"
@@ -21,7 +23,10 @@ func (b *Broker) CloseSession(id string) error {
 	if err != nil {
 		return err
 	}
-	return session.Close()
+	if session.Transport != nil {
+		return session.Transport.Close()
+	}
+	return errors.New("session not managed on this node")
 }
 func (b *Broker) DistributeMessage(message *rpc.MessagePublished) error {
 	b.dispatch(message)

@@ -26,7 +26,7 @@ func TestSessionStore(t *testing.T) {
 				ClientID: "test1",
 				Peer:     "1",
 			},
-		}, returnNilErr)
+		}, nil)
 		require.Nil(t, err)
 		err = store.Upsert(Session{
 			Metadata: Metadata{
@@ -34,7 +34,7 @@ func TestSessionStore(t *testing.T) {
 				ClientID: "test2",
 				Peer:     "2",
 			},
-		}, returnNilErr)
+		}, nil)
 		require.Nil(t, err)
 	})
 

@@ -5,6 +5,8 @@ import (
 	"log"
 	"time"
 
+	"github.com/vx-labs/mqtt-protocol/packet"
+
 	"github.com/vx-labs/mqtt-broker/crdt"
 	"github.com/vx-labs/mqtt-broker/events"
 
@@ -26,6 +28,11 @@ type Channel interface {
 	Broadcast([]byte)
 }
 
+type Transport interface {
+	Close() error
+	Publish(*packet.Publish) error
+}
+
 var (
 	ErrSessionNotFound = errors.New("session not found")
 )
@@ -36,8 +43,9 @@ var now = func() int64 {
 
 type Session struct {
 	Metadata
-	Close func() error
+	Transport Transport
 }
+
 type SessionStore interface {
 	ByID(id string) (Session, error)
 	ByClientID(id string) (SessionSet, error)
@@ -45,7 +53,7 @@ type SessionStore interface {
 	All() (SessionSet, error)
 	Exists(id string) bool
 	Delete(id, reason string) error
-	Upsert(sess Session, closer func() error) error
+	Upsert(sess Session, Transport Transport) error
 	On(event string, handler func(Session)) func()
 }
 
@@ -200,9 +208,9 @@ func (s *memDBStore) ByPeer(peer string) (SessionSet, error) {
 	})
 }
 
-func (s *memDBStore) Upsert(sess Session, closer func() error) error {
+func (s *memDBStore) Upsert(sess Session, transport Transport) error {
 	sess.LastAdded = now()
-	sess.Close = closer
+	sess.Transport = transport
 	if sess.Tenant == "" {
 		sess.Tenant = defaultTenant
 	}

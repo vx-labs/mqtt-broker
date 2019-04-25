@@ -2,6 +2,7 @@ package broker
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -49,7 +50,7 @@ type SessionStore interface {
 	ByPeer(peer string) (sessions.SessionSet, error)
 	All() (sessions.SessionSet, error)
 	Exists(id string) bool
-	Upsert(sess sessions.Session, closer func() error) error
+	Upsert(sess sessions.Session, transport sessions.Transport) error
 	Delete(id, reason string) error
 	On(event string, handler func(sessions.Session)) func()
 }
@@ -302,13 +303,6 @@ func (b *Broker) dispatch(message *rpc.MessagePublished) error {
 	if err != nil {
 		return err
 	}
-	set, err := b.Subscriptions.ByTopic(session.Tenant, message.Topic)
-	if err != nil {
-		return err
-	}
-	set.Filter(func(s subscriptions.Subscription) bool {
-		return s.SessionID == message.Recipient
-	})
 	packet := packet.Publish{
 		Header: &packet.Header{
 			Dup:    message.Dup,
@@ -319,9 +313,10 @@ func (b *Broker) dispatch(message *rpc.MessagePublished) error {
 		Topic:     message.Topic,
 		MessageId: 1,
 	}
-	return set.ApplyE(func(s subscriptions.Subscription) error {
-		return s.Sender(packet)
-	})
+	if session.Transport != nil {
+		return session.Transport.Publish(&packet)
+	}
+	return errors.New("sessio not managed by this node")
 }
 
 func (b *Broker) OnBrokerStopped(f func()) func() {
