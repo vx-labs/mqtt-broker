@@ -88,6 +88,7 @@ type Broker struct {
 	WSTransport   io.Closer
 	RPC           net.Listener
 	RPCCaller     *rpc.Caller
+	workers       *Pool
 }
 
 func New(id identity.Identity, config Config) *Broker {
@@ -96,6 +97,7 @@ func New(id identity.Identity, config Config) *Broker {
 		authHelper: config.AuthHelper,
 		events:     events.NewEventBus(),
 		RPCCaller:  rpc.NewCaller(),
+		workers:    NewPool(25),
 	}
 
 	l, listenerCh := listener.New(broker, config.Session.MaxInflightSize)
@@ -295,8 +297,19 @@ func (b *Broker) Join(hosts []string) {
 	b.mesh.Join(hosts)
 }
 
-func (b *Broker) dispatch(message *rpc.MessagePublished) {
-	packet := &packet.Publish{
+func (b *Broker) dispatch(message *rpc.MessagePublished) error {
+	session, err := b.Sessions.ByID(message.Recipient)
+	if err != nil {
+		return err
+	}
+	set, err := b.Subscriptions.ByTopic(session.Tenant, message.Topic)
+	if err != nil {
+		return err
+	}
+	set.Filter(func(s subscriptions.Subscription) bool {
+		return s.SessionID == message.Recipient
+	})
+	packet := packet.Publish{
 		Header: &packet.Header{
 			Dup:    message.Dup,
 			Qos:    message.Qos,
@@ -306,17 +319,9 @@ func (b *Broker) dispatch(message *rpc.MessagePublished) {
 		Topic:     message.Topic,
 		MessageId: 1,
 	}
-	b.events.Emit(events.Event{
-		Key:   fmt.Sprintf("message_published/%s", message.Recipient),
-		Entry: packet,
+	return set.ApplyE(func(s subscriptions.Subscription) error {
+		return s.Sender(packet)
 	})
-}
-
-func (b *Broker) OnMessagePublished(recipient string, f func(p *packet.Publish)) func() {
-	return b.events.Subscribe(fmt.Sprintf("message_published/%s", recipient), func(ev events.Event) {
-		f(ev.Entry.(*packet.Publish))
-	})
-
 }
 
 func (b *Broker) OnBrokerStopped(f func()) func() {

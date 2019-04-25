@@ -168,58 +168,68 @@ func (b *Broker) OnConnect(transportSession *listener.Session) (int32, error) {
 	var cancels []func()
 	cancels = []func(){
 		transportSession.OnSubscribe(func(p *packet.Subscribe) {
-			err := b.OnSubscribe(transportSession, sess, p)
-			if err == nil {
-				qos := make([]int32, len(p.Qos))
+			b.workers.Call(func() error {
+				err := b.OnSubscribe(transportSession, sess, p)
+				if err == nil {
+					qos := make([]int32, len(p.Qos))
 
-				// QoS2 is not supported for now
-				for idx := range p.Qos {
-					if p.Qos[idx] > 1 {
-						qos[idx] = 1
-					} else {
-						qos[idx] = p.Qos[idx]
+					// QoS2 is not supported for now
+					for idx := range p.Qos {
+						if p.Qos[idx] > 1 {
+							qos[idx] = 1
+						} else {
+							qos[idx] = p.Qos[idx]
+						}
 					}
+					transportSession.SubAck(p.MessageId, qos)
 				}
-				transportSession.SubAck(p.MessageId, qos)
-			}
+				return nil
+			})
 		}),
 		transportSession.OnPublish(func(p *packet.Publish) {
-			err := b.OnPublish(sess, p)
-			if p.Header.Qos == 0 {
-				return
-			}
-			if err != nil {
-				log.Printf("ERR: failed to handle message publish: %v", err)
-				return
-			}
+			b.workers.Call(func() error {
+				err := b.OnPublish(sess, p)
+				if p.Header.Qos == 0 {
+					return nil
+				}
+				if err != nil {
+					log.Printf("ERR: failed to handle message publish: %v", err)
+					return err
+				}
+				return nil
+			})
 		}),
 		transportSession.OnClosed(func() {
-			b.Sessions.Delete(sess.ID, "session_disconnected")
-			err := b.deleteSessionSubscriptions(sess)
-			if err != nil {
-				log.Printf("WARN: failed to delete session subscriptions: %v", err)
-			}
+			b.workers.Call(func() error {
+				b.Sessions.Delete(sess.ID, "session_disconnected")
+				err := b.deleteSessionSubscriptions(sess)
+				if err != nil {
+					log.Printf("WARN: failed to delete session subscriptions: %v", err)
+					return err
+				}
+				return nil
+			})
 		}),
 		transportSession.OnLost(func() {
-			b.Sessions.Delete(sess.ID, "session_lost")
-			err := b.deleteSessionSubscriptions(sess)
-			if err != nil {
-				log.Printf("WARN: failed to delete session subscriptions: %v", err)
-			}
-			if len(sess.WillTopic) > 0 {
-				b.OnPublish(sess, &packet.Publish{
-					Header: &packet.Header{
-						Dup:    false,
-						Retain: sess.WillRetain,
-						Qos:    sess.WillQoS,
-					},
-					Payload: sess.WillPayload,
-					Topic:   sess.WillTopic,
-				})
-			}
-		}),
-		b.OnMessagePublished(transportSession.ID(), func(p *packet.Publish) {
-			transportSession.Publish(p)
+			b.workers.Call(func() error {
+				b.Sessions.Delete(sess.ID, "session_lost")
+				err := b.deleteSessionSubscriptions(sess)
+				if err != nil {
+					log.Printf("WARN: failed to delete session subscriptions: %v", err)
+				}
+				if len(sess.WillTopic) > 0 {
+					b.OnPublish(sess, &packet.Publish{
+						Header: &packet.Header{
+							Dup:    false,
+							Retain: sess.WillRetain,
+							Qos:    sess.WillQoS,
+						},
+						Payload: sess.WillPayload,
+						Topic:   sess.WillTopic,
+					})
+				}
+				return nil
+			})
 		}),
 	}
 	err = b.Sessions.Upsert(sess, func() error {

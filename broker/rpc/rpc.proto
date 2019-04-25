@@ -20,6 +20,7 @@ message MessagePublished {
   bytes Payload = 4;
   bool Retained = 5;
   bool Dup = 6;
+  string Tenant = 7;
 }
 message MessagePublishedOutput {
 }
