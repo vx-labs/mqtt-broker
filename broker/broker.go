@@ -92,6 +92,7 @@ type Broker struct {
 
 func New(id identity.Identity, config Config) *Broker {
 	broker := &Broker{
+		ID:         id.ID(),
 		authHelper: config.AuthHelper,
 		events:     events.NewEventBus(),
 		RPCCaller:  rpc.NewCaller(),
@@ -105,12 +106,12 @@ func New(id identity.Identity, config Config) *Broker {
 			panic(err)
 		}
 		broker.mesh = cluster.MemberlistMesh(id, broker, cluster.NodeMeta{
-			ID:      id.ID(),
+			ID:      broker.ID,
 			RPCAddr: fmt.Sprintf("%s:%s", id.Private().Host(), port),
 		})
 	} else {
 		broker.mesh = cluster.MemberlistMesh(id, broker, cluster.NodeMeta{
-			ID:      id.ID(),
+			ID:      broker.ID,
 			RPCAddr: config.RPCIdentity.Public().String(),
 		})
 	}
@@ -121,6 +122,7 @@ func New(id identity.Identity, config Config) *Broker {
 		addr, err := broker.mesh.MemberRPCAddress(host)
 		if err != nil {
 			log.Printf("ERROR: failed to resove peer %s addr: %v", host, err)
+			go broker.onPeerDown(host)
 			return err
 		}
 		return broker.RPCCaller.Call(addr, func(c rpc.BrokerServiceClient) error {
@@ -224,7 +226,6 @@ func New(id identity.Identity, config Config) *Broker {
 	if hostname == "" {
 		hostname = "not_available"
 	}
-	broker.ID = id.ID()
 	broker.Peers.Upsert(peers.Peer{
 		Metadata: peers.Metadata{
 			ID:       broker.ID,
