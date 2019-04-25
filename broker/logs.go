@@ -45,7 +45,6 @@ func (b *Broker) setupLogs() {
 	peerLogger := logger.WithField("emitter", "peer-store")
 	b.Peers.On(peers.PeerDeleted, func(s peers.Peer) {
 		peerLogger.WithField("peer_id", s.ID).
-			WithField("mesh_id", s.MeshID).
 			WithField("mutation", peers.PeerCreated).
 			WithField("hostname", s.Hostname).
 			Printf("peer lost")

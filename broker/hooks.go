@@ -46,7 +46,7 @@ func (b *Broker) OnSubscribe(transportSession *listener.Session, sess sessions.S
 				Qos:       p.Qos[idx],
 				Tenant:    sess.Tenant,
 				SessionID: sess.ID,
-				Peer:      b.mesh.ID(),
+				Peer:      b.ID,
 			},
 		}
 		err := b.Subscriptions.Create(event, func(publish packet.Publish) error {
@@ -154,7 +154,7 @@ func (b *Broker) OnConnect(transportSession *listener.Session) (int32, error) {
 			ClientID:          clientId,
 			Created:           time.Now().Unix(),
 			Tenant:            tenant,
-			Peer:              b.mesh.ID(),
+			Peer:              b.ID,
 			WillPayload:       connectPkt.WillPayload,
 			WillQoS:           connectPkt.WillQos,
 			WillRetain:        connectPkt.WillRetain,

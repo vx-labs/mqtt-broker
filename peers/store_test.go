@@ -17,13 +17,11 @@ func TestPeerStore(t *testing.T) {
 
 	t.Run("create", func(t *testing.T) {
 		err := store.Upsert(Peer{Metadata: Metadata{
-			ID:     peerID,
-			MeshID: "1",
+			ID: peerID,
 		}})
 		assert.Nil(t, err)
 		err = store.Upsert(Peer{Metadata: Metadata{
-			ID:     "3",
-			MeshID: "2",
+			ID: "3",
 		}})
 		assert.Nil(t, err)
 	})
@@ -34,12 +32,6 @@ func TestPeerStore(t *testing.T) {
 		require.Nil(t, err)
 		assert.Equal(t, 2, len(set))
 	})
-	t.Run("lookup peer", func(t *testing.T) {
-		set, err := store.ByMeshID("2")
-		require.Nil(t, err)
-		assert.Equal(t, "3", set.ID)
-	})
-
 	t.Run("delete", func(t *testing.T) {
 		err := store.Delete(peerID)
 		assert.Nil(t, err)

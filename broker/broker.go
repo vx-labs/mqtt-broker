@@ -39,7 +39,6 @@ const (
 type PeerStore interface {
 	ByID(id string) (peers.Peer, error)
 	All() (peers.SubscriptionSet, error)
-	ByMeshID(id string) (peers.Peer, error)
 	Upsert(sess peers.Peer) error
 	Delete(id string) error
 	On(event string, handler func(peers.Peer)) func()
@@ -229,7 +228,6 @@ func New(id identity.Identity, config Config) *Broker {
 	broker.Peers.Upsert(peers.Peer{
 		Metadata: peers.Metadata{
 			ID:       broker.ID,
-			MeshID:   broker.mesh.ID(),
 			Hostname: hostname,
 			Runtime:  runtime.Version(),
 			Services: hostedServices,
@@ -240,7 +238,7 @@ func New(id identity.Identity, config Config) *Broker {
 	return broker
 }
 func (b *Broker) onPeerDown(name string) {
-	peer, err := b.Peers.ByMeshID(name)
+	peer, err := b.Peers.ByID(name)
 	if err != nil {
 		log.Printf("WARN: received lost event from an unknown peer %s", name)
 		return

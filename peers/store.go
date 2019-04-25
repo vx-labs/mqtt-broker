@@ -34,7 +34,6 @@ type Peer struct {
 }
 type PeerStore interface {
 	ByID(id string) (Peer, error)
-	ByMeshID(id string) (Peer, error)
 	All() (SubscriptionSet, error)
 	Exists(id string) bool
 	Upsert(p Peer) error
@@ -64,12 +63,6 @@ func NewPeerStore(mesh cluster.Mesh) (PeerStore, error) {
 						},
 						Unique:       true,
 						AllowMissing: false,
-					},
-					"meshID": &memdb.IndexSchema{
-						Name:         "meshID",
-						AllowMissing: false,
-						Unique:       true,
-						Indexer:      &memdb.StringFieldIndex{Field: "MeshID"},
 					},
 				},
 			},
@@ -127,19 +120,6 @@ func (s *memDBStore) All() (SubscriptionSet, error) {
 	}), nil
 }
 
-func (s *memDBStore) ByMeshID(id string) (Peer, error) {
-	var peer Peer
-	err := s.read(func(tx *memdb.Txn) error {
-		data, err := tx.First(table, "meshID", id)
-		if err != nil || data == nil {
-			return ErrPeerNotFound
-		}
-		p := data.(Peer)
-		peer = p
-		return nil
-	})
-	return peer, err
-}
 func (s *memDBStore) Upsert(sess Peer) error {
 	sess.LastAdded = now()
 	return s.insert(sess)

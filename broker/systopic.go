@@ -29,7 +29,7 @@ func (b *Broker) dispatchToLocalSessions(tenant string, topic []byte, payload []
 		return
 	}
 	recipients = recipients.Filter(func(sub subscriptions.Subscription) bool {
-		return sub.Peer == b.mesh.ID()
+		return sub.Peer == b.ID
 	})
 	message := packet.Publish{
 		Payload: payload,

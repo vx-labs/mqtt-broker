@@ -3,7 +3,6 @@ package peers;
 
 message Metadata {
   string ID = 1;
-  string MeshID = 2;
   string Hostname = 3;
   string Address = 4;
   int64 LastAdded = 5;
