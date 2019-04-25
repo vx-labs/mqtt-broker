@@ -238,6 +238,7 @@ func New(id identity.Identity, config Config) *Broker {
 	return broker
 }
 func (b *Broker) onPeerDown(name string) {
+	log.Printf("WARN: peer %s lost", name)
 	peer, err := b.Peers.ByID(name)
 	if err != nil {
 		log.Printf("WARN: received lost event from an unknown peer %s", name)
@@ -285,7 +286,6 @@ func (b *Broker) onPeerDown(name string) {
 		recipients.Apply(func(sub subscriptions.Subscription) {
 			sub.Sender(lwt)
 		})
-		s.Close()
 	})
 }
 
