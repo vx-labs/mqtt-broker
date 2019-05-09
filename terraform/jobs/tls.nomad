@@ -46,7 +46,7 @@ job "mqtt-tls" {
 
       config {
         image      = "quay.io/vxlabs/mqtt-broker:${broker_version}"
-        args       = ["-s", "8883", "-r", "9091", "--use-vault", "--use-vx-auth", "--nomad", "--use-consul", "--nats-streaming-url", "nats://1.servers.nats.discovery.par1.vx-labs.net:4222,nats://2.servers.nats.discovery.par1.vx-labs.net:4222,nats://3.servers.nats.discovery.par1.vx-labs.net:4222"]
+        args       = ["-s", "8883", "-r", "9091", "--use-vault", "--use-vx-auth", "--nomad", "--use-consul"]
         force_pull = true
 
         port_map {
