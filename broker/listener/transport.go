@@ -8,6 +8,7 @@ import (
 	"net"
 	"time"
 
+	"github.com/vx-labs/mqtt-broker/queues/inflight"
 	"github.com/vx-labs/mqtt-protocol/decoder"
 	"github.com/vx-labs/mqtt-protocol/encoder"
 	"github.com/vx-labs/mqtt-protocol/packet"
@@ -65,6 +66,13 @@ func (l *listener) runSession(t Transport, inflightSize int) {
 	handler := l.handler
 	session := newSession(t, inflightSize)
 	session.encoder = encoder.New(c)
+	session.queue = inflight.New(session.encoder.Publish)
+	session.incoming = inflight.New(func(p *packet.Publish) error {
+		session.emitPublish(p)
+		session.incoming.Ack(p.MessageId)
+		return nil
+	})
+
 	defer close(session.quit)
 	dec := decoder.New(
 		decoder.OnConnect(func(p *packet.Connect) error {
@@ -95,7 +103,7 @@ func (l *listener) runSession(t Transport, inflightSize int) {
 		}),
 		decoder.OnPublish(func(p *packet.Publish) error {
 			session.RenewDeadline()
-			err := session.incoming.Insert(p)
+			err := session.incoming.Put(p)
 			if err != nil {
 				log.Printf("WARN: failed to accept incomming message from session %s: %v", session.id, err)
 				return nil
@@ -117,7 +125,7 @@ func (l *listener) runSession(t Transport, inflightSize int) {
 		}),
 		decoder.OnPubAck(func(p *packet.PubAck) error {
 			session.RenewDeadline()
-			session.queue.Acknowledge(p.MessageId)
+			session.queue.Ack(p.MessageId)
 			return nil
 		}),
 		decoder.OnPingReq(func(p *packet.PingReq) error {

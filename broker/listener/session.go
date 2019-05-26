@@ -2,13 +2,12 @@ package listener
 
 import (
 	"errors"
-	"log"
 	"time"
 
 	"github.com/vx-labs/mqtt-protocol/encoder"
 
-	"github.com/vx-labs/mqtt-broker/broker/listener/inflight"
 	"github.com/vx-labs/mqtt-broker/events"
+	"github.com/vx-labs/mqtt-broker/queues/inflight"
 	"github.com/vx-labs/mqtt-protocol/packet"
 )
 
@@ -35,49 +34,12 @@ func newSession(transport Transport, queueSize int) *Session {
 		events:    events.NewEventBus(),
 		keepalive: 30,
 		transport: transport,
-		queue:     inflight.New(queueSize),
-		incoming:  inflight.New(queueSize),
 		quit:      make(chan struct{}),
 	}
 	go func() {
 		<-s.quit
 		s.queue.Close()
 		s.events.Close()
-	}()
-	go func() {
-		for {
-			p := s.incoming.Next()
-			if p == nil {
-				return
-			}
-			s.emitPublish(p.Publish)
-			s.incoming.Acknowledge(p.ID)
-		}
-	}()
-	go func() {
-		ticker := time.NewTicker(1 * time.Second)
-		defer ticker.Stop()
-		for {
-			select {
-			case <-s.quit:
-				return
-			case <-ticker.C:
-				s.queue.ExpireInflight()
-				s.incoming.ExpireInflight()
-			}
-		}
-	}()
-	go func() {
-		for {
-			p := s.queue.Next()
-			if p == nil {
-				return
-			}
-			err := s.encoder.Publish(p.Publish)
-			if err != nil {
-				log.Printf("WARN: failed to re-publish non-acked message %d: %v", p.ID, err)
-			}
-		}
 	}()
 
 	return s
@@ -111,7 +73,8 @@ func (s *Session) emitPublish(packet *packet.Publish) {
 }
 func (s *Session) Publish(p *packet.Publish) error {
 	if p.Header.Qos == 1 {
-		return s.queue.Insert(p)
+		s.queue.Put(p)
+		return nil
 	}
 	return s.encoder.Publish(p)
 }
