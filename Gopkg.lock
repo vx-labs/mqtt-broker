@@ -85,7 +85,7 @@
   version = "v1.4.7"
 
 [[projects]]
-  digest = "1:e022dfba403a0a0bd218ac5473aab538e9dbf06710f9ed2f63ae91173243ad50"
+  digest = "1:b43eb6f56def206c9b16585ca50c06548f0ecdb2bb791d7007b1b87f047bf7a3"
   name = "github.com/go-acme/lego"
   packages = [
     "acme",
@@ -108,8 +108,8 @@
     "registration",
   ]
   pruneopts = ""
-  revision = "3d13faf68920543a393ad6cdfdea429627af2d34"
-  version = "v2.5.0"
+  revision = "01903cdfb9869df45cf5274c53226823a2532f2d"
+  version = "v2.6.0"
 
 [[projects]]
   branch = "master"
@@ -423,12 +423,12 @@
   version = "v0.0.8"
 
 [[projects]]
-  digest = "1:ff8eaf7ca431e893c68cb10ce820c7475b61864aa8a3e1398cad14b3d31e5aec"
+  digest = "1:49b2165427f1eecc536ccc1b34129f1f9240b85d1c54228f3aeb6d4275e3daf3"
   name = "github.com/miekg/dns"
   packages = ["."]
   pruneopts = ""
-  revision = "a2c73fb86d62c6fc8391d163814396a338cbcedf"
-  version = "v1.1.12"
+  revision = "d16ecb693e3f8d524769fefce2192a4c92207ff9"
+  version = "v1.1.13"
 
 [[projects]]
   digest = "1:6dbb0eb72090871f2e58d1e37973fe3cb8c0f45f49459398d3fc740cb30e13bd"
@@ -667,15 +667,15 @@
   version = "v0.0.9"
 
 [[projects]]
-  digest = "1:e4acf161c129dac5befd30747876929a21a70141099150fe5cc4885f521112cd"
+  digest = "1:9c0d417a548b0a7221a37477b0e4bda8fdf7b5fe9b22c5dbe3ddecfa24fdd94a"
   name = "github.com/vx-labs/iot-mqtt-tls"
   packages = [
     "api",
     "cache",
   ]
   pruneopts = ""
-  revision = "55d22cb35a8453fec93f60b2f8a0eca944f45f44"
-  version = "v4.0.0"
+  revision = "e100a2f003106800b64536d06ef4920cce2e0bf3"
+  version = "v4.0.1"
 
 [[projects]]
   digest = "1:c4aa06901fdc33dbc4e4226509835897d5be499ad0d918de8bc25770ae743afb"
@@ -726,14 +726,14 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:075560f12f65f4dd9499fa6ce385a0ffe61039294c3f2e3fa29389fde41721cb"
+  digest = "1:52fa733e0922f0855d0b13998741bc956b18992f045196a699a67be28bd4dfa2"
   name = "golang.org/x/sys"
   packages = [
     "unix",
     "windows",
   ]
   pruneopts = ""
-  revision = "791d8a0f4d093bd8fe272dea2cd28991154796fb"
+  revision = "3626398d77499f570be2e36a6ad4fc91963a02c5"
 
 [[projects]]
   digest = "1:740b51a55815493a8d0f2b1e0d0ae48fe48953bf7eaf3fcc4198823bf67768c0"
@@ -770,7 +770,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:2e06c8514f0bfe23e994142bfe3bb7271d2c0d08c84fb01234ae564ac7d71791"
+  digest = "1:efbab758c94361361f1349db773f8280f05fd1cd7fd635b7a8a74ecd8743fb41"
   name = "golang.org/x/tools"
   packages = [
     "go/ast/astutil",
@@ -779,7 +779,7 @@
     "go/types/typeutil",
   ]
   pruneopts = ""
-  revision = "7be61e1b0e514e106d83fc439d56a79143738603"
+  revision = "aa71c3f32488bfee7774668abdf1ae045e013079"
 
 [[projects]]
   branch = "master"
