@@ -139,18 +139,24 @@ func (b *Broker) OnConnect(transportSession *listener.Session) (int32, error) {
 	clientId := string(connectPkt.ClientId)
 	tenant := transportSession.Tenant()
 	transport := transportSession.TransportName()
+	log.Printf("DEBUG: session %s: checking if session client-id is free", id)
 	set, err := b.Sessions.ByClientID(clientId)
 	if err != nil {
 		return packet.CONNACK_REFUSED_SERVER_UNAVAILABLE, err
 	}
-	if err := set.ApplyE(func(session sessions.Session) error {
-		if session.Transport != nil && session.Peer == b.ID {
-			log.Printf("INFO: closing old session %s", session.ID)
-			return session.Transport.Close()
+	if len(set) == 0 {
+		log.Printf("DEBUG: session %s: session client-id is free", id)
+	} else {
+		log.Printf("DEBUG: session %s: session client-id is not free, closing old sessions", id)
+		if err := set.ApplyE(func(session sessions.Session) error {
+			if session.Transport != nil && session.Peer == b.ID {
+				log.Printf("INFO: closing old session %s", session.ID)
+				return session.Transport.Close()
+			}
+			return nil
+		}); err != nil {
+			return packet.CONNACK_REFUSED_IDENTIFIER_REJECTED, err
 		}
-		return nil
-	}); err != nil {
-		return packet.CONNACK_REFUSED_IDENTIFIER_REJECTED, err
 	}
 	sess := sessions.Session{
 		Metadata: sessions.Metadata{
@@ -168,7 +174,7 @@ func (b *Broker) OnConnect(transportSession *listener.Session) (int32, error) {
 			KeepaliveInterval: connectPkt.KeepaliveTimer,
 		},
 	}
-
+	log.Printf("DEBUG: session %s: subscribing to session events", id)
 	var cancels []func()
 	cancels = []func(){
 		transportSession.OnSubscribe(func(p *packet.Subscribe) {
@@ -242,6 +248,7 @@ func (b *Broker) OnConnect(transportSession *listener.Session) (int32, error) {
 			})
 		}),
 	}
+	log.Printf("DEBUG: session %s: creating session in distributed store", id)
 	err = b.Sessions.Upsert(sess, transportSession)
 	if err != nil {
 		return packet.CONNACK_REFUSED_SERVER_UNAVAILABLE, err
