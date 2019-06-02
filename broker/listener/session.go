@@ -25,7 +25,6 @@ type Session struct {
 	encoder   *encoder.Encoder
 	events    *events.Bus
 	queue     *inflight.Queue
-	incoming  *inflight.Queue
 	quit      chan struct{}
 }
 

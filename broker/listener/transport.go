@@ -67,11 +67,6 @@ func (l *listener) runSession(t Transport, inflightSize int) {
 	session := newSession(t, inflightSize)
 	session.encoder = encoder.New(c)
 	session.queue = inflight.New(session.encoder.Publish)
-	session.incoming = inflight.New(func(p *packet.Publish) error {
-		session.emitPublish(p)
-		session.incoming.Ack(p.MessageId)
-		return nil
-	})
 
 	defer close(session.quit)
 	dec := decoder.New(
@@ -107,11 +102,7 @@ func (l *listener) runSession(t Transport, inflightSize int) {
 		}),
 		decoder.OnPublish(func(p *packet.Publish) error {
 			session.RenewDeadline()
-			err := session.incoming.Put(p)
-			if err != nil {
-				log.Printf("WARN: failed to accept incomming message from session %s: %v", session.id, err)
-				return nil
-			}
+			session.emitPublish(p)
 			if p.Header.Qos == 1 {
 				return session.PubAck(p.MessageId)
 			}
