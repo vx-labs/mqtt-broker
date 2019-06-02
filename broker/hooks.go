@@ -248,9 +248,10 @@ func (b *Broker) OnConnect(transportSession *listener.Session) (int32, error) {
 			})
 		}),
 	}
-	log.Printf("DEBUG: session %s: creating session in distributed store", id)
+	log.Printf("DEBUG: session %s: creating session in store", id)
 	err = b.Sessions.Upsert(sess, transportSession)
 	if err != nil {
+		log.Printf("DEBUG: session %s: creation in store failed: %v", id, err)
 		return packet.CONNACK_REFUSED_SERVER_UNAVAILABLE, err
 	}
 	log.Printf("INFO: session %s started", sess.ID)

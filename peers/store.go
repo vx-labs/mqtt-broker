@@ -2,8 +2,10 @@ package peers
 
 import (
 	"errors"
+	"log"
 	"time"
 
+	"github.com/golang/protobuf/proto"
 	"github.com/vx-labs/mqtt-broker/crdt"
 
 	"github.com/vx-labs/mqtt-broker/broker/cluster"
@@ -75,6 +77,15 @@ func NewPeerStore(mesh cluster.Mesh) (PeerStore, error) {
 		db:     db,
 		events: events.NewEventBus(),
 	}
+	s.channel, err = mesh.AddState("mqtt-peers", s)
+	go func() {
+		for range time.Tick(1 * time.Hour) {
+			err := s.runGC()
+			if err != nil {
+				log.Printf("WARN: failed to GC peers: %v", err)
+			}
+		}
+	}()
 	return s, nil
 }
 func (s *memDBStore) all() SubscriptionSet {
@@ -149,7 +160,7 @@ func (s *memDBStore) emitPeerEvent(sess Peer) {
 }
 
 func (m *memDBStore) insert(message Peer) error {
-	return m.write(func(tx *memdb.Txn) error {
+	err := m.write(func(tx *memdb.Txn) error {
 		m.emitPeerEvent(message)
 		err := tx.Insert(table, message)
 		if err != nil {
@@ -158,6 +169,18 @@ func (m *memDBStore) insert(message Peer) error {
 		tx.Commit()
 		return nil
 	})
+	if err == nil {
+		buf, err := proto.Marshal(&PeerMetadataList{
+			Metadatas: []*Metadata{
+				&message.Metadata,
+			},
+		})
+		if err != nil {
+			return err
+		}
+		m.channel.Broadcast(buf)
+	}
+	return err
 }
 func (s *memDBStore) Delete(id string) error {
 	sess, err := s.ByID(id)

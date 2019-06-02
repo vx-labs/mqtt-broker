@@ -214,11 +214,11 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:0856bb71810be4fa4293ee4ecb6382f602003c928e02ac42dc9b28e4f11fff4c"
+  digest = "1:4d115788ccab22e2795f3e163c99d960a252cd3006b48d5493daf193c104ba14"
   name = "github.com/gordonklaus/ineffassign"
   packages = ["."]
   pruneopts = ""
-  revision = "1003c8bd00dc2869cb5ca5282e6ce33834fed514"
+  revision = "ed7b1b5ee0f816bbc0ff35bf7c6fdb4f53b6c59a"
 
 [[projects]]
   digest = "1:8f9bc7d0f0cb6bd3930d6d235f3b3cfb2eb53dc8ec9d0202d18d2bd4df6d9565"
@@ -253,12 +253,12 @@
   version = "v1.1.0"
 
 [[projects]]
-  branch = "master"
-  digest = "1:4394b7257c72f98ae01eb1c7c8ba57abefcbad80cfdbcea4341fb7296a77d282"
+  digest = "1:2609b600f5ab42254d4c5ce358076a0755b7a5e207bd4eded0d0eaca867c0e17"
   name = "github.com/hashicorp/go-memdb"
   packages = ["."]
   pruneopts = ""
-  revision = "5500ca0de0dab231b02aedabac095d43a59f31d2"
+  revision = "dd4dbb7cbc982b021ac8d7db55d9553dee3eeeda"
+  version = "v1.0.3"
 
 [[projects]]
   digest = "1:2c758fb475e2a3d141c779dfa694baf252e255031666a8c1ad28b147223a2b28"
@@ -447,17 +447,6 @@
   version = "v1.1.2"
 
 [[projects]]
-  digest = "1:2b5ed2cf6e8623bddd5653cffb8c6e462c2390b70186eb01546539aa177bb194"
-  name = "github.com/nats-io/go-nats"
-  packages = [
-    "encoders/builtin",
-    "util",
-  ]
-  pruneopts = ""
-  revision = "70fe06cee50d4b6f98248d9675fb55f2a3aa7228"
-  version = "v1.7.2"
-
-[[projects]]
   digest = "1:eb1c5eabae417e676a982828fae874531661679dc52f516e7fb61beae48e49db"
   name = "github.com/nats-io/go-nats-streaming"
   packages = ["."]
@@ -466,12 +455,16 @@
   version = "v0.4.5"
 
 [[projects]]
-  digest = "1:2b5ed2cf6e8623bddd5653cffb8c6e462c2390b70186eb01546539aa177bb194"
+  digest = "1:470530d1d660ee9e56d86030ca509ecf8d20be4afa66a2c122f9a2734d40dca2"
   name = "github.com/nats-io/nats.go"
-  packages = ["."]
+  packages = [
+    ".",
+    "encoders/builtin",
+    "util",
+  ]
   pruneopts = ""
-  revision = "70fe06cee50d4b6f98248d9675fb55f2a3aa7228"
-  version = "v1.7.2"
+  revision = "98d6600c35d554f3fed98c81f3ed2e4894931f61"
+  version = "v2.0.0"
 
 [[projects]]
   digest = "1:0006112541eed60bdfa279c8965c038865f05a677d980305dae7a0eec5bd133c"
@@ -691,7 +684,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:5b3e9450868bcf9ecbca2b01ac04f142255b5744d89ec97e1ceedf57d4522645"
+  digest = "1:23603929c559ebf5fa44cc2ed4a72ae729292e2b7e0295ab0e743641f0a47535"
   name = "golang.org/x/crypto"
   packages = [
     "ed25519",
@@ -701,7 +694,7 @@
     "ssh/terminal",
   ]
   pruneopts = ""
-  revision = "22d7a77e9e5f409e934ed268692e56707cd169e5"
+  revision = "20be4c3c3ed52bfccdb2d59a412ee1a936d175a7"
 
 [[projects]]
   branch = "master"
@@ -726,14 +719,14 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:52fa733e0922f0855d0b13998741bc956b18992f045196a699a67be28bd4dfa2"
+  digest = "1:ab8e7eea4bffdd9000e76bb80d02b583b3864900ad86c6913ec1743fc833c80a"
   name = "golang.org/x/sys"
   packages = [
     "unix",
     "windows",
   ]
   pruneopts = ""
-  revision = "3626398d77499f570be2e36a6ad4fc91963a02c5"
+  revision = "4c4f7f33c9ed00de01c4c741d2177abfcfe19307"
 
 [[projects]]
   digest = "1:740b51a55815493a8d0f2b1e0d0ae48fe48953bf7eaf3fcc4198823bf67768c0"
@@ -770,7 +763,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:efbab758c94361361f1349db773f8280f05fd1cd7fd635b7a8a74ecd8743fb41"
+  digest = "1:fca7fb0641483203b974046b24bd8851ab1e9394714f38c760e4c73717d9710d"
   name = "golang.org/x/tools"
   packages = [
     "go/ast/astutil",
@@ -779,15 +772,15 @@
     "go/types/typeutil",
   ]
   pruneopts = ""
-  revision = "aa71c3f32488bfee7774668abdf1ae045e013079"
+  revision = "2de7f9bf822ce37065c31659ae7187ea9e416dde"
 
 [[projects]]
   branch = "master"
-  digest = "1:e07c01c79a9a7aa21369982f91e8e128f7155e6c26f062ab33ad5cde2176a90c"
+  digest = "1:303bb7bcb96f7562686015a90eabd865f2c32c468e6702e1724d69b178d0427b"
   name = "google.golang.org/genproto"
   packages = ["googleapis/rpc/status"]
   pruneopts = ""
-  revision = "c2c4e71fbf6989c3e46a18d65cb88c288f8a3a55"
+  revision = "fb225487d10142b5bcc35abfc6cb9a0609614976"
 
 [[projects]]
   digest = "1:6598c722afbc10dcbcace4e6504751b3a3b11f66d9251545fce457a66316c9a7"

@@ -29,7 +29,7 @@
   version = "0.8.4"
 
 [[constraint]]
-  branch = "master"
+  version = "1.0.3"
   name = "github.com/hashicorp/go-memdb"
 
 [[constraint]]
