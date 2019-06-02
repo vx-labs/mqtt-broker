@@ -58,10 +58,10 @@ func (m *memDBStore) runGC() error {
 		)
 	})
 }
-func insertPBRemoteSession(remote Metadata, tx *memdb.Txn) error {
-	// TODO: implem remote transport
+func (m *memDBStore) insertPBRemoteSession(remote Metadata, tx *memdb.Txn) error {
 	return tx.Insert(memdbTable, Session{
-		Transport: nil,
+		Transport: m.remoteTransportProvider(remote.Peer, remote.ID),
+		remote:    true,
 		Metadata:  remote,
 	})
 }
@@ -75,7 +75,7 @@ func (m *memDBStore) Merge(inc []byte) error {
 		for _, remote := range set.Metadatas {
 			localData, err := tx.First(memdbTable, "id", remote.ID)
 			if err != nil || localData == nil {
-				err := insertPBRemoteSession(*remote, tx)
+				err := m.insertPBRemoteSession(*remote, tx)
 				if err != nil {
 					return err
 				}
@@ -87,11 +87,11 @@ func (m *memDBStore) Merge(inc []byte) error {
 				continue
 			}
 			if crdt.IsEntryOutdated(&local, remote) {
-				err := insertPBRemoteSession(*remote, tx)
+				err := m.insertPBRemoteSession(*remote, tx)
 				if err != nil {
 					return err
 				}
-				if local.Transport != nil {
+				if local.Transport != nil && local.remote {
 					local.Transport.Close()
 				}
 			}

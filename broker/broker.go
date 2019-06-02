@@ -91,6 +91,45 @@ type Broker struct {
 	RPCCaller     *rpc.Caller
 	workers       *Pool
 }
+type RemoteRPCTransport struct {
+	peer string
+	id   string
+	rpc  *rpc.Caller
+}
+
+func (r *RemoteRPCTransport) Close() error {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	return r.rpc.Call(r.peer, func(c rpc.BrokerServiceClient) error {
+		_, err := c.CloseSession(ctx, &rpc.CloseSessionInput{
+			ID: r.id,
+		})
+		return err
+	})
+}
+func (r *RemoteRPCTransport) Publish(publish *packet.Publish) error {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	return r.rpc.Call(r.peer, func(c rpc.BrokerServiceClient) error {
+		_, err := c.DistributeMessage(ctx, &rpc.MessagePublished{
+			Recipient: r.id,
+			Dup:       publish.Header.Dup,
+			Payload:   publish.Payload,
+			Qos:       publish.Header.Qos,
+			Retained:  publish.Header.Retain,
+			Topic:     publish.Topic,
+		})
+		return err
+	})
+}
+
+func (b *Broker) RemoteRPCProvider(addr, session string) sessions.Transport {
+	return &RemoteRPCTransport{
+		id:   session,
+		peer: addr,
+		rpc:  b.RPCCaller,
+	}
+}
 
 func New(id identity.Identity, config Config) *Broker {
 	broker := &Broker{
@@ -155,7 +194,7 @@ func New(id identity.Identity, config Config) *Broker {
 		log.Fatal(err)
 	}
 	hostedServices = append(hostedServices, "topics-store")
-	sessionsStore, err := sessions.NewSessionStore(broker.mesh, logrus.New().WithField("source", "session_store"))
+	sessionsStore, err := sessions.NewSessionStore(broker.mesh, broker.RemoteRPCProvider, logrus.New().WithField("source", "session_store"))
 	if err != nil {
 		log.Fatal(err)
 	}

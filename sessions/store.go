@@ -43,9 +43,11 @@ var now = func() int64 {
 
 type Session struct {
 	Metadata
+	remote    bool
 	Transport Transport
 }
 
+type RemoteTransportProvider func(peer, session string) Transport
 type SessionStore interface {
 	ByID(id string) (Session, error)
 	ByClientID(id string) (SessionSet, error)
@@ -61,13 +63,14 @@ type Logger interface {
 	Printf(string, ...interface{})
 }
 type memDBStore struct {
-	db      *memdb.MemDB
-	logger  Logger
-	events  *events.Bus
-	channel Channel
+	db                      *memdb.MemDB
+	logger                  Logger
+	events                  *events.Bus
+	remoteTransportProvider RemoteTransportProvider
+	channel                 Channel
 }
 
-func NewSessionStore(mesh cluster.Mesh, logger Logger) (SessionStore, error) {
+func NewSessionStore(mesh cluster.Mesh, remoteTransportProvider RemoteTransportProvider, logger Logger) (SessionStore, error) {
 	db, err := memdb.NewMemDB(&memdb.DBSchema{
 		Tables: map[string]*memdb.TableSchema{
 			memdbTable: {
@@ -111,9 +114,10 @@ func NewSessionStore(mesh cluster.Mesh, logger Logger) (SessionStore, error) {
 		panic(err)
 	}
 	s := &memDBStore{
-		db:     db,
-		logger: logger,
-		events: events.NewEventBus(),
+		db:                      db,
+		logger:                  logger,
+		events:                  events.NewEventBus(),
+		remoteTransportProvider: remoteTransportProvider,
 	}
 	s.channel, err = mesh.AddState("mqtt-sessions", s)
 	go func() {

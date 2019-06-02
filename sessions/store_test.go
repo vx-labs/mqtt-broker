@@ -17,7 +17,9 @@ func returnNilErr() error {
 	return nil
 }
 func TestSessionStore(t *testing.T) {
-	store, _ := NewSessionStore(cluster.MockedMesh(), log.New(ioutil.Discard, "", 0))
+	store, _ := NewSessionStore(cluster.MockedMesh(), func(string, string) Transport {
+		return nil
+	}, log.New(ioutil.Discard, "", 0))
 
 	t.Run("create", func(t *testing.T) {
 		err := store.Upsert(Session{
@@ -53,6 +55,7 @@ func TestSessionStore(t *testing.T) {
 	t.Run("lookup client id", func(t *testing.T) {
 		sessions, err := store.ByClientID("test1")
 		require.Nil(t, err)
+		require.Equal(t, 1, len(sessions))
 		session := sessions[0]
 		require.NotNil(t, session)
 		require.Equal(t, sessionID, session.ID)
