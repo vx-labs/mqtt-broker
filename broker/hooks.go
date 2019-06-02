@@ -144,7 +144,7 @@ func (b *Broker) OnConnect(transportSession *listener.Session) (int32, error) {
 		return packet.CONNACK_REFUSED_SERVER_UNAVAILABLE, err
 	}
 	if err := set.ApplyE(func(session sessions.Session) error {
-		if session.Transport != nil {
+		if session.Transport != nil && session.Peer == b.ID {
 			return session.Transport.Close()
 		}
 		return nil
