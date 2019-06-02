@@ -1,9 +1,14 @@
 package inflight
 
 import (
+	"errors"
 	"time"
 
 	"github.com/vx-labs/mqtt-protocol/packet"
+)
+
+var (
+	ErrQueueFull = errors.New("queue is full")
 )
 
 type Queue struct {
@@ -39,7 +44,7 @@ func (q *Queue) retryDeliver(publish *packet.Publish) {
 func New(sender func(*packet.Publish) error) *Queue {
 	q := &Queue{
 		stop:            make(chan struct{}),
-		messages:        make(chan *packet.Publish),
+		messages:        make(chan *packet.Publish, 200),
 		acknowledgement: make(chan int32),
 		sender:          sender,
 	}
@@ -58,8 +63,12 @@ func New(sender func(*packet.Publish) error) *Queue {
 
 func (q *Queue) Put(publish *packet.Publish) error {
 	publish.MessageId = 1
-	q.messages <- publish
-	return nil
+	select {
+	case q.messages <- publish:
+		return nil
+	default:
+		return ErrQueueFull
+	}
 }
 func (q *Queue) Ack(i int32) {
 	q.acknowledgement <- i

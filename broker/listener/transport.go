@@ -146,32 +146,25 @@ func (l *listener) runSession(t Transport, inflightSize int) {
 	c.SetDeadline(
 		time.Now().Add(15 * time.Second),
 	)
-	decoderCh := make(chan struct{})
 	var err error
-	go func() {
-		defer close(decoderCh)
-		for {
-			err = dec.Decode(c)
-			if err != nil {
-				if err == io.EOF || err == ErrSessionDisconnected || session.closed {
-					return
-				}
-				if opErr, ok := err.(*net.OpError); ok {
-					if opErr.Timeout() {
-						log.Printf("ERR: listener %s: session_id=%q timedout", t.Name(), session.id)
-						return
-					}
-				}
-				log.Printf("ERR: listener %s: decoding from session_id=%q failed: %v", t.Name(), session.id, err)
-				return
+	for {
+		err = dec.Decode(c)
+		if err != nil {
+			if err == io.EOF || err == ErrSessionDisconnected || session.closed {
+				break
 			}
+			if opErr, ok := err.(*net.OpError); ok {
+				if opErr.Timeout() {
+					log.Printf("ERR: listener %s: session_id=%q read timeout", t.Name(), session.id)
+					break
+				}
+			}
+			log.Printf("ERR: listener %s: decoding from session_id=%q failed: %v", t.Name(), session.id, err)
+			break
 		}
-	}()
-
-	select {
-	case <-decoderCh:
-		c.Close()
 	}
+	c.Close()
+
 	if err != nil && err != ErrSessionDisconnected && !session.closed {
 		log.Printf("WARN: listener %s: session %s lost: %v", t.Name(), session.id, err)
 		session.emitLost()

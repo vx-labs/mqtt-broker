@@ -151,7 +151,7 @@ func (b *Broker) OnConnect(transportSession *listener.Session) (int32, error) {
 		if err := set.ApplyE(func(session sessions.Session) error {
 			if session.Transport != nil && session.Peer == b.ID {
 				log.Printf("INFO: closing old session %s", session.ID)
-				return session.Transport.Close()
+				session.Transport.Close()
 			}
 			return nil
 		}); err != nil {
