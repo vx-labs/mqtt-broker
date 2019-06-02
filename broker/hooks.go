@@ -145,6 +145,7 @@ func (b *Broker) OnConnect(transportSession *listener.Session) (int32, error) {
 	}
 	if err := set.ApplyE(func(session sessions.Session) error {
 		if session.Transport != nil && session.Peer == b.ID {
+			log.Printf("INFO: closing old session %s", session.ID)
 			return session.Transport.Close()
 		}
 		return nil
@@ -245,6 +246,7 @@ func (b *Broker) OnConnect(transportSession *listener.Session) (int32, error) {
 	if err != nil {
 		return packet.CONNACK_REFUSED_SERVER_UNAVAILABLE, err
 	}
+	log.Printf("INFO: session %s started", sess.ID)
 	return packet.CONNACK_CONNECTION_ACCEPTED, nil
 }
 func (b *Broker) OnPublish(sess sessions.Session, p *packet.Publish) error {

@@ -96,11 +96,12 @@ func (l *listener) runSession(t Transport, inflightSize int) {
 			session.id = id
 			session.connect = p
 			session.tenant = tenant
+			log.Printf("INFO: starting session %s", session.id)
 			code, err := handler.OnConnect(session)
 			if err == nil {
 				session.RenewDeadline()
 			} else {
-				log.Printf("ERROR: session %s creation failed: %v", session.id, err)
+				log.Printf("ERROR: session %s start failed: %v", session.id, err)
 			}
 			return session.ConnAck(code)
 		}),
