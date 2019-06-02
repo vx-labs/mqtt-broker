@@ -85,6 +85,7 @@ func (l *listener) runSession(t Transport, inflightSize int) {
 			}
 			tenant, id, err := handler.Authenticate(t, clientID, string(p.Username), string(p.Password))
 			if err != nil {
+				log.Printf("WARN: session %s failed authentication: %v", session.id, err)
 				session.encoder.ConnAck(&packet.ConnAck{
 					Header:     p.Header,
 					ReturnCode: packet.CONNACK_REFUSED_BAD_USERNAME_OR_PASSWORD,
@@ -98,6 +99,8 @@ func (l *listener) runSession(t Transport, inflightSize int) {
 			code, err := handler.OnConnect(session)
 			if err == nil {
 				session.RenewDeadline()
+			} else {
+				log.Printf("ERROR: session %s creation failed: %v", session.id, err)
 			}
 			return session.ConnAck(code)
 		}),

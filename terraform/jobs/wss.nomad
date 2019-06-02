@@ -46,7 +46,7 @@ job "mqtt-wss" {
 
       config {
         image      = "quay.io/vxlabs/mqtt-broker:${broker_version}"
-        args       = ["-w", "8008", "-r", "9091", "--use-vault", "--use-vx-auth", "--nomad", "--use-consul", "--nats-streaming-url"]
+        args       = ["-w", "8008", "-r", "9091", "--use-vault", "--use-vx-auth", "--nomad", "--use-consul"]
         force_pull = true
 
         port_map {
