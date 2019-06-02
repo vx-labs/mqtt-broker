@@ -5,6 +5,8 @@ import (
 	"log"
 	"time"
 
+	"github.com/golang/protobuf/proto"
+
 	"github.com/vx-labs/mqtt-protocol/packet"
 
 	"github.com/vx-labs/mqtt-broker/crdt"
@@ -244,9 +246,21 @@ func (s *memDBStore) emitSessionEvent(sess Session) {
 }
 func (s *memDBStore) insert(sess Session) error {
 	defer s.emitSessionEvent(sess)
-	return s.write(func(tx *memdb.Txn) error {
+	err := s.write(func(tx *memdb.Txn) error {
 		return tx.Insert(memdbTable, sess)
 	})
+	if err == nil {
+		buf, err := proto.Marshal(&SessionMetadataList{
+			Metadatas: []*Metadata{
+				&sess.Metadata,
+			},
+		})
+		if err != nil {
+			return err
+		}
+		s.channel.Broadcast(buf)
+	}
+	return err
 }
 func (s *memDBStore) Delete(id, reason string) error {
 	sess, err := s.ByID(id)

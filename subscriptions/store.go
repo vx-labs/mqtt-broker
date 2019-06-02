@@ -5,6 +5,7 @@ import (
 	"log"
 	"time"
 
+	"github.com/golang/protobuf/proto"
 	"github.com/vx-labs/mqtt-broker/crdt"
 	"github.com/vx-labs/mqtt-protocol/packet"
 
@@ -228,9 +229,10 @@ func (s *memDBStore) emitSubscriptionEvent(sess Subscription) {
 		})
 	}
 }
+
 func (m *memDBStore) insert(message Subscription) error {
 	defer m.emitSubscriptionEvent(message)
-	return m.write(func(tx *memdb.Txn) error {
+	err := m.write(func(tx *memdb.Txn) error {
 		err := tx.Insert(table, message)
 		if err != nil {
 			return err
@@ -238,6 +240,18 @@ func (m *memDBStore) insert(message Subscription) error {
 		tx.Commit()
 		return nil
 	})
+	if err == nil {
+		buf, err := proto.Marshal(&SubscriptionMetadataList{
+			Metadatas: []*Metadata{
+				&message.Metadata,
+			},
+		})
+		if err != nil {
+			return err
+		}
+		m.channel.Broadcast(buf)
+	}
+	return err
 }
 func (s *memDBStore) Delete(id string) error {
 	sess, err := s.ByID(id)

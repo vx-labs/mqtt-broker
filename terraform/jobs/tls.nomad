@@ -19,7 +19,7 @@ job "mqtt-tls" {
       env           = false
     }
 
-    count = 2
+    count = 1
 
     restart {
       attempts = 10

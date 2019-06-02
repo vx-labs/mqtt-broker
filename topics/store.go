@@ -7,6 +7,7 @@ import (
 	"log"
 	"time"
 
+	proto "github.com/golang/protobuf/proto"
 	"github.com/vx-labs/mqtt-broker/crdt"
 
 	"github.com/vx-labs/mqtt-broker/broker/cluster"
@@ -150,7 +151,7 @@ func (s *memDBStore) Create(sess RetainedMessage) error {
 }
 func (m *memDBStore) insert(message RetainedMessage) error {
 	defer m.emitRetainedMessageEvent(message)
-	return m.write(func(tx *memdb.Txn) error {
+	err := m.write(func(tx *memdb.Txn) error {
 		err := tx.Insert(table, message)
 		if err != nil {
 			return err
@@ -158,6 +159,18 @@ func (m *memDBStore) insert(message RetainedMessage) error {
 		tx.Commit()
 		return nil
 	})
+	if err == nil {
+		buf, err := proto.Marshal(&RetainedMessageMetadataList{
+			Metadatas: []*Metadata{
+				&message.Metadata,
+			},
+		})
+		if err != nil {
+			return err
+		}
+		m.channel.Broadcast(buf)
+	}
+	return err
 }
 func (s *memDBStore) On(event string, handler func(RetainedMessage)) func() {
 	return s.events.Subscribe(event, func(ev events.Event) {
