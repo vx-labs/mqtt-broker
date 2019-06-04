@@ -31,6 +31,9 @@ func (q *Queue) retryDeliver(publish *packet.Publish) {
 		if err != nil {
 			continue
 		}
+		if publish.Header.Qos == 0 {
+			return
+		}
 		select {
 		case ack := <-q.acknowledgement:
 			if publish.MessageId == ack {
@@ -44,7 +47,7 @@ func (q *Queue) retryDeliver(publish *packet.Publish) {
 func New(sender func(*packet.Publish) error) *Queue {
 	q := &Queue{
 		stop:            make(chan struct{}),
-		messages:        make(chan *packet.Publish, 200),
+		messages:        make(chan *packet.Publish),
 		acknowledgement: make(chan int32),
 		sender:          sender,
 	}
@@ -61,14 +64,9 @@ func New(sender func(*packet.Publish) error) *Queue {
 	return q
 }
 
-func (q *Queue) Put(publish *packet.Publish) error {
+func (q *Queue) Put(publish *packet.Publish) {
 	publish.MessageId = 1
-	select {
-	case q.messages <- publish:
-		return nil
-	default:
-		return ErrQueueFull
-	}
+	q.messages <- publish
 }
 func (q *Queue) Ack(i int32) {
 	q.acknowledgement <- i

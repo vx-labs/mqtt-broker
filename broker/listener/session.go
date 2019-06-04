@@ -8,6 +8,7 @@ import (
 
 	"github.com/vx-labs/mqtt-broker/events"
 	"github.com/vx-labs/mqtt-broker/queues/inflight"
+	"github.com/vx-labs/mqtt-broker/queues/messages"
 	"github.com/vx-labs/mqtt-protocol/packet"
 )
 
@@ -24,7 +25,8 @@ type Session struct {
 	connect   *packet.Connect
 	encoder   *encoder.Encoder
 	events    *events.Bus
-	queue     *inflight.Queue
+	queue     *messages.Queue
+	inflight  *inflight.Queue
 	quit      chan struct{}
 }
 
@@ -71,11 +73,8 @@ func (s *Session) emitPublish(packet *packet.Publish) {
 	})
 }
 func (s *Session) Publish(p *packet.Publish) error {
-	if p.Header.Qos == 1 {
-		s.queue.Put(p)
-		return nil
-	}
-	return s.encoder.Publish(p)
+	s.queue.Put(time.Now(), p)
+	return nil
 }
 func (s *Session) OnPublish(f func(packet *packet.Publish)) func() {
 	return s.events.Subscribe("session_published", func(event events.Event) {

@@ -9,6 +9,8 @@ import (
 	"time"
 
 	"github.com/vx-labs/mqtt-broker/queues/inflight"
+	"github.com/vx-labs/mqtt-broker/queues/messages"
+
 	"github.com/vx-labs/mqtt-protocol/decoder"
 	"github.com/vx-labs/mqtt-protocol/encoder"
 	"github.com/vx-labs/mqtt-protocol/packet"
@@ -66,8 +68,8 @@ func (l *listener) runSession(t Transport, inflightSize int) {
 	handler := l.handler
 	session := newSession(t, inflightSize)
 	session.encoder = encoder.New(c)
-	session.queue = inflight.New(session.encoder.Publish)
-
+	session.inflight = inflight.New(session.encoder.Publish)
+	session.queue = messages.NewQueue()
 	defer close(session.quit)
 	dec := decoder.New(
 		decoder.OnConnect(func(p *packet.Connect) error {
@@ -120,7 +122,7 @@ func (l *listener) runSession(t Transport, inflightSize int) {
 		}),
 		decoder.OnPubAck(func(p *packet.PubAck) error {
 			session.RenewDeadline()
-			session.queue.Ack(p.MessageId)
+			session.inflight.Ack(p.MessageId)
 			return nil
 		}),
 		decoder.OnPingReq(func(p *packet.PingReq) error {
@@ -137,6 +139,20 @@ func (l *listener) runSession(t Transport, inflightSize int) {
 	c.SetDeadline(
 		time.Now().Add(15 * time.Second),
 	)
+	go func() {
+		for {
+			select {
+			case <-session.quit:
+				return
+			default:
+				msg, err := session.queue.Pop()
+				if err == nil {
+					session.inflight.Put(msg)
+				}
+			}
+		}
+	}()
+
 	var err error
 	for {
 		err = dec.Decode(c)
