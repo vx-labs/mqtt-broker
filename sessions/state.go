@@ -3,6 +3,7 @@ package sessions
 import (
 	"io"
 	"log"
+	"time"
 
 	"github.com/golang/protobuf/proto"
 	memdb "github.com/hashicorp/go-memdb"
@@ -66,17 +67,21 @@ func (m *memDBStore) insertPBRemoteSession(remote Metadata, tx *memdb.Txn) error
 	})
 }
 func (m *memDBStore) Merge(inc []byte) error {
+	now := time.Now()
 	set := &SessionMetadataList{}
 	err := proto.Unmarshal(inc, set)
 	if err != nil {
 		return err
 	}
+	log.Printf("DEBUG: starting remote session state merge")
 	return m.write(func(tx *memdb.Txn) error {
 		for _, remote := range set.Metadatas {
 			localData, err := tx.First(memdbTable, "id", remote.ID)
 			if err != nil || localData == nil {
+				log.Printf("DEBUG: session merge: session %s does not exist localy, adding it", remote.ID)
 				err := m.insertPBRemoteSession(*remote, tx)
 				if err != nil {
+					log.Printf("DEBUG: session merge: failed to add session %s: %v", remote.ID, err)
 					return err
 				}
 				continue
@@ -87,15 +92,18 @@ func (m *memDBStore) Merge(inc []byte) error {
 				continue
 			}
 			if crdt.IsEntryOutdated(&local, remote) {
+				log.Printf("DEBUG: session merge: session %s is outdated localy, replacing it", remote.ID)
 				err := m.insertPBRemoteSession(*remote, tx)
 				if err != nil {
 					return err
 				}
-				if local.Transport != nil && local.remote {
+				if local.Transport != nil && !local.remote {
+					log.Printf("DEBUG: session merge: closing local session %s", remote.ID)
 					local.Transport.Close()
 				}
 			}
 		}
+		log.Printf("DEBUG: session merge done (%s elapsed)", time.Now().Sub(now).String())
 		return nil
 	})
 }

@@ -247,8 +247,10 @@ func (s *memDBStore) emitSessionEvent(sess Session) {
 func (s *memDBStore) insert(sess Session) error {
 	defer s.emitSessionEvent(sess)
 	err := s.write(func(tx *memdb.Txn) error {
+		log.Printf("DEBUG: running session txn")
 		return tx.Insert(memdbTable, sess)
 	})
+	log.Printf("DEBUG: ran session txn")
 	if err == nil {
 		buf, err := proto.Marshal(&SessionMetadataList{
 			Metadatas: []*Metadata{
