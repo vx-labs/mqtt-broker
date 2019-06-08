@@ -59,12 +59,15 @@ func (m *memDBStore) runGC() error {
 		)
 	})
 }
-func (m *memDBStore) insertPBRemoteSession(remote Metadata, tx *memdb.Txn) error {
-	return tx.Insert(memdbTable, Session{
+func (m *memDBStore) newRemoteSession(remote Metadata) Session {
+	return Session{
 		Transport: m.remoteTransportProvider(remote.Peer, remote.ID),
 		remote:    true,
 		Metadata:  remote,
-	})
+	}
+}
+func (m *memDBStore) insertPBRemoteSession(remote Session, tx *memdb.Txn) error {
+	return tx.Insert(memdbTable, remote)
 }
 func (m *memDBStore) Merge(inc []byte) error {
 	now := time.Now()
@@ -74,16 +77,19 @@ func (m *memDBStore) Merge(inc []byte) error {
 		return err
 	}
 	log.Printf("DEBUG: starting remote session state merge")
+	changedSessions := SessionSet{}
 	return m.write(func(tx *memdb.Txn) error {
 		for _, remote := range set.Metadatas {
 			localData, err := tx.First(memdbTable, "id", remote.ID)
 			if err != nil || localData == nil {
 				log.Printf("DEBUG: session merge: session %s does not exist localy, adding it", remote.ID)
-				err := m.insertPBRemoteSession(*remote, tx)
+				session := m.newRemoteSession(*remote)
+				err := m.insertPBRemoteSession(session, tx)
 				if err != nil {
 					log.Printf("DEBUG: session merge: failed to add session %s: %v", remote.ID, err)
 					return err
 				}
+				changedSessions = append(changedSessions, session)
 				continue
 			}
 			local, ok := localData.(Session)
@@ -93,10 +99,12 @@ func (m *memDBStore) Merge(inc []byte) error {
 			}
 			if crdt.IsEntryOutdated(&local, remote) {
 				log.Printf("DEBUG: session merge: session %s is outdated localy, replacing it", remote.ID)
-				err := m.insertPBRemoteSession(*remote, tx)
+				session := m.newRemoteSession(*remote)
+				err := m.insertPBRemoteSession(session, tx)
 				if err != nil {
 					return err
 				}
+				changedSessions = append(changedSessions, session)
 				if local.Transport != nil && !local.remote {
 					log.Printf("DEBUG: session merge: closing local session %s", remote.ID)
 					local.Transport.Close()
@@ -104,6 +112,9 @@ func (m *memDBStore) Merge(inc []byte) error {
 			}
 		}
 		log.Printf("DEBUG: session merge done (%s elapsed)", time.Now().Sub(now).String())
+		for _, session := range changedSessions {
+			m.emitSessionEvent(session)
+		}
 		return nil
 	})
 }
