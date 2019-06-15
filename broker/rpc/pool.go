@@ -1,6 +1,9 @@
 package rpc
 
 import (
+	"log"
+	"time"
+
 	grpc "google.golang.org/grpc"
 )
 
@@ -32,13 +35,14 @@ func NewPool(addr string) (*Pool, error) {
 		jobs: make(chan chan JobWrap),
 		quit: make(chan struct{}),
 	}
-	conn, err := grpc.Dial(addr, grpc.WithInsecure(), grpc.WithBlock())
+	conn, err := grpc.Dial(addr, grpc.WithInsecure(), grpc.WithTimeout(3*time.Second))
 	if err != nil {
 		return nil, err
 	}
 	go func() {
 		<-c.quit
 		conn.Close()
+		log.Printf("INFO: closed pool targetting %s", addr)
 	}()
 
 	client := NewBrokerServiceClient(conn)

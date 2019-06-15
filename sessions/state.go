@@ -76,7 +76,7 @@ func (m *memDBStore) Merge(inc []byte) error {
 	if err != nil {
 		return err
 	}
-	log.Printf("DEBUG: starting remote session state merge")
+	log.Printf("DEBUG: starting remote session state merge (%d sessions in payload)", len(set.Metadatas))
 	changedSessions := SessionSet{}
 	return m.write(func(tx *memdb.Txn) error {
 		for _, remote := range set.Metadatas {

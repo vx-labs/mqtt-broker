@@ -23,7 +23,12 @@ func (b *Broker) NotifyLeave(n *memberlist.Node) {
 	var meta cluster.NodeMeta
 	err := proto.Unmarshal(n.Meta, &meta)
 	if err == nil {
-		b.RPCCaller.Cancel(meta.RPCAddr)
+		err = b.RPCCaller.Cancel(meta.RPCAddr)
+		if err != nil {
+			log.Printf("ERROR: failed to close RPC pool toward %s: %v", meta.RPCAddr, err)
+		}
+	} else {
+		log.Printf("ERROR: failed to unmashal peer metadata: %v", err)
 	}
 	b.onPeerDown(n.Name)
 }

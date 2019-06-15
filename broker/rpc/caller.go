@@ -3,10 +3,7 @@ package rpc
 import (
 	"errors"
 	"log"
-	"sync/atomic"
-	"unsafe"
-
-	iradix "github.com/hashicorp/go-immutable-radix"
+	"sync"
 )
 
 var (
@@ -14,51 +11,42 @@ var (
 )
 
 type Caller struct {
-	pools *iradix.Tree
+	pools map[string]*Pool
+	mutex sync.Mutex
 }
 
 func NewCaller() *Caller {
 	return &Caller{
-		pools: iradix.New(),
+		pools: map[string]*Pool{},
 	}
-}
-func (c *Caller) cas(old, new *iradix.Tree) bool {
-	oldPtr := (*unsafe.Pointer)(unsafe.Pointer(&c.pools))
-	return atomic.CompareAndSwapPointer(oldPtr, unsafe.Pointer(old), unsafe.Pointer(new))
 }
 func (c *Caller) Call(addr string, job RPCJob) error {
-	var pool (*Pool)
-	data, ok := c.pools.Get([]byte(addr))
+	c.mutex.Lock()
+	var err error
+	data, ok := c.pools[addr]
 	if !ok {
 		log.Printf("INFO: creating a new RPC Pool targeting address %s", addr)
-		var err error
-		pool, err = NewPool(addr)
+		data, err = NewPool(addr)
 		if err != nil {
+			c.mutex.Unlock()
 			return err
 		}
-		for {
-			old := c.pools
-			new, _, _ := old.Insert([]byte(addr), pool)
-			if c.cas(old, new) {
-				break
-			}
-		}
-	} else {
-		pool = data.(*Pool)
+		c.pools[addr] = data
 	}
-	return pool.Call(job)
+	log.Printf("INFO: pool %s aquired", addr)
+	c.mutex.Unlock()
+	log.Printf("INFO: calling RPC targetting %s", addr)
+	return data.Call(job)
 }
 func (c *Caller) Cancel(addr string) error {
-	pool, ok := c.pools.Get([]byte(addr))
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
+	log.Printf("INFO: closing RPC pool toward %s", addr)
+	pool, ok := c.pools[addr]
 	if !ok {
 		return ErrPoolNotFound
 	}
-	for {
-		old := c.pools
-		new, _, _ := old.Delete([]byte(addr))
-		if c.cas(old, new) {
-			pool.(*Pool).Cancel()
-			return nil
-		}
-	}
+	pool.Cancel()
+	delete(c.pools, addr)
+	return nil
 }
