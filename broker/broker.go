@@ -14,7 +14,6 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/vx-labs/mqtt-broker/broker/cluster"
 
-	"github.com/vx-labs/mqtt-broker/events"
 	"github.com/vx-labs/mqtt-broker/peers"
 
 	"github.com/vx-labs/mqtt-broker/sessions"
@@ -80,7 +79,6 @@ type Broker struct {
 	Sessions      SessionStore
 	Topics        TopicStore
 	Peers         PeerStore
-	events        *events.Bus
 	STANOutput    chan STANMessage
 	Listener      io.Closer
 	TCPTransport  io.Closer
@@ -135,7 +133,6 @@ func New(id identity.Identity, config Config) *Broker {
 	broker := &Broker{
 		ID:         id.ID(),
 		authHelper: config.AuthHelper,
-		events:     events.NewEventBus(),
 		RPCCaller:  rpc.NewCaller(),
 		workers:    NewPool(25),
 	}
@@ -367,11 +364,6 @@ func (b *Broker) dispatch(message *rpc.MessagePublished) error {
 	return errors.New("sessio not managed by this node")
 }
 
-func (b *Broker) OnBrokerStopped(f func()) func() {
-	return b.events.Subscribe("broker_stopped", func(_ events.Event) {
-		f()
-	})
-}
 func memUsage() runtime.MemStats {
 	var m runtime.MemStats
 	runtime.ReadMemStats(&m)
