@@ -4,7 +4,7 @@ import (
 	"crypto/tls"
 	"log"
 
-	"github.com/vx-labs/mqtt-broker/broker/listener"
+	"github.com/vx-labs/mqtt-broker/broker/listener/transport"
 	"github.com/vx-labs/mqtt-broker/identity"
 )
 
@@ -21,7 +21,7 @@ type Config struct {
 	RPCIdentity identity.Identity
 	GossipPort  int
 	NATSURL     string
-	AuthHelper  func(transport listener.Transport, sessionID []byte, username string, password string) (tenant string, err error)
+	AuthHelper  func(transport transport.Metadata, sessionID []byte, username string, password string) (tenant string, err error)
 	Session     SessionConfig
 }
 
@@ -31,7 +31,7 @@ func DefaultConfig() Config {
 			MaxInflightSize: 500,
 		},
 		RPCPort: 0,
-		AuthHelper: func(transport listener.Transport, sessionID []byte, username string, password string) (tenant string, err error) {
+		AuthHelper: func(transport transport.Metadata, sessionID []byte, username string, password string) (tenant string, err error) {
 			log.Print("WARN: Default authentication mecanism is used, therefore all access will be granted")
 			return "_default", nil
 		},

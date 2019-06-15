@@ -8,45 +8,15 @@ import (
 	"time"
 
 	"github.com/armon/go-proxyproto"
-
-	"github.com/vx-labs/mqtt-broker/broker/listener"
 )
 
 type tlsListener struct {
-	port     int
 	listener net.Listener
 }
 
-type tlsTransport struct {
-	ch    net.Conn
-	state tls.ConnectionState
-}
-
-func (t *tlsTransport) Name() string {
-	return "tls"
-}
-
-func (t *tlsTransport) Encrypted() bool {
-	return true
-}
-func (t *tlsTransport) EncryptionState() *tls.ConnectionState {
-	return &t.state
-}
-func (t *tlsTransport) RemoteAddress() string {
-	return t.ch.RemoteAddr().String()
-}
-func (t *tlsTransport) Channel() listener.TimeoutReadWriteCloser {
-	return t.ch
-}
-func (t *tlsTransport) Close() error {
-	return t.ch.Close()
-}
-
-func NewTLSTransport(port int, TLSConfig *tls.Config, ch chan<- listener.Transport) (net.Listener, error) {
-	listener := &tlsListener{
-		port: port,
-	}
-	tcp, err := net.Listen("tcp", fmt.Sprintf(":%d", listener.port))
+func NewTLSTransport(port int, TLSConfig *tls.Config, handler func(Metadata) error) (net.Listener, error) {
+	listener := &tlsListener{}
+	tcp, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
 	if err != nil {
 		return nil, err
 	}
@@ -54,11 +24,11 @@ func NewTLSTransport(port int, TLSConfig *tls.Config, ch chan<- listener.Transpo
 
 	l := tls.NewListener(proxyList, TLSConfig)
 	listener.listener = l
-	go listener.acceptLoop(ch)
+	go listener.acceptLoop(handler)
 	return l, nil
 }
 
-func (t *tlsListener) acceptLoop(ch chan<- listener.Transport) {
+func (t *tlsListener) acceptLoop(handler func(Metadata) error) {
 	var tempDelay time.Duration
 	for {
 		rawConn, err := t.listener.Accept()
@@ -95,13 +65,17 @@ func (t *tlsListener) acceptLoop(ch chan<- listener.Transport) {
 			c.Close()
 			continue
 		}
-		t.queueSession(c, ch)
+		t.queueSession(c, handler)
 	}
 }
 
-func (t *tlsListener) queueSession(c *tls.Conn, ch chan<- listener.Transport) {
-	ch <- &tlsTransport{
-		ch:    c,
-		state: c.ConnectionState(),
-	}
+func (t *tlsListener) queueSession(c *tls.Conn, handler func(Metadata) error) {
+	state := c.ConnectionState()
+	handler(Metadata{
+		Channel:         c,
+		Encrypted:       true,
+		EncryptionState: &state,
+		Name:            "tls",
+		RemoteAddress:   c.RemoteAddr().String(),
+	})
 }

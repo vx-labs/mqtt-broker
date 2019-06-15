@@ -11,8 +11,6 @@ import (
 
 	"github.com/gobwas/ws"
 	"github.com/gobwas/ws/wsutil"
-
-	"github.com/vx-labs/mqtt-broker/broker/listener"
 )
 
 type Conn struct {
@@ -76,38 +74,11 @@ func (c *Conn) SetWriteDeadline(t time.Time) error {
 }
 
 type wsListener struct {
-	port     int
 	listener net.Listener
 }
 
-type wsTransport struct {
-	ch net.Conn
-}
-
-func (t *wsTransport) Name() string {
-	return "ws"
-}
-
-func (t *wsTransport) Encrypted() bool {
-	return false
-}
-func (t *wsTransport) EncryptionState() *tls.ConnectionState {
-	return nil
-}
-func (t *wsTransport) RemoteAddress() string {
-	return t.ch.RemoteAddr().String()
-}
-func (t *wsTransport) Channel() listener.TimeoutReadWriteCloser {
-	return t.ch
-}
-func (t *wsTransport) Close() error {
-	return t.ch.Close()
-}
-
-func NewWSTransport(port int, ch chan<- listener.Transport) (net.Listener, error) {
-	listener := &wsListener{
-		port: port,
-	}
+func NewWSTransport(port int, handler func(Metadata) error) (net.Listener, error) {
+	listener := &wsListener{}
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/mqtt", func(w http.ResponseWriter, r *http.Request) {
@@ -129,7 +100,7 @@ func NewWSTransport(port int, ch chan<- listener.Transport) (net.Listener, error
 			reader:    reader,
 			writer:    writer,
 			opHandler: wsutil.ControlHandler(conn, state),
-		}, ch)
+		}, handler)
 	})
 	ln, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
 	if err != nil {
@@ -140,8 +111,12 @@ func NewWSTransport(port int, ch chan<- listener.Transport) (net.Listener, error
 	return ln, nil
 }
 
-func (t *wsListener) queueSession(c *Conn, ch chan<- listener.Transport) {
-	ch <- &wsTransport{
-		ch: c,
-	}
+func (t *wsListener) queueSession(c *Conn, handler func(Metadata) error) {
+	handler(Metadata{
+		Channel:         c,
+		Encrypted:       false,
+		EncryptionState: nil,
+		Name:            "ws",
+		RemoteAddress:   c.RemoteAddr().String(),
+	})
 }

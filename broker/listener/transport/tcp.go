@@ -1,60 +1,31 @@
 package transport
 
 import (
-	"crypto/tls"
 	"fmt"
 	"log"
 	"net"
 	"time"
 
 	proxyproto "github.com/armon/go-proxyproto"
-	"github.com/vx-labs/mqtt-broker/broker/listener"
 )
 
 type tcp struct {
-	port     int
 	listener net.Listener
 }
 
-type tcpTransport struct {
-	ch net.Conn
-}
-
-func (t *tcpTransport) Name() string {
-	return "tcp"
-}
-
-func (t *tcpTransport) Encrypted() bool {
-	return false
-}
-func (t *tcpTransport) EncryptionState() *tls.ConnectionState {
-	return nil
-}
-func (t *tcpTransport) RemoteAddress() string {
-	return t.ch.RemoteAddr().String()
-}
-func (t *tcpTransport) Channel() listener.TimeoutReadWriteCloser {
-	return t.ch
-}
-func (t *tcpTransport) Close() error {
-	return t.ch.Close()
-}
-
-func NewTCPTransport(port int, ch chan<- listener.Transport) (net.Listener, error) {
-	listener := &tcp{
-		port: port,
-	}
-	tcp, err := net.Listen("tcp", fmt.Sprintf(":%d", listener.port))
+func NewTCPTransport(port int, handler func(Metadata) error) (net.Listener, error) {
+	listener := &tcp{}
+	tcp, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
 	if err != nil {
 		return nil, err
 	}
 	proxyListener := &proxyproto.Listener{Listener: tcp}
 	listener.listener = proxyListener
-	go listener.acceptLoop(ch)
+	go listener.acceptLoop(handler)
 	return proxyListener, nil
 }
 
-func (t *tcp) acceptLoop(ch chan<- listener.Transport) {
+func (t *tcp) acceptLoop(handler func(Metadata) error) {
 	var tempDelay time.Duration
 	for {
 		c, err := t.listener.Accept()
@@ -79,12 +50,16 @@ func (t *tcp) acceptLoop(ch chan<- listener.Transport) {
 			t.listener.Close()
 			return
 		}
-		t.queueSession(c, ch)
+		t.queueSession(c, handler)
 	}
 }
 
-func (t *tcp) queueSession(c net.Conn, ch chan<- listener.Transport) {
-	ch <- &tcpTransport{
-		ch: c,
-	}
+func (t *tcp) queueSession(c net.Conn, handler func(Metadata) error) {
+	handler(Metadata{
+		Channel:         c,
+		Encrypted:       false,
+		EncryptionState: nil,
+		Name:            "tcp",
+		RemoteAddress:   c.RemoteAddr().String(),
+	})
 }

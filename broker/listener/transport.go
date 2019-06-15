@@ -8,6 +8,7 @@ import (
 	"net"
 	"time"
 
+	"github.com/vx-labs/mqtt-broker/broker/listener/transport"
 	"github.com/vx-labs/mqtt-broker/queues/inflight"
 	"github.com/vx-labs/mqtt-broker/queues/messages"
 
@@ -29,12 +30,12 @@ type Transport interface {
 	RemoteAddress() string
 }
 type Handler interface {
-	Authenticate(transport Transport, sessionID []byte, username string, password string) (tenant string, id string, err error)
+	Authenticate(transport transport.Metadata, sessionID []byte, username string, password string) (tenant string, id string, err error)
 	OnConnect(sess *Session) (int32, error)
 }
 
 type listener struct {
-	ch      chan Transport
+	ch      chan transport.Metadata
 	handler Handler
 }
 
@@ -43,8 +44,8 @@ func (l *listener) Close() error {
 	return nil
 }
 
-func New(handler Handler, inflightSize int) (io.Closer, chan<- Transport) {
-	ch := make(chan Transport)
+func New(handler Handler, inflightSize int) (io.Closer, chan<- transport.Metadata) {
+	ch := make(chan transport.Metadata)
 
 	l := &listener{
 		ch:      ch,
@@ -62,9 +63,9 @@ func validateClientID(clientID []byte) bool {
 	return len(clientID) > 0 && len(clientID) < 128
 }
 
-func (l *listener) runSession(t Transport, inflightSize int) {
-	log.Printf("INFO: listener %s: accepted new connection from %s", t.Name(), t.RemoteAddress())
-	c := t.Channel()
+func (l *listener) runSession(t transport.Metadata, inflightSize int) {
+	log.Printf("INFO: listener %s: accepted new connection from %s", t.Name, t.RemoteAddress)
+	c := t.Channel
 	handler := l.handler
 	session := newSession(t, inflightSize)
 	session.encoder = encoder.New(c)
@@ -162,21 +163,21 @@ func (l *listener) runSession(t Transport, inflightSize int) {
 			}
 			if opErr, ok := err.(*net.OpError); ok {
 				if opErr.Timeout() {
-					log.Printf("ERR: listener %s: session_id=%q read timeout", t.Name(), session.id)
+					log.Printf("ERR: listener %s: session_id=%q read timeout", t.Name, session.id)
 					break
 				}
 			}
-			log.Printf("ERR: listener %s: decoding from session_id=%q failed: %v", t.Name(), session.id, err)
+			log.Printf("ERR: listener %s: decoding from session_id=%q failed: %v", t.Name, session.id, err)
 			break
 		}
 	}
 	c.Close()
 
 	if err != nil && err != ErrSessionDisconnected && !session.closed {
-		log.Printf("WARN: listener %s: session %s lost: %v", t.Name(), session.id, err)
+		log.Printf("WARN: listener %s: session %s lost: %v", t.Name, session.id, err)
 		session.emitLost()
 	} else {
-		log.Printf("INFO: listener %s: session %s closed", t.Name(), session.id)
+		log.Printf("INFO: listener %s: session %s closed", t.Name, session.id)
 		session.emitClosed()
 	}
 }
