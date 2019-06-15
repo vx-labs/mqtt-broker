@@ -73,7 +73,7 @@ type SubscriptionStore interface {
 }
 type Broker struct {
 	ID            string
-	authHelper    func(transport listener.Transport, sessionID []byte, username string, password string) (tenant string, err error)
+	authHelper    func(transport transport.Metadata, sessionID []byte, username string, password string) (tenant string, err error)
 	mesh          cluster.Mesh
 	Subscriptions SubscriptionStore
 	Sessions      SessionStore
@@ -202,17 +202,22 @@ func New(id identity.Identity, config Config) *Broker {
 	broker.Sessions = sessionsStore
 
 	if config.TCPPort > 0 {
-		tcpTransport, err := transport.NewTCPTransport(config.TCPPort, listenerCh)
-		broker.TCPTransport = tcpTransport
+		tcpTransport, err := transport.NewTCPTransport(config.TCPPort, func(t transport.Metadata) error {
+			listenerCh <- t
+			return nil
+		})
 		if err != nil {
 			log.Printf("WARN: failed to start TCP listener on port %d: %v", config.TCPPort, err)
 		} else {
-			log.Printf("INFO: started TCP listener on port %d", config.TCPPort)
+			broker.TCPTransport = tcpTransport
 			hostedServices = append(hostedServices, "tcp-listener")
 		}
 	}
 	if config.WSPort > 0 {
-		wsTransport, err := transport.NewWSTransport(config.WSPort, listenerCh)
+		wsTransport, err := transport.NewWSTransport(config.WSPort, func(t transport.Metadata) error {
+			listenerCh <- t
+			return nil
+		})
 		broker.WSTransport = wsTransport
 		if err != nil {
 			log.Printf("WARN: failed to start WS listener on port %d: %v", config.WSPort, err)
@@ -223,7 +228,10 @@ func New(id identity.Identity, config Config) *Broker {
 	}
 	if config.TLS != nil {
 		if config.WSSPort > 0 {
-			wssTransport, err := transport.NewWSSTransport(config.WSSPort, config.TLS, listenerCh)
+			wssTransport, err := transport.NewWSSTransport(config.WSSPort, config.TLS, func(t transport.Metadata) error {
+				listenerCh <- t
+				return nil
+			})
 			broker.WSSTransport = wssTransport
 			if err != nil {
 				log.Printf("WARN: failed to start WSS listener on port %d: %v", config.WSSPort, err)
@@ -233,7 +241,10 @@ func New(id identity.Identity, config Config) *Broker {
 			}
 		}
 		if config.TLSPort > 0 {
-			tlsTransport, err := transport.NewTLSTransport(config.TLSPort, config.TLS, listenerCh)
+			tlsTransport, err := transport.NewTLSTransport(config.TLSPort, config.TLS, func(t transport.Metadata) error {
+				listenerCh <- t
+				return nil
+			})
 			broker.TLSTransport = tlsTransport
 			if err != nil {
 				log.Printf("WARN: failed to start TLS listener on port %d: %v", config.TLSPort, err)

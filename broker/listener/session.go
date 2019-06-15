@@ -6,6 +6,7 @@ import (
 
 	"github.com/vx-labs/mqtt-protocol/encoder"
 
+	"github.com/vx-labs/mqtt-broker/broker/listener/transport"
 	"github.com/vx-labs/mqtt-broker/events"
 	"github.com/vx-labs/mqtt-broker/queues/inflight"
 	"github.com/vx-labs/mqtt-broker/queues/messages"
@@ -21,7 +22,7 @@ type Session struct {
 	tenant    string
 	keepalive int32
 	closed    bool
-	transport Transport
+	transport transport.Metadata
 	connect   *packet.Connect
 	encoder   *encoder.Encoder
 	events    *events.Bus
@@ -30,7 +31,7 @@ type Session struct {
 	quit      chan struct{}
 }
 
-func newSession(transport Transport, queueSize int) *Session {
+func newSession(transport transport.Metadata, queueSize int) *Session {
 	s := &Session{
 		events:    events.NewEventBus(),
 		keepalive: 30,
@@ -47,14 +48,14 @@ func newSession(transport Transport, queueSize int) *Session {
 }
 
 func (s *Session) TransportName() string {
-	return s.transport.Name()
+	return s.transport.Name
 }
 func (s *Session) RemoteAddress() string {
-	return s.transport.RemoteAddress()
+	return s.transport.RemoteAddress
 }
 func (s *Session) Close() error {
 	s.closed = true
-	return s.transport.Close()
+	return s.transport.Channel.Close()
 }
 func (s *Session) Connect() *packet.Connect {
 	return s.connect
@@ -161,7 +162,7 @@ func (s *Session) ConnAck(returnCode int32) error {
 }
 
 func (s *Session) RenewDeadline() {
-	conn := s.transport.Channel()
+	conn := s.transport.Channel
 	deadline := time.Now().Add(time.Duration(s.keepalive) * time.Second * 2)
 	conn.SetDeadline(deadline)
 }

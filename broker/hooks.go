@@ -12,6 +12,7 @@ import (
 	"github.com/vx-labs/mqtt-broker/sessions"
 
 	"github.com/vx-labs/mqtt-broker/broker/listener"
+	"github.com/vx-labs/mqtt-broker/broker/listener/transport"
 	subscriptions "github.com/vx-labs/mqtt-broker/subscriptions"
 	topics "github.com/vx-labs/mqtt-broker/topics"
 	"github.com/vx-labs/mqtt-protocol/packet"
@@ -292,10 +293,10 @@ func (b *Broker) OnPublish(sess sessions.Session, p *packet.Publish) error {
 	return nil
 }
 
-func (b *Broker) Authenticate(transport listener.Transport, sessionID []byte, username string, password string) (tenant string, id string, err error) {
+func (b *Broker) Authenticate(transport transport.Metadata, sessionID []byte, username string, password string) (tenant string, id string, err error) {
 	tenant, err = b.authHelper(transport, sessionID, username, password)
 	if err != nil {
-		log.Printf("WARN: authentication failed from %s: %v", transport.RemoteAddress(), err)
+		log.Printf("WARN: authentication failed from %s: %v", transport.RemoteAddress, err)
 	}
 	return tenant, uuid.New().String(), err
 }

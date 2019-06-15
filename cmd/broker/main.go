@@ -15,7 +15,7 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/vx-labs/mqtt-broker/broker/listener"
+	"github.com/vx-labs/mqtt-broker/broker/listener/transport"
 
 	_ "net/http/pprof"
 
@@ -120,9 +120,9 @@ func makeSessionID(tenant string, clientID []byte) (string, error) {
 	return fmt.Sprintf("%x", hash.Sum(nil)), nil
 }
 
-func authHelper(ctx context.Context) func(transport listener.Transport, sessionID []byte, username string, password string) (tenant string, err error) {
+func authHelper(ctx context.Context) func(transport transport.Metadata, sessionID []byte, username string, password string) (tenant string, err error) {
 	if os.Getenv("BYPASS_AUTH") == "true" {
-		return func(transport listener.Transport, sessionID []byte, username string, password string) (tenant string, err error) {
+		return func(transport transport.Metadata, sessionID []byte, username string, password string) (tenant string, err error) {
 			return "_default", nil
 		}
 	}
@@ -130,7 +130,7 @@ func authHelper(ctx context.Context) func(transport listener.Transport, sessionI
 	if err != nil {
 		panic(err)
 	}
-	return func(transport listener.Transport, sessionID []byte, username string, password string) (tenant string, err error) {
+	return func(transport transport.Metadata, sessionID []byte, username string, password string) (tenant string, err error) {
 		log.Println("INFO: calling VX auth handler")
 		defer func() {
 			log.Println("INFO: VX auth handler returned")
@@ -141,7 +141,7 @@ func authHelper(ctx context.Context) func(transport listener.Transport, sessionI
 				username,
 				password,
 			),
-			auth.WithTransportContext(transport.Encrypted(), transport.RemoteAddress(), nil),
+			auth.WithTransportContext(transport.Encrypted, transport.RemoteAddress, nil),
 		)
 		if err != nil {
 			log.Printf("ERROR: auth failed: %v", err)
