@@ -333,8 +333,17 @@ func (b *Broker) onPeerDown(name string) {
 }
 
 func (b *Broker) Join(hosts []string) {
-	log.Printf("INFO: joining hosts %v", hosts)
-	b.mesh.Join(hosts)
+	ticker := time.NewTicker(5 * time.Second)
+	defer ticker.Stop()
+	for {
+		log.Printf("INFO: joining hosts %v", hosts)
+		err := b.mesh.Join(hosts)
+		if err == nil {
+			return
+		}
+		log.Printf("WARN: failed to join the provided node list: %v", err)
+		<-ticker.C
+	}
 }
 
 func (b *Broker) dispatch(message *rpc.MessagePublished) error {
