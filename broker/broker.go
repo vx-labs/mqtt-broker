@@ -135,7 +135,7 @@ func New(id identity.Identity, config Config) *Broker {
 		workers:    NewPool(25),
 	}
 
-	l, listenerCh := NewListener(broker, config.Session.MaxInflightSize)
+	l, listenerCh := broker.NewListener(config.Session.MaxInflightSize)
 	broker.RPC = rpc.New(config.RPCPort, broker)
 	if config.RPCIdentity == nil {
 		_, port, err := net.SplitHostPort(broker.RPC.Addr().String())

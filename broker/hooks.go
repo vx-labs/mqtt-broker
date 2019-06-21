@@ -133,7 +133,7 @@ func (b *Broker) OnSessionLost(sess sessions.Session) {
 	b.Sessions.Delete(sess.ID, "session_lost")
 }
 
-func (b *Broker) OnConnect(transportSession *Session) (int32, error) {
+func (b *Broker) OnConnect(transportSession *Session) (sessions.Session, int32, error) {
 	connectPkt := transportSession.Connect()
 	id := transportSession.ID()
 	clientId := string(connectPkt.ClientId)
@@ -142,7 +142,7 @@ func (b *Broker) OnConnect(transportSession *Session) (int32, error) {
 	log.Printf("DEBUG: session %s: checking if session client-id is free", id)
 	set, err := b.Sessions.ByClientID(clientId)
 	if err != nil {
-		return packet.CONNACK_REFUSED_SERVER_UNAVAILABLE, err
+		return sessions.Session{}, packet.CONNACK_REFUSED_SERVER_UNAVAILABLE, err
 	}
 	if len(set) == 0 {
 		log.Printf("DEBUG: session %s: session client-id is free", id)
@@ -155,7 +155,7 @@ func (b *Broker) OnConnect(transportSession *Session) (int32, error) {
 			}
 			return nil
 		}); err != nil {
-			return packet.CONNACK_REFUSED_IDENTIFIER_REJECTED, err
+			return sessions.Session{}, packet.CONNACK_REFUSED_IDENTIFIER_REJECTED, err
 		}
 	}
 	sess := sessions.Session{
@@ -174,88 +174,14 @@ func (b *Broker) OnConnect(transportSession *Session) (int32, error) {
 			KeepaliveInterval: connectPkt.KeepaliveTimer,
 		},
 	}
-	log.Printf("DEBUG: session %s: subscribing to session events", id)
-	var cancels []func()
-	cancels = []func(){
-		transportSession.OnSubscribe(func(p *packet.Subscribe) {
-			b.workers.Call(func() error {
-				err := b.OnSubscribe(transportSession, sess, p)
-				if err == nil {
-					qos := make([]int32, len(p.Qos))
-
-					// QoS2 is not supported for now
-					for idx := range p.Qos {
-						if p.Qos[idx] > 1 {
-							qos[idx] = 1
-						} else {
-							qos[idx] = p.Qos[idx]
-						}
-					}
-					transportSession.SubAck(p.MessageId, qos)
-				}
-				return nil
-			})
-		}),
-		transportSession.OnPublish(func(p *packet.Publish) {
-			b.workers.Call(func() error {
-				err := b.OnPublish(sess, p)
-				if p.Header.Qos == 0 {
-					return nil
-				}
-				if err != nil {
-					log.Printf("ERR: failed to handle message publish: %v", err)
-					return err
-				}
-				return nil
-			})
-		}),
-		transportSession.OnClosed(func() {
-			b.workers.Call(func() error {
-				b.Sessions.Delete(sess.ID, "session_disconnected")
-				err := b.deleteSessionSubscriptions(sess)
-				if err != nil {
-					log.Printf("WARN: failed to delete session subscriptions: %v", err)
-					return err
-				}
-				for _, cancel := range cancels {
-					cancel()
-				}
-				return nil
-			})
-		}),
-		transportSession.OnLost(func() {
-			b.workers.Call(func() error {
-				b.Sessions.Delete(sess.ID, "session_lost")
-				err := b.deleteSessionSubscriptions(sess)
-				if err != nil {
-					log.Printf("WARN: failed to delete session subscriptions: %v", err)
-				}
-				if len(sess.WillTopic) > 0 {
-					b.OnPublish(sess, &packet.Publish{
-						Header: &packet.Header{
-							Dup:    false,
-							Retain: sess.WillRetain,
-							Qos:    sess.WillQoS,
-						},
-						Payload: sess.WillPayload,
-						Topic:   sess.WillTopic,
-					})
-				}
-				for _, cancel := range cancels {
-					cancel()
-				}
-				return nil
-			})
-		}),
-	}
 	log.Printf("DEBUG: session %s: creating session in store", id)
 	err = b.Sessions.Upsert(sess, transportSession)
 	if err != nil {
 		log.Printf("DEBUG: session %s: creation in store failed: %v", id, err)
-		return packet.CONNACK_REFUSED_SERVER_UNAVAILABLE, err
+		return sessions.Session{}, packet.CONNACK_REFUSED_SERVER_UNAVAILABLE, err
 	}
 	log.Printf("INFO: session %s started", sess.ID)
-	return packet.CONNACK_CONNECTION_ACCEPTED, nil
+	return sess, packet.CONNACK_CONNECTION_ACCEPTED, nil
 }
 func (b *Broker) OnPublish(sess sessions.Session, p *packet.Publish) error {
 	if b.STANOutput != nil {

@@ -8,6 +8,8 @@ import (
 	"net"
 	"time"
 
+	"github.com/vx-labs/mqtt-broker/sessions"
+
 	"github.com/vx-labs/mqtt-broker/broker/transport"
 	"github.com/vx-labs/mqtt-broker/queues/inflight"
 	"github.com/vx-labs/mqtt-broker/queues/messages"
@@ -29,14 +31,8 @@ type Transport interface {
 	Channel() TimeoutReadWriteCloser
 	RemoteAddress() string
 }
-type Handler interface {
-	Authenticate(transport transport.Metadata, sessionID []byte, username string, password string) (tenant string, id string, err error)
-	OnConnect(sess *Session) (int32, error)
-}
-
 type listener struct {
-	ch      chan transport.Metadata
-	handler Handler
+	ch chan transport.Metadata
 }
 
 func (l *listener) Close() error {
@@ -44,16 +40,15 @@ func (l *listener) Close() error {
 	return nil
 }
 
-func NewListener(handler Handler, inflightSize int) (io.Closer, chan<- transport.Metadata) {
+func (b *Broker) NewListener(inflightSize int) (io.Closer, chan<- transport.Metadata) {
 	ch := make(chan transport.Metadata)
 
 	l := &listener{
-		ch:      ch,
-		handler: handler,
+		ch: ch,
 	}
 	go func() {
 		for transport := range ch {
-			go l.runSession(transport, inflightSize)
+			go b.runSession(transport, inflightSize)
 		}
 	}()
 	return l, l.ch
@@ -63,14 +58,14 @@ func validateClientID(clientID []byte) bool {
 	return len(clientID) > 0 && len(clientID) < 128
 }
 
-func (l *listener) runSession(t transport.Metadata, inflightSize int) {
+func (handler *Broker) runSession(t transport.Metadata, inflightSize int) {
 	log.Printf("INFO: listener %s: accepted new connection from %s", t.Name, t.RemoteAddress)
 	c := t.Channel
-	handler := l.handler
 	session := newSession(t, inflightSize)
 	session.encoder = encoder.New(c)
 	session.inflight = inflight.New(session.encoder.Publish)
 	session.queue = messages.NewQueue()
+	var sessionMetadata sessions.Session
 	defer close(session.quit)
 	dec := decoder.New(
 		decoder.OnConnect(func(p *packet.Connect) error {
@@ -95,7 +90,8 @@ func (l *listener) runSession(t transport.Metadata, inflightSize int) {
 			session.connect = p
 			session.tenant = tenant
 			log.Printf("INFO: starting session %s", session.id)
-			code, err := handler.OnConnect(session)
+			var code int32
+			sessionMetadata, code, err = handler.OnConnect(session)
 			if err == nil {
 				session.RenewDeadline()
 			} else {
@@ -105,7 +101,14 @@ func (l *listener) runSession(t transport.Metadata, inflightSize int) {
 		}),
 		decoder.OnPublish(func(p *packet.Publish) error {
 			session.RenewDeadline()
-			session.emitPublish(p)
+			err := handler.OnPublish(sessionMetadata, p)
+			if p.Header.Qos == 0 {
+				return nil
+			}
+			if err != nil {
+				log.Printf("ERR: failed to handle message publish: %v", err)
+				return err
+			}
 			if p.Header.Qos == 1 {
 				return session.PubAck(p.MessageId)
 			}
@@ -113,13 +116,29 @@ func (l *listener) runSession(t transport.Metadata, inflightSize int) {
 		}),
 		decoder.OnSubscribe(func(p *packet.Subscribe) error {
 			session.RenewDeadline()
-			session.emitSubscribe(p)
-			return nil
+			return handler.workers.Call(func() error {
+				err := handler.OnSubscribe(session, sessionMetadata, p)
+				if err == nil {
+					qos := make([]int32, len(p.Qos))
+
+					// QoS2 is not supported for now
+					for idx := range p.Qos {
+						if p.Qos[idx] > 1 {
+							qos[idx] = 1
+						} else {
+							qos[idx] = p.Qos[idx]
+						}
+					}
+					session.SubAck(p.MessageId, qos)
+				}
+				return nil
+			})
 		}),
 		decoder.OnUnsubscribe(func(p *packet.Unsubscribe) error {
 			session.RenewDeadline()
-			session.emitUnsubscribe(p)
-			return nil
+			return handler.workers.Call(func() error {
+				return handler.OnUnsubscribe(sessionMetadata, p)
+			})
 		}),
 		decoder.OnPubAck(func(p *packet.PubAck) error {
 			session.RenewDeadline()
@@ -175,9 +194,35 @@ func (l *listener) runSession(t transport.Metadata, inflightSize int) {
 
 	if err != nil && err != ErrSessionDisconnected && !session.closed {
 		log.Printf("WARN: listener %s: session %s lost: %v", t.Name, session.id, err)
-		session.emitLost()
+		handler.workers.Call(func() error {
+			handler.Sessions.Delete(sessionMetadata.ID, "session_lost")
+			err := handler.deleteSessionSubscriptions(sessionMetadata)
+			if err != nil {
+				log.Printf("WARN: failed to delete session subscriptions: %v", err)
+			}
+			if len(sessionMetadata.WillTopic) > 0 {
+				handler.OnPublish(sessionMetadata, &packet.Publish{
+					Header: &packet.Header{
+						Dup:    false,
+						Retain: sessionMetadata.WillRetain,
+						Qos:    sessionMetadata.WillQoS,
+					},
+					Payload: sessionMetadata.WillPayload,
+					Topic:   sessionMetadata.WillTopic,
+				})
+			}
+			return nil
+		})
 	} else {
 		log.Printf("INFO: listener %s: session %s closed", t.Name, session.id)
-		session.emitClosed()
+		handler.workers.Call(func() error {
+			handler.Sessions.Delete(sessionMetadata.ID, "session_disconnected")
+			err := handler.deleteSessionSubscriptions(sessionMetadata)
+			if err != nil {
+				log.Printf("WARN: failed to delete session subscriptions: %v", err)
+				return err
+			}
+			return nil
+		})
 	}
 }
