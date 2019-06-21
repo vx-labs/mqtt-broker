@@ -1,4 +1,4 @@
-package listener
+package broker
 
 import (
 	"crypto/tls"
@@ -8,7 +8,7 @@ import (
 	"net"
 	"time"
 
-	"github.com/vx-labs/mqtt-broker/broker/listener/transport"
+	"github.com/vx-labs/mqtt-broker/broker/transport"
 	"github.com/vx-labs/mqtt-broker/queues/inflight"
 	"github.com/vx-labs/mqtt-broker/queues/messages"
 
@@ -44,7 +44,7 @@ func (l *listener) Close() error {
 	return nil
 }
 
-func New(handler Handler, inflightSize int) (io.Closer, chan<- transport.Metadata) {
+func NewListener(handler Handler, inflightSize int) (io.Closer, chan<- transport.Metadata) {
 	ch := make(chan transport.Metadata)
 
 	l := &listener{

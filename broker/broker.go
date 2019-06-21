@@ -19,12 +19,10 @@ import (
 	"github.com/vx-labs/mqtt-broker/sessions"
 	"github.com/vx-labs/mqtt-broker/topics"
 
-	"github.com/vx-labs/mqtt-broker/broker/listener/transport"
 	"github.com/vx-labs/mqtt-broker/broker/rpc"
+	"github.com/vx-labs/mqtt-broker/broker/transport"
 
 	"github.com/vx-labs/mqtt-protocol/packet"
-
-	"github.com/vx-labs/mqtt-broker/broker/listener"
 
 	"github.com/vx-labs/mqtt-broker/identity"
 
@@ -137,7 +135,7 @@ func New(id identity.Identity, config Config) *Broker {
 		workers:    NewPool(25),
 	}
 
-	l, listenerCh := listener.New(broker, config.Session.MaxInflightSize)
+	l, listenerCh := NewListener(broker, config.Session.MaxInflightSize)
 	broker.RPC = rpc.New(config.RPCPort, broker)
 	if config.RPCIdentity == nil {
 		_, port, err := net.SplitHostPort(broker.RPC.Addr().String())

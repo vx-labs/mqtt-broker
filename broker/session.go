@@ -1,4 +1,4 @@
-package listener
+package broker
 
 import (
 	"errors"
@@ -6,7 +6,7 @@ import (
 
 	"github.com/vx-labs/mqtt-protocol/encoder"
 
-	"github.com/vx-labs/mqtt-broker/broker/listener/transport"
+	"github.com/vx-labs/mqtt-broker/broker/transport"
 	"github.com/vx-labs/mqtt-broker/events"
 	"github.com/vx-labs/mqtt-broker/queues/inflight"
 	"github.com/vx-labs/mqtt-broker/queues/messages"

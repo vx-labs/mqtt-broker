@@ -11,8 +11,7 @@ import (
 
 	"github.com/vx-labs/mqtt-broker/sessions"
 
-	"github.com/vx-labs/mqtt-broker/broker/listener"
-	"github.com/vx-labs/mqtt-broker/broker/listener/transport"
+	"github.com/vx-labs/mqtt-broker/broker/transport"
 	subscriptions "github.com/vx-labs/mqtt-broker/subscriptions"
 	topics "github.com/vx-labs/mqtt-broker/topics"
 	"github.com/vx-labs/mqtt-protocol/packet"
@@ -37,7 +36,7 @@ func getLowerQoS(a, b int32) int32 {
 	}
 	return b
 }
-func (b *Broker) OnSubscribe(transportSession *listener.Session, sess sessions.Session, p *packet.Subscribe) error {
+func (b *Broker) OnSubscribe(transportSession *Session, sess sessions.Session, p *packet.Subscribe) error {
 	for idx, pattern := range p.Topic {
 		subID := makeSubID(sess.ID, pattern)
 		event := subscriptions.Subscription{
@@ -134,7 +133,7 @@ func (b *Broker) OnSessionLost(sess sessions.Session) {
 	b.Sessions.Delete(sess.ID, "session_lost")
 }
 
-func (b *Broker) OnConnect(transportSession *listener.Session) (int32, error) {
+func (b *Broker) OnConnect(transportSession *Session) (int32, error) {
 	connectPkt := transportSession.Connect()
 	id := transportSession.ID()
 	clientId := string(connectPkt.ClientId)
