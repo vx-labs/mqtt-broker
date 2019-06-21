@@ -69,50 +69,54 @@ func (handler *Broker) runSession(t transport.Metadata, inflightSize int) {
 	defer close(session.quit)
 	dec := decoder.New(
 		decoder.OnConnect(func(p *packet.Connect) error {
-			session.keepalive = p.KeepaliveTimer
-			session.RenewDeadline()
-			clientID := p.ClientId
-			if !validateClientID(clientID) {
-				session.ConnAck(packet.CONNACK_REFUSED_IDENTIFIER_REJECTED)
-				return fmt.Errorf("invalid client ID")
-			}
-			tenant, id, err := handler.Authenticate(t, clientID, string(p.Username), string(p.Password))
-			if err != nil {
-				log.Printf("WARN: session %s failed authentication: %v", session.id, err)
-				session.encoder.ConnAck(&packet.ConnAck{
-					Header:     p.Header,
-					ReturnCode: packet.CONNACK_REFUSED_BAD_USERNAME_OR_PASSWORD,
-				})
-				session.ConnAck(packet.CONNACK_REFUSED_BAD_USERNAME_OR_PASSWORD)
-				return fmt.Errorf("authentication failed")
-			}
-			session.id = id
-			session.connect = p
-			session.tenant = tenant
-			log.Printf("INFO: starting session %s", session.id)
-			var code int32
-			sessionMetadata, code, err = handler.OnConnect(session)
-			if err == nil {
+			return handler.workers.Call(func() error {
+				session.keepalive = p.KeepaliveTimer
 				session.RenewDeadline()
-			} else {
-				log.Printf("ERROR: session %s start failed: %v", session.id, err)
-			}
-			return session.ConnAck(code)
+				clientID := p.ClientId
+				if !validateClientID(clientID) {
+					session.ConnAck(packet.CONNACK_REFUSED_IDENTIFIER_REJECTED)
+					return fmt.Errorf("invalid client ID")
+				}
+				tenant, id, err := handler.Authenticate(t, clientID, string(p.Username), string(p.Password))
+				if err != nil {
+					log.Printf("WARN: session %s failed authentication: %v", session.id, err)
+					session.encoder.ConnAck(&packet.ConnAck{
+						Header:     p.Header,
+						ReturnCode: packet.CONNACK_REFUSED_BAD_USERNAME_OR_PASSWORD,
+					})
+					session.ConnAck(packet.CONNACK_REFUSED_BAD_USERNAME_OR_PASSWORD)
+					return fmt.Errorf("authentication failed")
+				}
+				session.id = id
+				session.connect = p
+				session.tenant = tenant
+				log.Printf("INFO: starting session %s", session.id)
+				var code int32
+				sessionMetadata, code, err = handler.OnConnect(session)
+				if err == nil {
+					session.RenewDeadline()
+				} else {
+					log.Printf("ERROR: session %s start failed: %v", session.id, err)
+				}
+				return session.ConnAck(code)
+			})
 		}),
 		decoder.OnPublish(func(p *packet.Publish) error {
 			session.RenewDeadline()
-			err := handler.OnPublish(sessionMetadata, p)
-			if p.Header.Qos == 0 {
+			return handler.publishPool.Call(func() error {
+				err := handler.OnPublish(sessionMetadata, p)
+				if p.Header.Qos == 0 {
+					return nil
+				}
+				if err != nil {
+					log.Printf("ERR: failed to handle message publish: %v", err)
+					return err
+				}
+				if p.Header.Qos == 1 {
+					return session.PubAck(p.MessageId)
+				}
 				return nil
-			}
-			if err != nil {
-				log.Printf("ERR: failed to handle message publish: %v", err)
-				return err
-			}
-			if p.Header.Qos == 1 {
-				return session.PubAck(p.MessageId)
-			}
-			return nil
+			})
 		}),
 		decoder.OnSubscribe(func(p *packet.Subscribe) error {
 			session.RenewDeadline()

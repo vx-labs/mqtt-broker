@@ -85,6 +85,7 @@ type Broker struct {
 	WSTransport   io.Closer
 	RPC           net.Listener
 	RPCCaller     *rpc.Caller
+	publishPool   *Pool
 	workers       *Pool
 }
 type RemoteRPCTransport struct {
@@ -129,10 +130,11 @@ func (b *Broker) RemoteRPCProvider(addr, session string) sessions.Transport {
 
 func New(id identity.Identity, config Config) *Broker {
 	broker := &Broker{
-		ID:         id.ID(),
-		authHelper: config.AuthHelper,
-		RPCCaller:  rpc.NewCaller(),
-		workers:    NewPool(25),
+		ID:          id.ID(),
+		authHelper:  config.AuthHelper,
+		RPCCaller:   rpc.NewCaller(),
+		workers:     NewPool(25),
+		publishPool: NewPool(50),
 	}
 
 	l, listenerCh := broker.NewListener(config.Session.MaxInflightSize)

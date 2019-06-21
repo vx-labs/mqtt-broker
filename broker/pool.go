@@ -2,33 +2,24 @@ package broker
 
 type Job func() error
 type Pool struct {
-	jobs chan chan JobWrap
+	jobs chan chan Job
 	quit chan struct{}
-}
-
-type JobWrap struct {
-	job  Job
-	done chan error
 }
 
 func (a *Pool) Call(job Job) error {
 	worker := <-a.jobs
-	ch := make(chan error)
-	worker <- JobWrap{
-		job:  job,
-		done: ch,
-	}
-	return <-ch
+	worker <- job
+	return nil
 }
 func (a *Pool) Cancel() {
 	close(a.quit)
 }
 func NewPool(count int) *Pool {
 	c := &Pool{
-		jobs: make(chan chan JobWrap),
+		jobs: make(chan chan Job),
 	}
 
-	jobs := make(chan JobWrap)
+	jobs := make(chan Job)
 	for i := 0; i < count; i++ {
 		go func() {
 			for {
@@ -42,8 +33,7 @@ func NewPool(count int) *Pool {
 				case <-c.quit:
 					return
 				case job := <-jobs:
-					job.done <- job.job()
-					close(job.done)
+					job()
 				}
 			}
 		}()
