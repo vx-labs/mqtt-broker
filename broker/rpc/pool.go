@@ -9,8 +9,9 @@ import (
 
 type RPCJob func(BrokerServiceClient) error
 type Pool struct {
-	jobs chan chan JobWrap
-	quit chan struct{}
+	address string
+	jobs    chan chan JobWrap
+	quit    chan struct{}
 }
 
 type JobWrap struct {
@@ -32,8 +33,9 @@ func (a *Pool) Cancel() {
 }
 func NewPool(addr string) (*Pool, error) {
 	c := &Pool{
-		jobs: make(chan chan JobWrap),
-		quit: make(chan struct{}),
+		address: addr,
+		jobs:    make(chan chan JobWrap),
+		quit:    make(chan struct{}),
 	}
 	conn, err := grpc.Dial(addr, grpc.WithInsecure(), grpc.WithTimeout(3*time.Second))
 	if err != nil {

@@ -3,7 +3,10 @@ package rpc
 import (
 	"errors"
 	"log"
+	"strings"
 	"sync"
+
+	"github.com/google/btree"
 )
 
 var (
@@ -11,42 +14,49 @@ var (
 )
 
 type Caller struct {
-	pools map[string]*Pool
+	pools *btree.BTree
 	mutex sync.Mutex
+}
+
+func (p *Pool) Less(remote btree.Item) bool {
+	return strings.Compare(p.address, remote.(*Pool).address) == -1
 }
 
 func NewCaller() *Caller {
 	return &Caller{
-		pools: map[string]*Pool{},
+		pools: btree.New(2),
 	}
 }
 func (c *Caller) Call(addr string, job RPCJob) error {
-	c.mutex.Lock()
-	var err error
-	data, ok := c.pools[addr]
-	if !ok {
-		log.Printf("INFO: creating a new RPC Pool targeting address %s", addr)
-		data, err = NewPool(addr)
-		if err != nil {
+	var pool *Pool
+	data := c.pools.Get(&Pool{address: addr})
+	if data == nil {
+		c.mutex.Lock()
+		data = c.pools.Get(&Pool{address: addr})
+		if data == nil {
+			log.Printf("INFO: creating a new RPC Pool targeting address %s", addr)
+			newpool, err := NewPool(addr)
+			if err != nil {
+				c.mutex.Unlock()
+				return err
+			}
+			c.pools.ReplaceOrInsert(newpool)
+			data = newpool
 			c.mutex.Unlock()
-			return err
 		}
-		c.pools[addr] = data
 	}
-	log.Printf("INFO: pool %s aquired", addr)
-	c.mutex.Unlock()
-	log.Printf("INFO: calling RPC targetting %s", addr)
-	return data.Call(job)
+	pool = data.(*Pool)
+	return pool.Call(job)
 }
 func (c *Caller) Cancel(addr string) error {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 	log.Printf("INFO: closing RPC pool toward %s", addr)
-	pool, ok := c.pools[addr]
-	if !ok {
+	pool := c.pools.Get(&Pool{address: addr})
+	if pool == nil {
 		return ErrPoolNotFound
 	}
-	pool.Cancel()
-	delete(c.pools, addr)
+	pool.(*Pool).Cancel()
+	c.pools.Delete(pool)
 	return nil
 }
