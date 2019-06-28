@@ -52,9 +52,7 @@ func (m *memDBStore) runGC() error {
 			sess := payload.(Session)
 			return &sess, nil
 		}, func(id string) error {
-			return tx.Delete(memdbTable, Session{
-				Metadata: Metadata{ID: id},
-			})
+			return tx.Delete(memdbTable, Metadata{ID: id})
 		},
 		)
 	})
