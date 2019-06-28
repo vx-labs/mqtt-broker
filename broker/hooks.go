@@ -212,6 +212,7 @@ func (b *Broker) OnPublish(sess sessions.Session, p *packet.Publish) error {
 	}
 
 	message := *p
+	message.Header.Retain = false
 	recipients.Apply(func(sub subscriptions.Subscription) {
 		sub.Sender(message)
 	})
