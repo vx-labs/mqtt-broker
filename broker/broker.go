@@ -310,6 +310,7 @@ func (b *Broker) onPeerDown(name string) {
 		return
 	}
 	sessionSet.Apply(func(s sessions.Session) {
+		b.Sessions.Delete(s.ID, "session_lost")
 		if s.WillRetain {
 			retainedMessage := topics.RetainedMessage{
 				Metadata: topics.Metadata{
@@ -336,7 +337,6 @@ func (b *Broker) onPeerDown(name string) {
 		recipients.Apply(func(sub subscriptions.Subscription) {
 			sub.Sender(lwt)
 		})
-		b.Sessions.Delete(s.ID, "session_lost")
 	})
 }
 
@@ -354,6 +354,10 @@ func (b *Broker) Join(hosts []string) {
 	}
 }
 
+func (b *Broker) isSessionRemote(session sessions.Session) bool {
+	return session.Metadata.Peer == b.ID
+}
+
 func (b *Broker) dispatch(message *rpc.MessagePublished) error {
 	session, err := b.Sessions.ByID(message.Recipient)
 	if err != nil {
@@ -369,10 +373,10 @@ func (b *Broker) dispatch(message *rpc.MessagePublished) error {
 		Topic:     message.Topic,
 		MessageId: 1,
 	}
-	if session.Transport != nil {
+	if b.isSessionRemote(session) {
 		return session.Transport.Publish(&packet)
 	}
-	return errors.New("sessio not managed by this node")
+	return errors.New("session is not managed by this node")
 }
 
 func memUsage() runtime.MemStats {
