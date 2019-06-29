@@ -89,7 +89,7 @@ func (s *Session) ConnAck(returnCode int32) error {
 	})
 }
 
-func (s *Session) RenewDeadline() {
+func (s *Session) renewDeadline() {
 	conn := s.transport.Channel
 	deadline := time.Now().Add(time.Duration(s.keepalive) * time.Second * 2)
 	conn.SetDeadline(deadline)

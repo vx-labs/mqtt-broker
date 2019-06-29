@@ -71,7 +71,7 @@ func (handler *Broker) runSession(t transport.Metadata, inflightSize int) {
 		decoder.OnConnect(func(p *packet.Connect) error {
 			return handler.workers.Call(func() error {
 				session.keepalive = p.KeepaliveTimer
-				session.RenewDeadline()
+				session.renewDeadline()
 				clientID := p.ClientId
 				if !validateClientID(clientID) {
 					session.ConnAck(packet.CONNACK_REFUSED_IDENTIFIER_REJECTED)
@@ -94,7 +94,7 @@ func (handler *Broker) runSession(t transport.Metadata, inflightSize int) {
 				var code int32
 				sessionMetadata, code, err = handler.OnConnect(session)
 				if err == nil {
-					session.RenewDeadline()
+					session.renewDeadline()
 				} else {
 					log.Printf("ERROR: session %s start failed: %v", session.id, err)
 				}
@@ -102,7 +102,7 @@ func (handler *Broker) runSession(t transport.Metadata, inflightSize int) {
 			})
 		}),
 		decoder.OnPublish(func(p *packet.Publish) error {
-			session.RenewDeadline()
+			session.renewDeadline()
 			return handler.publishPool.Call(func() error {
 				err := handler.OnPublish(sessionMetadata, p)
 				if p.Header.Qos == 0 {
@@ -119,7 +119,7 @@ func (handler *Broker) runSession(t transport.Metadata, inflightSize int) {
 			})
 		}),
 		decoder.OnSubscribe(func(p *packet.Subscribe) error {
-			session.RenewDeadline()
+			session.renewDeadline()
 			return handler.workers.Call(func() error {
 				err := handler.OnSubscribe(session, sessionMetadata, p)
 				if err == nil {
@@ -139,24 +139,24 @@ func (handler *Broker) runSession(t transport.Metadata, inflightSize int) {
 			})
 		}),
 		decoder.OnUnsubscribe(func(p *packet.Unsubscribe) error {
-			session.RenewDeadline()
+			session.renewDeadline()
 			return handler.workers.Call(func() error {
 				return handler.OnUnsubscribe(sessionMetadata, p)
 			})
 		}),
 		decoder.OnPubAck(func(p *packet.PubAck) error {
-			session.RenewDeadline()
+			session.renewDeadline()
 			session.inflight.Ack(p.MessageId)
 			return nil
 		}),
 		decoder.OnPingReq(func(p *packet.PingReq) error {
-			session.RenewDeadline()
+			session.renewDeadline()
 			return session.encoder.PingResp(&packet.PingResp{
 				Header: p.Header,
 			})
 		}),
 		decoder.OnDisconnect(func(p *packet.Disconnect) error {
-			session.RenewDeadline()
+			session.renewDeadline()
 			return ErrSessionDisconnected
 		}),
 	)
