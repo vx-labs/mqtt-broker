@@ -22,7 +22,6 @@ type Session struct {
 	keepalive int32
 	closed    bool
 	transport transport.Metadata
-	connect   *packet.Connect
 	encoder   *encoder.Encoder
 	queue     *messages.Queue
 	inflight  *inflight.Queue
@@ -52,9 +51,6 @@ func (s *Session) RemoteAddress() string {
 func (s *Session) Close() error {
 	s.closed = true
 	return s.transport.Channel.Close()
-}
-func (s *Session) Connect() *packet.Connect {
-	return s.connect
 }
 func (s *Session) ID() string {
 	return s.id

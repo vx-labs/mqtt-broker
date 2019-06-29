@@ -88,11 +88,10 @@ func (handler *Broker) runSession(t transport.Metadata, inflightSize int) {
 					return fmt.Errorf("authentication failed")
 				}
 				session.id = id
-				session.connect = p
 				session.tenant = tenant
 				log.Printf("INFO: starting session %s", session.id)
 				var code int32
-				sessionMetadata, code, err = handler.OnConnect(session)
+				sessionMetadata, code, err = handler.OnConnect(session, p)
 				if err == nil {
 					session.renewDeadline()
 				} else {

@@ -133,8 +133,7 @@ func (b *Broker) OnSessionLost(sess sessions.Session) {
 	b.Sessions.Delete(sess.ID, "session_lost")
 }
 
-func (b *Broker) OnConnect(transportSession *Session) (sessions.Session, int32, error) {
-	connectPkt := transportSession.Connect()
+func (b *Broker) OnConnect(transportSession *Session, connectPkt *packet.Connect) (sessions.Session, int32, error) {
 	id := transportSession.ID()
 	clientId := string(connectPkt.ClientId)
 	tenant := transportSession.Tenant()
