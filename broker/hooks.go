@@ -135,20 +135,20 @@ func (b *Broker) OnSessionLost(sess sessions.Session) {
 
 func (b *Broker) OnConnect(transportSession *Session, connectPkt *packet.Connect) (sessions.Session, int32, error) {
 	id := transportSession.ID()
-	clientId := string(connectPkt.ClientId)
+	clientID := string(connectPkt.ClientId)
 	tenant := transportSession.Tenant()
 	transport := transportSession.TransportName()
-	log.Printf("DEBUG: session %s: checking if session client-id is free", id)
-	set, err := b.Sessions.ByClientID(clientId)
+	log.Printf("DEBUG: session %s: checking if session client-id is free", clientID)
+	set, err := b.Sessions.ByClientID(clientID)
 	if err != nil {
 		return sessions.Session{}, packet.CONNACK_REFUSED_SERVER_UNAVAILABLE, err
 	}
 	if len(set) == 0 {
-		log.Printf("DEBUG: session %s: session client-id is free", id)
+		log.Printf("DEBUG: session %s: session client-id is free", clientID)
 	} else {
-		log.Printf("DEBUG: session %s: session client-id is not free, closing old sessions", id)
+		log.Printf("DEBUG: session %s: session client-id is not free, closing old sessions", clientID)
 		if err := set.ApplyE(func(session sessions.Session) error {
-			if session.Transport != nil && session.Peer == b.ID {
+			if b.isSessionLocal(session) {
 				log.Printf("INFO: closing old session %s", session.ID)
 				session.Transport.Close()
 			}
@@ -160,7 +160,7 @@ func (b *Broker) OnConnect(transportSession *Session, connectPkt *packet.Connect
 	sess := sessions.Session{
 		Metadata: sessions.Metadata{
 			ID:                id,
-			ClientID:          clientId,
+			ClientID:          clientID,
 			Created:           time.Now().Unix(),
 			Tenant:            tenant,
 			Peer:              b.ID,

@@ -354,7 +354,7 @@ func (b *Broker) Join(hosts []string) {
 	}
 }
 
-func (b *Broker) isSessionRemote(session sessions.Session) bool {
+func (b *Broker) isSessionLocal(session sessions.Session) bool {
 	return session.Metadata.Peer == b.ID
 }
 
@@ -373,7 +373,7 @@ func (b *Broker) dispatch(message *rpc.MessagePublished) error {
 		Topic:     message.Topic,
 		MessageId: 1,
 	}
-	if b.isSessionRemote(session) {
+	if b.isSessionLocal(session) {
 		return session.Transport.Publish(&packet)
 	}
 	return errors.New("session is not managed by this node")
