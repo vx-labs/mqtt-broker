@@ -2,20 +2,32 @@ package broker
 
 import (
 	"bytes"
+	"crypto/rand"
 	"crypto/sha1"
 	"fmt"
 	"log"
 	"time"
 
-	"github.com/google/uuid"
-
 	"github.com/vx-labs/mqtt-broker/sessions"
 
-	"github.com/vx-labs/mqtt-broker/broker/transport"
+	"github.com/vx-labs/mqtt-broker/broker/listener/transport"
 	subscriptions "github.com/vx-labs/mqtt-broker/subscriptions"
 	topics "github.com/vx-labs/mqtt-broker/topics"
 	"github.com/vx-labs/mqtt-protocol/packet"
 )
+
+func newUUID() string {
+	buf := make([]byte, 16)
+	if _, err := rand.Read(buf); err != nil {
+		panic(fmt.Errorf("failed to read random bytes: %v", err))
+	}
+	return fmt.Sprintf("%08x-%04x-%04x-%04x-%12x",
+		buf[0:4],
+		buf[4:6],
+		buf[6:8],
+		buf[8:10],
+		buf[10:16])
+}
 
 func makeSubID(session string, pattern []byte) string {
 	hash := sha1.New()
@@ -36,47 +48,7 @@ func getLowerQoS(a, b int32) int32 {
 	}
 	return b
 }
-func (b *Broker) OnSubscribe(transportSession *Session, sess sessions.Session, p *packet.Subscribe) error {
-	for idx, pattern := range p.Topic {
-		subID := makeSubID(sess.ID, pattern)
-		event := subscriptions.Subscription{
-			Metadata: subscriptions.Metadata{
-				ID:        subID,
-				Pattern:   pattern,
-				Qos:       p.Qos[idx],
-				Tenant:    sess.Tenant,
-				SessionID: sess.ID,
-				Peer:      b.ID,
-			},
-		}
-		err := b.Subscriptions.Create(event, func(publish packet.Publish) error {
-			return transportSession.Publish(&publish)
-		})
-		if err != nil {
-			return err
-		}
-		// Look for retained messages
-		set, err := b.Topics.ByTopicPattern(sess.Tenant, pattern)
-		if err != nil {
-			return err
-		}
-		packetQoS := p.Qos[idx]
-		go func() {
-			set.Apply(func(message topics.RetainedMessage) {
-				qos := getLowerQoS(message.Qos, packetQoS)
-				transportSession.Publish(&packet.Publish{
-					Header: &packet.Header{
-						Qos:    qos,
-						Retain: true,
-					},
-					Topic:   message.Topic,
-					Payload: message.Payload,
-				})
-			})
-		}()
-	}
-	return nil
-}
+
 func (b *Broker) OnUnsubscribe(sess sessions.Session, packet *packet.Unsubscribe) error {
 	set, err := b.Subscriptions.BySession(sess.ID)
 	if err != nil {
@@ -133,55 +105,6 @@ func (b *Broker) OnSessionLost(sess sessions.Session) {
 	b.Sessions.Delete(sess.ID, "session_lost")
 }
 
-func (b *Broker) OnConnect(transportSession *Session, connectPkt *packet.Connect) (sessions.Session, int32, error) {
-	id := transportSession.ID()
-	clientID := string(connectPkt.ClientId)
-	tenant := transportSession.Tenant()
-	transport := transportSession.TransportName()
-	log.Printf("DEBUG: session %s: checking if session client-id is free", clientID)
-	set, err := b.Sessions.ByClientID(clientID)
-	if err != nil {
-		return sessions.Session{}, packet.CONNACK_REFUSED_SERVER_UNAVAILABLE, err
-	}
-	if len(set) == 0 {
-		log.Printf("DEBUG: session %s: session client-id is free", clientID)
-	} else {
-		log.Printf("DEBUG: session %s: session client-id is not free, closing old sessions", clientID)
-		if err := set.ApplyE(func(session sessions.Session) error {
-			if b.isSessionLocal(session) {
-				log.Printf("INFO: closing old session %s", session.ID)
-				session.Transport.Close()
-			}
-			return nil
-		}); err != nil {
-			return sessions.Session{}, packet.CONNACK_REFUSED_IDENTIFIER_REJECTED, err
-		}
-	}
-	sess := sessions.Session{
-		Metadata: sessions.Metadata{
-			ID:                id,
-			ClientID:          clientID,
-			Created:           time.Now().Unix(),
-			Tenant:            tenant,
-			Peer:              b.ID,
-			WillPayload:       connectPkt.WillPayload,
-			WillQoS:           connectPkt.WillQos,
-			WillRetain:        connectPkt.WillRetain,
-			WillTopic:         connectPkt.WillTopic,
-			Transport:         transport,
-			RemoteAddress:     transportSession.RemoteAddress(),
-			KeepaliveInterval: connectPkt.KeepaliveTimer,
-		},
-	}
-	log.Printf("DEBUG: session %s: creating session in store", id)
-	err = b.Sessions.Upsert(sess, transportSession)
-	if err != nil {
-		log.Printf("DEBUG: session %s: creation in store failed: %v", id, err)
-		return sessions.Session{}, packet.CONNACK_REFUSED_SERVER_UNAVAILABLE, err
-	}
-	log.Printf("INFO: session %s started", sess.ID)
-	return sess, packet.CONNACK_CONNECTION_ACCEPTED, nil
-}
 func (b *Broker) OnPublish(sess sessions.Session, p *packet.Publish) error {
 	if b.STANOutput != nil {
 		b.STANOutput <- STANMessage{
@@ -218,10 +141,10 @@ func (b *Broker) OnPublish(sess sessions.Session, p *packet.Publish) error {
 	return nil
 }
 
-func (b *Broker) Authenticate(transport transport.Metadata, sessionID []byte, username string, password string) (tenant string, id string, err error) {
+func (b *Broker) Authenticate(transport transport.Metadata, sessionID []byte, username string, password string) (tenant string, err error) {
 	tenant, err = b.authHelper(transport, sessionID, username, password)
 	if err != nil {
 		log.Printf("WARN: authentication failed from %s: %v", transport.RemoteAddress, err)
 	}
-	return tenant, uuid.New().String(), err
+	return tenant, err
 }

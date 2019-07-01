@@ -15,7 +15,7 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/vx-labs/mqtt-broker/broker/transport"
+	"github.com/vx-labs/mqtt-broker/broker/listener/transport"
 
 	_ "net/http/pprof"
 

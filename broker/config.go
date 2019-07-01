@@ -4,7 +4,7 @@ import (
 	"crypto/tls"
 	"log"
 
-	"github.com/vx-labs/mqtt-broker/broker/transport"
+	"github.com/vx-labs/mqtt-broker/broker/listener/transport"
 	"github.com/vx-labs/mqtt-broker/identity"
 )
 
@@ -26,13 +26,13 @@ type Config struct {
 }
 
 func DefaultConfig() Config {
+	log.Print("WARN: Default authentication mecanism is used, therefore all access will be granted")
 	return Config{
 		Session: SessionConfig{
 			MaxInflightSize: 500,
 		},
 		RPCPort: 0,
 		AuthHelper: func(transport transport.Metadata, sessionID []byte, username string, password string) (tenant string, err error) {
-			log.Print("WARN: Default authentication mecanism is used, therefore all access will be granted")
 			return "_default", nil
 		},
 	}

@@ -11,8 +11,11 @@ import (
 	"runtime"
 	"time"
 
+	"github.com/vx-labs/mqtt-broker/broker/listener"
+
 	"github.com/sirupsen/logrus"
 	"github.com/vx-labs/mqtt-broker/broker/cluster"
+	"github.com/vx-labs/mqtt-broker/broker/listener/transport"
 
 	"github.com/vx-labs/mqtt-broker/peers"
 
@@ -20,7 +23,6 @@ import (
 	"github.com/vx-labs/mqtt-broker/topics"
 
 	"github.com/vx-labs/mqtt-broker/broker/rpc"
-	"github.com/vx-labs/mqtt-broker/broker/transport"
 
 	"github.com/vx-labs/mqtt-protocol/packet"
 
@@ -69,6 +71,11 @@ type SubscriptionStore interface {
 	Delete(id string) error
 	On(event string, handler func(subscriptions.Subscription)) func()
 }
+type Listener interface {
+	Publish(id string, publish *packet.Publish) error
+	CloseSession(id string) error
+	Close() error
+}
 type Broker struct {
 	ID            string
 	authHelper    func(transport transport.Metadata, sessionID []byte, username string, password string) (tenant string, err error)
@@ -78,7 +85,7 @@ type Broker struct {
 	Topics        TopicStore
 	Peers         PeerStore
 	STANOutput    chan STANMessage
-	Listener      io.Closer
+	Listener      Listener
 	TCPTransport  io.Closer
 	TLSTransport  io.Closer
 	WSSTransport  io.Closer
@@ -136,8 +143,13 @@ func New(id identity.Identity, config Config) *Broker {
 		workers:     NewPool(25),
 		publishPool: NewPool(50),
 	}
-
-	l, listenerCh := broker.NewListener(config.Session.MaxInflightSize)
+	broker.Listener = listener.New(broker, listener.Config{
+		TCPPort: config.TCPPort,
+		TLS:     config.TLS,
+		TLSPort: config.TLSPort,
+		WSPort:  config.WSPort,
+		WSSPort: config.WSSPort,
+	})
 	broker.RPC = rpc.New(config.RPCPort, broker)
 	if config.RPCIdentity == nil {
 		_, port, err := net.SplitHostPort(broker.RPC.Addr().String())
@@ -201,62 +213,6 @@ func New(id identity.Identity, config Config) *Broker {
 	broker.Subscriptions = subscriptionsStore
 	broker.Sessions = sessionsStore
 
-	if config.TCPPort > 0 {
-		tcpTransport, err := transport.NewTCPTransport(config.TCPPort, func(t transport.Metadata) error {
-			listenerCh <- t
-			return nil
-		})
-		if err != nil {
-			log.Printf("WARN: failed to start TCP listener on port %d: %v", config.TCPPort, err)
-		} else {
-			broker.TCPTransport = tcpTransport
-			hostedServices = append(hostedServices, "tcp-listener")
-		}
-	}
-	if config.WSPort > 0 {
-		wsTransport, err := transport.NewWSTransport(config.WSPort, func(t transport.Metadata) error {
-			listenerCh <- t
-			return nil
-		})
-		broker.WSTransport = wsTransport
-		if err != nil {
-			log.Printf("WARN: failed to start WS listener on port %d: %v", config.WSPort, err)
-		} else {
-			log.Printf("INFO: started WS listener on port %d", config.WSPort)
-			hostedServices = append(hostedServices, "ws-listener")
-		}
-	}
-	if config.TLS != nil {
-		if config.WSSPort > 0 {
-			wssTransport, err := transport.NewWSSTransport(config.WSSPort, config.TLS, func(t transport.Metadata) error {
-				listenerCh <- t
-				return nil
-			})
-			broker.WSSTransport = wssTransport
-			if err != nil {
-				log.Printf("WARN: failed to start WSS listener on port %d: %v", config.WSSPort, err)
-			} else {
-				log.Printf("INFO: started WSS listener on port %d", config.WSSPort)
-				hostedServices = append(hostedServices, "wss-listener")
-			}
-		}
-		if config.TLSPort > 0 {
-			tlsTransport, err := transport.NewTLSTransport(config.TLSPort, config.TLS, func(t transport.Metadata) error {
-				listenerCh <- t
-				return nil
-			})
-			broker.TLSTransport = tlsTransport
-			if err != nil {
-				log.Printf("WARN: failed to start TLS listener on port %d: %v", config.TLSPort, err)
-			} else {
-				log.Printf("INFO: started TLS listener on port %d", config.TLSPort)
-				hostedServices = append(hostedServices, "tls-listener")
-			}
-		} else {
-			log.Printf("WARN: failed to start TLS listener: TLS config not found")
-		}
-	}
-	broker.Listener = l
 	if config.NATSURL != "" {
 		ch := make(chan STANMessage)
 		if err := exportToSTAN(config, ch); err != nil {

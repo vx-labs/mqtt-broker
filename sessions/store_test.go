@@ -25,6 +25,7 @@ func TestSessionStore(t *testing.T) {
 		err := store.Upsert(Session{
 			Metadata: Metadata{
 				ID:       sessionID,
+				Tenant:   "_default",
 				ClientID: "test1",
 				Peer:     "1",
 			},
@@ -33,6 +34,7 @@ func TestSessionStore(t *testing.T) {
 		err = store.Upsert(Session{
 			Metadata: Metadata{
 				ID:       "3",
+				Tenant:   "_default",
 				ClientID: "test2",
 				Peer:     "2",
 			},
