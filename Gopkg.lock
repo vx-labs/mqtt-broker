@@ -515,15 +515,15 @@
   revision = "33fb24c13b99c46c93183c291836c573ac382536"
 
 [[projects]]
-  digest = "1:02e6dc9c030387868a684f7754fd88c98ae9fc04c27f04aedceae998f00b9bbf"
+  digest = "1:b21fb116e51b5c95eccbad65f2717d7d01f52c7f0d596d926e37749c7592fb88"
   name = "github.com/pierrec/lz4"
   packages = [
     ".",
     "internal/xxh32",
   ]
   pruneopts = ""
-  revision = "d705d4371bfccdf47f10e45584e896026c83616f"
-  version = "v2.2.3"
+  revision = "057d66e894a4e55853274a3bbbf7de02ba639e43"
+  version = "v2.2.4"
 
 [[projects]]
   digest = "1:1d7e1867c49a6dd9856598ef7c3123604ea3daabf5b83f303ff457bcbc410b1d"
@@ -655,15 +655,15 @@
   version = "v0.0.9"
 
 [[projects]]
-  digest = "1:9c0d417a548b0a7221a37477b0e4bda8fdf7b5fe9b22c5dbe3ddecfa24fdd94a"
+  digest = "1:694a871a90083aaf1000c75fc05aab93bf2d90a0d4cf57cae71bef1383b3ae90"
   name = "github.com/vx-labs/iot-mqtt-tls"
   packages = [
     "api",
     "cache",
   ]
   pruneopts = ""
-  revision = "e100a2f003106800b64536d06ef4920cce2e0bf3"
-  version = "v4.0.1"
+  revision = "7fc50b50171ab1db6409e6bcc7618a7c81608eb2"
+  version = "v4.0.4"
 
 [[projects]]
   digest = "1:c3d54936aac86831211503c7e3d1c57d84346be2537efb1f0033d41bc37be67b"
@@ -679,7 +679,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:90722da867436e04650b8491e5d9f690aeb2a4e305d548666bdd541d68d6cdbd"
+  digest = "1:086760278d762dbb0e9a26e09b57f04c89178c86467d8d94fae47d64c222f328"
   name = "golang.org/x/crypto"
   packages = [
     "ed25519",
@@ -689,7 +689,7 @@
     "ssh/terminal",
   ]
   pruneopts = ""
-  revision = "cc06ce4a13d484c0101a9e92913248488a75786d"
+  revision = "4def268fd1a49955bfb3dda92fe3db4f924f2285"
 
 [[projects]]
   branch = "master"
@@ -758,7 +758,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:b9e88fe0c7d2a858bbebdc0798aa48acd03d727085626297d94076591032e076"
+  digest = "1:3f760d6ee082a5cb999aaf8deeb6326b9d95d2f081c66beeef245a43f8a758f4"
   name = "golang.org/x/tools"
   packages = [
     "go/ast/astutil",
@@ -767,15 +767,15 @@
     "go/types/typeutil",
   ]
   pruneopts = ""
-  revision = "fb37f6ba82613749b0b522aa509da78361849fc3"
+  revision = "38ae2c8f64122bd595b7f93f968a6686cd27bb5a"
 
 [[projects]]
   branch = "master"
-  digest = "1:80177f66172504b67f0c8b46ae8be70c95b81297b9359dfbbef008b4f95ca2cb"
+  digest = "1:2ad4db7088b8cb174b051191bc2722722ad0f599db99d8eb5074358135f1580b"
   name = "google.golang.org/genproto"
   packages = ["googleapis/rpc/status"]
   pruneopts = ""
-  revision = "eb59cef1c072c61ea4f7623910448d5e9c6a4455"
+  revision = "710ae3a149df3775bfc2e9efb7f4fb97b186b233"
 
 [[projects]]
   digest = "1:6881653b963cd12dc1a9824aed5e122d0ff38e53e3ee07862f969a56ad2f2e9c"
