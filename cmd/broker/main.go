@@ -23,7 +23,7 @@ import (
 	vault "github.com/hashicorp/vault/api"
 	auth "github.com/vx-labs/iot-mqtt-auth/api"
 	mqttConfig "github.com/vx-labs/iot-mqtt-config"
-	tlsProvider "github.com/vx-labs/iot-mqtt-tls/api"
+	tlsProvider "github.com/vx-labs/mqtt-broker/tls/api"
 
 	"github.com/spf13/cobra"
 
