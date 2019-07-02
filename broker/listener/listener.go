@@ -131,8 +131,6 @@ func New(broker Broker, config Config) Endpoint {
 				log.Printf("INFO: started TLS listener on port %d", config.TLSPort)
 				local.transports = append(local.transports, tlsTransport)
 			}
-		} else {
-			log.Printf("WARN: failed to start TLS listener: TLS config not found")
 		}
 	}
 	return local

@@ -49,10 +49,6 @@
   version = "0.0.8"
 
 [[constraint]]
-  name = "github.com/vx-labs/iot-mqtt-tls"
-  version = "~4.0.0"
-
-[[constraint]]
   name = "github.com/vx-labs/mqtt-protocol"
   version = "4.0.2"
 
