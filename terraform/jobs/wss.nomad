@@ -36,6 +36,7 @@ job "mqtt-wss" {
       driver = "docker"
 
       env {
+        LE_STAGING = "true"
         CONSUL_HTTP_ADDR          = "172.17.0.1:8500"
         AUTH_HOST                 = "172.17.0.1:4141"
         JAEGER_SAMPLER_TYPE       = "const"

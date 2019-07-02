@@ -379,6 +379,14 @@
   revision = "720a0952cc2ac777afc295d9861263e2a4cf96a1"
 
 [[projects]]
+  digest = "1:0f51cee70b0d254dbc93c22666ea2abf211af81c1701a96d04e2284b408621db"
+  name = "github.com/konsorten/go-windows-terminal-sequences"
+  packages = ["."]
+  pruneopts = ""
+  revision = "f55edac94c9bbba5d6182a4be46d86a2c9b5b50e"
+  version = "v1.0.2"
+
+[[projects]]
   digest = "1:b60ba8f16c4bd2c27ddab8c95f045d1275df450b28d0d95513a9e70c8ae9910c"
   name = "github.com/lunixbochs/vtclean"
   packages = ["."]
@@ -558,12 +566,12 @@
   revision = "e2103e2c35297fb7e17febb81e49b312087a2372"
 
 [[projects]]
-  digest = "1:3fcbf733a8d810a21265a7f2fe08a3353db2407da052b233f8b204b5afc03d9b"
+  digest = "1:1a405cddcf3368445051fb70ab465ae99da56ad7be8d8ca7fc52159d1c2d873c"
   name = "github.com/sirupsen/logrus"
   packages = ["."]
   pruneopts = ""
-  revision = "3e01752db0189b9157070a0e1668a620f9a85da2"
-  version = "v1.0.6"
+  revision = "839c75faf7f98a33d445d181f3018b5c3409a45e"
+  version = "v1.4.2"
 
 [[projects]]
   digest = "1:956f655c87b7255c6b1ae6c203ebb0af98cf2a13ef2507e34c9bf1c0332ac0f5"
@@ -655,17 +663,6 @@
   version = "v0.0.9"
 
 [[projects]]
-  digest = "1:694a871a90083aaf1000c75fc05aab93bf2d90a0d4cf57cae71bef1383b3ae90"
-  name = "github.com/vx-labs/iot-mqtt-tls"
-  packages = [
-    "api",
-    "cache",
-  ]
-  pruneopts = ""
-  revision = "7fc50b50171ab1db6409e6bcc7618a7c81608eb2"
-  version = "v4.0.4"
-
-[[projects]]
   digest = "1:c3d54936aac86831211503c7e3d1c57d84346be2537efb1f0033d41bc37be67b"
   name = "github.com/vx-labs/mqtt-protocol"
   packages = [
@@ -686,7 +683,6 @@
     "ed25519/internal/edwards25519",
     "ocsp",
     "pbkdf2",
-    "ssh/terminal",
   ]
   pruneopts = ""
   revision = "4def268fd1a49955bfb3dda92fe3db4f924f2285"
@@ -851,6 +847,12 @@
   analyzer-version = 1
   input-imports = [
     "github.com/armon/go-proxyproto",
+    "github.com/go-acme/lego/certificate",
+    "github.com/go-acme/lego/challenge",
+    "github.com/go-acme/lego/challenge/dns01",
+    "github.com/go-acme/lego/lego",
+    "github.com/go-acme/lego/providers/dns/cloudflare",
+    "github.com/go-acme/lego/registration",
     "github.com/gobwas/ws",
     "github.com/gobwas/ws/wsutil",
     "github.com/gogo/protobuf/proto",
@@ -871,7 +873,6 @@
     "github.com/stretchr/testify/require",
     "github.com/vx-labs/iot-mqtt-auth/api",
     "github.com/vx-labs/iot-mqtt-config",
-    "github.com/vx-labs/iot-mqtt-tls/api",
     "github.com/vx-labs/mqtt-protocol/decoder",
     "github.com/vx-labs/mqtt-protocol/encoder",
     "github.com/vx-labs/mqtt-protocol/packet",
