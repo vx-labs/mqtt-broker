@@ -216,9 +216,6 @@ func main() {
 				if useVault {
 					tlsConfig = tlsConfigFromVault(consulAPI, vaultAPI)
 				}
-				if useConsul {
-					nodes, err = ConsulPeers(consulAPI, "broker", id)
-				}
 			}
 			if useVXAuth {
 				config.AuthHelper = authHelper(context.Background())
@@ -226,9 +223,14 @@ func main() {
 			config.TLS = tlsConfig
 			id = id.WithID(uuid.New().String())
 			instance := broker.New(id, config)
-			log.Printf("INFO: started broker instance %s on %s", id.ID(), id.Public().String())
-			if len(nodes) > 0 {
-				instance.Join(nodes)
+			if useConsul {
+				go func() {
+					nodes, err = ConsulPeers(consulAPI, "broker", id)
+					log.Printf("INFO: started broker instance %s on %s", id.ID(), id.Public().String())
+					if len(nodes) > 0 {
+						instance.Join(nodes)
+					}
+				}()
 			}
 			quit := make(chan struct{})
 			signal.Notify(sigc,
