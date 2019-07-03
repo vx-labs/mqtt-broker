@@ -174,12 +174,18 @@ func New(consulAPI *consul.Client, vaultAPI *vault.Client, o ...Opt) (*Client, e
 		dns01.WrapPreCheck(func(domain, fqdn, value string, check dns01.PreCheckFunc) (bool, error) {
 			name := strings.TrimSuffix(fqdn, ".")
 			log.Printf("Waiting for DNS propagation of record %s", name)
-			_, err := net.LookupTXT(name)
+			values, err := net.LookupTXT(name)
 			if err != nil {
 				log.Printf("ERR: %v", err)
 				return false, nil
 			}
-			return true, nil
+			for _, record := range values {
+				if record == value {
+					return true, nil
+				}
+			}
+			log.Printf("did not found %s in %v", value, values)
+			return false, nil
 		}))
 	c.api.Challenge.Remove(challenge.HTTP01)
 	c.api.Challenge.Remove(challenge.TLSALPN01)

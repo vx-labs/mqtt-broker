@@ -3,7 +3,6 @@ package sessions
 import (
 	"io"
 	"log"
-	"time"
 
 	"github.com/golang/protobuf/proto"
 	memdb "github.com/hashicorp/go-memdb"
@@ -68,23 +67,23 @@ func (m *memDBStore) insertPBRemoteSession(remote Session, tx *memdb.Txn) error 
 	return tx.Insert(memdbTable, remote)
 }
 func (m *memDBStore) Merge(inc []byte) error {
-	now := time.Now()
+	//now := time.Now()
 	set := &SessionMetadataList{}
 	err := proto.Unmarshal(inc, set)
 	if err != nil {
 		return err
 	}
-	log.Printf("DEBUG: starting remote session state merge (%d sessions in payload)", len(set.Metadatas))
+	//log.Printf("DEBUG: starting remote session state merge (%d sessions in payload)", len(set.Metadatas))
 	changedSessions := SessionSet{}
 	return m.write(func(tx *memdb.Txn) error {
 		for _, remote := range set.Metadatas {
 			localData, err := tx.First(memdbTable, "id", remote.ID)
 			if err != nil || localData == nil {
-				log.Printf("DEBUG: session merge: session %s does not exist localy, adding it", remote.ID)
+				//log.Printf("DEBUG: session merge: session %s does not exist localy, adding it", remote.ID)
 				session := m.newRemoteSession(*remote)
 				err := m.insertPBRemoteSession(session, tx)
 				if err != nil {
-					log.Printf("DEBUG: session merge: failed to add session %s: %v", remote.ID, err)
+					//log.Printf("DEBUG: session merge: failed to add session %s: %v", remote.ID, err)
 					return err
 				}
 				changedSessions = append(changedSessions, session)
@@ -96,7 +95,7 @@ func (m *memDBStore) Merge(inc []byte) error {
 				continue
 			}
 			if crdt.IsEntryOutdated(&local, remote) {
-				log.Printf("DEBUG: session merge: session %s is outdated localy, replacing it", remote.ID)
+				//log.Printf("DEBUG: session merge: session %s is outdated localy, replacing it", remote.ID)
 				session := m.newRemoteSession(*remote)
 				err := m.insertPBRemoteSession(session, tx)
 				if err != nil {
@@ -104,12 +103,12 @@ func (m *memDBStore) Merge(inc []byte) error {
 				}
 				changedSessions = append(changedSessions, session)
 				if local.Transport != nil && !local.remote {
-					log.Printf("DEBUG: session merge: closing local session %s", remote.ID)
+					//log.Printf("DEBUG: session merge: closing local session %s", remote.ID)
 					local.Transport.Close()
 				}
 			}
 		}
-		log.Printf("DEBUG: session merge done (%s elapsed)", time.Now().Sub(now).String())
+		//		log.Printf("DEBUG: session merge done (%s elapsed)", time.Now().Sub(now).String())
 		for _, session := range changedSessions {
 			m.emitSessionEvent(session)
 		}

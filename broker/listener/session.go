@@ -16,14 +16,14 @@ import (
 	"github.com/vx-labs/mqtt-protocol/packet"
 )
 
-var CONNECT_DEADLINE int64 = 15
+var CONNECT_DEADLINE int32 = 15
 
 var (
 	ErrSessionDisconnected = errors.New("session disconnected")
 	ErrConnectNotDone      = errors.New("CONNECT not done")
 )
 
-func renewDeadline(timer int64, conn transport.TimeoutReadWriteCloser) {
+func renewDeadline(timer int32, conn transport.TimeoutReadWriteCloser) {
 	deadline := time.Now().Add(time.Duration(timer) * time.Second * 2)
 	conn.SetDeadline(deadline)
 }
@@ -70,6 +70,8 @@ func (local *endpoint) runLocalSession(t transport.Metadata) {
 				ReturnCode: packet.CONNACK_CONNECTION_ACCEPTED,
 				Header:     &packet.Header{},
 			})
+			timer = p.KeepaliveTimer
+			renewDeadline(timer, t.Channel)
 			return nil
 		}),
 		decoder.OnPublish(func(p *packet.Publish) error {
