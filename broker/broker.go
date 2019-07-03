@@ -12,10 +12,10 @@ import (
 	"time"
 
 	"github.com/vx-labs/mqtt-broker/broker/listener"
+	"github.com/vx-labs/mqtt-broker/broker/transport"
 
 	"github.com/sirupsen/logrus"
 	"github.com/vx-labs/mqtt-broker/broker/cluster"
-	"github.com/vx-labs/mqtt-broker/broker/listener/transport"
 
 	"github.com/vx-labs/mqtt-broker/peers"
 

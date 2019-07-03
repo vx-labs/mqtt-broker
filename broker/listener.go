@@ -7,7 +7,7 @@ import (
 	"log"
 	"time"
 
-	"github.com/vx-labs/mqtt-broker/broker/listener/transport"
+	"github.com/vx-labs/mqtt-broker/broker/transport"
 	"github.com/vx-labs/mqtt-broker/sessions"
 	"github.com/vx-labs/mqtt-broker/subscriptions"
 	"github.com/vx-labs/mqtt-broker/topics"
@@ -267,7 +267,7 @@ func (b *Broker) Disconnect(id string, p *packet.Disconnect) error {
 	return nil
 }
 
-func (b *Broker) RemoveSession(id string) error {
+func (b *Broker) CloseSession(id string) error {
 	sess, err := b.Sessions.ByID(id)
 	if err != nil {
 		return err

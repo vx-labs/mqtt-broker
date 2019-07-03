@@ -8,7 +8,7 @@ import (
 
 	"github.com/sirupsen/logrus"
 
-	"github.com/vx-labs/mqtt-broker/broker/listener/transport"
+	"github.com/vx-labs/mqtt-broker/broker/transport"
 	"github.com/vx-labs/mqtt-broker/queues/inflight"
 	"github.com/vx-labs/mqtt-broker/queues/messages"
 	"github.com/vx-labs/mqtt-protocol/decoder"
@@ -169,7 +169,7 @@ func (local *endpoint) runLocalSession(t transport.Metadata) {
 		}
 	}
 	t.Channel.Close()
-	local.broker.RemoveSession(session.id)
+	local.broker.CloseSession(session.id)
 	local.mutex.Lock()
 	local.sessions.Delete(session)
 	local.mutex.Unlock()

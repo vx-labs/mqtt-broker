@@ -1,0 +1,23 @@
+syntax = "proto3";
+import "github.com/vx-labs/mqtt-protocol/packet/pb.proto";
+
+message PublishInput {
+  string ID = 1;
+  packet.Publish Publish = 2;
+}
+
+message PublishOutput {}
+
+message CloseSessionInput {
+  string ID = 1;
+}
+message CloseSessionOutput {}
+
+message CloseInput {}
+message CloseOutput {}
+
+service ListenerService {
+  rpc Publish(PublishInput) returns (PublishOutput);
+	rpc CloseSession(CloseSessionInput) returns (CloseSessionOutput);
+	rpc Close(CloseInput) returns (CloseOutput);
+}

@@ -2,6 +2,8 @@ syntax = "proto3";
 import "github.com/vx-labs/mqtt-broker/topics/types.proto";
 import "github.com/vx-labs/mqtt-broker/subscriptions/types.proto";
 import "github.com/vx-labs/mqtt-broker/sessions/types.proto";
+import "github.com/vx-labs/mqtt-protocol/packet/pb.proto";
+
 
 message SessionFilter {}
 message CloseSessionInput {
@@ -24,8 +26,54 @@ message MessagePublished {
 }
 message MessagePublishedOutput {
 }
+
+message TransportMetadata {
+  string Name = 1;
+  bool Encrypted = 2;
+  string RemoteAddress = 3;
+}
+message ConnectInput {
+  TransportMetadata TransportMetadata = 1;
+  packet.Connect Connect = 2;
+}
+message ConnectOutput {
+  string ID = 1;
+  packet.ConnAck ConnAck = 2;
+}
+message DisconnectInput {
+  string ID = 1;
+  packet.Disconnect Disconnect = 2;
+}
+message DisconnectOutput {}
+message PublishInput {
+  string ID = 1;
+  packet.Publish Publish = 2;
+}
+message PublishOutput {
+  packet.PubAck PubAck = 1;
+}
+message SubscribeInput {
+  string ID = 1;
+  packet.Subscribe Subscribe = 2;
+}
+message SubscribeOutput {
+  packet.SubAck SubAck = 1;
+}
+message UnsubscribeInput {
+  string ID = 1;
+  packet.Unsubscribe Unsubscribe = 2;
+}
+message UnsubscribeOutput {
+  packet.UnsubAck UnsubAck = 1;
+}
 service BrokerService {
     rpc ListSessions(SessionFilter) returns (ListSessionsOutput);
     rpc CloseSession(CloseSessionInput) returns (CloseSessionOutput);
     rpc DistributeMessage(MessagePublished) returns (MessagePublishedOutput);
+
+    rpc Connect(ConnectInput) returns (ConnectOutput);
+    rpc Disconnect(DisconnectInput) returns (DisconnectOutput);
+    rpc Publish(PublishInput) returns (PublishOutput);
+    rpc Subscribe(SubscribeInput) returns (SubscribeOutput);
+    rpc Unsubscribe(UnsubscribeInput) returns (UnsubscribeOutput);
 }
