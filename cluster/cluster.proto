@@ -10,23 +10,27 @@ message Part {
 message FullState {
   repeated Part parts = 1;
 }
-
+message NodeService {
+  string ID = 1;
+  string NetworkAddress = 2;
+  string Peer = 3;
+}
 message NodeMeta {
   string ID = 1;
-  string RPCAddr = 2;
+  repeated NodeService Services = 3;
 }
 
 message Metadata {
   string ID = 1;
   string Hostname = 3;
-  string Address = 4;
   int64 LastAdded = 5;
   int64 LastDeleted = 6;
   MemoryUsage MemoryUsage = 7;
   ComputeUsage ComputeUsage = 8;
   string Runtime = 9;
-  repeated string Services = 10;
-  int64 Started = 11;
+  repeated NodeService HostedServices = 10;
+  repeated string  Services = 11;
+  int64 Started = 12;
 }
 
 message ComputeUsage {
