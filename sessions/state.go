@@ -58,7 +58,7 @@ func (m *memDBStore) runGC() error {
 }
 func (m *memDBStore) newRemoteSession(remote Metadata) Session {
 	return Session{
-		Transport: m.remoteTransportProvider(remote.Peer, remote.ID),
+		Transport: m.remoteTransportProvider(remote.ID, remote.Peer),
 		remote:    true,
 		Metadata:  remote,
 	}
@@ -66,7 +66,7 @@ func (m *memDBStore) newRemoteSession(remote Metadata) Session {
 func (m *memDBStore) insertPBRemoteSession(remote Session, tx *memdb.Txn) error {
 	return tx.Insert(memdbTable, remote)
 }
-func (m *memDBStore) Merge(inc []byte) error {
+func (m *memDBStore) Merge(inc []byte, _ bool) error {
 	//now := time.Now()
 	set := &SessionMetadataList{}
 	err := proto.Unmarshal(inc, set)
@@ -75,7 +75,7 @@ func (m *memDBStore) Merge(inc []byte) error {
 	}
 	//log.Printf("DEBUG: starting remote session state merge (%d sessions in payload)", len(set.Metadatas))
 	changedSessions := SessionSet{}
-	return m.write(func(tx *memdb.Txn) error {
+	err = m.write(func(tx *memdb.Txn) error {
 		for _, remote := range set.Metadatas {
 			localData, err := tx.First(memdbTable, "id", remote.ID)
 			if err != nil || localData == nil {
@@ -109,9 +109,13 @@ func (m *memDBStore) Merge(inc []byte) error {
 			}
 		}
 		//		log.Printf("DEBUG: session merge done (%s elapsed)", time.Now().Sub(now).String())
-		for _, session := range changedSessions {
-			m.emitSessionEvent(session)
-		}
 		return nil
 	})
+	if err != nil {
+		return err
+	}
+	for _, session := range changedSessions {
+		m.emitSessionEvent(session)
+	}
+	return nil
 }

@@ -60,7 +60,7 @@ var now = func() int64 {
 	return time.Now().UnixNano()
 }
 
-func NewMemDBStore(mesh cluster.Mesh, sender RemoteSender) (Store, error) {
+func NewMemDBStore(mesh cluster.ServiceLayer, sender RemoteSender) (Store, error) {
 	db, err := memdb.NewMemDB(&memdb.DBSchema{
 		Tables: map[string]*memdb.TableSchema{
 			table: &memdb.TableSchema{
@@ -210,6 +210,7 @@ func (m *memDBStore) Sessions() ([]string, error) {
 
 func (s *memDBStore) emitSubscriptionEvent(sess Subscription) {
 	if crdt.IsEntryAdded(&sess) {
+		s.patternIndex.Index(sess)
 		s.events.Emit(events.Event{
 			Entry: sess,
 			Key:   SubscriptionCreated,
@@ -220,6 +221,7 @@ func (s *memDBStore) emitSubscriptionEvent(sess Subscription) {
 		})
 	}
 	if crdt.IsEntryRemoved(&sess) {
+		s.patternIndex.Remove(sess.Tenant, sess.ID, sess.Pattern)
 		s.events.Emit(events.Event{
 			Entry: sess,
 			Key:   SubscriptionDeleted,
@@ -265,10 +267,6 @@ func (s *memDBStore) Delete(id string) error {
 func (s *memDBStore) Create(sess Subscription, closer func(context.Context, packet.Publish) error) error {
 	sess.LastAdded = now()
 	sess.Sender = closer
-	err := s.patternIndex.Index(sess)
-	if err != nil {
-		return err
-	}
 	return s.insert(sess)
 }
 

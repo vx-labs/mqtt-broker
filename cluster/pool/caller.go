@@ -1,8 +1,7 @@
-package rpc
+package pool
 
 import (
 	"errors"
-	"log"
 	"strings"
 	"sync"
 
@@ -34,7 +33,6 @@ func (c *Caller) Call(addr string, job RPCJob) error {
 		c.mutex.Lock()
 		data = c.pools.Get(&Pool{address: addr})
 		if data == nil {
-			log.Printf("INFO: creating a new RPC Pool targeting address %s", addr)
 			newpool, err := NewPool(addr)
 			if err != nil {
 				c.mutex.Unlock()
@@ -42,8 +40,8 @@ func (c *Caller) Call(addr string, job RPCJob) error {
 			}
 			c.pools.ReplaceOrInsert(newpool)
 			data = newpool
-			c.mutex.Unlock()
 		}
+		c.mutex.Unlock()
 	}
 	pool = data.(*Pool)
 	return pool.Call(job)
@@ -51,7 +49,6 @@ func (c *Caller) Call(addr string, job RPCJob) error {
 func (c *Caller) Cancel(addr string) error {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
-	log.Printf("INFO: closing RPC pool toward %s", addr)
 	pool := c.pools.Get(&Pool{address: addr})
 	if pool == nil {
 		return ErrPoolNotFound

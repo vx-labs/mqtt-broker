@@ -2,29 +2,18 @@ package broker
 
 import (
 	"context"
-	"errors"
-	"fmt"
-	"io"
 	"log"
-	"net"
-	"os"
-	"runtime"
-	"time"
-
-	"github.com/vx-labs/mqtt-broker/transport"
 
 	"github.com/sirupsen/logrus"
+	"github.com/vx-labs/mqtt-broker/transport"
+
 	"github.com/vx-labs/mqtt-broker/broker/pb"
 	"github.com/vx-labs/mqtt-broker/cluster"
 
 	"github.com/vx-labs/mqtt-broker/sessions"
 	"github.com/vx-labs/mqtt-broker/topics"
 
-	"github.com/vx-labs/mqtt-broker/broker/rpc"
-
 	"github.com/vx-labs/mqtt-protocol/packet"
-
-	"github.com/vx-labs/mqtt-broker/identity"
 
 	"github.com/vx-labs/mqtt-broker/subscriptions"
 )
@@ -37,7 +26,6 @@ const (
 type PeerStore interface {
 	ByID(id string) (cluster.Peer, error)
 	All() (cluster.SubscriptionSet, error)
-	Upsert(sess cluster.Peer) error
 	Delete(id string) error
 	On(event string, handler func(cluster.Peer)) func()
 }
@@ -83,125 +71,30 @@ type Broker struct {
 	Topics        TopicStore
 	Peers         PeerStore
 	STANOutput    chan STANMessage
-	Listener      Listener
-	TCPTransport  io.Closer
-	TLSTransport  io.Closer
-	WSSTransport  io.Closer
-	WSTransport   io.Closer
-	RPC           net.Listener
-	RPCCaller     *rpc.Caller
 	publishPool   *Pool
 	workers       *Pool
 	ctx           context.Context
 }
-type RemoteRPCTransport struct {
-	peer string
-	id   string
-	rpc  *rpc.Caller
-}
 
-func (r *RemoteRPCTransport) Close() error {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	return r.rpc.Call(r.peer, func(c pb.BrokerServiceClient) error {
-		_, err := c.CloseSession(ctx, &pb.CloseSessionInput{
-			ID: r.id,
-		})
-		return err
-	})
-}
-func (r *RemoteRPCTransport) Publish(ctx context.Context, publish *packet.Publish) error {
-	return r.rpc.Call(r.peer, func(c pb.BrokerServiceClient) error {
-		_, err := c.DistributeMessage(ctx, &pb.MessagePublished{
-			Recipient: r.id,
-			Dup:       publish.Header.Dup,
-			Payload:   publish.Payload,
-			Qos:       publish.Header.Qos,
-			Retained:  publish.Header.Retain,
-			Topic:     publish.Topic,
-		})
-		return err
-	})
-}
-
-func (b *Broker) RemoteRPCProvider(addr, session string) sessions.Transport {
-	return &RemoteRPCTransport{
-		id:   session,
-		peer: addr,
-		rpc:  b.RPCCaller,
+func (b *Broker) RemoteRPCProvider(id, peer string) sessions.Transport {
+	return &localTransport{
+		id:   id,
+		peer: peer,
+		ctx:  b.ctx,
+		mesh: b.mesh,
 	}
 }
 
-func New(id identity.Identity, listener Listener, config Config) *Broker {
+func New(id string, mesh cluster.Mesh, config Config) *Broker {
 	ctx := context.Background()
 	broker := &Broker{
-		ID:          id.ID(),
+		ID:          id,
 		authHelper:  config.AuthHelper,
-		RPCCaller:   rpc.NewCaller(),
 		workers:     NewPool(25),
 		publishPool: NewPool(50),
 		ctx:         ctx,
-		Listener:    listener,
+		mesh:        mesh,
 	}
-	broker.RPC = Serve(config.RPCPort, broker)
-	if config.RPCIdentity == nil {
-		_, port, err := net.SplitHostPort(broker.RPC.Addr().String())
-		if err != nil {
-			panic(err)
-		}
-		broker.mesh = cluster.MemberlistMesh(id, broker, cluster.NodeMeta{
-			ID:      broker.ID,
-			RPCAddr: fmt.Sprintf("%s:%s", id.Private().Host(), port),
-		})
-	} else {
-		broker.mesh = cluster.MemberlistMesh(id, broker, cluster.NodeMeta{
-			ID:      broker.ID,
-			RPCAddr: config.RPCIdentity.Public().String(),
-		})
-	}
-	hostedServices := []string{}
-	hostedServices = append(hostedServices, "rpc-listener")
-	subscriptionsStore, err := subscriptions.NewMemDBStore(broker.mesh, func(host string, session string, publish packet.Publish) error {
-		ctx := context.Background()
-		addr, err := broker.mesh.MemberRPCAddress(host)
-		if err != nil {
-			log.Printf("ERROR: failed to resove peer %s addr: %v", host, err)
-			return err
-		}
-		return broker.RPCCaller.Call(addr, func(c pb.BrokerServiceClient) error {
-			_, err := c.DistributeMessage(ctx, &pb.MessagePublished{
-				Dup:       publish.Header.Dup,
-				Payload:   publish.Payload,
-				Qos:       publish.Header.Qos,
-				Recipient: session,
-				Topic:     publish.Topic,
-			})
-			if err != nil {
-				log.Printf("ERROR: failed to send message to peer %s: %v", host, err)
-			}
-			return err
-		})
-	})
-	if err != nil {
-		log.Fatal(err)
-	}
-	hostedServices = append(hostedServices, "subscriptions-store")
-	peersStore := broker.mesh.Peers()
-	hostedServices = append(hostedServices, "peers-store")
-	topicssStore, err := topics.NewMemDBStore(broker.mesh)
-	if err != nil {
-		log.Fatal(err)
-	}
-	hostedServices = append(hostedServices, "topics-store")
-	sessionsStore, err := sessions.NewSessionStore(broker.mesh, broker.RemoteRPCProvider, logrus.New().WithField("source", "session_store"))
-	if err != nil {
-		log.Fatal(err)
-	}
-	hostedServices = append(hostedServices, "sessions-store")
-	broker.Peers = peersStore
-	broker.Topics = topicssStore
-	broker.Subscriptions = subscriptionsStore
-	broker.Sessions = sessionsStore
 
 	if config.NATSURL != "" {
 		ch := make(chan STANMessage)
@@ -212,41 +105,46 @@ func New(id identity.Identity, listener Listener, config Config) *Broker {
 			broker.STANOutput = ch
 		}
 	}
-	broker.setupLogs()
-	broker.setupSYSTopic()
-	hostname, err := os.Hostname()
-	if err != nil {
-		hostname = os.Getenv("HOSTNAME")
-	}
-	if hostname == "" {
-		hostname = "not_available"
-	}
-	broker.Peers.Upsert(cluster.Peer{
-		Metadata: cluster.Metadata{
-			ID:       broker.ID,
-			Hostname: hostname,
-			Runtime:  runtime.Version(),
-			Services: hostedServices,
-			Started:  time.Now().Unix(),
-		},
-	})
-	go broker.oSStatsReporter()
 	return broker
 }
-func (b *Broker) onPeerDown(name string) {
-	peer, err := b.Peers.ByID(name)
+func (broker *Broker) Start(layer cluster.ServiceLayer) {
+	subscriptionsStore, err := subscriptions.NewMemDBStore(layer, func(host string, id string, publish packet.Publish) error {
+		session, err := broker.Sessions.ByID(id)
+		if err != nil {
+			log.Printf("ERR: session not found")
+			return err
+		}
+		return session.Transport.Publish(broker.ctx, &publish)
+	})
 	if err != nil {
-		log.Printf("WARN: received lost event from an unknown peer %s", name)
-		return
+		log.Fatal(err)
 	}
-	log.Printf("WARN: peer %s lost", name)
-	b.Peers.Delete(peer.ID)
+	peersStore := broker.mesh.Peers()
+	topicssStore, err := topics.NewMemDBStore(layer)
+	if err != nil {
+		log.Fatal(err)
+	}
+	sessionsStore, err := sessions.NewSessionStore(layer, broker.RemoteRPCProvider, logrus.New().WithField("source", "session_store"))
+	if err != nil {
+		log.Fatal(err)
+	}
+	broker.Peers = peersStore
+	broker.Topics = topicssStore
+	broker.Subscriptions = subscriptionsStore
+	broker.Sessions = sessionsStore
+	broker.setupLogs()
+	broker.setupSYSTopic()
+	broker.Peers.On(cluster.PeerDeleted, broker.onPeerDown)
+}
+func (b *Broker) onPeerDown(peer cluster.Peer) {
+	name := peer.ID
 	set, err := b.Subscriptions.ByPeer(name)
 	if err != nil {
 		log.Printf("ERR: failed to remove subscriptions from peer %s: %v", name, err)
 		return
 	}
 	set.Apply(func(sub subscriptions.Subscription) {
+		log.Printf("INFO: removing subscription %s", sub.ID)
 		b.Subscriptions.Delete(sub.ID)
 	})
 
@@ -256,6 +154,7 @@ func (b *Broker) onPeerDown(name string) {
 		return
 	}
 	sessionSet.Apply(func(s sessions.Session) {
+		log.Printf("INFO: removing session %s", s.ID)
 		b.Sessions.Delete(s.ID, "session_lost")
 		if s.WillRetain {
 			retainedMessage := topics.RetainedMessage{
@@ -287,19 +186,7 @@ func (b *Broker) onPeerDown(name string) {
 }
 
 func (b *Broker) Join(hosts []string) {
-	ticker := time.NewTicker(5 * time.Second)
-	go func() {
-		defer ticker.Stop()
-		for {
-			log.Printf("INFO: joining hosts %v", hosts)
-			err := b.mesh.Join(hosts)
-			if err == nil {
-				return
-			}
-			log.Printf("WARN: failed to join the provided node list: %v", err)
-			<-ticker.C
-		}
-	}()
+	b.mesh.Join(hosts)
 }
 
 func (b *Broker) isSessionLocal(session sessions.Session) bool {
@@ -321,65 +208,10 @@ func (b *Broker) dispatch(message *pb.MessagePublished) error {
 		Topic:     message.Topic,
 		MessageId: 1,
 	}
-	if b.isSessionLocal(session) {
-		return session.Transport.Publish(b.ctx, &packet)
-	}
-	return errors.New("session is not managed by this node")
-}
-
-func memUsage() runtime.MemStats {
-	var m runtime.MemStats
-	runtime.ReadMemStats(&m)
-	return m
-}
-func (b *Broker) oSStatsReporter() {
-	ticker := time.NewTicker(10 * time.Second)
-	for {
-		m := memUsage()
-		nbRoutines := runtime.NumGoroutine()
-		nbCores := runtime.NumCPU()
-		self, err := b.Peers.ByID(b.ID)
-		if err != nil {
-			return
-		}
-		self.ComputeUsage = &cluster.ComputeUsage{
-			Cores:      int64(nbCores),
-			Goroutines: int64(nbRoutines),
-		}
-		self.MemoryUsage = &cluster.MemoryUsage{
-			Alloc:      m.Alloc,
-			TotalAlloc: m.TotalAlloc,
-			NumGC:      m.NumGC,
-			Sys:        m.Sys,
-		}
-		b.Peers.Upsert(self)
-		<-ticker.C
-	}
+	return session.Transport.Publish(b.ctx, &packet)
 }
 
 func (b *Broker) Stop() {
-	ctx := context.Background()
-	log.Printf("INFO: stopping Listener aggregator")
-	b.Listener.Close(ctx)
-	log.Printf("INFO: stopping Listener aggregator stopped")
-	if b.TCPTransport != nil {
-		log.Printf("INFO: stopping TCP listener")
-		b.TCPTransport.Close()
-		log.Printf("INFO: TCP listener stopped")
-	}
-	if b.TLSTransport != nil {
-		log.Printf("INFO: stopping TLS listener")
-		b.TLSTransport.Close()
-		log.Printf("INFO: TLS listener stopped")
-	}
-	if b.WSSTransport != nil {
-		log.Printf("INFO: stopping WSS listener")
-		b.WSSTransport.Close()
-		log.Printf("INFO: WSS listener stopped")
-	}
-	if b.RPC != nil {
-		log.Printf("INFO: stopping RPC listener")
-		b.RPC.Close()
-		log.Printf("INFO: RPC listener stopped")
-	}
+	log.Printf("INFO: stopping broker")
+	log.Printf("INFO: broker stopped")
 }

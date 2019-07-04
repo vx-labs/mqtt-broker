@@ -1,10 +1,15 @@
 package cluster
 
-//go:generate protoc -I${GOPATH}/src -I${GOPATH}/src/github.com/vx-labs/mqtt-broker/broker/cluster/ --go_out=plugins=grpc:. cluster.proto
+import (
+	"github.com/hashicorp/memberlist"
+	"google.golang.org/grpc"
+)
+
+//go:generate protoc -I${GOPATH}/src -I${GOPATH}/src/github.com/vx-labs/mqtt-broker/cluster/ --go_out=plugins=grpc:. cluster.proto
 
 // State represents a CRDT state store, that will be distributed over the mesh network.
 type State interface {
-	Merge(inc []byte) error
+	Merge(inc []byte, full bool) error
 	MarshalBinary() []byte
 }
 
@@ -14,12 +19,27 @@ type Channel interface {
 	Broadcast(b []byte)
 }
 
-// Mesh represents the mesh network, being able to broadcast state across the nodes.
+// Mesh represents the mesh discovery network.
 type Mesh interface {
-	AddState(key string, state State) (Channel, error)
-	Join(hosts []string) error
-	MemberRPCAddress(id string) (string, error)
+	Join(hosts []string)
 	Peers() PeerStore
+	DialService(name string) (*grpc.ClientConn, error)
+	DialAddress(service, id string, f func(*grpc.ClientConn) error) error
+	RegisterService(name, address string) error
+	Leave()
+}
+
+type ServiceLayer interface {
+	AddState(key string, state State) (Channel, error)
+}
+
+// Mesh represents the mesh state network, being able to broadcast state across the nodes.
+type Layer interface {
+	AddState(key string, state State) (Channel, error)
+	DiscoverPeers(discovery PeerStore)
+	Join(peers []string)
+	Members() []*memberlist.Node
+	Leave()
 }
 
 type peerFilter func(Peer) bool
