@@ -2,6 +2,7 @@ package broker
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"log"
@@ -21,16 +22,17 @@ func validateClientID(clientID []byte) bool {
 }
 
 type localTransport struct {
+	ctx      context.Context
 	id       string
 	listener Listener
 }
 
 func (local *localTransport) Close() error {
-	return local.listener.CloseSession(local.id)
+	return local.listener.CloseSession(local.ctx, local.id)
 }
 
-func (local *localTransport) Publish(p *packet.Publish) error {
-	return local.listener.Publish(local.id, p)
+func (local *localTransport) Publish(ctx context.Context, p *packet.Publish) error {
+	return local.listener.Publish(ctx, local.id, p)
 }
 
 type connectReturn struct {
@@ -38,7 +40,7 @@ type connectReturn struct {
 	connack   *packet.ConnAck
 }
 
-func (b *Broker) Connect(metadata transport.Metadata, p *packet.Connect) (string, *packet.ConnAck, error) {
+func (b *Broker) Connect(ctx context.Context, metadata transport.Metadata, p *packet.Connect) (string, *packet.ConnAck, error) {
 	out := connectReturn{
 		sessionID: newUUID(),
 		connack: &packet.ConnAck{
@@ -100,6 +102,7 @@ func (b *Broker) Connect(metadata transport.Metadata, p *packet.Connect) (string
 		err = b.Sessions.Upsert(sess, &localTransport{
 			id:       out.sessionID,
 			listener: b.Listener,
+			ctx:      b.ctx,
 		})
 		log.Printf("session %s inserted in store", out.sessionID)
 		if err != nil {
@@ -111,7 +114,7 @@ func (b *Broker) Connect(metadata transport.Metadata, p *packet.Connect) (string
 	<-done
 	return out.sessionID, out.connack, err
 }
-func (b *Broker) Subscribe(id string, p *packet.Subscribe) (*packet.SubAck, error) {
+func (b *Broker) Subscribe(ctx context.Context, id string, p *packet.Subscribe) (*packet.SubAck, error) {
 	sess, err := b.Sessions.ByID(id)
 	if err != nil {
 		return nil, err
@@ -128,8 +131,8 @@ func (b *Broker) Subscribe(id string, p *packet.Subscribe) (*packet.SubAck, erro
 				Peer:      b.ID,
 			},
 		}
-		err := b.Subscriptions.Create(event, func(publish packet.Publish) error {
-			return b.Listener.Publish(id, &publish)
+		err := b.Subscriptions.Create(event, func(ctx context.Context, publish packet.Publish) error {
+			return b.Listener.Publish(ctx, id, &publish)
 		})
 		if err != nil {
 			return nil, err
@@ -143,7 +146,7 @@ func (b *Broker) Subscribe(id string, p *packet.Subscribe) (*packet.SubAck, erro
 		go func() {
 			set.Apply(func(message topics.RetainedMessage) {
 				qos := getLowerQoS(message.Qos, packetQoS)
-				b.Listener.Publish(id, &packet.Publish{
+				b.Listener.Publish(b.ctx, id, &packet.Publish{
 					Header: &packet.Header{
 						Qos:    qos,
 						Retain: true,
@@ -180,11 +183,11 @@ func (b *Broker) routeMessage(tenant string, p *packet.Publish) error {
 	message := *p
 	message.Header.Retain = false
 	recipients.Apply(func(sub subscriptions.Subscription) {
-		sub.Sender(message)
+		sub.Sender(b.ctx, message)
 	})
 	return nil
 }
-func (b *Broker) Publish(id string, p *packet.Publish) (puback *packet.PubAck, err error) {
+func (b *Broker) Publish(ctx context.Context, id string, p *packet.Publish) (puback *packet.PubAck, err error) {
 	done := make(chan struct{})
 	b.publishPool.Call(func() error {
 		defer close(done)
@@ -228,7 +231,7 @@ func (b *Broker) Publish(id string, p *packet.Publish) (puback *packet.PubAck, e
 	<-done
 	return
 }
-func (b *Broker) Unsubscribe(id string, p *packet.Unsubscribe) (*packet.UnsubAck, error) {
+func (b *Broker) Unsubscribe(ctx context.Context, id string, p *packet.Unsubscribe) (*packet.UnsubAck, error) {
 	sess, err := b.Sessions.ByID(id)
 	if err != nil {
 		return nil, err
@@ -253,7 +256,7 @@ func (b *Broker) Unsubscribe(id string, p *packet.Unsubscribe) (*packet.UnsubAck
 		Header:    &packet.Header{},
 	}, nil
 }
-func (b *Broker) Disconnect(id string, p *packet.Disconnect) error {
+func (b *Broker) Disconnect(ctx context.Context, id string, p *packet.Disconnect) error {
 	sess, err := b.Sessions.ByID(id)
 	if err != nil {
 		return err
@@ -267,7 +270,7 @@ func (b *Broker) Disconnect(id string, p *packet.Disconnect) error {
 	return nil
 }
 
-func (b *Broker) CloseSession(id string) error {
+func (b *Broker) CloseSession(ctx context.Context, id string) error {
 	sess, err := b.Sessions.ByID(id)
 	if err != nil {
 		return err

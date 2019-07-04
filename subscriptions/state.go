@@ -1,6 +1,7 @@
 package subscriptions
 
 import (
+	"context"
 	"io"
 	"log"
 
@@ -61,7 +62,7 @@ func (m *memDBStore) runGC() error {
 }
 func (m *memDBStore) insertPBRemoteSubscription(remote Metadata, tx *memdb.Txn) error {
 	sub := Subscription{
-		Sender: func(p packet.Publish) error {
+		Sender: func(ctx context.Context, p packet.Publish) error {
 			log.Printf("INFO: forwarding message to remote session %s", remote.SessionID)
 			return m.sender(remote.Peer, remote.SessionID, p)
 		},

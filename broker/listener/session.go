@@ -1,6 +1,7 @@
 package listener
 
 import (
+	"context"
 	"errors"
 	"io"
 	"net"
@@ -29,6 +30,8 @@ func renewDeadline(timer int32, conn transport.TimeoutReadWriteCloser) {
 }
 
 func (local *endpoint) runLocalSession(t transport.Metadata) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 	logger := logrus.New().WithField("service", "listener").WithField("listener", t.Name).WithField("remote", t.RemoteAddress)
 	logger.Info("accepted new connection")
 	session := &localSession{
@@ -44,7 +47,7 @@ func (local *endpoint) runLocalSession(t transport.Metadata) {
 
 	dec := decoder.New(
 		decoder.OnConnect(func(p *packet.Connect) error {
-			id, connack, err := local.broker.Connect(t, p)
+			id, connack, err := local.broker.Connect(ctx, t, p)
 			if err != nil {
 				return enc.ConnAck(connack)
 			}
@@ -79,7 +82,7 @@ func (local *endpoint) runLocalSession(t transport.Metadata) {
 				return ErrConnectNotDone
 			}
 			renewDeadline(timer, t.Channel)
-			puback, err := local.broker.Publish(session.id, p)
+			puback, err := local.broker.Publish(ctx, session.id, p)
 			if err != nil {
 				return err
 			}
@@ -93,7 +96,7 @@ func (local *endpoint) runLocalSession(t transport.Metadata) {
 				return ErrConnectNotDone
 			}
 			renewDeadline(timer, t.Channel)
-			suback, err := local.broker.Subscribe(session.id, p)
+			suback, err := local.broker.Subscribe(ctx, session.id, p)
 			if err != nil {
 				return err
 			}
@@ -104,7 +107,7 @@ func (local *endpoint) runLocalSession(t transport.Metadata) {
 				return ErrConnectNotDone
 			}
 			renewDeadline(timer, t.Channel)
-			unsuback, err := local.broker.Unsubscribe(session.id, p)
+			unsuback, err := local.broker.Unsubscribe(ctx, session.id, p)
 			if err != nil {
 				return err
 			}
@@ -169,7 +172,7 @@ func (local *endpoint) runLocalSession(t transport.Metadata) {
 		}
 	}
 	t.Channel.Close()
-	local.broker.CloseSession(session.id)
+	local.broker.CloseSession(ctx, session.id)
 	local.mutex.Lock()
 	local.sessions.Delete(session)
 	local.mutex.Unlock()

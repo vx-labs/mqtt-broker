@@ -11,7 +11,6 @@ import (
 	"runtime"
 	"time"
 
-	"github.com/vx-labs/mqtt-broker/broker/listener"
 	"github.com/vx-labs/mqtt-broker/broker/transport"
 
 	"github.com/sirupsen/logrus"
@@ -67,14 +66,14 @@ type SubscriptionStore interface {
 	ByPeer(peer string) (subscriptions.SubscriptionSet, error)
 	BySession(id string) (subscriptions.SubscriptionSet, error)
 	Sessions() ([]string, error)
-	Create(message subscriptions.Subscription, sender func(packet.Publish) error) error
+	Create(message subscriptions.Subscription, sender func(context.Context, packet.Publish) error) error
 	Delete(id string) error
 	On(event string, handler func(subscriptions.Subscription)) func()
 }
 type Listener interface {
-	Publish(id string, publish *packet.Publish) error
-	CloseSession(id string) error
-	Close() error
+	Publish(ctx context.Context, id string, publish *packet.Publish) error
+	CloseSession(ctx context.Context, id string) error
+	Close(ctx context.Context) error
 }
 type Broker struct {
 	ID            string
@@ -94,6 +93,7 @@ type Broker struct {
 	RPCCaller     *rpc.Caller
 	publishPool   *Pool
 	workers       *Pool
+	ctx           context.Context
 }
 type RemoteRPCTransport struct {
 	peer string
@@ -111,9 +111,7 @@ func (r *RemoteRPCTransport) Close() error {
 		return err
 	})
 }
-func (r *RemoteRPCTransport) Publish(publish *packet.Publish) error {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+func (r *RemoteRPCTransport) Publish(ctx context.Context, publish *packet.Publish) error {
 	return r.rpc.Call(r.peer, func(c rpc.BrokerServiceClient) error {
 		_, err := c.DistributeMessage(ctx, &rpc.MessagePublished{
 			Recipient: r.id,
@@ -135,21 +133,17 @@ func (b *Broker) RemoteRPCProvider(addr, session string) sessions.Transport {
 	}
 }
 
-func New(id identity.Identity, config Config) *Broker {
+func New(id identity.Identity, listener Listener, config Config) *Broker {
+	ctx := context.Background()
 	broker := &Broker{
 		ID:          id.ID(),
 		authHelper:  config.AuthHelper,
 		RPCCaller:   rpc.NewCaller(),
 		workers:     NewPool(25),
 		publishPool: NewPool(50),
+		ctx:         ctx,
+		Listener:    listener,
 	}
-	broker.Listener = listener.New(broker, listener.Config{
-		TCPPort: config.TCPPort,
-		TLS:     config.TLS,
-		TLSPort: config.TLSPort,
-		WSPort:  config.WSPort,
-		WSSPort: config.WSSPort,
-	})
 	broker.RPC = rpc.New(config.RPCPort, broker)
 	if config.RPCIdentity == nil {
 		_, port, err := net.SplitHostPort(broker.RPC.Addr().String())
@@ -291,7 +285,7 @@ func (b *Broker) onPeerDown(name string) {
 			},
 		}
 		recipients.Apply(func(sub subscriptions.Subscription) {
-			sub.Sender(lwt)
+			sub.Sender(b.ctx, lwt)
 		})
 	})
 }
@@ -332,7 +326,7 @@ func (b *Broker) dispatch(message *rpc.MessagePublished) error {
 		MessageId: 1,
 	}
 	if b.isSessionLocal(session) {
-		return session.Transport.Publish(&packet)
+		return session.Transport.Publish(b.ctx, &packet)
 	}
 	return errors.New("session is not managed by this node")
 }
@@ -368,8 +362,9 @@ func (b *Broker) oSStatsReporter() {
 }
 
 func (b *Broker) Stop() {
+	ctx := context.Background()
 	log.Printf("INFO: stopping Listener aggregator")
-	b.Listener.Close()
+	b.Listener.Close(ctx)
 	log.Printf("INFO: stopping Listener aggregator stopped")
 	if b.TCPTransport != nil {
 		log.Printf("INFO: stopping TCP listener")

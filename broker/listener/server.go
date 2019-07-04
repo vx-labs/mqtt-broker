@@ -16,13 +16,13 @@ type server struct {
 }
 
 func (s *server) Publish(ctx context.Context, input *pb.PublishInput) (*pb.PublishOutput, error) {
-	return &pb.PublishOutput{}, s.endpoint.Publish(input.ID, input.Publish)
+	return &pb.PublishOutput{}, s.endpoint.Publish(ctx, input.ID, input.Publish)
 }
 func (s *server) CloseSession(ctx context.Context, input *pb.CloseSessionInput) (*pb.CloseSessionOutput, error) {
-	return &pb.CloseSessionOutput{}, s.endpoint.CloseSession(input.ID)
+	return &pb.CloseSessionOutput{}, s.endpoint.CloseSession(ctx, input.ID)
 }
 func (s *server) Close(ctx context.Context, input *pb.CloseInput) (*pb.CloseOutput, error) {
-	return &pb.CloseOutput{}, s.endpoint.Close()
+	return &pb.CloseOutput{}, s.endpoint.Close(ctx)
 }
 
 func Serve(local Endpoint, port int) error {

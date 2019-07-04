@@ -31,7 +31,7 @@ func DefaultConfig() Config {
 		Session: SessionConfig{
 			MaxInflightSize: 500,
 		},
-		RPCPort: 0,
+		RPCPort: 3000,
 		AuthHelper: func(transport transport.Metadata, sessionID []byte, username string, password string) (tenant string, err error) {
 			return "_default", nil
 		},

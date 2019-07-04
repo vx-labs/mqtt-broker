@@ -9,6 +9,7 @@ import (
 	"sync"
 
 	"github.com/golang/protobuf/proto"
+	"google.golang.org/grpc"
 
 	"github.com/hashicorp/memberlist"
 	"github.com/vx-labs/mqtt-broker/identity"
@@ -112,6 +113,14 @@ func (m *memberlistMesh) MergeRemoteState(buf []byte, join bool) {
 			return
 		}
 	}
+}
+
+func (m *memberlistMesh) DialGRPC(id string) (*grpc.ClientConn, error) {
+	addr, err := m.MemberRPCAddress(id)
+	if err != nil {
+		return nil, err
+	}
+	return grpc.Dial(addr)
 }
 
 func (m *memberlistMesh) MemberRPCAddress(id string) (string, error) {

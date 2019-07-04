@@ -1,6 +1,7 @@
 package subscriptions
 
 import (
+	"context"
 	"errors"
 	"log"
 	"time"
@@ -18,7 +19,7 @@ const table = "subscriptions"
 
 type Subscription struct {
 	Metadata
-	Sender func(packet.Publish) error
+	Sender func(context.Context, packet.Publish) error
 }
 
 type Channel interface {
@@ -34,7 +35,7 @@ type Store interface {
 	ByPeer(peer string) (SubscriptionSet, error)
 	BySession(id string) (SubscriptionSet, error)
 	Sessions() ([]string, error)
-	Create(message Subscription, sender func(packet.Publish) error) error
+	Create(message Subscription, sender func(context.Context, packet.Publish) error) error
 	Delete(id string) error
 	On(event string, handler func(Subscription)) func()
 }
@@ -261,7 +262,7 @@ func (s *memDBStore) Delete(id string) error {
 	sess.LastDeleted = now()
 	return s.insert(sess)
 }
-func (s *memDBStore) Create(sess Subscription, closer func(packet.Publish) error) error {
+func (s *memDBStore) Create(sess Subscription, closer func(context.Context, packet.Publish) error) error {
 	sess.LastAdded = now()
 	sess.Sender = closer
 	err := s.patternIndex.Index(sess)

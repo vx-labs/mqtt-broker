@@ -39,7 +39,7 @@ func (b *Broker) dispatchToLocalSessions(tenant string, topic []byte, payload []
 		},
 	}
 	recipients.Apply(func(sub subscriptions.Subscription) {
-		sub.Sender(message)
+		sub.Sender(b.ctx, message)
 	})
 }
 

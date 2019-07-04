@@ -1,6 +1,7 @@
 package subscriptions
 
 import (
+	"context"
 	"testing"
 
 	"github.com/vx-labs/mqtt-broker/broker/cluster"
@@ -9,7 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func returnNilErr(packet.Publish) error {
+func returnNilErr(context.Context, packet.Publish) error {
 	return nil
 }
 func nillSender(string, string, packet.Publish) error {

@@ -1,4 +1,4 @@
-package client
+package listener
 
 import (
 	"context"
@@ -12,7 +12,7 @@ type Client struct {
 	api pb.ListenerServiceClient
 }
 
-func New(conn *grpc.ClientConn) *Client {
+func NewClient(conn *grpc.ClientConn) *Client {
 	return &Client{
 		api: pb.NewListenerServiceClient(conn),
 	}

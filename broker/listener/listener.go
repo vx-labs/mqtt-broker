@@ -1,6 +1,7 @@
 package listener
 
 import (
+	"context"
 	"crypto/tls"
 	"errors"
 	"io"
@@ -20,18 +21,18 @@ var (
 )
 
 type Broker interface {
-	Connect(transport.Metadata, *packet.Connect) (string, *packet.ConnAck, error)
-	Disconnect(string, *packet.Disconnect) error
-	Publish(string, *packet.Publish) (*packet.PubAck, error)
-	Subscribe(string, *packet.Subscribe) (*packet.SubAck, error)
-	Unsubscribe(string, *packet.Unsubscribe) (*packet.UnsubAck, error)
-	CloseSession(string) error
+	Connect(context.Context, transport.Metadata, *packet.Connect) (string, *packet.ConnAck, error)
+	Disconnect(context.Context, string, *packet.Disconnect) error
+	Publish(context.Context, string, *packet.Publish) (*packet.PubAck, error)
+	Subscribe(context.Context, string, *packet.Subscribe) (*packet.SubAck, error)
+	Unsubscribe(context.Context, string, *packet.Unsubscribe) (*packet.UnsubAck, error)
+	CloseSession(context.Context, string) error
 }
 
 type Endpoint interface {
-	Publish(id string, publish *packet.Publish) error
-	CloseSession(string) error
-	Close() error
+	Publish(ctx context.Context, id string, publish *packet.Publish) error
+	CloseSession(context.Context, string) error
+	Close(context.Context) error
 }
 
 type endpoint struct {
@@ -45,13 +46,13 @@ func (local *endpoint) newSession(metadata transport.Metadata) error {
 	go local.runLocalSession(metadata)
 	return nil
 }
-func (local *endpoint) Close() error {
+func (local *endpoint) Close(ctx context.Context) error {
 	for idx := range local.transports {
 		local.transports[idx].Close()
 	}
 	return nil
 }
-func (local *endpoint) CloseSession(id string) error {
+func (local *endpoint) CloseSession(ctx context.Context, id string) error {
 	local.mutex.Lock()
 	defer local.mutex.Unlock()
 	session := local.sessions.Delete(&localSession{
@@ -62,7 +63,7 @@ func (local *endpoint) CloseSession(id string) error {
 	}
 	return ErrSessionNotFound
 }
-func (local *endpoint) Publish(id string, publish *packet.Publish) error {
+func (local *endpoint) Publish(ctx context.Context, id string, publish *packet.Publish) error {
 	session := local.sessions.Get(&localSession{
 		id: id,
 	})

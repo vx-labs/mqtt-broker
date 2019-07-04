@@ -1,6 +1,7 @@
 package sessions
 
 import (
+	"context"
 	"errors"
 	"log"
 	"time"
@@ -31,7 +32,7 @@ type Channel interface {
 
 type Transport interface {
 	Close() error
-	Publish(*packet.Publish) error
+	Publish(context.Context, *packet.Publish) error
 }
 
 var (

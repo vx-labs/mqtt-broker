@@ -13,6 +13,12 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/vx-labs/mqtt-broker/broker/rpc/client"
+
+	"github.com/vx-labs/mqtt-broker/broker/listener"
+
+	"google.golang.org/grpc"
+
 	"github.com/google/uuid"
 
 	"github.com/vx-labs/mqtt-broker/broker/transport"
@@ -222,7 +228,27 @@ func main() {
 			}
 			config.TLS = tlsConfig
 			id = id.WithID(uuid.New().String())
-			instance := broker.New(id, config)
+			listenerConn, err := grpc.Dial("localhost:3001", grpc.WithInsecure())
+			if err != nil {
+				panic(err)
+			}
+			listenerClient := listener.NewClient(listenerConn)
+
+			brokerConn, err := grpc.Dial(fmt.Sprintf("localhost:%d", config.RPCPort), grpc.WithInsecure())
+			if err != nil {
+				panic(err)
+			}
+			brokerClient := client.New(brokerConn)
+
+			lis := listener.New(brokerClient, listener.Config{
+				TCPPort: config.TCPPort,
+				TLS:     config.TLS,
+				TLSPort: config.TLSPort,
+				WSPort:  config.WSPort,
+				WSSPort: config.WSSPort,
+			})
+			go listener.Serve(lis, 3001)
+			instance := broker.New(id, listenerClient, config)
 			if useConsul {
 				go func() {
 					nodes, err = ConsulPeers(consulAPI, "broker", id)
@@ -232,6 +258,7 @@ func main() {
 					}
 				}()
 			}
+
 			quit := make(chan struct{})
 			signal.Notify(sigc,
 				syscall.SIGINT,
@@ -258,7 +285,7 @@ func main() {
 	root.Flags().IntP("tls-port", "s", 0, "Start TLS listener on this port. Specify 0 to disable the listener")
 	root.Flags().IntP("wss-port", "w", 0, "Start Secure WS listener on this port. Specify 0 to disable the listener")
 	root.Flags().IntP("ws-port", "", 0, "Start WS listener on this port. Specify 0 to disable the listener")
-	root.Flags().IntP("rpc-port", "r", 0, "Start GRPC listener on this port. Specify 0 to use a random port")
+	root.Flags().IntP("rpc-port", "r", 3000, "Start GRPC listener on this port.")
 	root.Flags().IntP("gossip-port", "g", 0, "Use this port for Mesh traffic. Specify 0 to use a random port")
 	root.Flags().StringP("nats-streaming-url", "", "", "Export published message to this NATS-Streaming service")
 	root.Execute()
