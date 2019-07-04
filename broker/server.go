@@ -76,6 +76,7 @@ func (s *server) Connect(ctx context.Context, input *pb.ConnectInput) (*pb.Conne
 		Encrypted:     input.TransportMetadata.Encrypted,
 		Name:          input.TransportMetadata.Name,
 		RemoteAddress: input.TransportMetadata.RemoteAddress,
+		Endpoint:      input.TransportMetadata.Endpoint,
 	}, input.Connect)
 	return &pb.ConnectOutput{
 		ID:      id,
