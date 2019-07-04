@@ -66,7 +66,7 @@ func (m *memDBStore) insertPBRemoteSubscription(remote Metadata, tx *memdb.Txn) 
 	m.topicIndex.Index(sub)
 	return tx.Insert(table, sub)
 }
-func (m *memDBStore) Merge(inc []byte) error {
+func (m *memDBStore) Merge(inc []byte, _ bool) error {
 	set := &RetainedMessageMetadataList{}
 	err := proto.Unmarshal(inc, set)
 	if err != nil {

@@ -18,7 +18,16 @@ var (
 type Queue struct {
 	mutex    sync.Mutex
 	elements *btree.BTree
+	notify   chan struct{}
 }
+
+func (q *Queue) sendNotify() {
+	select {
+	case q.notify <- struct{}{}:
+	default:
+	}
+}
+
 type item struct {
 	timestamp time.Time
 	publish   *packet.Publish
@@ -35,6 +44,7 @@ func NewQueue() *Queue {
 }
 
 func (q *Queue) Close() error {
+	close(q.notify)
 	q.elements.Clear(true)
 	return nil
 }
@@ -61,4 +71,20 @@ func (q *Queue) Pop() (*packet.Publish, error) {
 		return nil, ErrQueueEmpty
 	}
 	return elt.(item).publish, nil
+}
+func (q *Queue) Consume(f func(*packet.Publish)) {
+	for {
+		publish, err := q.Pop()
+		if err == nil {
+			f(publish)
+		}
+		if q.elements.Len() == 0 {
+			select {
+			case _, ok := <-q.notify:
+				if !ok {
+					return
+				}
+			}
+		}
+	}
 }

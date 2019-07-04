@@ -14,7 +14,7 @@ import (
 )
 
 const (
-	table = "peers"
+	peerTable = "peers"
 )
 const (
 	PeerCreated string = "peer_created"
@@ -35,6 +35,8 @@ type Peer struct {
 }
 type PeerStore interface {
 	ByID(id string) (Peer, error)
+	ByService(name string) (SubscriptionSet, error)
+	EndpointsByService(name string) ([]*NodeService, error)
 	All() (SubscriptionSet, error)
 	Exists(id string) bool
 	Upsert(p Peer) error
@@ -48,11 +50,11 @@ type memDBStore struct {
 	channel Channel
 }
 
-func NewPeerStore(mesh Mesh) (PeerStore, error) {
+func NewPeerStore(mesh Layer) (PeerStore, error) {
 	db, err := memdb.NewMemDB(&memdb.DBSchema{
 		Tables: map[string]*memdb.TableSchema{
-			table: {
-				Name: table,
+			peerTable: {
+				Name: peerTable,
 				Indexes: map[string]*memdb.IndexSchema{
 					"id": {
 						Name: "id",
@@ -61,6 +63,14 @@ func NewPeerStore(mesh Mesh) (PeerStore, error) {
 						},
 						Unique:       true,
 						AllowMissing: false,
+					},
+					"services": {
+						Name: "services",
+						Indexer: &memdb.StringSliceFieldIndex{
+							Field: "Services",
+						},
+						Unique:       false,
+						AllowMissing: true,
 					},
 				},
 			},
@@ -84,23 +94,25 @@ func NewPeerStore(mesh Mesh) (PeerStore, error) {
 	}()
 	return s, nil
 }
-func (s *memDBStore) all() SubscriptionSet {
-	peerList := SubscriptionSet{}
-	s.read(func(tx *memdb.Txn) error {
-		iterator, err := tx.Get(table, "id")
-		if err != nil || iterator == nil {
-			return ErrPeerNotFound
+func (m *memDBStore) all(tx *memdb.Txn, index string, value ...interface{}) (SubscriptionSet, error) {
+	var set SubscriptionSet
+	iterator, err := tx.Get(peerTable, index, value...)
+	if err != nil {
+		return set, err
+	}
+	for {
+		data := iterator.Next()
+		if data == nil {
+			return set, nil
 		}
-		for {
-			payload := iterator.Next()
-			if payload == nil {
-				return nil
-			}
-			p := payload.(Peer)
-			peerList = append(peerList, p)
+		res, ok := data.(Peer)
+		if !ok {
+			return set, errors.New("invalid type fetched")
 		}
-	})
-	return peerList
+		if crdt.IsEntryAdded(&res) {
+			set = append(set, res)
+		}
+	}
 }
 
 func (s *memDBStore) Exists(id string) bool {
@@ -121,10 +133,39 @@ func (s *memDBStore) ByID(id string) (Peer, error) {
 		return nil
 	})
 }
-func (s *memDBStore) All() (SubscriptionSet, error) {
-	return s.all().Filter(func(s Peer) bool {
-		return crdt.IsEntryAdded(&s)
-	}), nil
+func (m *memDBStore) All() (SubscriptionSet, error) {
+	var set SubscriptionSet
+	var err error
+	return set, m.read(func(tx *memdb.Txn) error {
+		set, err = m.all(tx, "id")
+		if err != nil {
+			return err
+		}
+		return nil
+	})
+}
+func (m *memDBStore) ByService(service string) (SubscriptionSet, error) {
+	var res SubscriptionSet
+	return res, m.read(func(tx *memdb.Txn) (err error) {
+		res, err = m.all(tx, "services", service)
+		return
+	})
+}
+
+func (m *memDBStore) EndpointsByService(name string) ([]*NodeService, error) {
+	peers, err := m.ByService(name)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]*NodeService, 0)
+	for _, peer := range peers {
+		for _, service := range peer.HostedServices {
+			if service.ID == name {
+				out = append(out, service)
+			}
+		}
+	}
+	return out, nil
 }
 
 func (s *memDBStore) Upsert(sess Peer) error {
@@ -156,9 +197,9 @@ func (s *memDBStore) emitPeerEvent(sess Peer) {
 }
 
 func (m *memDBStore) insert(message Peer) error {
+	defer m.emitPeerEvent(message)
 	err := m.write(func(tx *memdb.Txn) error {
-		m.emitPeerEvent(message)
-		err := tx.Insert(table, message)
+		err := tx.Insert(peerTable, message)
 		if err != nil {
 			return err
 		}
@@ -206,7 +247,7 @@ func (s *memDBStore) run(tx *memdb.Txn, statement func(tx *memdb.Txn) error) err
 }
 
 func (s *memDBStore) first(tx *memdb.Txn, idx, id string) (Peer, error) {
-	data, err := tx.First(table, idx, id)
+	data, err := tx.First(peerTable, idx, id)
 	if err != nil || data == nil {
 		return Peer{}, ErrPeerNotFound
 	}
