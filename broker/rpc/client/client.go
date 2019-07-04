@@ -3,7 +3,7 @@ package client
 import (
 	"context"
 
-	"github.com/vx-labs/mqtt-broker/broker/transport"
+	"github.com/vx-labs/mqtt-broker/transport"
 
 	"github.com/vx-labs/mqtt-broker/broker/rpc"
 	"github.com/vx-labs/mqtt-broker/sessions"

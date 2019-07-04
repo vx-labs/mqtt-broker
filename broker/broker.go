@@ -11,7 +11,7 @@ import (
 	"runtime"
 	"time"
 
-	"github.com/vx-labs/mqtt-broker/broker/transport"
+	"github.com/vx-labs/mqtt-broker/transport"
 
 	"github.com/sirupsen/logrus"
 	"github.com/vx-labs/mqtt-broker/broker/cluster"

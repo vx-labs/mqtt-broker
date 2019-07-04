@@ -9,9 +9,9 @@ import (
 
 	"github.com/sirupsen/logrus"
 
-	"github.com/vx-labs/mqtt-broker/broker/transport"
 	"github.com/vx-labs/mqtt-broker/queues/inflight"
 	"github.com/vx-labs/mqtt-broker/queues/messages"
+	"github.com/vx-labs/mqtt-broker/transport"
 	"github.com/vx-labs/mqtt-protocol/decoder"
 	"github.com/vx-labs/mqtt-protocol/encoder"
 	"github.com/vx-labs/mqtt-protocol/packet"

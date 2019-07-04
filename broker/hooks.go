@@ -8,8 +8,8 @@ import (
 	"log"
 	"time"
 
-	"github.com/vx-labs/mqtt-broker/broker/transport"
 	"github.com/vx-labs/mqtt-broker/sessions"
+	"github.com/vx-labs/mqtt-broker/transport"
 
 	subscriptions "github.com/vx-labs/mqtt-broker/subscriptions"
 	topics "github.com/vx-labs/mqtt-broker/topics"

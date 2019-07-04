@@ -6,8 +6,8 @@ import (
 	"log"
 	"net"
 
-	"github.com/vx-labs/mqtt-broker/broker/transport"
 	sessions "github.com/vx-labs/mqtt-broker/sessions"
+	"github.com/vx-labs/mqtt-broker/transport"
 	packet "github.com/vx-labs/mqtt-protocol/packet"
 	context "golang.org/x/net/context"
 	"google.golang.org/grpc"
