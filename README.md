@@ -5,20 +5,22 @@ Inspired (a lot) by https://emitter.io/.
 
 ## Running
 
-The broker is released as a docker image.
+The system is composed of two services: a "broker" and a "listener".
+The listener is listening on the network (tcp, tls, ws or wss), and forward MQTT packets
+to the broker using a GRPC connection.
 
-```
-docker run -p 1883:1883 --rm quay.io/vxlabs/mqtt-broker:v0.0.1 -t 1883
-```
+The broker is responsible of routing MQTT messages.
 
 ### Single node
 
-You can start a single instance of the broker by running
+You can run the two services by running:
 ```
-go run ./cmd/broker/main.go  -t 1883
+docker run --net=host --rm quay.io/vxlabs/mqtt-listener:<tag> -t 1883
+docker run --net=host --rm quay.io/vxlabs/mqtt-broker:<tag> -j localhost:3500 --cluster-bind-port=3501
 ```
 
-(`go run` can be replaced by the appropriate `docker run` command)
+(`docker run` can be replaced by the appropriate `go run` command, each entrypint is located
+in the ./cmd/ folder)
 
 The broker should start and listen on 0.0.0.0:1883 (tcp).
 You can connect to it using an MQTT client:
@@ -30,11 +32,4 @@ mosquitto_pub -t 'test' -d -q 1 -m 'hello'
 
 ### Multiple nodes
 
-Once one node is running, you can start other nodes and tell them to join the first node by running
-
-```
-go run ./cmd/broker/main.go  -t 1884 -j <first broker address>
-go run ./cmd/broker/main.go  -t 1885 -j <first broker address>
-```
-
-You can find the join address to give in the first broker log messages.
+You can start any number of listener or broker, they will discover themselves using a gossip-based mesh network.

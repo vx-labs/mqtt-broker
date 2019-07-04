@@ -8,6 +8,10 @@ import (
 	"log"
 	"time"
 
+	"github.com/vx-labs/mqtt-broker/cluster"
+	listenerpb "github.com/vx-labs/mqtt-broker/listener/pb"
+	"google.golang.org/grpc"
+
 	"github.com/vx-labs/mqtt-broker/sessions"
 	"github.com/vx-labs/mqtt-broker/subscriptions"
 	"github.com/vx-labs/mqtt-broker/topics"
@@ -22,17 +26,24 @@ func validateClientID(clientID []byte) bool {
 }
 
 type localTransport struct {
-	ctx      context.Context
-	id       string
-	listener Listener
+	ctx  context.Context
+	id   string
+	mesh cluster.Mesh
+	peer string
 }
 
 func (local *localTransport) Close() error {
-	return local.listener.CloseSession(local.ctx, local.id)
+	return local.mesh.DialAddress("listener", local.peer, func(conn *grpc.ClientConn) error {
+		c := listenerpb.NewClient(conn)
+		return c.CloseSession(local.ctx, local.id)
+	})
 }
 
 func (local *localTransport) Publish(ctx context.Context, p *packet.Publish) error {
-	return local.listener.Publish(ctx, local.id, p)
+	return local.mesh.DialAddress("listener", local.peer, func(conn *grpc.ClientConn) error {
+		c := listenerpb.NewClient(conn)
+		return c.Publish(ctx, local.id, p)
+	})
 }
 
 type connectReturn struct {
@@ -69,7 +80,7 @@ func (b *Broker) Connect(ctx context.Context, metadata transport.Metadata, p *pa
 				return fmt.Errorf("WARN: authentication failed for client ID %q: %v", clientIDstr, err)
 			}
 			if len(set) > 0 {
-				log.Printf("DEBUG: session %s: session client-id is not free, closing old sessions", clientIDstr)
+				//log.Printf("DEBUG: session %s: session client-id is not free, closing old sessions", clientIDstr)
 				if err := set.ApplyE(func(session sessions.Session) error {
 					b.Sessions.Delete(session.ID, "session_disconnected")
 					if b.isSessionLocal(session) {
@@ -89,7 +100,7 @@ func (b *Broker) Connect(ctx context.Context, metadata transport.Metadata, p *pa
 				ClientID:          clientIDstr,
 				Created:           time.Now().Unix(),
 				Tenant:            tenant,
-				Peer:              b.ID,
+				Peer:              metadata.Endpoint,
 				WillPayload:       p.WillPayload,
 				WillQoS:           p.WillQos,
 				WillRetain:        p.WillRetain,
@@ -100,11 +111,11 @@ func (b *Broker) Connect(ctx context.Context, metadata transport.Metadata, p *pa
 			},
 		}
 		err = b.Sessions.Upsert(sess, &localTransport{
-			id:       out.sessionID,
-			listener: b.Listener,
-			ctx:      b.ctx,
+			id:   out.sessionID,
+			peer: sess.Peer,
+			mesh: b.mesh,
+			ctx:  b.ctx,
 		})
-		log.Printf("session %s inserted in store", out.sessionID)
 		if err != nil {
 			return err
 		}
@@ -128,11 +139,11 @@ func (b *Broker) Subscribe(ctx context.Context, id string, p *packet.Subscribe) 
 				Qos:       p.Qos[idx],
 				Tenant:    sess.Tenant,
 				SessionID: sess.ID,
-				Peer:      b.ID,
+				Peer:      sess.Peer,
 			},
 		}
 		err := b.Subscriptions.Create(event, func(ctx context.Context, publish packet.Publish) error {
-			return b.Listener.Publish(ctx, id, &publish)
+			return sess.Transport.Publish(ctx, &publish)
 		})
 		if err != nil {
 			return nil, err
@@ -146,7 +157,7 @@ func (b *Broker) Subscribe(ctx context.Context, id string, p *packet.Subscribe) 
 		go func() {
 			set.Apply(func(message topics.RetainedMessage) {
 				qos := getLowerQoS(message.Qos, packetQoS)
-				b.Listener.Publish(b.ctx, id, &packet.Publish{
+				sess.Transport.Publish(b.ctx, &packet.Publish{
 					Header: &packet.Header{
 						Qos:    qos,
 						Retain: true,
@@ -182,18 +193,21 @@ func (b *Broker) routeMessage(tenant string, p *packet.Publish) error {
 	}
 	message := *p
 	message.Header.Retain = false
-	recipients.Apply(func(sub subscriptions.Subscription) {
-		sub.Sender(b.ctx, message)
-	})
+	if len(recipients) > 0 {
+		recipients.Apply(func(sub subscriptions.Subscription) {
+			sub.Sender(b.ctx, message)
+		})
+	}
 	return nil
 }
 func (b *Broker) Publish(ctx context.Context, id string, p *packet.Publish) (puback *packet.PubAck, err error) {
 	done := make(chan struct{})
-	b.publishPool.Call(func() error {
+	err = b.publishPool.Call(func() error {
 		defer close(done)
 		var session sessions.Session
 		session, err = b.Sessions.ByID(id)
 		if err != nil {
+			log.Printf("WARN: publish issued to unknown session")
 			return err
 		}
 		if p.Header.Qos == 2 {

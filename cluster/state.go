@@ -21,7 +21,7 @@ func (m memDBStore) MarshalBinary() []byte {
 func (m memDBStore) dumpSubscriptions() *PeerMetadataList {
 	sessionList := PeerMetadataList{}
 	m.read(func(tx *memdb.Txn) error {
-		iterator, err := tx.Get(table, "id")
+		iterator, err := tx.Get(peerTable, "id")
 		if (err != nil && err != ErrPeerNotFound) || iterator == nil {
 			return err
 		}
@@ -39,7 +39,7 @@ func (m memDBStore) dumpSubscriptions() *PeerMetadataList {
 
 func (m *memDBStore) runGC() error {
 	return m.write(func(tx *memdb.Txn) error {
-		iterator, err := tx.Get(table, "id")
+		iterator, err := tx.Get(peerTable, "id")
 		if err != nil || iterator == nil {
 			return err
 		}
@@ -51,33 +51,39 @@ func (m *memDBStore) runGC() error {
 			sess := payload.(Peer)
 			return &sess, nil
 		}, func(id string) error {
-			return tx.Delete(table, Peer{
+			return tx.Delete(peerTable, Peer{
 				Metadata: Metadata{ID: id},
 			})
 		},
 		)
 	})
 }
-func (m *memDBStore) insertPBRemoteSubscription(remote Metadata, tx *memdb.Txn) error {
-	sub := Peer{
+
+func (m *memDBStore) newRemotePeer(remote Metadata) Peer {
+	return Peer{
 		Metadata: remote,
 	}
-	return tx.Insert(table, sub)
 }
-func (m *memDBStore) Merge(inc []byte) error {
+func (m *memDBStore) insertPBRemoteSubscription(sub Peer, tx *memdb.Txn) error {
+	return tx.Insert(peerTable, sub)
+}
+func (m *memDBStore) Merge(inc []byte, _ bool) error {
 	set := &PeerMetadataList{}
 	err := proto.Unmarshal(inc, set)
 	if err != nil {
 		return err
 	}
-	return m.write(func(tx *memdb.Txn) error {
+	changedPeers := SubscriptionSet{}
+	err = m.write(func(tx *memdb.Txn) error {
 		for _, remote := range set.Metadatas {
-			localData, err := tx.First(table, "id", remote.ID)
+			localData, err := tx.First(peerTable, "id", remote.ID)
 			if err != nil || localData == nil {
-				err := m.insertPBRemoteSubscription(*remote, tx)
+				peer := m.newRemotePeer(*remote)
+				err := m.insertPBRemoteSubscription(peer, tx)
 				if err != nil {
 					return err
 				}
+				changedPeers = append(changedPeers, peer)
 				continue
 			}
 			local, ok := localData.(Peer)
@@ -86,12 +92,21 @@ func (m *memDBStore) Merge(inc []byte) error {
 				continue
 			}
 			if crdt.IsEntryOutdated(&local, remote) {
-				err := m.insertPBRemoteSubscription(*remote, tx)
+				peer := m.newRemotePeer(*remote)
+				err := m.insertPBRemoteSubscription(peer, tx)
 				if err != nil {
 					return err
 				}
+				changedPeers = append(changedPeers, peer)
 			}
 		}
 		return nil
 	})
+	if err != nil {
+		return err
+	}
+	for _, peer := range changedPeers {
+		m.emitPeerEvent(peer)
+	}
+	return nil
 }
