@@ -15,16 +15,16 @@ import (
 
 	"github.com/manifoldco/promptui"
 	"github.com/spf13/cobra"
-	"github.com/vx-labs/mqtt-broker/broker"
+	brokerpb "github.com/vx-labs/mqtt-broker/broker/pb"
 
 	"google.golang.org/grpc"
 )
 
 type APIWrapper struct {
-	api *broker.Client
+	api *brokerpb.Client
 }
 
-func (a *APIWrapper) API() *broker.Client {
+func (a *APIWrapper) API() *brokerpb.Client {
 	return a.api
 }
 func logInterceptor(
@@ -64,7 +64,7 @@ func main() {
 			if err != nil {
 				log.Fatalf("FATAL: failed to dial %s: %v", endpoint, err)
 			}
-			helper.api = broker.NewClient(conn)
+			helper.api = brokerpb.NewClient(conn)
 		},
 	}
 	root.PersistentFlags().StringP("endpoint", "e", "localhost:9090", "Broker GRPC endpoint")

@@ -1,18 +1,17 @@
 package cluster
 
-//go:generate protoc -I${GOPATH}/src -I${GOPATH}/src/github.com/vx-labs/mqtt-broker/broker/cluster/ --go_out=plugins=grpc:. cluster.proto
-
 import (
 	"errors"
-	"io/ioutil"
+	fmt "fmt"
 	"log"
-	"sync"
+	"os"
+	"runtime"
+	"time"
 
-	"github.com/golang/protobuf/proto"
+	"github.com/vx-labs/mqtt-broker/cluster/pool"
+
 	"google.golang.org/grpc"
-
-	"github.com/hashicorp/memberlist"
-	"github.com/vx-labs/mqtt-broker/identity"
+	"google.golang.org/grpc/resolver"
 )
 
 var (
@@ -21,157 +20,106 @@ var (
 )
 
 type memberlistMesh struct {
-	mlist *memberlist.Memberlist
-
-	mtx        sync.RWMutex
-	states     map[string]State
-	bcastQueue *memberlist.TransmitLimitedQueue
-	meta       NodeMeta
-	peers      PeerStore
+	id        string
+	rpcCaller *pool.Caller
+	layer     Layer
+	peers     PeerStore
 }
 
-func (m *memberlistMesh) ClusterSize() int {
-	return m.mlist.NumMembers()
+type cachedState struct {
+	data []byte
 }
 
-func (m *memberlistMesh) AddState(key string, state State) (Channel, error) {
-	m.mtx.Lock()
-	defer m.mtx.Unlock()
-	if _, ok := m.states[key]; ok {
-		return nil, ErrStateKeyAlreadySet
-	}
-	m.states[key] = state
-	userCh := &channel{
-		bcast: m.bcastQueue,
-		key:   key,
-	}
-	return userCh, nil
-}
-func (m *memberlistMesh) Join(hosts []string) error {
-	_, err := m.mlist.Join(hosts)
-	return err
+func (c *cachedState) MarshalBinary() []byte {
+	return c.data
 }
 
-func (m *memberlistMesh) NotifyMsg(b []byte) {
-	var p Part
-	if err := proto.Unmarshal(b, &p); err != nil {
-		log.Printf("ERROR: failed to decode remote state: %v", err)
-		return
+func (c *cachedState) Merge(b []byte, full bool) error {
+	if full {
+		c.data = b
 	}
-	s, ok := m.states[p.Key]
-	if !ok {
-		return
-	}
-	if err := s.Merge(p.Data); err != nil {
-		log.Printf("ERROR: failed to merge remote %q state: %v", p.Key, err)
-		return
-	}
-}
-func (m *memberlistMesh) GetBroadcasts(overhead, limit int) [][]byte {
-	return m.bcastQueue.GetBroadcasts(overhead, limit)
-}
-func (m *memberlistMesh) NodeMeta(limit int) []byte {
-	payload, err := proto.Marshal(&m.meta)
-	if err != nil || len(payload) > limit {
-		log.Printf("WARN: not publishing node meta because limit of %d is exeeded (%d)", limit, len(payload))
-		return []byte{}
-	}
-	return payload
-}
-func (m *memberlistMesh) LocalState(join bool) []byte {
-	m.mtx.RLock()
-	defer m.mtx.RUnlock()
-
-	dump := &FullState{
-		Parts: make([]*Part, 0, len(m.states)),
-	}
-	for key, state := range m.states {
-		dump.Parts = append(dump.Parts, &Part{Key: key, Data: state.MarshalBinary()})
-	}
-	payload, err := proto.Marshal(dump)
-	if err != nil {
-		log.Printf("ERROR: failed to marshal full state: %v", err)
-		return nil
-	}
-	return payload
-}
-func (m *memberlistMesh) MergeRemoteState(buf []byte, join bool) {
-	var fs FullState
-	if err := proto.Unmarshal(buf, &fs); err != nil {
-		log.Printf("ERROR: failed to decode remote full state: %v", err)
-		return
-	}
-	m.mtx.RLock()
-	defer m.mtx.RUnlock()
-
-	for _, p := range fs.Parts {
-		s, ok := m.states[p.Key]
-		if !ok {
-			continue
-		}
-		if err := s.Merge(p.Data); err != nil {
-			log.Printf("ERROR: failed to merge remote full %q state: %v", p.Key, err)
-			return
-		}
-	}
+	return nil
 }
 
-func (m *memberlistMesh) DialGRPC(id string) (*grpc.ClientConn, error) {
-	addr, err := m.MemberRPCAddress(id)
-	if err != nil {
-		return nil, err
-	}
-	return grpc.Dial(addr)
+func (m *memberlistMesh) DialService(name string) (*grpc.ClientConn, error) {
+	return grpc.Dial(fmt.Sprintf("mesh:///%s", name), grpc.WithInsecure(), grpc.WithAuthority(name), grpc.WithBalancerName("failover"))
 }
-
-func (m *memberlistMesh) MemberRPCAddress(id string) (string, error) {
-	for _, node := range m.mlist.Members() {
-		if node.Name == id {
-			var meta NodeMeta
-			err := proto.Unmarshal(node.Meta, &meta)
-			if err != nil {
-				break
-			}
-			return meta.RPCAddr, nil
-		}
-	}
-	return "", ErrNodeNotFound
+func (m *memberlistMesh) DialAddress(service, id string, f func(*grpc.ClientConn) error) error {
+	return m.rpcCaller.Call(fmt.Sprintf("%s+%s", service, id), f)
 }
 
 func (m *memberlistMesh) ID() string {
-	return m.mlist.LocalNode().Name
+	return m.id
 }
 func (m *memberlistMesh) Peers() PeerStore {
 	return m.peers
 }
 
-func MemberlistMesh(id identity.Identity, eventHandler memberlist.EventDelegate, meta NodeMeta) Mesh {
-	self := &memberlistMesh{
-		states: map[string]State{},
-		meta:   meta,
-	}
+type Service struct {
+	ID      string
+	Address string
+}
 
-	config := memberlist.DefaultLANConfig()
-	config.AdvertiseAddr = id.Public().Host()
-	config.AdvertisePort = id.Public().Port()
-	config.BindPort = id.Private().Port()
-	config.Name = id.ID()
-	config.Delegate = self
-	config.Events = eventHandler
-	config.LogOutput = ioutil.Discard
-	list, err := memberlist.Create(config)
-	if err != nil {
-		log.Fatal("failed to create memberlist: " + err.Error())
+func New(userConfig Config) *memberlistMesh {
+	self := &memberlistMesh{
+		id:        userConfig.ID,
+		rpcCaller: pool.NewCaller(),
 	}
-	self.mlist = list
-	self.bcastQueue = &memberlist.TransmitLimitedQueue{
-		NumNodes:       self.ClusterSize,
-		RetransmitMult: 3,
+	userConfig.onNodeLeave = func(id string, meta NodeMeta) {
+		for _, service := range meta.Services {
+			self.rpcCaller.Cancel(service.NetworkAddress)
+		}
+		self.peers.Delete(id)
+		log.Printf("INFO: deleted peer %s from discovery store", id)
 	}
-	peers, err := NewPeerStore(self)
+	self.layer = NewLayer("cluster", userConfig, NodeMeta{
+		ID: userConfig.ID,
+	})
+	peers, err := NewPeerStore(self.layer)
 	if err != nil {
 		panic(err)
 	}
 	self.peers = peers
+	hostname, err := os.Hostname()
+	if err != nil {
+		hostname = os.Getenv("HOSTNAME")
+	}
+	if hostname == "" {
+		hostname = "hostname_not_available"
+	}
+
+	self.peers.Upsert(Peer{
+		Metadata: Metadata{
+			ID:       self.id,
+			Hostname: hostname,
+			Runtime:  runtime.Version(),
+			Started:  time.Now().Unix(),
+		},
+	})
+	resolver.Register(newResolver(self.peers))
+	resolver.Register(newIDResolver(self.peers))
+	go self.oSStatsReporter()
 	return self
+}
+
+func (m *memberlistMesh) Leave() {
+	m.layer.Leave()
+}
+func (m *memberlistMesh) Join(peers []string) {
+	m.layer.Join(peers)
+}
+
+func (m *memberlistMesh) RegisterService(name, address string) error {
+	self, err := m.peers.ByID(m.id)
+	if err != nil {
+		return err
+	}
+	self.HostedServices = append(self.HostedServices, &NodeService{
+		ID:             name,
+		NetworkAddress: address,
+		Peer:           m.id,
+	})
+	self.Services = append(self.Services, name)
+	log.Printf("INFO: registering service %s on %s", name, address)
+	return m.peers.Upsert(self)
 }
