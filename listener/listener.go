@@ -11,6 +11,8 @@ import (
 	"sync"
 
 	"github.com/google/btree"
+	brokerpb "github.com/vx-labs/mqtt-broker/broker/pb"
+	"github.com/vx-labs/mqtt-broker/cluster"
 	"github.com/vx-labs/mqtt-broker/transport"
 	"github.com/vx-labs/mqtt-protocol/encoder"
 	"github.com/vx-labs/mqtt-protocol/packet"
@@ -36,6 +38,7 @@ type Endpoint interface {
 }
 
 type endpoint struct {
+	id         string
 	mutex      sync.Mutex
 	sessions   *btree.BTree
 	transports []net.Listener
@@ -43,6 +46,7 @@ type endpoint struct {
 }
 
 func (local *endpoint) newSession(metadata transport.Metadata) error {
+	metadata.Endpoint = local.id
 	go local.runLocalSession(metadata)
 	return nil
 }
@@ -68,6 +72,7 @@ func (local *endpoint) Publish(ctx context.Context, id string, publish *packet.P
 		id: id,
 	})
 	if session == nil {
+		log.Printf("WARN: publish issued to an unknown session %s", id)
 		return ErrSessionNotFound
 	}
 	return session.(*localSession).encoder.Publish(publish)
@@ -92,10 +97,16 @@ type Config struct {
 	WSPort  int
 }
 
-func New(broker Broker, config Config) Endpoint {
+func New(id string, mesh cluster.Mesh, config Config) *endpoint {
+	brokerConn, err := mesh.DialService("broker")
+	if err != nil {
+		panic(err)
+	}
+	brokerClient := brokerpb.NewClient(brokerConn)
 	local := &endpoint{
-		broker:   broker,
+		broker:   brokerClient,
 		sessions: btree.New(2),
+		id:       id,
 	}
 	if config.TCPPort > 0 {
 		tcpTransport, err := transport.NewTCPTransport(config.TCPPort, local.newSession)

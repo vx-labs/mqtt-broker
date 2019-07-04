@@ -17,4 +17,5 @@ type Metadata struct {
 	EncryptionState *tls.ConnectionState
 	RemoteAddress   string
 	Channel         TimeoutReadWriteCloser
+	Endpoint        string
 }
