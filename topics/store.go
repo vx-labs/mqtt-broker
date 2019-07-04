@@ -57,7 +57,7 @@ var now = func() int64 {
 	return time.Now().UnixNano()
 }
 
-func NewMemDBStore(mesh cluster.Mesh) (*memDBStore, error) {
+func NewMemDBStore(mesh cluster.ServiceLayer) (*memDBStore, error) {
 	db, err := memdb.NewMemDB(&memdb.DBSchema{
 		Tables: map[string]*memdb.TableSchema{
 			table: &memdb.TableSchema{

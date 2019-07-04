@@ -3,8 +3,6 @@ package listener
 import (
 	"context"
 	"errors"
-	"io"
-	"net"
 	"time"
 
 	"github.com/sirupsen/logrus"
@@ -33,7 +31,7 @@ func (local *endpoint) runLocalSession(t transport.Metadata) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	logger := logrus.New().WithField("service", "listener").WithField("listener", t.Name).WithField("remote", t.RemoteAddress)
-	logger.Info("accepted new connection")
+	//logger.Info("accepted new connection")
 	session := &localSession{
 		encoder:   encoder.New(t.Channel),
 		transport: t.Channel,
@@ -49,6 +47,7 @@ func (local *endpoint) runLocalSession(t transport.Metadata) {
 		decoder.OnConnect(func(p *packet.Connect) error {
 			id, connack, err := local.broker.Connect(ctx, t, p)
 			if err != nil {
+				logger.Errorf("failed to send CONNECT: %v", err)
 				return enc.ConnAck(connack)
 			}
 			if id == "" {
@@ -68,7 +67,7 @@ func (local *endpoint) runLocalSession(t transport.Metadata) {
 			if old != nil {
 				old.(*localSession).transport.Close()
 			}
-			logger.Info("starting session")
+			//			logger.Info("starting session")
 			enc.ConnAck(&packet.ConnAck{
 				ReturnCode: packet.CONNACK_CONNECTION_ACCEPTED,
 				Header:     &packet.Header{},
@@ -135,38 +134,22 @@ func (local *endpoint) runLocalSession(t transport.Metadata) {
 				return ErrConnectNotDone
 			}
 			renewDeadline(timer, t.Channel)
+			local.broker.Disconnect(ctx, session.id, p)
 			return ErrSessionDisconnected
 		}),
 	)
 	renewDeadline(CONNECT_DEADLINE, t.Channel)
-	go func() {
-		for {
-			select {
-			case <-session.quit:
-				return
-			default:
-				msg, err := queue.Pop()
-				if err == nil {
-					inflight.Put(msg)
-				}
-			}
-		}
-	}()
+	go queue.Consume(inflight.Put)
 
 	var err error
 	for {
 		err = dec.Decode(t.Channel)
 		if err != nil {
-			if err == io.EOF || err == ErrSessionDisconnected {
+			if err == ErrSessionDisconnected {
 				logger.Info("session disconnected")
 				break
 			}
-			if opErr, ok := err.(*net.OpError); ok {
-				if opErr.Timeout() {
-					logger.Errorf("read timeout")
-					break
-				}
-			}
+			logger.Warn("session lost")
 			logger.Errorf("decoding failed: %v", err)
 			break
 		}

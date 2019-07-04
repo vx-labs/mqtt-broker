@@ -12,25 +12,19 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/vx-labs/mqtt-broker/network"
-	"github.com/vx-labs/mqtt-broker/transport"
-
-	"github.com/spf13/viper"
-
-	"github.com/vx-labs/mqtt-broker/broker"
-
 	"github.com/vx-labs/mqtt-broker/cluster"
+	"github.com/vx-labs/mqtt-broker/listener"
+
+	consul "github.com/hashicorp/consul/api"
+	vault "github.com/hashicorp/vault/api"
+
+	mqttConfig "github.com/vx-labs/iot-mqtt-config"
+	"github.com/vx-labs/mqtt-broker/network"
+	tlsProvider "github.com/vx-labs/mqtt-broker/tls/api"
 
 	"github.com/google/uuid"
 
 	_ "net/http/pprof"
-
-	consul "github.com/hashicorp/consul/api"
-	vault "github.com/hashicorp/vault/api"
-	auth "github.com/vx-labs/iot-mqtt-auth/api"
-
-	mqttConfig "github.com/vx-labs/iot-mqtt-config"
-	tlsProvider "github.com/vx-labs/mqtt-broker/tls/api"
 
 	"github.com/spf13/cobra"
 )
@@ -77,41 +71,8 @@ func tlsConfigFromVault(consulAPI *consul.Client, vaultAPI *vault.Client) *tls.C
 		Certificates: certs,
 		Rand:         rand.Reader,
 	}
-}
-func authHelper(ctx context.Context) func(transport transport.Metadata, sessionID []byte, username string, password string) (tenant string, err error) {
-	if os.Getenv("BYPASS_AUTH") == "true" {
-		return func(transport transport.Metadata, sessionID []byte, username string, password string) (tenant string, err error) {
-			return "_default", nil
-		}
-	}
-	api, err := auth.New(os.Getenv("AUTH_HOST"))
-	if err != nil {
-		panic(err)
-	}
-	return func(transport transport.Metadata, sessionID []byte, username string, password string) (tenant string, err error) {
-		log.Println("INFO: calling VX auth handler")
-		defer func() {
-			log.Println("INFO: VX auth handler returned")
-		}()
-		success, tenant, err := api.Authenticate(
-			ctx,
-			auth.WithProtocolContext(
-				username,
-				password,
-			),
-			auth.WithTransportContext(transport.Encrypted, transport.RemoteAddress, nil),
-		)
-		if err != nil {
-			log.Printf("ERROR: auth failed: %v", err)
-			return "", fmt.Errorf("bad_username_or_password")
-		}
-		if success {
-			return tenant, nil
-		}
-		return "", fmt.Errorf("bad_username_or_password")
-	}
-}
 
+}
 func ConsulPeers(api *consul.Client, service string) ([]string, error) {
 	var (
 		services []*consul.ServiceEntry
@@ -139,17 +100,24 @@ func ConsulPeers(api *consul.Client, service string) ([]string, error) {
 		return peers, nil
 	}
 }
+
 func main() {
 	root := &cobra.Command{
 		Use: "broker",
 		Run: func(cmd *cobra.Command, args []string) {
-			nodes := viper.GetStringSlice("join")
-			pprof := viper.GetBool("pprof")
+			ctx := context.Background()
+			nodes, _ := cmd.Flags().GetStringArray("join")
+			tcpPort, _ := cmd.Flags().GetInt("tcp-port")
+			tlsPort, _ := cmd.Flags().GetInt("tls-port")
+			wssPort, _ := cmd.Flags().GetInt("wss-port")
+			wsPort, _ := cmd.Flags().GetInt("ws-port")
 			clusterNetConf := network.ConfigurationFromFlags(cmd, FLAG_NAME_CLUSTER)
 			serviceNetConf := network.ConfigurationFromFlags(cmd, FLAG_NAME_SERVICE)
 			serviceGossipNetConf := network.ConfigurationFromFlags(cmd, FLAG_NAME_SERVICE_GOSSIP)
+			pprof, _ := cmd.Flags().GetBool("pprof")
 			sigc := make(chan os.Signal, 1)
 
+			var tlsConfig *tls.Config
 			if pprof {
 				go func() {
 					log.Printf("INFO: enable pprof endpoint on port 8080")
@@ -159,31 +127,35 @@ func main() {
 
 			go serveHTTPHealth()
 			id := uuid.New().String()
-			config := broker.DefaultConfig()
+
+			if os.Getenv("NOMAD_ALLOC_ID") != "" && (tlsPort > 0 || wssPort > 0) {
+				consulAPI, vaultAPI, err := mqttConfig.DefaultClients()
+				if err != nil {
+					panic(err)
+				}
+				tlsConfig = tlsConfigFromVault(consulAPI, vaultAPI)
+				peers, err := ConsulPeers(consulAPI, "cluster")
+				if err == nil {
+					nodes = append(nodes, peers...)
+				}
+			}
 			mesh := cluster.New(cluster.Config{
 				BindPort:      clusterNetConf.BindPort,
 				AdvertisePort: clusterNetConf.AdvertisedPort,
 				AdvertiseAddr: clusterNetConf.AdvertisedAddress,
 				ID:            id,
 			})
-			if os.Getenv("NOMAD_ALLOC_ID") != "" {
-				consulAPI, _, err := mqttConfig.DefaultClients()
-				if err != nil {
-					panic(err)
-				}
-				peers, err := ConsulPeers(consulAPI, "cluster")
-				if err == nil {
-					nodes = append(nodes, peers...)
-				}
-				config.AuthHelper = authHelper(context.Background())
-			}
-			log.Printf("cluster is listening on port [%d -> %d]", clusterNetConf.AdvertisedPort, clusterNetConf.BindPort)
-			log.Printf("use the following address to join the cluster: %s:%d", clusterNetConf.AdvertisedAddress, clusterNetConf.AdvertisedPort)
 			mesh.Join(nodes)
-			instance := broker.New(id, mesh, config)
-			addr := broker.Serve(serviceNetConf.BindPort, instance)
+			lis := listener.New(id, mesh, listener.Config{
+				TCPPort: tcpPort,
+				TLS:     tlsConfig,
+				TLSPort: tlsPort,
+				WSPort:  wsPort,
+				WSSPort: wssPort,
+			})
+			addr := listener.Serve(lis, serviceNetConf.BindPort)
 			port := addr.Addr().(*net.TCPAddr).Port
-			log.Printf("service broker is listening on RPC port %d", port)
+			log.Printf("service listener is listening on RPC port %d", port)
 
 			serviceConfig := cluster.ServiceConfig{
 				AdvertiseAddr: serviceGossipNetConf.AdvertisedAddress,
@@ -196,14 +168,14 @@ func main() {
 				serviceConfig.AdvertisePort = serviceConfig.BindPort
 				serviceConfig.ServicePort = port
 			}
-			log.Printf("service broker is listening on Gossip port [%d -> %d]", serviceConfig.AdvertisePort, serviceConfig.BindPort)
-			layer := cluster.NewServiceLayer("broker", serviceConfig, mesh)
-			instance.Start(layer)
+			cluster.NewServiceLayer("listener", serviceConfig, mesh)
+
 			quit := make(chan struct{})
 			signal.Notify(sigc,
 				syscall.SIGINT,
 				syscall.SIGTERM,
 				syscall.SIGQUIT)
+			log.Printf("INFO: listener service started")
 			go func() {
 				defer close(quit)
 				<-sigc
@@ -211,27 +183,23 @@ func main() {
 				log.Printf("INFO: leaving cluster")
 				mesh.Leave()
 				log.Printf("INFO: left cluster")
-				log.Printf("INFO: stopping broker")
-				instance.Stop()
-				log.Printf("INFO: listener broker")
-				log.Printf("INFO: stopping broker RPC listener")
+				log.Printf("INFO: stopping listener")
+				lis.Close(ctx)
 				addr.Close()
-				log.Printf("INFO: stopped broker RPC listener")
-				log.Printf("INFO: broker stopped")
+				log.Printf("INFO: listener stopped")
 			}()
 			<-quit
 		},
 	}
-	root.Flags().StringSliceP("join", "j", []string{}, "Join this node")
-	viper.BindPFlag("join", root.Flags().Lookup("join"))
-
+	root.Flags().StringArrayP("join", "j", nil, "Join this node")
 	root.Flags().BoolP("pprof", "", false, "Enable pprof endpoint")
-	viper.BindPFlag("pprof", root.Flags().Lookup("pprof"))
-
+	root.Flags().IntP("tcp-port", "t", 0, "Start TCP listener on this port. Specify 0 to disable the listener")
+	root.Flags().IntP("tls-port", "s", 0, "Start TLS listener on this port. Specify 0 to disable the listener")
+	root.Flags().IntP("wss-port", "w", 0, "Start Secure WS listener on this port. Specify 0 to disable the listener")
+	root.Flags().IntP("ws-port", "", 0, "Start WS listener on this port. Specify 0 to disable the listener")
 	network.RegisterFlagsForService(root, FLAG_NAME_CLUSTER, 3500)
 	network.RegisterFlagsForService(root, FLAG_NAME_SERVICE_GOSSIP, 0)
-	network.RegisterFlagsForService(root, FLAG_NAME_SERVICE, 3000)
-
+	network.RegisterFlagsForService(root, FLAG_NAME_SERVICE, 3100)
 	root.Execute()
 }
 

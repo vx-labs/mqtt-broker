@@ -60,46 +60,55 @@ func (m *memDBStore) runGC() error {
 		)
 	})
 }
-func (m *memDBStore) insertPBRemoteSubscription(remote Metadata, tx *memdb.Txn) error {
-	sub := Subscription{
+func (m *memDBStore) insertPBRemoteSubscription(sub Subscription, tx *memdb.Txn) error {
+	return tx.Insert(table, sub)
+}
+
+func (m *memDBStore) newRemoteSubscription(remote Metadata) Subscription {
+	return Subscription{
 		Sender: func(ctx context.Context, p packet.Publish) error {
-			log.Printf("INFO: forwarding message to remote session %s", remote.SessionID)
 			return m.sender(remote.Peer, remote.SessionID, p)
 		},
 		Metadata: remote,
 	}
-	m.patternIndex.Index(sub)
-	return tx.Insert(table, sub)
 }
-func (m *memDBStore) Merge(inc []byte) error {
+func (m *memDBStore) Merge(inc []byte, _ bool) error {
 	set := &SubscriptionMetadataList{}
 	err := proto.Unmarshal(inc, set)
 	if err != nil {
 		return err
 	}
-	return m.write(func(tx *memdb.Txn) error {
+	changeset := SubscriptionSet{}
+	err = m.write(func(tx *memdb.Txn) error {
 		for _, remote := range set.Metadatas {
 			localData, err := tx.First(table, "id", remote.ID)
 			if err != nil || localData == nil {
-				err := m.insertPBRemoteSubscription(*remote, tx)
+				sub := m.newRemoteSubscription(*remote)
+				err := m.insertPBRemoteSubscription(sub, tx)
 				if err != nil {
 					return err
 				}
+				changeset = append(changeset, sub)
 				continue
 			}
 			local, ok := localData.(Subscription)
 			if !ok {
-				log.Printf("WARN: invalid data found in store")
+				log.Printf("WARN: invalid data found in subscription store")
 				continue
 			}
 			if crdt.IsEntryOutdated(&local, remote) {
-				m.patternIndex.Remove(local.Tenant, local.ID, local.Pattern)
-				err := m.insertPBRemoteSubscription(*remote, tx)
+				sub := m.newRemoteSubscription(*remote)
+				err := m.insertPBRemoteSubscription(sub, tx)
 				if err != nil {
 					return err
 				}
+				changeset = append(changeset, sub)
 			}
 		}
 		return nil
 	})
+	for _, sub := range changeset {
+		m.emitSubscriptionEvent(sub)
+	}
+	return nil
 }
