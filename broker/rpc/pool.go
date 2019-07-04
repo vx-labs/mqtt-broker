@@ -4,10 +4,11 @@ import (
 	"log"
 	"time"
 
+	"github.com/vx-labs/mqtt-broker/broker/pb"
 	grpc "google.golang.org/grpc"
 )
 
-type RPCJob func(BrokerServiceClient) error
+type RPCJob func(pb.BrokerServiceClient) error
 type Pool struct {
 	address string
 	jobs    chan chan JobWrap
@@ -47,7 +48,7 @@ func NewPool(addr string) (*Pool, error) {
 		log.Printf("INFO: closed pool targetting %s", addr)
 	}()
 
-	client := NewBrokerServiceClient(conn)
+	client := pb.NewBrokerServiceClient(conn)
 	jobs := make(chan JobWrap)
 	go func() {
 		for {

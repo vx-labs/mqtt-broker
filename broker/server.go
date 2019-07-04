@@ -1,4 +1,4 @@
-package rpc
+package broker
 
 import (
 	"fmt"
@@ -6,6 +6,7 @@ import (
 	"log"
 	"net"
 
+	"github.com/vx-labs/mqtt-broker/broker/pb"
 	sessions "github.com/vx-labs/mqtt-broker/sessions"
 	"github.com/vx-labs/mqtt-broker/transport"
 	packet "github.com/vx-labs/mqtt-protocol/packet"
@@ -18,7 +19,7 @@ import (
 type broker interface {
 	ListSessions() (sessions.SessionSet, error)
 	CloseSession(ctx context.Context, id string) error
-	DistributeMessage(*MessagePublished) error
+	DistributeMessage(*pb.MessagePublished) error
 	Connect(context.Context, transport.Metadata, *packet.Connect) (string, *packet.ConnAck, error)
 	Disconnect(context.Context, string, *packet.Disconnect) error
 	Publish(context.Context, string, *packet.Publish) (*packet.PubAck, error)
@@ -32,7 +33,7 @@ type server struct {
 	server   *grpc.Server
 }
 
-func New(port int, handler broker) net.Listener {
+func Serve(port int, handler broker) net.Listener {
 	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
 	if err != nil {
 		log.Printf("WARN: failed to start rpc listener: %v", err)
@@ -44,7 +45,7 @@ func New(port int, handler broker) net.Listener {
 		listener: lis,
 		server:   s,
 	}
-	RegisterBrokerServiceServer(s, server)
+	pb.RegisterBrokerServiceServer(s, server)
 	go s.Serve(lis)
 	log.Printf("INFO: started RPC listener on %s", lis.Addr().String())
 	return lis
@@ -53,10 +54,10 @@ func (s *server) Close() error {
 	s.server.Stop()
 	return s.listener.Close()
 }
-func (s *server) CloseSession(ctx context.Context, input *CloseSessionInput) (*CloseSessionOutput, error) {
-	return &CloseSessionOutput{ID: input.ID}, s.broker.CloseSession(ctx, input.ID)
+func (s *server) CloseSession(ctx context.Context, input *pb.CloseSessionInput) (*pb.CloseSessionOutput, error) {
+	return &pb.CloseSessionOutput{ID: input.ID}, s.broker.CloseSession(ctx, input.ID)
 }
-func (s *server) ListSessions(ctx context.Context, filters *SessionFilter) (*ListSessionsOutput, error) {
+func (s *server) ListSessions(ctx context.Context, filters *pb.SessionFilter) (*pb.ListSessionsOutput, error) {
 	set, err := s.broker.ListSessions()
 	if err != nil {
 		return nil, err
@@ -65,38 +66,38 @@ func (s *server) ListSessions(ctx context.Context, filters *SessionFilter) (*Lis
 	for _, session := range set {
 		out = append(out, &session.Metadata)
 	}
-	return &ListSessionsOutput{Sessions: out}, nil
+	return &pb.ListSessionsOutput{Sessions: out}, nil
 }
-func (s *server) DistributeMessage(ctx context.Context, msg *MessagePublished) (*MessagePublishedOutput, error) {
+func (s *server) DistributeMessage(ctx context.Context, msg *pb.MessagePublished) (*pb.MessagePublishedOutput, error) {
 	err := s.broker.DistributeMessage(msg)
-	return &MessagePublishedOutput{}, err
+	return &pb.MessagePublishedOutput{}, err
 }
 
-func (s *server) Connect(ctx context.Context, input *ConnectInput) (*ConnectOutput, error) {
+func (s *server) Connect(ctx context.Context, input *pb.ConnectInput) (*pb.ConnectOutput, error) {
 	id, connack, err := s.broker.Connect(ctx, transport.Metadata{
 		Encrypted:     input.TransportMetadata.Encrypted,
 		Name:          input.TransportMetadata.Name,
 		RemoteAddress: input.TransportMetadata.RemoteAddress,
 	}, input.Connect)
-	return &ConnectOutput{
+	return &pb.ConnectOutput{
 		ID:      id,
 		ConnAck: connack,
 	}, err
 }
 
-func (s *server) Disconnect(ctx context.Context, input *DisconnectInput) (*DisconnectOutput, error) {
+func (s *server) Disconnect(ctx context.Context, input *pb.DisconnectInput) (*pb.DisconnectOutput, error) {
 	err := s.broker.Disconnect(ctx, input.ID, input.Disconnect)
-	return &DisconnectOutput{}, err
+	return &pb.DisconnectOutput{}, err
 }
-func (s *server) Publish(ctx context.Context, input *PublishInput) (*PublishOutput, error) {
+func (s *server) Publish(ctx context.Context, input *pb.PublishInput) (*pb.PublishOutput, error) {
 	puback, err := s.broker.Publish(ctx, input.ID, input.Publish)
-	return &PublishOutput{PubAck: puback}, err
+	return &pb.PublishOutput{PubAck: puback}, err
 }
-func (s *server) Subscribe(ctx context.Context, input *SubscribeInput) (*SubscribeOutput, error) {
+func (s *server) Subscribe(ctx context.Context, input *pb.SubscribeInput) (*pb.SubscribeOutput, error) {
 	suback, err := s.broker.Subscribe(ctx, input.ID, input.Subscribe)
-	return &SubscribeOutput{SubAck: suback}, err
+	return &pb.SubscribeOutput{SubAck: suback}, err
 }
-func (s *server) Unsubscribe(ctx context.Context, input *UnsubscribeInput) (*UnsubscribeOutput, error) {
+func (s *server) Unsubscribe(ctx context.Context, input *pb.UnsubscribeInput) (*pb.UnsubscribeOutput, error) {
 	unsuback, err := s.broker.Unsubscribe(ctx, input.ID, input.Unsubscribe)
-	return &UnsubscribeOutput{UnsubAck: unsuback}, err
+	return &pb.UnsubscribeOutput{UnsubAck: unsuback}, err
 }

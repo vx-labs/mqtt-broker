@@ -15,6 +15,7 @@ import (
 
 	"github.com/sirupsen/logrus"
 	"github.com/vx-labs/mqtt-broker/broker/cluster"
+	"github.com/vx-labs/mqtt-broker/broker/pb"
 
 	"github.com/vx-labs/mqtt-broker/peers"
 
@@ -104,16 +105,16 @@ type RemoteRPCTransport struct {
 func (r *RemoteRPCTransport) Close() error {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	return r.rpc.Call(r.peer, func(c rpc.BrokerServiceClient) error {
-		_, err := c.CloseSession(ctx, &rpc.CloseSessionInput{
+	return r.rpc.Call(r.peer, func(c pb.BrokerServiceClient) error {
+		_, err := c.CloseSession(ctx, &pb.CloseSessionInput{
 			ID: r.id,
 		})
 		return err
 	})
 }
 func (r *RemoteRPCTransport) Publish(ctx context.Context, publish *packet.Publish) error {
-	return r.rpc.Call(r.peer, func(c rpc.BrokerServiceClient) error {
-		_, err := c.DistributeMessage(ctx, &rpc.MessagePublished{
+	return r.rpc.Call(r.peer, func(c pb.BrokerServiceClient) error {
+		_, err := c.DistributeMessage(ctx, &pb.MessagePublished{
 			Recipient: r.id,
 			Dup:       publish.Header.Dup,
 			Payload:   publish.Payload,
@@ -144,7 +145,7 @@ func New(id identity.Identity, listener Listener, config Config) *Broker {
 		ctx:         ctx,
 		Listener:    listener,
 	}
-	broker.RPC = rpc.New(config.RPCPort, broker)
+	broker.RPC = Serve(config.RPCPort, broker)
 	if config.RPCIdentity == nil {
 		_, port, err := net.SplitHostPort(broker.RPC.Addr().String())
 		if err != nil {
@@ -169,8 +170,8 @@ func New(id identity.Identity, listener Listener, config Config) *Broker {
 			log.Printf("ERROR: failed to resove peer %s addr: %v", host, err)
 			return err
 		}
-		return broker.RPCCaller.Call(addr, func(c rpc.BrokerServiceClient) error {
-			_, err := c.DistributeMessage(ctx, &rpc.MessagePublished{
+		return broker.RPCCaller.Call(addr, func(c pb.BrokerServiceClient) error {
+			_, err := c.DistributeMessage(ctx, &pb.MessagePublished{
 				Dup:       publish.Header.Dup,
 				Payload:   publish.Payload,
 				Qos:       publish.Header.Qos,
@@ -310,7 +311,7 @@ func (b *Broker) isSessionLocal(session sessions.Session) bool {
 	return session.Metadata.Peer == b.ID
 }
 
-func (b *Broker) dispatch(message *rpc.MessagePublished) error {
+func (b *Broker) dispatch(message *pb.MessagePublished) error {
 	session, err := b.Sessions.ByID(message.Recipient)
 	if err != nil {
 		return err

@@ -13,8 +13,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/vx-labs/mqtt-broker/broker/rpc/client"
-
 	"github.com/vx-labs/mqtt-broker/listener"
 
 	"google.golang.org/grpc"
@@ -238,7 +236,7 @@ func main() {
 			if err != nil {
 				panic(err)
 			}
-			brokerClient := client.New(brokerConn)
+			brokerClient := broker.NewClient(brokerConn)
 
 			lis := listener.New(brokerClient, listener.Config{
 				TCPPort: config.TCPPort,
