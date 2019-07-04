@@ -2,6 +2,7 @@ package inflight
 
 import (
 	"errors"
+	"sync"
 	"time"
 
 	"github.com/vx-labs/mqtt-protocol/packet"
@@ -16,6 +17,7 @@ type Queue struct {
 	acknowledgement chan int32
 	sender          func(*packet.Publish) error
 	stop            chan struct{}
+	mutex           sync.Mutex
 }
 
 func (q *Queue) Close() error {
@@ -69,5 +71,8 @@ func (q *Queue) Put(publish *packet.Publish) {
 	q.messages <- publish
 }
 func (q *Queue) Ack(i int32) {
-	q.acknowledgement <- i
+	select {
+	case q.acknowledgement <- i:
+	default:
+	}
 }

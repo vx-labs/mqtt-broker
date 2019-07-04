@@ -1,33 +1,32 @@
-package listener
+package pb
 
 import (
 	"context"
 
-	"github.com/vx-labs/mqtt-broker/listener/pb"
 	"github.com/vx-labs/mqtt-protocol/packet"
 	"google.golang.org/grpc"
 )
 
 type Client struct {
-	api pb.ListenerServiceClient
+	api ListenerServiceClient
 }
 
 func NewClient(conn *grpc.ClientConn) *Client {
 	return &Client{
-		api: pb.NewListenerServiceClient(conn),
+		api: NewListenerServiceClient(conn),
 	}
 }
 
 func (c *Client) CloseSession(ctx context.Context, id string) error {
-	_, err := c.api.CloseSession(ctx, &pb.CloseSessionInput{ID: id})
+	_, err := c.api.CloseSession(ctx, &CloseSessionInput{ID: id})
 	return err
 }
 func (c *Client) Close(ctx context.Context) error {
-	_, err := c.api.Close(ctx, &pb.CloseInput{})
+	_, err := c.api.Close(ctx, &CloseInput{})
 	return err
 }
 func (c *Client) Publish(ctx context.Context, id string, publish *packet.Publish) error {
-	_, err := c.api.Publish(ctx, &pb.PublishInput{
+	_, err := c.api.Publish(ctx, &PublishInput{
 		ID:      id,
 		Publish: publish,
 	})

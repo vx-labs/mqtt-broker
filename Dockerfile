@@ -7,11 +7,11 @@ COPY Gopkg* ./
 RUN dep ensure -vendor-only
 COPY . ./
 RUN go test ./... && \
-    go build -buildmode=exe -ldflags="-s -w" -a -o /bin/broker ./cmd/broker
+    go build -buildmode=exe -ldflags="-s -w" -a -o /bin/server ./cmd/broker
 
 FROM alpine
 EXPOSE 1883
 ENTRYPOINT ["/usr/bin/server"]
 RUN apk -U add ca-certificates && \
     rm -rf /var/cache/apk/*
-COPY --from=builder /bin/broker /usr/bin/server
+COPY --from=builder /bin/server /usr/bin/server
