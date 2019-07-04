@@ -1,11 +1,10 @@
-package peers
+package cluster
 
 import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/vx-labs/mqtt-broker/broker/cluster"
 )
 
 const (
@@ -13,7 +12,7 @@ const (
 )
 
 func TestPeerStore(t *testing.T) {
-	store, _ := NewPeerStore(cluster.MockedMesh())
+	store, _ := NewPeerStore(MockedMesh())
 
 	t.Run("create", func(t *testing.T) {
 		err := store.Upsert(Peer{Metadata: Metadata{

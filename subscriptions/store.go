@@ -11,7 +11,7 @@ import (
 	"github.com/vx-labs/mqtt-protocol/packet"
 
 	"github.com/hashicorp/go-memdb"
-	"github.com/vx-labs/mqtt-broker/broker/cluster"
+	"github.com/vx-labs/mqtt-broker/cluster"
 	"github.com/vx-labs/mqtt-broker/events"
 )
 

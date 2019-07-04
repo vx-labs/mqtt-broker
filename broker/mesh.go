@@ -5,7 +5,7 @@ import (
 
 	"github.com/gogo/protobuf/proto"
 	"github.com/hashicorp/memberlist"
-	"github.com/vx-labs/mqtt-broker/broker/cluster"
+	"github.com/vx-labs/mqtt-broker/cluster"
 )
 
 // NotifyJoin is called if a peer joins the cluster.

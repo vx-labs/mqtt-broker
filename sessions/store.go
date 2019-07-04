@@ -13,7 +13,7 @@ import (
 	"github.com/vx-labs/mqtt-broker/crdt"
 	"github.com/vx-labs/mqtt-broker/events"
 
-	"github.com/vx-labs/mqtt-broker/broker/cluster"
+	"github.com/vx-labs/mqtt-broker/cluster"
 
 	memdb "github.com/hashicorp/go-memdb"
 )

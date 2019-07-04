@@ -18,6 +18,9 @@ func (m *mockedMesh) MemberRPCAddress(string) (string, error) {
 func (m *mockedMesh) ID() string {
 	return "id"
 }
+func (m *mockedMesh) Peers() PeerStore {
+	return nil
+}
 
 func MockedMesh() Mesh {
 	return &mockedMesh{}

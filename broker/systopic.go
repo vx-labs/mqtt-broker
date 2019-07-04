@@ -4,11 +4,10 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/vx-labs/mqtt-broker/cluster"
 	"github.com/vx-labs/mqtt-broker/sessions"
 	"github.com/vx-labs/mqtt-broker/topics"
 	"github.com/vx-labs/mqtt-protocol/packet"
-
-	"github.com/vx-labs/mqtt-broker/peers"
 
 	"github.com/vx-labs/mqtt-broker/subscriptions"
 )
@@ -49,14 +48,14 @@ func (b *Broker) RetainThenDispatchToLocalSessions(tenant string, topic []byte, 
 	}
 }
 func (b *Broker) setupSYSTopic() {
-	b.Peers.On(peers.PeerCreated, func(s peers.Peer) {
+	b.Peers.On(cluster.PeerCreated, func(s cluster.Peer) {
 		payload, err := json.Marshal(s.Metadata)
 		if err == nil {
 			topic := []byte(fmt.Sprintf("$SYS/peers/%s", s.ID))
 			b.RetainThenDispatchToLocalSessions("_default", topic, payload, 1)
 		}
 	})
-	b.Peers.On(peers.PeerDeleted, func(s peers.Peer) {
+	b.Peers.On(cluster.PeerDeleted, func(s cluster.Peer) {
 		topic := []byte(fmt.Sprintf("$SYS/peers/%s", s.ID))
 		b.RetainThenDispatchToLocalSessions("_default", topic, nil, 1)
 	})

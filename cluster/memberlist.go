@@ -27,6 +27,7 @@ type memberlistMesh struct {
 	states     map[string]State
 	bcastQueue *memberlist.TransmitLimitedQueue
 	meta       NodeMeta
+	peers      PeerStore
 }
 
 func (m *memberlistMesh) ClusterSize() int {
@@ -140,12 +141,16 @@ func (m *memberlistMesh) MemberRPCAddress(id string) (string, error) {
 func (m *memberlistMesh) ID() string {
 	return m.mlist.LocalNode().Name
 }
+func (m *memberlistMesh) Peers() PeerStore {
+	return m.peers
+}
 
 func MemberlistMesh(id identity.Identity, eventHandler memberlist.EventDelegate, meta NodeMeta) Mesh {
 	self := &memberlistMesh{
 		states: map[string]State{},
 		meta:   meta,
 	}
+
 	config := memberlist.DefaultLANConfig()
 	config.AdvertiseAddr = id.Public().Host()
 	config.AdvertisePort = id.Public().Port()
@@ -163,5 +168,10 @@ func MemberlistMesh(id identity.Identity, eventHandler memberlist.EventDelegate,
 		NumNodes:       self.ClusterSize,
 		RetransmitMult: 3,
 	}
+	peers, err := NewPeerStore(self)
+	if err != nil {
+		panic(err)
+	}
+	self.peers = peers
 	return self
 }

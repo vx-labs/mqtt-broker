@@ -10,7 +10,7 @@ import (
 	proto "github.com/golang/protobuf/proto"
 	"github.com/vx-labs/mqtt-broker/crdt"
 
-	"github.com/vx-labs/mqtt-broker/broker/cluster"
+	"github.com/vx-labs/mqtt-broker/cluster"
 
 	memdb "github.com/hashicorp/go-memdb"
 	"github.com/vx-labs/mqtt-broker/events"

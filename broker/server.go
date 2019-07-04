@@ -14,8 +14,6 @@ import (
 	"google.golang.org/grpc"
 )
 
-//go:generate protoc -I${GOPATH}/src -I${GOPATH}/src/github.com/vx-labs/mqtt-broker/broker/rpc --go_out=plugins=grpc:. rpc.proto
-
 type broker interface {
 	ListSessions() (sessions.SessionSet, error)
 	CloseSession(ctx context.Context, id string) error

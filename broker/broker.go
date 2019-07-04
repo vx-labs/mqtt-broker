@@ -14,10 +14,8 @@ import (
 	"github.com/vx-labs/mqtt-broker/transport"
 
 	"github.com/sirupsen/logrus"
-	"github.com/vx-labs/mqtt-broker/broker/cluster"
 	"github.com/vx-labs/mqtt-broker/broker/pb"
-
-	"github.com/vx-labs/mqtt-broker/peers"
+	"github.com/vx-labs/mqtt-broker/cluster"
 
 	"github.com/vx-labs/mqtt-broker/sessions"
 	"github.com/vx-labs/mqtt-broker/topics"
@@ -37,11 +35,11 @@ const (
 )
 
 type PeerStore interface {
-	ByID(id string) (peers.Peer, error)
-	All() (peers.SubscriptionSet, error)
-	Upsert(sess peers.Peer) error
+	ByID(id string) (cluster.Peer, error)
+	All() (cluster.SubscriptionSet, error)
+	Upsert(sess cluster.Peer) error
 	Delete(id string) error
-	On(event string, handler func(peers.Peer)) func()
+	On(event string, handler func(cluster.Peer)) func()
 }
 type SessionStore interface {
 	ByID(id string) (sessions.Session, error)
@@ -188,10 +186,7 @@ func New(id identity.Identity, listener Listener, config Config) *Broker {
 		log.Fatal(err)
 	}
 	hostedServices = append(hostedServices, "subscriptions-store")
-	peersStore, err := peers.NewPeerStore(broker.mesh)
-	if err != nil {
-		log.Fatal(err)
-	}
+	peersStore := broker.mesh.Peers()
 	hostedServices = append(hostedServices, "peers-store")
 	topicssStore, err := topics.NewMemDBStore(broker.mesh)
 	if err != nil {
@@ -226,8 +221,8 @@ func New(id identity.Identity, listener Listener, config Config) *Broker {
 	if hostname == "" {
 		hostname = "not_available"
 	}
-	broker.Peers.Upsert(peers.Peer{
-		Metadata: peers.Metadata{
+	broker.Peers.Upsert(cluster.Peer{
+		Metadata: cluster.Metadata{
 			ID:       broker.ID,
 			Hostname: hostname,
 			Runtime:  runtime.Version(),
@@ -347,11 +342,11 @@ func (b *Broker) oSStatsReporter() {
 		if err != nil {
 			return
 		}
-		self.ComputeUsage = &peers.ComputeUsage{
+		self.ComputeUsage = &cluster.ComputeUsage{
 			Cores:      int64(nbCores),
 			Goroutines: int64(nbRoutines),
 		}
-		self.MemoryUsage = &peers.MemoryUsage{
+		self.MemoryUsage = &cluster.MemoryUsage{
 			Alloc:      m.Alloc,
 			TotalAlloc: m.TotalAlloc,
 			NumGC:      m.NumGC,

@@ -1,5 +1,20 @@
 syntax = "proto3";
-package peers;
+
+package cluster;
+
+message Part {
+  string Key = 1;
+  bytes Data = 2;
+}
+
+message FullState {
+  repeated Part parts = 1;
+}
+
+message NodeMeta {
+  string ID = 1;
+  string RPCAddr = 2;
+}
 
 message Metadata {
   string ID = 1;
