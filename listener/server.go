@@ -25,12 +25,13 @@ func (s *server) Close(ctx context.Context, input *pb.CloseInput) (*pb.CloseOutp
 	return &pb.CloseOutput{}, s.endpoint.Close(ctx)
 }
 
-func Serve(local Endpoint, port int) error {
+func Serve(local Endpoint, port int) net.Listener {
 	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)
 	}
 	grpcServer := grpc.NewServer()
 	pb.RegisterListenerServiceServer(grpcServer, &server{endpoint: local})
-	return grpcServer.Serve(lis)
+	go grpcServer.Serve(lis)
+	return lis
 }

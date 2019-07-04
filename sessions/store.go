@@ -49,7 +49,7 @@ type Session struct {
 	Transport Transport
 }
 
-type RemoteTransportProvider func(peer, session string) Transport
+type RemoteTransportProvider func(id, peer string) Transport
 type SessionStore interface {
 	ByID(id string) (Session, error)
 	ByClientID(id string) (SessionSet, error)
@@ -72,7 +72,7 @@ type memDBStore struct {
 	channel                 Channel
 }
 
-func NewSessionStore(mesh cluster.Mesh, remoteTransportProvider RemoteTransportProvider, logger Logger) (SessionStore, error) {
+func NewSessionStore(mesh cluster.ServiceLayer, remoteTransportProvider RemoteTransportProvider, logger Logger) (SessionStore, error) {
 	db, err := memdb.NewMemDB(&memdb.DBSchema{
 		Tables: map[string]*memdb.TableSchema{
 			memdbTable: {
