@@ -3,7 +3,7 @@ package listener
 import (
 	"context"
 
-	"github.com/vx-labs/mqtt-broker/broker/listener/pb"
+	"github.com/vx-labs/mqtt-broker/listener/pb"
 	"github.com/vx-labs/mqtt-protocol/packet"
 	"google.golang.org/grpc"
 )

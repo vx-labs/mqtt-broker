@@ -6,7 +6,7 @@ import (
 	"log"
 	"net"
 
-	"github.com/vx-labs/mqtt-broker/broker/listener/pb"
+	"github.com/vx-labs/mqtt-broker/listener/pb"
 
 	"google.golang.org/grpc"
 )

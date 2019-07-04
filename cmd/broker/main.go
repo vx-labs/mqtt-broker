@@ -15,7 +15,7 @@ import (
 
 	"github.com/vx-labs/mqtt-broker/broker/rpc/client"
 
-	"github.com/vx-labs/mqtt-broker/broker/listener"
+	"github.com/vx-labs/mqtt-broker/listener"
 
 	"google.golang.org/grpc"
 
