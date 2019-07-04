@@ -31,6 +31,7 @@ message TransportMetadata {
   string Name = 1;
   bool Encrypted = 2;
   string RemoteAddress = 3;
+  string Endpoint = 4;
 }
 message ConnectInput {
   TransportMetadata TransportMetadata = 1;
