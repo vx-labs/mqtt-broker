@@ -45,7 +45,6 @@ func Serve(port int, handler broker) net.Listener {
 	}
 	pb.RegisterBrokerServiceServer(s, server)
 	go s.Serve(lis)
-	log.Printf("INFO: started RPC listener on %s", lis.Addr().String())
 	return lis
 }
 func (s *server) Close() error {

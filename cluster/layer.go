@@ -2,7 +2,6 @@ package cluster
 
 import (
 	fmt "fmt"
-	"io/ioutil"
 	"log"
 	"sync"
 	"time"
@@ -38,7 +37,7 @@ func (m *layer) Members() []*memberlist.Node {
 }
 
 func (m *layer) AddState(key string, state State) (Channel, error) {
-	log.Printf("INFO: service/%s: registering %s state", m.name, key)
+	//log.Printf("INFO: service/%s: registering %s state", m.name, key)
 	m.mtx.Lock()
 	defer m.mtx.Unlock()
 	old, ok := m.states[key]
@@ -204,7 +203,7 @@ func NewLayer(name string, userConfig Config, meta NodeMeta) Layer {
 	config.Name = userConfig.ID
 	config.Delegate = self
 	config.Events = self
-	config.LogOutput = ioutil.Discard
+	//config.LogOutput = ioutil.Discard
 	list, err := memberlist.Create(config)
 	if err != nil {
 		panic(err)

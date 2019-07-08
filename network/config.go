@@ -27,7 +27,7 @@ func randomFreePort(host string) (int, error) {
 	if err != nil {
 		return 0, err
 	}
-	defer l.Close()
+	l.Close()
 	return l.Addr().(*net.TCPAddr).Port, nil
 
 }
@@ -69,7 +69,7 @@ func bindPortFlagName(name string) string {
 }
 
 func (c Configuration) Describe(name string) string {
-	return fmt.Sprintf("service %s is running on %s:%d and exposed on %s:%d",
+	return fmt.Sprintf("INFO: service %s is running on %s:%d and exposed on %s:%d",
 		name,
 		c.BindAddress, c.BindPort,
 		c.AdvertisedAddress, c.AdvertisedPort,
@@ -103,10 +103,10 @@ func ConfigurationFromFlags(cmd *cobra.Command, name string) Configuration {
 	if net.ParseIP(config.AdvertisedAddress) == nil {
 		log.Fatalf("invalid advertised address specified for service %s: %q", name, config.AdvertisedAddress)
 	}
-	if config.AdvertisedPort < 0 || config.AdvertisedPort > 65535 {
+	if config.AdvertisedPort < 1024 || config.AdvertisedPort > 65535 {
 		log.Fatalf("invalid advertised port specified for service %s: %d", name, config.AdvertisedPort)
 	}
-	if config.BindPort < 0 || config.BindPort > 65535 {
+	if config.BindPort < 1024 || config.BindPort > 65535 {
 		log.Fatalf("invalid bind port specified for service %s: %d", name, config.BindPort)
 	}
 	return config

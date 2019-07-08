@@ -34,7 +34,7 @@ type Broker interface {
 type Endpoint interface {
 	Publish(ctx context.Context, id string, publish *packet.Publish) error
 	CloseSession(context.Context, string) error
-	Close(context.Context) error
+	Close() error
 }
 
 type endpoint struct {
@@ -50,7 +50,7 @@ func (local *endpoint) newSession(metadata transport.Metadata) error {
 	go local.runLocalSession(metadata)
 	return nil
 }
-func (local *endpoint) Close(ctx context.Context) error {
+func (local *endpoint) Close() error {
 	for idx := range local.transports {
 		local.transports[idx].Close()
 	}

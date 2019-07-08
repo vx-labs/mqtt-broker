@@ -12,7 +12,9 @@ func (b *layer) NotifyJoin(n *memberlist.Node) {
 	var meta NodeMeta
 	err := proto.Unmarshal(n.Meta, &meta)
 	if err == nil {
-		log.Printf("INFO: service/%s: node %s joined the mesh", b.name, n.Name)
+		if b.id != n.Name {
+			log.Printf("INFO: service/%s: node %s joined the mesh", b.name, n.Name)
+		}
 		if b.onNodeJoin != nil {
 			b.onNodeJoin(n.Name, meta)
 		}
@@ -25,7 +27,9 @@ func (b *layer) NotifyLeave(n *memberlist.Node) {
 	var meta NodeMeta
 	err := proto.Unmarshal(n.Meta, &meta)
 	if err == nil {
-		log.Printf("INFO: service/%s: node %s left the mesh", b.name, n.Name)
+		if b.id != n.Name {
+			log.Printf("INFO: service/%s: node %s left the mesh", b.name, n.Name)
+		}
 		if b.onNodeLeave != nil {
 			b.onNodeLeave(n.Name, meta)
 		}

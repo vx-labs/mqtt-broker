@@ -7,7 +7,7 @@ COPY Gopkg* ./
 RUN dep ensure -vendor-only
 COPY . ./
 RUN go test ./... && \
-    go build -buildmode=exe -ldflags="-s -w" -a -o /bin/server ./cmd/listener
+    go build -buildmode=exe -ldflags="-s -w" -a -o /bin/server ./cli/listener
 
 FROM alpine
 EXPOSE 1883
