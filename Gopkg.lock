@@ -34,6 +34,14 @@
   revision = "68259f75880e8bcc207a49de82466957646af353"
 
 [[projects]]
+  digest = "1:0d3deb8a6da8ffba5635d6fb1d2144662200def6c9d82a35a6d05d6c2d4a48f9"
+  name = "github.com/beorn7/perks"
+  packages = ["quantile"]
+  pruneopts = ""
+  revision = "4b2b341e8d7715fae06375aa633dbb6e91b3fb46"
+  version = "v1.0.0"
+
+[[projects]]
   digest = "1:8561fc011218ed9821f6d73057154e692cdfd0f37e929ef6c4a574b6299136cb"
   name = "github.com/cenkalti/backoff"
   packages = ["."]
@@ -219,6 +227,14 @@
   packages = ["."]
   pruneopts = ""
   revision = "ed7b1b5ee0f816bbc0ff35bf7c6fdb4f53b6c59a"
+
+[[projects]]
+  digest = "1:e24dc5ef44694848785de507f439a24e9e6d96d7b43b8cf3d6cfa857aa1e2186"
+  name = "github.com/grpc-ecosystem/go-grpc-prometheus"
+  packages = ["."]
+  pruneopts = ""
+  revision = "c225b8c3b01faf2899099b768856a9e916e5087b"
+  version = "v1.2.0"
 
 [[projects]]
   digest = "1:8f9bc7d0f0cb6bd3930d6d235f3b3cfb2eb53dc8ec9d0202d18d2bd4df6d9565"
@@ -431,6 +447,14 @@
   version = "v0.0.8"
 
 [[projects]]
+  digest = "1:63722a4b1e1717be7b98fc686e0b30d5e7f734b9e93d7dee86293b6deab7ea28"
+  name = "github.com/matttproud/golang_protobuf_extensions"
+  packages = ["pbutil"]
+  pruneopts = ""
+  revision = "c12348ce28de40eed0136aa2b644d0ee0650e56c"
+  version = "v1.0.1"
+
+[[projects]]
   digest = "1:0b6694f306890ddbb69c96a16776510bd24e07436fae3f9b0a4e5b650f1e6fb7"
   name = "github.com/miekg/dns"
   packages = ["."]
@@ -548,6 +572,48 @@
   pruneopts = ""
   revision = "792786c7400a136282c1664665ae0a8db921c6c2"
   version = "v1.0.0"
+
+[[projects]]
+  digest = "1:d1c6da923f9044766d87a464bfcce4afe9456da4cca84cfe7a6d714dac57ca95"
+  name = "github.com/prometheus/client_golang"
+  packages = [
+    "prometheus",
+    "prometheus/internal",
+  ]
+  pruneopts = ""
+  revision = "4ab88e80c249ed361d3299e2930427d9ac43ef8d"
+  version = "v1.0.0"
+
+[[projects]]
+  branch = "master"
+  digest = "1:cd67319ee7536399990c4b00fae07c3413035a53193c644549a676091507cadc"
+  name = "github.com/prometheus/client_model"
+  packages = ["go"]
+  pruneopts = ""
+  revision = "fd36f4220a901265f90734c3183c5f0c91daa0b8"
+
+[[projects]]
+  digest = "1:0f2cee44695a3208fe5d6926076641499c72304e6f015348c9ab2df90a202cdf"
+  name = "github.com/prometheus/common"
+  packages = [
+    "expfmt",
+    "internal/bitbucket.org/ww/goautoneg",
+    "model",
+  ]
+  pruneopts = ""
+  revision = "31bed53e4047fd6c510e43a941f90cb31be0972a"
+  version = "v0.6.0"
+
+[[projects]]
+  digest = "1:9b33e539d6bf6e4453668a847392d1e9e6345225ea1426f9341212c652bcbee4"
+  name = "github.com/prometheus/procfs"
+  packages = [
+    ".",
+    "internal/fs",
+  ]
+  pruneopts = ""
+  revision = "3f98efb27840a48a7a2898ec80be07674d19f9c8"
+  version = "v0.0.3"
 
 [[projects]]
   digest = "1:4244255905cb95c3c98894d671367f84a6292608ae528936fe46ba9c86f68393"
@@ -754,7 +820,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:3f760d6ee082a5cb999aaf8deeb6326b9d95d2f081c66beeef245a43f8a758f4"
+  digest = "1:032c4d101d77a312d3281fedb8de04bba5462243ba01c4c68499b6416e7a7966"
   name = "golang.org/x/tools"
   packages = [
     "go/ast/astutil",
@@ -763,7 +829,7 @@
     "go/types/typeutil",
   ]
   pruneopts = ""
-  revision = "38ae2c8f64122bd595b7f93f968a6686cd27bb5a"
+  revision = "72ffa07ba3db8d09f5215feec0f89464f3028f8e"
 
 [[projects]]
   branch = "master"
@@ -774,7 +840,7 @@
   revision = "710ae3a149df3775bfc2e9efb7f4fb97b186b233"
 
 [[projects]]
-  digest = "1:6881653b963cd12dc1a9824aed5e122d0ff38e53e3ee07862f969a56ad2f2e9c"
+  digest = "1:3608095d1dc06a2ff2e6f0476c9cc9584dd8e4b64151fed41a3663b9033a8b63"
   name = "google.golang.org/grpc"
   packages = [
     ".",
@@ -806,13 +872,14 @@
     "resolver",
     "resolver/dns",
     "resolver/passthrough",
+    "serviceconfig",
     "stats",
     "status",
     "tap",
   ]
   pruneopts = ""
-  revision = "501c41df7f472c740d0674ff27122f3f48c80ce7"
-  version = "v1.21.1"
+  revision = "1d89a3c832915b2314551c1d2a506874d62e53f7"
+  version = "v1.22.0"
 
 [[projects]]
   branch = "v3-unstable"
@@ -859,6 +926,7 @@
     "github.com/golang/protobuf/proto",
     "github.com/google/btree",
     "github.com/google/uuid",
+    "github.com/grpc-ecosystem/go-grpc-prometheus",
     "github.com/hashicorp/consul/api",
     "github.com/hashicorp/go-immutable-radix",
     "github.com/hashicorp/go-memdb",
@@ -878,6 +946,11 @@
     "github.com/vx-labs/mqtt-protocol/packet",
     "golang.org/x/net/context",
     "google.golang.org/grpc",
+    "google.golang.org/grpc/balancer",
+    "google.golang.org/grpc/balancer/base",
+    "google.golang.org/grpc/codes",
+    "google.golang.org/grpc/resolver",
+    "google.golang.org/grpc/status",
   ]
   solver-name = "gps-cdcl"
   solver-version = 1

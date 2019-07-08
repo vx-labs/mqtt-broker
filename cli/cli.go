@@ -9,6 +9,8 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/prometheus/client_golang/prometheus/promhttp"
+
 	"github.com/google/uuid"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -52,10 +54,11 @@ func Run(cmd *cobra.Command, name string, serviceFunc func(id string, mesh clust
 	serviceNetConf := network.ConfigurationFromFlags(cmd, FLAG_NAME_SERVICE)
 	serviceGossipNetConf := network.ConfigurationFromFlags(cmd, FLAG_NAME_SERVICE_GOSSIP)
 	id := uuid.New().String()
+	go serveHTTPHealth()
 	mesh := joinMesh(id, clusterNetConf)
-	nodes := viper.GetStringSlice("join")
 
 	service := serviceFunc(id, mesh)
+	nodes := viper.GetStringSlice("join")
 	mesh.Join(nodes)
 
 	listener := service.Serve(serviceNetConf.BindPort)
@@ -98,13 +101,13 @@ func Run(cmd *cobra.Command, name string, serviceFunc func(id string, mesh clust
 		log.Printf(fmt.Sprintf("INFO: %s RPC listener stopped", name))
 		log.Printf(fmt.Sprintf("INFO: %s stopped", name))
 	}()
-	go serveHTTPHealth()
 	<-quit
 
 }
 
 func serveHTTPHealth() {
 	mux := http.NewServeMux()
+	mux.Handle("/metrics", promhttp.Handler())
 	mux.HandleFunc("/health", func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	})
