@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"log"
 	"net"
-	"strings"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -46,8 +45,12 @@ func localPrivateHost() string {
 			} else {
 				addresses, _ := v.Addrs()
 				if len(addresses) > 0 {
-					ip := strings.Split(addresses[0].String(), "/")[0]
-					return ip
+					ip := addresses[0]
+					if ipnet, ok := ip.(*net.IPNet); ok && !ipnet.IP.IsLoopback() {
+						if ipnet.IP.To4() != nil {
+							return ipnet.IP.String()
+						}
+					}
 				}
 			}
 		}
