@@ -181,6 +181,19 @@ job "iot" {
           timeout  = "2s"
         }
       }
+
+      service {
+        name = "mqtt-metrics"
+        port = "health"
+
+        check {
+          type     = "http"
+          path     = "/health"
+          port     = "health"
+          interval = "5s"
+          timeout  = "2s"
+        }
+      }
     }
   }
   group "wss-listener" {
@@ -246,6 +259,19 @@ job "iot" {
       service {
         name = "cluster"
         port = "cluster"
+
+        check {
+          type     = "http"
+          path     = "/health"
+          port     = "health"
+          interval = "5s"
+          timeout  = "2s"
+        }
+      }
+
+      service {
+        name = "mqtt-metrics"
+        port = "health"
 
         check {
           type     = "http"
@@ -329,7 +355,18 @@ group "broker" {
                     port "gossip" {}
         }
       }
+      service {
+        name = "mqtt-metrics"
+        port = "health"
 
+        check {
+          type     = "http"
+          path     = "/health"
+          port     = "health"
+          interval = "5s"
+          timeout  = "2s"
+        }
+      }
       service {
         name = "cluster"
         port = "cluster"

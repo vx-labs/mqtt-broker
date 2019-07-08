@@ -40,7 +40,7 @@ func (r *meshIDResolver) updateConn(target resolver.Target, cc resolver.ClientCo
 			log.Printf("ERR: failed to search peer for id %s", target.Endpoint)
 			cc.UpdateState(resolver.State{
 				Addresses:     []resolver.Address{},
-				ServiceConfig: "",
+				ServiceConfig: nil,
 			})
 			return
 		}
@@ -59,7 +59,7 @@ func (r *meshIDResolver) updateConn(target resolver.Target, cc resolver.ClientCo
 		}
 		cc.UpdateState(resolver.State{
 			Addresses:     addresses,
-			ServiceConfig: "",
+			ServiceConfig: nil,
 		})
 	}
 }

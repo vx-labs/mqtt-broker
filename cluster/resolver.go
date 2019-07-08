@@ -51,7 +51,7 @@ func (r *meshResolver) updateConn(target resolver.Target, cc resolver.ClientConn
 		}
 		cc.UpdateState(resolver.State{
 			Addresses:     addresses,
-			ServiceConfig: "",
+			ServiceConfig: nil,
 		})
 	}
 }

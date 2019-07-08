@@ -6,6 +6,8 @@ import (
 	"log"
 	"net"
 
+	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
+
 	"github.com/vx-labs/mqtt-broker/broker/pb"
 	sessions "github.com/vx-labs/mqtt-broker/sessions"
 	"github.com/vx-labs/mqtt-broker/transport"
@@ -37,13 +39,17 @@ func Serve(port int, handler broker) net.Listener {
 		log.Printf("WARN: failed to start rpc listener: %v", err)
 		return nil
 	}
-	s := grpc.NewServer()
+	s := grpc.NewServer(
+		grpc.StreamInterceptor(grpc_prometheus.StreamServerInterceptor),
+		grpc.UnaryInterceptor(grpc_prometheus.UnaryServerInterceptor),
+	)
 	server := &server{
 		broker:   handler,
 		listener: lis,
 		server:   s,
 	}
 	pb.RegisterBrokerServiceServer(s, server)
+	grpc_prometheus.Register(s)
 	go s.Serve(lis)
 	return lis
 }
