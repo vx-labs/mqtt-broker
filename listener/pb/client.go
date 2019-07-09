@@ -17,16 +17,13 @@ func NewClient(conn *grpc.ClientConn) *Client {
 	}
 }
 
-func (c *Client) CloseSession(ctx context.Context, id string) error {
-	_, err := c.api.CloseSession(ctx, &CloseSessionInput{ID: id})
+func (c *Client) Shutdown(ctx context.Context, id string) error {
+	_, err := c.api.Shutdown(ctx, &ShutdownInput{ID: id})
 	return err
 }
-func (c *Client) Close(ctx context.Context) error {
-	_, err := c.api.Close(ctx, &CloseInput{})
-	return err
-}
-func (c *Client) Publish(ctx context.Context, id string, publish *packet.Publish) error {
-	_, err := c.api.Publish(ctx, &PublishInput{
+
+func (c *Client) SendPublish(ctx context.Context, id string, publish *packet.Publish) error {
+	_, err := c.api.SendPublish(ctx, &SendPublishInput{
 		ID:      id,
 		Publish: publish,
 	})

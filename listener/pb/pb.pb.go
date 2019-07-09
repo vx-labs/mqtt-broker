@@ -25,7 +25,7 @@ var _ = math.Inf
 // proto package needs to be updated.
 const _ = proto.ProtoPackageIsVersion3 // please upgrade the proto package
 
-type PublishInput struct {
+type SendPublishInput struct {
 	ID                   string          `protobuf:"bytes,1,opt,name=ID,proto3" json:"ID,omitempty"`
 	Publish              *packet.Publish `protobuf:"bytes,2,opt,name=Publish,proto3" json:"Publish,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}        `json:"-"`
@@ -33,145 +33,145 @@ type PublishInput struct {
 	XXX_sizecache        int32           `json:"-"`
 }
 
-func (m *PublishInput) Reset()         { *m = PublishInput{} }
-func (m *PublishInput) String() string { return proto.CompactTextString(m) }
-func (*PublishInput) ProtoMessage()    {}
-func (*PublishInput) Descriptor() ([]byte, []int) {
+func (m *SendPublishInput) Reset()         { *m = SendPublishInput{} }
+func (m *SendPublishInput) String() string { return proto.CompactTextString(m) }
+func (*SendPublishInput) ProtoMessage()    {}
+func (*SendPublishInput) Descriptor() ([]byte, []int) {
 	return fileDescriptor_f80abaa17e25ccc8, []int{0}
 }
 
-func (m *PublishInput) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_PublishInput.Unmarshal(m, b)
+func (m *SendPublishInput) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_SendPublishInput.Unmarshal(m, b)
 }
-func (m *PublishInput) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_PublishInput.Marshal(b, m, deterministic)
+func (m *SendPublishInput) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_SendPublishInput.Marshal(b, m, deterministic)
 }
-func (m *PublishInput) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_PublishInput.Merge(m, src)
+func (m *SendPublishInput) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_SendPublishInput.Merge(m, src)
 }
-func (m *PublishInput) XXX_Size() int {
-	return xxx_messageInfo_PublishInput.Size(m)
+func (m *SendPublishInput) XXX_Size() int {
+	return xxx_messageInfo_SendPublishInput.Size(m)
 }
-func (m *PublishInput) XXX_DiscardUnknown() {
-	xxx_messageInfo_PublishInput.DiscardUnknown(m)
+func (m *SendPublishInput) XXX_DiscardUnknown() {
+	xxx_messageInfo_SendPublishInput.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_PublishInput proto.InternalMessageInfo
+var xxx_messageInfo_SendPublishInput proto.InternalMessageInfo
 
-func (m *PublishInput) GetID() string {
+func (m *SendPublishInput) GetID() string {
 	if m != nil {
 		return m.ID
 	}
 	return ""
 }
 
-func (m *PublishInput) GetPublish() *packet.Publish {
+func (m *SendPublishInput) GetPublish() *packet.Publish {
 	if m != nil {
 		return m.Publish
 	}
 	return nil
 }
 
-type PublishOutput struct {
+type SendPublishOutput struct {
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *PublishOutput) Reset()         { *m = PublishOutput{} }
-func (m *PublishOutput) String() string { return proto.CompactTextString(m) }
-func (*PublishOutput) ProtoMessage()    {}
-func (*PublishOutput) Descriptor() ([]byte, []int) {
+func (m *SendPublishOutput) Reset()         { *m = SendPublishOutput{} }
+func (m *SendPublishOutput) String() string { return proto.CompactTextString(m) }
+func (*SendPublishOutput) ProtoMessage()    {}
+func (*SendPublishOutput) Descriptor() ([]byte, []int) {
 	return fileDescriptor_f80abaa17e25ccc8, []int{1}
 }
 
-func (m *PublishOutput) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_PublishOutput.Unmarshal(m, b)
+func (m *SendPublishOutput) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_SendPublishOutput.Unmarshal(m, b)
 }
-func (m *PublishOutput) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_PublishOutput.Marshal(b, m, deterministic)
+func (m *SendPublishOutput) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_SendPublishOutput.Marshal(b, m, deterministic)
 }
-func (m *PublishOutput) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_PublishOutput.Merge(m, src)
+func (m *SendPublishOutput) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_SendPublishOutput.Merge(m, src)
 }
-func (m *PublishOutput) XXX_Size() int {
-	return xxx_messageInfo_PublishOutput.Size(m)
+func (m *SendPublishOutput) XXX_Size() int {
+	return xxx_messageInfo_SendPublishOutput.Size(m)
 }
-func (m *PublishOutput) XXX_DiscardUnknown() {
-	xxx_messageInfo_PublishOutput.DiscardUnknown(m)
+func (m *SendPublishOutput) XXX_DiscardUnknown() {
+	xxx_messageInfo_SendPublishOutput.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_PublishOutput proto.InternalMessageInfo
+var xxx_messageInfo_SendPublishOutput proto.InternalMessageInfo
 
-type CloseSessionInput struct {
+type ShutdownInput struct {
 	ID                   string   `protobuf:"bytes,1,opt,name=ID,proto3" json:"ID,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *CloseSessionInput) Reset()         { *m = CloseSessionInput{} }
-func (m *CloseSessionInput) String() string { return proto.CompactTextString(m) }
-func (*CloseSessionInput) ProtoMessage()    {}
-func (*CloseSessionInput) Descriptor() ([]byte, []int) {
+func (m *ShutdownInput) Reset()         { *m = ShutdownInput{} }
+func (m *ShutdownInput) String() string { return proto.CompactTextString(m) }
+func (*ShutdownInput) ProtoMessage()    {}
+func (*ShutdownInput) Descriptor() ([]byte, []int) {
 	return fileDescriptor_f80abaa17e25ccc8, []int{2}
 }
 
-func (m *CloseSessionInput) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_CloseSessionInput.Unmarshal(m, b)
+func (m *ShutdownInput) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_ShutdownInput.Unmarshal(m, b)
 }
-func (m *CloseSessionInput) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_CloseSessionInput.Marshal(b, m, deterministic)
+func (m *ShutdownInput) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_ShutdownInput.Marshal(b, m, deterministic)
 }
-func (m *CloseSessionInput) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_CloseSessionInput.Merge(m, src)
+func (m *ShutdownInput) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ShutdownInput.Merge(m, src)
 }
-func (m *CloseSessionInput) XXX_Size() int {
-	return xxx_messageInfo_CloseSessionInput.Size(m)
+func (m *ShutdownInput) XXX_Size() int {
+	return xxx_messageInfo_ShutdownInput.Size(m)
 }
-func (m *CloseSessionInput) XXX_DiscardUnknown() {
-	xxx_messageInfo_CloseSessionInput.DiscardUnknown(m)
+func (m *ShutdownInput) XXX_DiscardUnknown() {
+	xxx_messageInfo_ShutdownInput.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_CloseSessionInput proto.InternalMessageInfo
+var xxx_messageInfo_ShutdownInput proto.InternalMessageInfo
 
-func (m *CloseSessionInput) GetID() string {
+func (m *ShutdownInput) GetID() string {
 	if m != nil {
 		return m.ID
 	}
 	return ""
 }
 
-type CloseSessionOutput struct {
+type ShutdownOutput struct {
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *CloseSessionOutput) Reset()         { *m = CloseSessionOutput{} }
-func (m *CloseSessionOutput) String() string { return proto.CompactTextString(m) }
-func (*CloseSessionOutput) ProtoMessage()    {}
-func (*CloseSessionOutput) Descriptor() ([]byte, []int) {
+func (m *ShutdownOutput) Reset()         { *m = ShutdownOutput{} }
+func (m *ShutdownOutput) String() string { return proto.CompactTextString(m) }
+func (*ShutdownOutput) ProtoMessage()    {}
+func (*ShutdownOutput) Descriptor() ([]byte, []int) {
 	return fileDescriptor_f80abaa17e25ccc8, []int{3}
 }
 
-func (m *CloseSessionOutput) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_CloseSessionOutput.Unmarshal(m, b)
+func (m *ShutdownOutput) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_ShutdownOutput.Unmarshal(m, b)
 }
-func (m *CloseSessionOutput) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_CloseSessionOutput.Marshal(b, m, deterministic)
+func (m *ShutdownOutput) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_ShutdownOutput.Marshal(b, m, deterministic)
 }
-func (m *CloseSessionOutput) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_CloseSessionOutput.Merge(m, src)
+func (m *ShutdownOutput) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ShutdownOutput.Merge(m, src)
 }
-func (m *CloseSessionOutput) XXX_Size() int {
-	return xxx_messageInfo_CloseSessionOutput.Size(m)
+func (m *ShutdownOutput) XXX_Size() int {
+	return xxx_messageInfo_ShutdownOutput.Size(m)
 }
-func (m *CloseSessionOutput) XXX_DiscardUnknown() {
-	xxx_messageInfo_CloseSessionOutput.DiscardUnknown(m)
+func (m *ShutdownOutput) XXX_DiscardUnknown() {
+	xxx_messageInfo_ShutdownOutput.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_CloseSessionOutput proto.InternalMessageInfo
+var xxx_messageInfo_ShutdownOutput proto.InternalMessageInfo
 
 type CloseInput struct {
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
@@ -236,10 +236,10 @@ func (m *CloseOutput) XXX_DiscardUnknown() {
 var xxx_messageInfo_CloseOutput proto.InternalMessageInfo
 
 func init() {
-	proto.RegisterType((*PublishInput)(nil), "PublishInput")
-	proto.RegisterType((*PublishOutput)(nil), "PublishOutput")
-	proto.RegisterType((*CloseSessionInput)(nil), "CloseSessionInput")
-	proto.RegisterType((*CloseSessionOutput)(nil), "CloseSessionOutput")
+	proto.RegisterType((*SendPublishInput)(nil), "SendPublishInput")
+	proto.RegisterType((*SendPublishOutput)(nil), "SendPublishOutput")
+	proto.RegisterType((*ShutdownInput)(nil), "ShutdownInput")
+	proto.RegisterType((*ShutdownOutput)(nil), "ShutdownOutput")
 	proto.RegisterType((*CloseInput)(nil), "CloseInput")
 	proto.RegisterType((*CloseOutput)(nil), "CloseOutput")
 }
@@ -247,23 +247,22 @@ func init() {
 func init() { proto.RegisterFile("pb.proto", fileDescriptor_f80abaa17e25ccc8) }
 
 var fileDescriptor_f80abaa17e25ccc8 = []byte{
-	// 253 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x6c, 0x90, 0x41, 0x4e, 0xeb, 0x30,
-	0x10, 0x86, 0x95, 0x48, 0xef, 0x01, 0x93, 0xa4, 0x11, 0x03, 0x8b, 0x2a, 0xab, 0xca, 0x6c, 0xc2,
-	0xa2, 0x13, 0x54, 0x16, 0x1c, 0x80, 0x6e, 0x22, 0x21, 0x81, 0xda, 0x13, 0xd4, 0x91, 0x45, 0x2d,
-	0xd2, 0xd8, 0xc4, 0xe3, 0x8a, 0xa3, 0x70, 0x5c, 0x24, 0x37, 0x85, 0xa0, 0xb2, 0xb3, 0xff, 0xcf,
-	0xbf, 0xe7, 0xb3, 0xe1, 0xdc, 0x4a, 0xb2, 0xbd, 0x61, 0x53, 0xdc, 0xbd, 0x6a, 0xde, 0x7a, 0x49,
-	0x8d, 0xd9, 0x55, 0xfb, 0x8f, 0x79, 0xbb, 0x91, 0xae, 0xda, 0xbd, 0x33, 0xcf, 0x03, 0x6e, 0x4c,
-	0x5b, 0xd9, 0x4d, 0xf3, 0xa6, 0xb8, 0x3a, 0x36, 0x44, 0x0d, 0xe9, 0x8b, 0x97, 0xad, 0x76, 0xdb,
-	0xba, 0xb3, 0x9e, 0x71, 0x02, 0x71, 0xbd, 0x9c, 0x46, 0xb3, 0xa8, 0xbc, 0x58, 0xc5, 0xf5, 0x12,
-	0x6f, 0xe1, 0x6c, 0xe0, 0xd3, 0x78, 0x16, 0x95, 0xc9, 0x22, 0xa7, 0xc3, 0x15, 0x34, 0xc4, 0xab,
-	0x23, 0x17, 0x39, 0x64, 0xc3, 0xf2, 0xd9, 0xb3, 0xf5, 0x2c, 0x6e, 0xe0, 0xf2, 0xb1, 0x35, 0x4e,
-	0xad, 0x95, 0x73, 0xda, 0x74, 0x7f, 0x0e, 0x10, 0xd7, 0x80, 0xe3, 0x43, 0x43, 0x35, 0x05, 0x08,
-	0x69, 0xe8, 0x88, 0x0c, 0x92, 0xb0, 0x3b, 0xc0, 0xc5, 0x67, 0x04, 0xf9, 0x93, 0x76, 0xac, 0x3a,
-	0xd5, 0xaf, 0x55, 0xbf, 0xd7, 0x8d, 0xc2, 0xf2, 0xdb, 0x13, 0x33, 0x1a, 0xbf, 0xa8, 0x98, 0xd0,
-	0x2f, 0x2b, 0x7c, 0x80, 0x74, 0x3c, 0x10, 0x91, 0x4e, 0x24, 0x8b, 0x2b, 0x3a, 0x75, 0x42, 0x01,
-	0xff, 0x42, 0x8a, 0x09, 0xfd, 0xb8, 0x15, 0x29, 0x8d, 0xd4, 0xe4, 0xff, 0xf0, 0xab, 0xf7, 0x5f,
-	0x01, 0x00, 0x00, 0xff, 0xff, 0xfb, 0x47, 0x55, 0x7d, 0x93, 0x01, 0x00, 0x00,
+	// 239 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x6c, 0x90, 0x4d, 0x4f, 0xc2, 0x30,
+	0x18, 0xc7, 0xb3, 0x1d, 0x14, 0x9f, 0xc9, 0x06, 0xf5, 0x42, 0x76, 0x91, 0xf4, 0x84, 0x31, 0x3c,
+	0x33, 0xe8, 0x37, 0x90, 0xcb, 0x12, 0x8d, 0x86, 0x7d, 0x02, 0x3a, 0x1a, 0xb7, 0x38, 0xd6, 0xba,
+	0x3e, 0x45, 0x3f, 0xbe, 0x49, 0x59, 0x13, 0xa6, 0x1c, 0xdb, 0xdf, 0xff, 0xad, 0x85, 0x91, 0x16,
+	0xa8, 0x3b, 0x45, 0x2a, 0x7d, 0xf8, 0xa8, 0xa9, 0xb2, 0x02, 0x4b, 0xb5, 0xcf, 0x0e, 0x3f, 0xcb,
+	0x66, 0x2b, 0x4c, 0xb6, 0xff, 0x22, 0x5a, 0x3a, 0x5c, 0xaa, 0x26, 0xd3, 0xdb, 0xf2, 0x53, 0x52,
+	0xe6, 0x1d, 0xfc, 0x15, 0x26, 0x85, 0x6c, 0x77, 0xef, 0x56, 0x34, 0xb5, 0xa9, 0xf2, 0x56, 0x5b,
+	0x62, 0x31, 0x84, 0xf9, 0x7a, 0x16, 0xcc, 0x83, 0xc5, 0xd5, 0x26, 0xcc, 0xd7, 0xec, 0x0e, 0x2e,
+	0x7b, 0x3e, 0x0b, 0xe7, 0xc1, 0x22, 0x5a, 0x25, 0x78, 0x8c, 0xc1, 0xfe, 0x7a, 0xe3, 0x39, 0xbf,
+	0x81, 0xe9, 0x49, 0xdc, 0x9b, 0x25, 0x6d, 0x89, 0xdf, 0xc2, 0xb8, 0xa8, 0x2c, 0xed, 0xd4, 0x77,
+	0x7b, 0xb6, 0x80, 0x4f, 0x20, 0xf6, 0x82, 0xde, 0x72, 0x0d, 0xf0, 0xdc, 0x28, 0x23, 0x9d, 0x9e,
+	0x8f, 0x21, 0x72, 0xa7, 0x23, 0x5c, 0x11, 0x24, 0x2f, 0xb5, 0x21, 0xd9, 0xca, 0xae, 0x90, 0xdd,
+	0xa1, 0x2e, 0x25, 0x7b, 0x82, 0xe8, 0xa4, 0x97, 0x4d, 0xf1, 0xef, 0xa3, 0x52, 0x86, 0xff, 0x86,
+	0xb1, 0x7b, 0x18, 0xf9, 0x5e, 0x16, 0xe3, 0x60, 0x63, 0x9a, 0xe0, 0x70, 0x92, 0xb8, 0x70, 0x1f,
+	0xf6, 0xf8, 0x1b, 0x00, 0x00, 0xff, 0xff, 0x7f, 0xe3, 0x8f, 0xec, 0x6e, 0x01, 0x00, 0x00,
 }
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -278,9 +277,8 @@ const _ = grpc.SupportPackageIsVersion4
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
 type ListenerServiceClient interface {
-	Publish(ctx context.Context, in *PublishInput, opts ...grpc.CallOption) (*PublishOutput, error)
-	CloseSession(ctx context.Context, in *CloseSessionInput, opts ...grpc.CallOption) (*CloseSessionOutput, error)
-	Close(ctx context.Context, in *CloseInput, opts ...grpc.CallOption) (*CloseOutput, error)
+	SendPublish(ctx context.Context, in *SendPublishInput, opts ...grpc.CallOption) (*SendPublishOutput, error)
+	Shutdown(ctx context.Context, in *ShutdownInput, opts ...grpc.CallOption) (*ShutdownOutput, error)
 }
 
 type listenerServiceClient struct {
@@ -291,27 +289,18 @@ func NewListenerServiceClient(cc *grpc.ClientConn) ListenerServiceClient {
 	return &listenerServiceClient{cc}
 }
 
-func (c *listenerServiceClient) Publish(ctx context.Context, in *PublishInput, opts ...grpc.CallOption) (*PublishOutput, error) {
-	out := new(PublishOutput)
-	err := c.cc.Invoke(ctx, "/ListenerService/Publish", in, out, opts...)
+func (c *listenerServiceClient) SendPublish(ctx context.Context, in *SendPublishInput, opts ...grpc.CallOption) (*SendPublishOutput, error) {
+	out := new(SendPublishOutput)
+	err := c.cc.Invoke(ctx, "/ListenerService/SendPublish", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *listenerServiceClient) CloseSession(ctx context.Context, in *CloseSessionInput, opts ...grpc.CallOption) (*CloseSessionOutput, error) {
-	out := new(CloseSessionOutput)
-	err := c.cc.Invoke(ctx, "/ListenerService/CloseSession", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *listenerServiceClient) Close(ctx context.Context, in *CloseInput, opts ...grpc.CallOption) (*CloseOutput, error) {
-	out := new(CloseOutput)
-	err := c.cc.Invoke(ctx, "/ListenerService/Close", in, out, opts...)
+func (c *listenerServiceClient) Shutdown(ctx context.Context, in *ShutdownInput, opts ...grpc.CallOption) (*ShutdownOutput, error) {
+	out := new(ShutdownOutput)
+	err := c.cc.Invoke(ctx, "/ListenerService/Shutdown", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -320,79 +309,57 @@ func (c *listenerServiceClient) Close(ctx context.Context, in *CloseInput, opts 
 
 // ListenerServiceServer is the server API for ListenerService service.
 type ListenerServiceServer interface {
-	Publish(context.Context, *PublishInput) (*PublishOutput, error)
-	CloseSession(context.Context, *CloseSessionInput) (*CloseSessionOutput, error)
-	Close(context.Context, *CloseInput) (*CloseOutput, error)
+	SendPublish(context.Context, *SendPublishInput) (*SendPublishOutput, error)
+	Shutdown(context.Context, *ShutdownInput) (*ShutdownOutput, error)
 }
 
 // UnimplementedListenerServiceServer can be embedded to have forward compatible implementations.
 type UnimplementedListenerServiceServer struct {
 }
 
-func (*UnimplementedListenerServiceServer) Publish(ctx context.Context, req *PublishInput) (*PublishOutput, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method Publish not implemented")
+func (*UnimplementedListenerServiceServer) SendPublish(ctx context.Context, req *SendPublishInput) (*SendPublishOutput, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SendPublish not implemented")
 }
-func (*UnimplementedListenerServiceServer) CloseSession(ctx context.Context, req *CloseSessionInput) (*CloseSessionOutput, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method CloseSession not implemented")
-}
-func (*UnimplementedListenerServiceServer) Close(ctx context.Context, req *CloseInput) (*CloseOutput, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method Close not implemented")
+func (*UnimplementedListenerServiceServer) Shutdown(ctx context.Context, req *ShutdownInput) (*ShutdownOutput, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method Shutdown not implemented")
 }
 
 func RegisterListenerServiceServer(s *grpc.Server, srv ListenerServiceServer) {
 	s.RegisterService(&_ListenerService_serviceDesc, srv)
 }
 
-func _ListenerService_Publish_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(PublishInput)
+func _ListenerService_SendPublish_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SendPublishInput)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(ListenerServiceServer).Publish(ctx, in)
+		return srv.(ListenerServiceServer).SendPublish(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/ListenerService/Publish",
+		FullMethod: "/ListenerService/SendPublish",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ListenerServiceServer).Publish(ctx, req.(*PublishInput))
+		return srv.(ListenerServiceServer).SendPublish(ctx, req.(*SendPublishInput))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _ListenerService_CloseSession_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(CloseSessionInput)
+func _ListenerService_Shutdown_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ShutdownInput)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(ListenerServiceServer).CloseSession(ctx, in)
+		return srv.(ListenerServiceServer).Shutdown(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/ListenerService/CloseSession",
+		FullMethod: "/ListenerService/Shutdown",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ListenerServiceServer).CloseSession(ctx, req.(*CloseSessionInput))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _ListenerService_Close_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(CloseInput)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(ListenerServiceServer).Close(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/ListenerService/Close",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ListenerServiceServer).Close(ctx, req.(*CloseInput))
+		return srv.(ListenerServiceServer).Shutdown(ctx, req.(*ShutdownInput))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -402,16 +369,12 @@ var _ListenerService_serviceDesc = grpc.ServiceDesc{
 	HandlerType: (*ListenerServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
-			MethodName: "Publish",
-			Handler:    _ListenerService_Publish_Handler,
+			MethodName: "SendPublish",
+			Handler:    _ListenerService_SendPublish_Handler,
 		},
 		{
-			MethodName: "CloseSession",
-			Handler:    _ListenerService_CloseSession_Handler,
-		},
-		{
-			MethodName: "Close",
-			Handler:    _ListenerService_Close_Handler,
+			MethodName: "Shutdown",
+			Handler:    _ListenerService_Shutdown_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

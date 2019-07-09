@@ -35,14 +35,14 @@ type localTransport struct {
 func (local *localTransport) Close() error {
 	return local.mesh.DialAddress("listener", local.peer, func(conn *grpc.ClientConn) error {
 		c := listenerpb.NewClient(conn)
-		return c.CloseSession(local.ctx, local.id)
+		return c.Shutdown(local.ctx, local.id)
 	})
 }
 
 func (local *localTransport) Publish(ctx context.Context, p *packet.Publish) error {
 	return local.mesh.DialAddress("listener", local.peer, func(conn *grpc.ClientConn) error {
 		c := listenerpb.NewClient(conn)
-		return c.Publish(ctx, local.id, p)
+		return c.SendPublish(ctx, local.id, p)
 	})
 }
 

@@ -16,11 +16,11 @@ type server struct {
 	endpoint Endpoint
 }
 
-func (s *server) Publish(ctx context.Context, input *pb.PublishInput) (*pb.PublishOutput, error) {
-	return &pb.PublishOutput{}, s.endpoint.Publish(ctx, input.ID, input.Publish)
+func (s *server) SendPublish(ctx context.Context, input *pb.SendPublishInput) (*pb.SendPublishOutput, error) {
+	return &pb.SendPublishOutput{}, s.endpoint.Publish(ctx, input.ID, input.Publish)
 }
-func (s *server) CloseSession(ctx context.Context, input *pb.CloseSessionInput) (*pb.CloseSessionOutput, error) {
-	return &pb.CloseSessionOutput{}, s.endpoint.CloseSession(ctx, input.ID)
+func (s *server) Shutdown(ctx context.Context, input *pb.ShutdownInput) (*pb.ShutdownOutput, error) {
+	return &pb.ShutdownOutput{}, s.endpoint.CloseSession(ctx, input.ID)
 }
 func (s *server) Close(ctx context.Context, input *pb.CloseInput) (*pb.CloseOutput, error) {
 	return &pb.CloseOutput{}, s.endpoint.Close()
