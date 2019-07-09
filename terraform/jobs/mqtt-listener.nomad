@@ -1,4 +1,4 @@
-job "iot" {
+job "mqtt-listener" {
   datacenters = ["dc1"]
   type        = "service"
 
@@ -286,90 +286,6 @@ job "iot" {
         name = "wss-listener"
         port = "wss"
         tags = ["urlprefix-broker.iot.cloud.vx-labs.net/ proto=tcp+sni"]
-
-        check {
-          type     = "http"
-          path     = "/health"
-          port     = "health"
-          interval = "5s"
-          timeout  = "2s"
-        }
-      }
-    }
-  }
-group "broker" {
-  vault {
-    policies      = ["nomad-tls-storer"]
-    change_mode   = "signal"
-    change_signal = "SIGUSR1"
-    env           = false
-  }
-  count = 3
-  restart {
-    attempts = 10
-    interval = "5m"
-    delay    = "15s"
-    mode     = "delay"
-  }
-
-  ephemeral_disk {
-    size = 300
-  }
-
-  task "broker" {
-      driver = "docker"
-
-      env {
-        CONSUL_HTTP_ADDR          = "172.17.0.1:8500"
-        AUTH_HOST                 = "172.17.0.1:4141"
-        JAEGER_SAMPLER_TYPE       = "const"
-        JAEGER_SAMPLER_PARAM      = "1"
-        JAEGER_REPORTER_LOG_SPANS = "true"
-        JAEGER_AGENT_HOST         = "$${NOMAD_IP_health}"
-      }
-
-      config {
-        image      = "quay.io/vxlabs/mqtt-broker:${broker_version}"
-        force_pull = true
-
-        port_map {
-          health = 9000
-          cluster    = 3500
-          mqtt   = 1883
-          service = 4000
-          gossip = 3100
-        }
-      }
-
-      resources {
-        cpu    = 200
-        memory = 128
-
-        network {
-          mbits = 10
-          port  "mqtt"{}
-          port  "broker"{}
-          port  "cluster" {}
-          port  "health"{}
-                    port "service" {}
-                    port "gossip" {}
-        }
-      }
-      service {
-        name = "mqtt-metrics"
-        port = "health"
-
-        check {
-          type     = "http"
-          path     = "/health"
-          port     = "health"
-          interval = "5s"
-          timeout  = "2s"
-        }
-      }
-      service {
-        name = "cluster"
-        port = "cluster"
 
         check {
           type     = "http"
