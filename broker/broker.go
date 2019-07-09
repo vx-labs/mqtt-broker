@@ -57,11 +57,6 @@ type SubscriptionStore interface {
 	Delete(id string) error
 	On(event string, handler func(subscriptions.Subscription)) func()
 }
-type Listener interface {
-	Publish(ctx context.Context, id string, publish *packet.Publish) error
-	CloseSession(ctx context.Context, id string) error
-	Close(ctx context.Context) error
-}
 type Broker struct {
 	ID            string
 	authHelper    func(transport transport.Metadata, sessionID []byte, username string, password string) (tenant string, err error)
