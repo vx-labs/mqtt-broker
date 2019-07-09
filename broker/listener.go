@@ -282,13 +282,30 @@ func (b *Broker) Disconnect(ctx context.Context, id string, p *packet.Disconnect
 func (b *Broker) CloseSession(ctx context.Context, id string) error {
 	sess, err := b.Sessions.ByID(id)
 	if err != nil {
+		if err == sessions.ErrSessionNotFound {
+			return nil
+		}
 		return err
 	}
 	if len(sess.WillTopic) > 0 {
+		if sess.WillRetain {
+			retainedMessage := topics.RetainedMessage{
+				Metadata: topics.Metadata{
+					Payload: sess.WillPayload,
+					Qos:     sess.WillQoS,
+					Tenant:  sess.Tenant,
+					Topic:   sess.WillTopic,
+				},
+			}
+			b.Topics.Create(retainedMessage)
+			if err != nil {
+				log.Printf("WARN: failed to retain LWT for session %s: %v", id, err)
+			}
+		}
 		b.routeMessage(sess.Tenant, &packet.Publish{
 			Header: &packet.Header{
 				Dup:    false,
-				Retain: sess.WillRetain,
+				Retain: false,
 				Qos:    sess.WillQoS,
 			},
 			Payload: sess.WillPayload,
