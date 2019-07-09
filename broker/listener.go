@@ -110,12 +110,7 @@ func (b *Broker) Connect(ctx context.Context, metadata transport.Metadata, p *pa
 				KeepaliveInterval: p.KeepaliveTimer,
 			},
 		}
-		err = b.Sessions.Upsert(sess, &localTransport{
-			id:   out.sessionID,
-			peer: sess.Peer,
-			mesh: b.mesh,
-			ctx:  b.ctx,
-		})
+		err = b.Sessions.Upsert(sess, b.RemoteRPCProvider(out.sessionID, sess.Peer))
 		if err != nil {
 			return err
 		}
