@@ -127,8 +127,6 @@ func (broker *Broker) Start(layer cluster.ServiceLayer) {
 	broker.Topics = topicssStore
 	broker.Subscriptions = subscriptionsStore
 	broker.Sessions = sessionsStore
-	broker.setupLogs()
-	broker.setupSYSTopic()
 	broker.Peers.On(cluster.PeerDeleted, broker.onPeerDown)
 }
 func (b *Broker) onPeerDown(peer cluster.Peer) {
