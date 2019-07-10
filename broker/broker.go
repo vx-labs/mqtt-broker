@@ -37,14 +37,12 @@ type SessionStore interface {
 	Exists(id string) bool
 	Upsert(sess sessions.Session, transport sessions.Transport) error
 	Delete(id, reason string) error
-	On(event string, handler func(sessions.Session)) func()
 }
 
 type TopicStore interface {
 	Create(message topics.RetainedMessage) error
 	ByTopicPattern(tenant string, pattern []byte) (topics.RetainedMessageSet, error)
 	All() (topics.RetainedMessageSet, error)
-	On(event string, handler func(topics.RetainedMessage)) func()
 }
 type SubscriptionStore interface {
 	ByTopic(tenant string, pattern []byte) (subscriptions.SubscriptionSet, error)
@@ -55,7 +53,6 @@ type SubscriptionStore interface {
 	Sessions() ([]string, error)
 	Create(message subscriptions.Subscription, sender func(context.Context, packet.Publish) error) error
 	Delete(id string) error
-	On(event string, handler func(subscriptions.Subscription)) func()
 }
 type Broker struct {
 	ID            string
