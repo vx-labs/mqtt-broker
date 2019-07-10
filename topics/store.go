@@ -13,13 +13,11 @@ import (
 	"github.com/vx-labs/mqtt-broker/cluster"
 
 	memdb "github.com/hashicorp/go-memdb"
-	"github.com/vx-labs/mqtt-broker/events"
 )
 
 type memDBStore struct {
 	db         *memdb.MemDB
 	topicIndex *topicIndexer
-	events     *events.Bus
 	channel    Channel
 }
 type Channel interface {
@@ -87,7 +85,6 @@ func NewMemDBStore(mesh cluster.ServiceLayer) (*memDBStore, error) {
 	s := &memDBStore{
 		db:         db,
 		topicIndex: TenantTopicIndexer(),
-		events:     events.NewEventBus(),
 	}
 	s.channel, err = mesh.AddState("mqtt-topics", s)
 	go func() {
@@ -172,31 +169,9 @@ func (m *memDBStore) insert(message RetainedMessage) error {
 	}
 	return err
 }
-func (s *memDBStore) On(event string, handler func(RetainedMessage)) func() {
-	return s.events.Subscribe(event, func(ev events.Event) {
-		handler(ev.Entry.(RetainedMessage))
-	})
-}
-
 func (s *memDBStore) emitRetainedMessageEvent(sess RetainedMessage) {
 	if crdt.IsEntryAdded(&sess) {
-		s.events.Emit(events.Event{
-			Entry: sess,
-			Key:   RetainedMessageCreated,
-		})
-		s.events.Emit(events.Event{
-			Entry: sess,
-			Key:   RetainedMessageCreated + "/" + sess.ID,
-		})
 	}
 	if crdt.IsEntryRemoved(&sess) {
-		s.events.Emit(events.Event{
-			Entry: sess,
-			Key:   RetainedMessageDeleted,
-		})
-		s.events.Emit(events.Event{
-			Entry: sess,
-			Key:   RetainedMessageDeleted + "/" + sess.ID,
-		})
 	}
 }
