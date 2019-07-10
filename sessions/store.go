@@ -11,7 +11,6 @@ import (
 	"github.com/vx-labs/mqtt-protocol/packet"
 
 	"github.com/vx-labs/mqtt-broker/crdt"
-	"github.com/vx-labs/mqtt-broker/events"
 
 	"github.com/vx-labs/mqtt-broker/cluster"
 
@@ -58,7 +57,6 @@ type SessionStore interface {
 	Exists(id string) bool
 	Delete(id, reason string) error
 	Upsert(sess Session, Transport Transport) error
-	On(event string, handler func(Session)) func()
 }
 
 type Logger interface {
@@ -67,7 +65,6 @@ type Logger interface {
 type memDBStore struct {
 	db                      *memdb.MemDB
 	logger                  Logger
-	events                  *events.Bus
 	remoteTransportProvider RemoteTransportProvider
 	channel                 Channel
 }
@@ -118,7 +115,6 @@ func NewSessionStore(mesh cluster.ServiceLayer, remoteTransportProvider RemoteTr
 	s := &memDBStore{
 		db:                      db,
 		logger:                  logger,
-		events:                  events.NewEventBus(),
 		remoteTransportProvider: remoteTransportProvider,
 	}
 	s.channel, err = mesh.AddState("mqtt-sessions", s)
@@ -221,24 +217,10 @@ func (s *memDBStore) Upsert(sess Session, transport Transport) error {
 }
 func (s *memDBStore) emitSessionEvent(sess Session) {
 	if crdt.IsEntryAdded(&sess) {
-		s.events.Emit(events.Event{
-			Entry: sess,
-			Key:   SessionCreated,
-		})
-		s.events.Emit(events.Event{
-			Entry: sess,
-			Key:   SessionCreated + "/" + sess.ID,
-		})
+
 	}
 	if crdt.IsEntryRemoved(&sess) {
-		s.events.Emit(events.Event{
-			Entry: sess,
-			Key:   SessionDeleted,
-		})
-		s.events.Emit(events.Event{
-			Entry: sess,
-			Key:   SessionDeleted + "/" + sess.ID,
-		})
+
 	}
 }
 func (s *memDBStore) insert(sess Session) error {
@@ -294,9 +276,4 @@ func (s *memDBStore) first(tx *memdb.Txn, idx, id string) (Session, error) {
 	}
 	sess := data.(Session)
 	return sess, nil
-}
-func (s *memDBStore) On(event string, handler func(Session)) func() {
-	return s.events.Subscribe(event, func(ev events.Event) {
-		handler(ev.Entry.(Session))
-	})
 }
