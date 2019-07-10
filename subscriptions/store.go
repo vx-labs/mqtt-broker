@@ -12,7 +12,6 @@ import (
 
 	"github.com/hashicorp/go-memdb"
 	"github.com/vx-labs/mqtt-broker/cluster"
-	"github.com/vx-labs/mqtt-broker/events"
 )
 
 const table = "subscriptions"
@@ -37,7 +36,6 @@ type Store interface {
 	Sessions() ([]string, error)
 	Create(message Subscription, sender func(context.Context, packet.Publish) error) error
 	Delete(id string) error
-	On(event string, handler func(Subscription)) func()
 }
 
 const (
@@ -48,7 +46,6 @@ const (
 type memDBStore struct {
 	db           *memdb.MemDB
 	patternIndex *topicIndexer
-	events       *events.Bus
 	channel      Channel
 	sender       RemoteSender
 }
@@ -103,7 +100,6 @@ func NewMemDBStore(mesh cluster.ServiceLayer, sender RemoteSender) (Store, error
 	s := &memDBStore{
 		db:           db,
 		patternIndex: TenantTopicIndexer(),
-		events:       events.NewEventBus(),
 	}
 	s.channel, err = mesh.AddState("mqtt-subscriptions", s)
 	go func() {
@@ -211,25 +207,9 @@ func (m *memDBStore) Sessions() ([]string, error) {
 func (s *memDBStore) emitSubscriptionEvent(sess Subscription) {
 	if crdt.IsEntryAdded(&sess) {
 		s.patternIndex.Index(sess)
-		s.events.Emit(events.Event{
-			Entry: sess,
-			Key:   SubscriptionCreated,
-		})
-		s.events.Emit(events.Event{
-			Entry: sess,
-			Key:   SubscriptionCreated + "/" + sess.ID,
-		})
 	}
 	if crdt.IsEntryRemoved(&sess) {
 		s.patternIndex.Remove(sess.Tenant, sess.ID, sess.Pattern)
-		s.events.Emit(events.Event{
-			Entry: sess,
-			Key:   SubscriptionDeleted,
-		})
-		s.events.Emit(events.Event{
-			Entry: sess,
-			Key:   SubscriptionDeleted + "/" + sess.ID,
-		})
 	}
 }
 
@@ -268,10 +248,4 @@ func (s *memDBStore) Create(sess Subscription, closer func(context.Context, pack
 	sess.LastAdded = now()
 	sess.Sender = closer
 	return s.insert(sess)
-}
-
-func (s *memDBStore) On(event string, handler func(Subscription)) func() {
-	return s.events.Subscribe(event, func(ev events.Event) {
-		handler(ev.Entry.(Subscription))
-	})
 }
