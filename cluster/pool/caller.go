@@ -38,7 +38,10 @@ func (c *Caller) Call(addr string, job RPCJob) error {
 				c.mutex.Unlock()
 				return err
 			}
-			c.pools.ReplaceOrInsert(newpool)
+			old := c.pools.ReplaceOrInsert(newpool)
+			if old != nil {
+				old.(*Pool).Cancel()
+			}
 			data = newpool
 		}
 		c.mutex.Unlock()
