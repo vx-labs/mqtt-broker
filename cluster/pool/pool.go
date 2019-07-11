@@ -3,6 +3,8 @@ package pool
 import (
 	"fmt"
 
+	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
+
 	grpc "google.golang.org/grpc"
 )
 
@@ -27,7 +29,10 @@ func NewPool(addr string) (*Pool, error) {
 	c := &Pool{
 		address: addr,
 	}
-	conn, err := grpc.Dial(fmt.Sprintf("meshid:///%s", addr), grpc.WithInsecure(), grpc.WithAuthority(addr), grpc.WithBalancerName("failover"))
+	conn, err := grpc.Dial(fmt.Sprintf("meshid:///%s", addr),
+		grpc.WithStreamInterceptor(grpc_prometheus.StreamClientInterceptor),
+		grpc.WithUnaryInterceptor(grpc_prometheus.UnaryClientInterceptor),
+		grpc.WithInsecure(), grpc.WithAuthority(addr), grpc.WithBalancerName("failover"))
 	if err != nil {
 		return nil, err
 	}
