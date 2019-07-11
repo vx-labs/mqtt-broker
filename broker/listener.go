@@ -10,6 +10,7 @@ import (
 
 	"github.com/vx-labs/mqtt-broker/cluster"
 	listenerpb "github.com/vx-labs/mqtt-broker/listener/pb"
+	publishQueue "github.com/vx-labs/mqtt-broker/queues/publish"
 	"google.golang.org/grpc"
 
 	"github.com/vx-labs/mqtt-broker/sessions"
@@ -195,50 +196,29 @@ func (b *Broker) routeMessage(tenant string, p *packet.Publish) error {
 	}
 	return nil
 }
-func (b *Broker) Publish(ctx context.Context, id string, p *packet.Publish) (puback *packet.PubAck, err error) {
-	done := make(chan struct{})
-	err = b.publishPool.Call(func() error {
-		defer close(done)
-		var session sessions.Session
-		session, err = b.Sessions.ByID(id)
-		if err != nil {
-			log.Printf("WARN: publish issued to unknown session")
-			return err
-		}
-		if p.Header.Qos == 2 {
-			err = errors.New("QoS2 is not supported")
-			return err
-		}
-		if p.Header.Retain {
-			message := topics.RetainedMessage{
-				Metadata: topics.Metadata{
-					Payload: p.Payload,
-					Qos:     p.Header.Qos,
-					Tenant:  session.Tenant,
-					Topic:   p.Topic,
-				},
-			}
-			err := b.Topics.Create(message)
-			if err != nil {
-				log.Printf("WARN: failed to save retained message: %v", err)
-			}
-		}
-		err = b.routeMessage(session.Tenant, p)
-		if err != nil {
-			log.Printf("ERR: failed to route message: %v", err)
-			return err
-		}
-		if p.Header.Qos == 1 {
-			puback = &packet.PubAck{
-				Header:    &packet.Header{},
-				MessageId: p.MessageId,
-			}
-			return nil
-		}
-		return nil
+func (b *Broker) Publish(ctx context.Context, id string, p *packet.Publish) (*packet.PubAck, error) {
+	session, err := b.Sessions.ByID(id)
+	if err != nil {
+		log.Printf("WARN: publish issued to unknown session")
+		return nil, err
+	}
+	if p.Header.Qos == 2 {
+		err = errors.New("QoS2 is not supported")
+		return nil, err
+	}
+	b.publishQueue.Enqueue(&publishQueue.Message{
+		Tenant:  session.Tenant,
+		Publish: p,
 	})
-	<-done
-	return
+	if p.Header.Qos == 1 {
+		puback := &packet.PubAck{
+			Header:    &packet.Header{},
+			MessageId: p.MessageId,
+		}
+		return puback, nil
+	}
+	return nil, nil
+
 }
 func (b *Broker) Unsubscribe(ctx context.Context, id string, p *packet.Unsubscribe) (*packet.UnsubAck, error) {
 	sess, err := b.Sessions.ByID(id)

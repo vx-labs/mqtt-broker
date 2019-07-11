@@ -8,7 +8,7 @@ import (
 	"github.com/sirupsen/logrus"
 
 	"github.com/vx-labs/mqtt-broker/queues/inflight"
-	"github.com/vx-labs/mqtt-broker/queues/messages"
+	publishQueue "github.com/vx-labs/mqtt-broker/queues/publish"
 	"github.com/vx-labs/mqtt-broker/transport"
 	"github.com/vx-labs/mqtt-protocol/decoder"
 	"github.com/vx-labs/mqtt-protocol/encoder"
@@ -40,7 +40,7 @@ func (local *endpoint) runLocalSession(t transport.Metadata) {
 	timer := CONNECT_DEADLINE
 	enc := encoder.New(t.Channel)
 	inflight := inflight.New(enc.Publish)
-	queue := messages.NewQueue()
+	queue := publishQueue.New()
 	defer close(session.quit)
 
 	dec := decoder.New(
@@ -139,7 +139,9 @@ func (local *endpoint) runLocalSession(t transport.Metadata) {
 		}),
 	)
 	renewDeadline(CONNECT_DEADLINE, t.Channel)
-	go queue.Consume(inflight.Put)
+	go queue.Consume(func(p *publishQueue.Message) {
+		inflight.Put(p.Publish)
+	})
 
 	var err error
 	for {
@@ -159,4 +161,5 @@ func (local *endpoint) runLocalSession(t transport.Metadata) {
 	local.mutex.Lock()
 	local.sessions.Delete(session)
 	local.mutex.Unlock()
+	queue.Close()
 }

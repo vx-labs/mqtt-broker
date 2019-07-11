@@ -15,6 +15,7 @@ import (
 
 	"github.com/vx-labs/mqtt-protocol/packet"
 
+	publishQueue "github.com/vx-labs/mqtt-broker/queues/publish"
 	"github.com/vx-labs/mqtt-broker/subscriptions"
 )
 
@@ -54,6 +55,12 @@ type SubscriptionStore interface {
 	Create(message subscriptions.Subscription, sender func(context.Context, packet.Publish) error) error
 	Delete(id string) error
 }
+type Queue interface {
+	Enqueue(p *publishQueue.Message)
+	Consume(f func(*publishQueue.Message))
+	Close() error
+}
+
 type Broker struct {
 	ID            string
 	authHelper    func(transport transport.Metadata, sessionID []byte, username string, password string) (tenant string, err error)
@@ -63,9 +70,9 @@ type Broker struct {
 	Topics        TopicStore
 	Peers         PeerStore
 	STANOutput    chan STANMessage
-	publishPool   *Pool
 	workers       *Pool
 	ctx           context.Context
+	publishQueue  Queue
 }
 
 func (b *Broker) RemoteRPCProvider(id, peer string) sessions.Transport {
@@ -80,12 +87,12 @@ func (b *Broker) RemoteRPCProvider(id, peer string) sessions.Transport {
 func New(id string, mesh cluster.Mesh, config Config) *Broker {
 	ctx := context.Background()
 	broker := &Broker{
-		ID:          id,
-		authHelper:  config.AuthHelper,
-		workers:     NewPool(25),
-		publishPool: NewPool(50),
-		ctx:         ctx,
-		mesh:        mesh,
+		ID:           id,
+		authHelper:   config.AuthHelper,
+		workers:      NewPool(25),
+		ctx:          ctx,
+		mesh:         mesh,
+		publishQueue: publishQueue.New(),
 	}
 
 	if config.NATSURL != "" {
@@ -97,6 +104,7 @@ func New(id string, mesh cluster.Mesh, config Config) *Broker {
 			broker.STANOutput = ch
 		}
 	}
+	broker.startPublishConsumers()
 	return broker
 }
 func (broker *Broker) Start(layer cluster.ServiceLayer) {
@@ -203,5 +211,6 @@ func (b *Broker) dispatch(message *pb.MessagePublished) error {
 
 func (b *Broker) Stop() {
 	log.Printf("INFO: stopping broker")
+	b.publishQueue.Close()
 	log.Printf("INFO: broker stopped")
 }

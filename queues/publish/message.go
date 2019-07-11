@@ -33,6 +33,7 @@ func (i *inode) cas(old, new *node) bool {
 type queue struct {
 	head *inode
 	tail *inode
+	quit chan struct{}
 }
 
 func New() *queue {
@@ -40,6 +41,7 @@ func New() *queue {
 		next: &inode{},
 	}
 	queue := &queue{
+		quit: make(chan struct{}),
 		head: &inode{
 			value: n,
 		},
@@ -50,6 +52,10 @@ func New() *queue {
 	return queue
 }
 
+func (q *queue) Close() error {
+	close(q.quit)
+	return nil
+}
 func (q *queue) Enqueue(p *Message) {
 	newNode := &node{
 		item: p,
@@ -94,12 +100,17 @@ func (q *queue) Pop() *Message {
 
 func (q *queue) Consume(f func(*Message)) {
 	ticker := time.NewTicker(100 * time.Millisecond)
+	defer ticker.Stop()
 	for {
 		publish := q.Pop()
 		if publish != nil {
 			f(publish)
 		} else {
-			<-ticker.C
+			select {
+			case <-ticker.C:
+			case <-q.quit:
+				return
+			}
 		}
 	}
 }
