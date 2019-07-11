@@ -81,8 +81,8 @@ func (local *endpoint) runLocalSession(t transport.Metadata) {
 			if session.id == "" {
 				return ErrConnectNotDone
 			}
+			renewDeadline(timer, t.Channel)
 			return publishWorkers.Call(func() error {
-				renewDeadline(timer, t.Channel)
 				puback, err := local.broker.Publish(ctx, session.id, p)
 				if err != nil {
 					return err
