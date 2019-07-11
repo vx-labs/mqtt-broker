@@ -3,7 +3,8 @@ package inflight
 import (
 	"errors"
 	"sync"
-	"time"
+
+	"github.com/google/btree"
 
 	"github.com/vx-labs/mqtt-protocol/packet"
 )
@@ -13,11 +14,23 @@ var (
 )
 
 type Queue struct {
-	messages        chan *packet.Publish
-	acknowledgement chan int32
-	sender          func(*packet.Publish) error
-	stop            chan struct{}
-	mutex           sync.Mutex
+	acknowlegers *btree.BTree
+	messages     chan *packet.Publish
+	sender       func(*packet.Publish) error
+	stop         chan struct{}
+	mutex        sync.Mutex
+	jobs         chan chan *packet.Publish
+}
+
+type acknowleger struct {
+	mid    int32
+	ch     chan<- *packet.PubAck
+	cancel chan struct{}
+	quit   chan struct{}
+}
+
+func (a *acknowleger) Less(remote btree.Item) bool {
+	return a.mid < remote.(*acknowleger).mid
 }
 
 func (q *Queue) Close() error {
@@ -25,41 +38,29 @@ func (q *Queue) Close() error {
 	return nil
 }
 
-func (q *Queue) retryDeliver(publish *packet.Publish) {
-	ticker := time.NewTicker(10 * time.Second)
-	defer ticker.Stop()
-	for {
-		err := q.sender(publish)
-		if err != nil {
-			continue
-		}
-		if publish.Header.Qos == 0 {
-			return
-		}
-		select {
-		case ack := <-q.acknowledgement:
-			if publish.MessageId == ack {
-				return
-			}
-		case <-ticker.C:
-			continue
-		}
-	}
-}
 func New(sender func(*packet.Publish) error) *Queue {
 	q := &Queue{
-		stop:            make(chan struct{}),
-		messages:        make(chan *packet.Publish),
-		acknowledgement: make(chan int32),
-		sender:          sender,
+		stop:         make(chan struct{}),
+		messages:     make(chan *packet.Publish),
+		sender:       sender,
+		acknowlegers: btree.New(2),
+		jobs:         make(chan chan *packet.Publish),
+	}
+	var i int32
+	for i = 0; i < 10; i++ {
+		q.acknowlegers.ReplaceOrInsert(startDeliverer(i, q.jobs, sender))
 	}
 	go func() {
 		for {
 			select {
 			case <-q.stop:
+				q.acknowlegers.Descend(func(i btree.Item) bool {
+					ack := i.(*acknowleger)
+					close(ack.cancel)
+					<-ack.quit
+					return true
+				})
 				return
-			case publish := <-q.messages:
-				q.retryDeliver(publish)
 			}
 		}
 	}()
@@ -67,12 +68,12 @@ func New(sender func(*packet.Publish) error) *Queue {
 }
 
 func (q *Queue) Put(publish *packet.Publish) {
-	publish.MessageId = 1
-	q.messages <- publish
+	ack := <-q.jobs
+	ack <- publish
 }
-func (q *Queue) Ack(i int32) {
-	select {
-	case q.acknowledgement <- i:
-	default:
-	}
+func (q *Queue) Ack(p *packet.PubAck) {
+	ack := q.acknowlegers.Get(&acknowleger{
+		mid: p.MessageId,
+	})
+	ack.(*acknowleger).ch <- p
 }

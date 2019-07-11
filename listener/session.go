@@ -117,7 +117,7 @@ func (local *endpoint) runLocalSession(t transport.Metadata) {
 				return ErrConnectNotDone
 			}
 			renewDeadline(timer, t.Channel)
-			inflight.Ack(p.MessageId)
+			inflight.Ack(p)
 			return nil
 		}),
 		decoder.OnPingReq(func(p *packet.PingReq) error {
@@ -162,4 +162,5 @@ func (local *endpoint) runLocalSession(t transport.Metadata) {
 	local.sessions.Delete(session)
 	local.mutex.Unlock()
 	queue.Close()
+	inflight.Close()
 }
