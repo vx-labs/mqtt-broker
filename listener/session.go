@@ -7,6 +7,7 @@ import (
 
 	"github.com/sirupsen/logrus"
 
+	"github.com/vx-labs/mqtt-broker/pool"
 	"github.com/vx-labs/mqtt-broker/queues/inflight"
 	publishQueue "github.com/vx-labs/mqtt-broker/queues/publish"
 	"github.com/vx-labs/mqtt-broker/transport"
@@ -42,7 +43,7 @@ func (local *endpoint) runLocalSession(t transport.Metadata) {
 	inflight := inflight.New(enc.Publish)
 	queue := publishQueue.New()
 	defer close(session.quit)
-
+	publishWorkers := pool.NewPool(5)
 	dec := decoder.New(
 		decoder.OnConnect(func(p *packet.Connect) error {
 			id, connack, err := local.broker.Connect(ctx, t, p)
@@ -80,15 +81,17 @@ func (local *endpoint) runLocalSession(t transport.Metadata) {
 			if session.id == "" {
 				return ErrConnectNotDone
 			}
-			renewDeadline(timer, t.Channel)
-			puback, err := local.broker.Publish(ctx, session.id, p)
-			if err != nil {
-				return err
-			}
-			if puback != nil {
-				return enc.PubAck(puback)
-			}
-			return nil
+			return publishWorkers.Call(func() error {
+				renewDeadline(timer, t.Channel)
+				puback, err := local.broker.Publish(ctx, session.id, p)
+				if err != nil {
+					return err
+				}
+				if puback != nil {
+					return enc.PubAck(puback)
+				}
+				return nil
+			})
 		}),
 		decoder.OnSubscribe(func(p *packet.Subscribe) error {
 			if session.id == "" {

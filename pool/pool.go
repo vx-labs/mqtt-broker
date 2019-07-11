@@ -1,4 +1,4 @@
-package broker
+package pool
 
 type Job func() error
 type Pool struct {

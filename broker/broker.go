@@ -5,6 +5,7 @@ import (
 	"log"
 
 	"github.com/sirupsen/logrus"
+	"github.com/vx-labs/mqtt-broker/pool"
 	"github.com/vx-labs/mqtt-broker/transport"
 
 	"github.com/vx-labs/mqtt-broker/broker/pb"
@@ -70,7 +71,7 @@ type Broker struct {
 	Topics        TopicStore
 	Peers         PeerStore
 	STANOutput    chan STANMessage
-	workers       *Pool
+	workers       *pool.Pool
 	ctx           context.Context
 	publishQueue  Queue
 }
@@ -89,7 +90,7 @@ func New(id string, mesh cluster.Mesh, config Config) *Broker {
 	broker := &Broker{
 		ID:           id,
 		authHelper:   config.AuthHelper,
-		workers:      NewPool(25),
+		workers:      pool.NewPool(25),
 		ctx:          ctx,
 		mesh:         mesh,
 		publishQueue: publishQueue.New(),

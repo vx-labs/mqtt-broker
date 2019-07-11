@@ -2,6 +2,7 @@ package inflight
 
 import (
 	"errors"
+	"log"
 	"sync"
 
 	"github.com/google/btree"
@@ -75,5 +76,9 @@ func (q *Queue) Ack(p *packet.PubAck) {
 	ack := q.acknowlegers.Get(&acknowleger{
 		mid: p.MessageId,
 	})
+	if ack == nil {
+		log.Printf("WARN: received ack for an unknown message")
+		return
+	}
 	ack.(*acknowleger).ch <- p
 }
