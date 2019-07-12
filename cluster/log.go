@@ -5,11 +5,12 @@ import (
 
 	"github.com/gogo/protobuf/proto"
 	"github.com/hashicorp/memberlist"
+	"github.com/vx-labs/mqtt-broker/cluster/pb"
 )
 
 // NotifyJoin is called if a peer joins the cluster.
 func (b *layer) NotifyJoin(n *memberlist.Node) {
-	var meta NodeMeta
+	var meta pb.NodeMeta
 	err := proto.Unmarshal(n.Meta, &meta)
 	if err == nil {
 		if b.id != n.Name {
@@ -24,7 +25,7 @@ func (b *layer) NotifyJoin(n *memberlist.Node) {
 
 // NotifyLeave is called if a peer leaves the cluster.
 func (b *layer) NotifyLeave(n *memberlist.Node) {
-	var meta NodeMeta
+	var meta pb.NodeMeta
 	err := proto.Unmarshal(n.Meta, &meta)
 	if err == nil {
 		if b.id != n.Name {

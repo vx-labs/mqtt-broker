@@ -3,6 +3,8 @@ package cluster
 import (
 	fmt "fmt"
 	"log"
+
+	"github.com/vx-labs/mqtt-broker/cluster/pb"
 )
 
 type ServiceConfig struct {
@@ -23,7 +25,7 @@ func NewServiceLayer(name string, serviceConfig ServiceConfig, discovery Mesh) S
 	if userConfig.BindPort == 0 {
 		log.Fatalf("FATAL: service/%s: user provided 0 as bind port value", name)
 	}
-	layer := NewLayer(name, userConfig, NodeMeta{
+	layer := NewLayer(name, userConfig, pb.NodeMeta{
 		ID: userConfig.ID,
 	})
 

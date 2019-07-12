@@ -5,8 +5,6 @@ import (
 	"google.golang.org/grpc"
 )
 
-//go:generate protoc -I${GOPATH}/src -I${GOPATH}/src/github.com/vx-labs/mqtt-broker/cluster/ --go_out=plugins=grpc:. cluster.proto
-
 // State represents a CRDT state store, that will be distributed over the mesh network.
 type State interface {
 	Merge(inc []byte, full bool) error

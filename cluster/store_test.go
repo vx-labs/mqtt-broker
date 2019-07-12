@@ -5,6 +5,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/vx-labs/mqtt-broker/cluster/pb"
 )
 
 const (
@@ -15,11 +16,11 @@ func TestPeerStore(t *testing.T) {
 	store, _ := NewPeerStore(MockedMesh())
 
 	t.Run("create", func(t *testing.T) {
-		err := store.Upsert(Peer{Metadata: Metadata{
+		err := store.Upsert(Peer{Metadata: pb.Metadata{
 			ID: peerID,
 		}})
 		assert.Nil(t, err)
-		err = store.Upsert(Peer{Metadata: Metadata{
+		err = store.Upsert(Peer{Metadata: pb.Metadata{
 			ID: "3",
 		}})
 		assert.Nil(t, err)

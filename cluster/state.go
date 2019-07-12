@@ -6,6 +6,7 @@ import (
 
 	"github.com/golang/protobuf/proto"
 	memdb "github.com/hashicorp/go-memdb"
+	"github.com/vx-labs/mqtt-broker/cluster/pb"
 	"github.com/vx-labs/mqtt-broker/crdt"
 )
 
@@ -18,8 +19,8 @@ func (m memDBStore) MarshalBinary() []byte {
 	}
 	return payload
 }
-func (m memDBStore) dumpSubscriptions() *PeerMetadataList {
-	sessionList := PeerMetadataList{}
+func (m memDBStore) dumpSubscriptions() *pb.PeerMetadataList {
+	sessionList := pb.PeerMetadataList{}
 	m.read(func(tx *memdb.Txn) error {
 		iterator, err := tx.Get(peerTable, "id")
 		if (err != nil && err != ErrPeerNotFound) || iterator == nil {
@@ -52,14 +53,14 @@ func (m *memDBStore) runGC() error {
 			return &sess, nil
 		}, func(id string) error {
 			return tx.Delete(peerTable, Peer{
-				Metadata: Metadata{ID: id},
+				Metadata: pb.Metadata{ID: id},
 			})
 		},
 		)
 	})
 }
 
-func (m *memDBStore) newRemotePeer(remote Metadata) Peer {
+func (m *memDBStore) newRemotePeer(remote pb.Metadata) Peer {
 	return Peer{
 		Metadata: remote,
 	}
@@ -68,7 +69,7 @@ func (m *memDBStore) insertPBRemoteSubscription(sub Peer, tx *memdb.Txn) error {
 	return tx.Insert(peerTable, sub)
 }
 func (m *memDBStore) Merge(inc []byte, _ bool) error {
-	set := &PeerMetadataList{}
+	set := &pb.PeerMetadataList{}
 	err := proto.Unmarshal(inc, set)
 	if err != nil {
 		return err

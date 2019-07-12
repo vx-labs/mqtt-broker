@@ -10,6 +10,7 @@ import (
 
 	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
 
+	"github.com/vx-labs/mqtt-broker/cluster/pb"
 	"github.com/vx-labs/mqtt-broker/cluster/pool"
 
 	"google.golang.org/grpc"
@@ -70,14 +71,14 @@ func New(userConfig Config) *memberlistMesh {
 		id:        userConfig.ID,
 		rpcCaller: pool.NewCaller(),
 	}
-	userConfig.onNodeLeave = func(id string, meta NodeMeta) {
+	userConfig.onNodeLeave = func(id string, meta pb.NodeMeta) {
 		for _, service := range meta.Services {
 			self.rpcCaller.Cancel(service.NetworkAddress)
 		}
 		self.peers.Delete(id)
 		log.Printf("INFO: deleted peer %s from discovery store", id)
 	}
-	self.layer = NewLayer("cluster", userConfig, NodeMeta{
+	self.layer = NewLayer("cluster", userConfig, pb.NodeMeta{
 		ID: userConfig.ID,
 	})
 	peers, err := NewPeerStore(self.layer)
@@ -94,7 +95,7 @@ func New(userConfig Config) *memberlistMesh {
 	}
 
 	self.peers.Upsert(Peer{
-		Metadata: Metadata{
+		Metadata: pb.Metadata{
 			ID:       self.id,
 			Hostname: hostname,
 			Runtime:  runtime.Version(),
@@ -119,7 +120,7 @@ func (m *memberlistMesh) RegisterService(name, address string) error {
 	if err != nil {
 		return err
 	}
-	self.HostedServices = append(self.HostedServices, &NodeService{
+	self.HostedServices = append(self.HostedServices, &pb.NodeService{
 		ID:             name,
 		NetworkAddress: address,
 		Peer:           m.id,

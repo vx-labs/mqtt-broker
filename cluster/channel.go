@@ -3,6 +3,7 @@ package cluster
 import (
 	proto "github.com/golang/protobuf/proto"
 	"github.com/hashicorp/memberlist"
+	"github.com/vx-labs/mqtt-broker/cluster/pb"
 )
 
 type channel struct {
@@ -19,7 +20,7 @@ func (b simpleBroadcast) Finished()                             {}
 
 // Broadcast enqueues a message for broadcasting.
 func (c *channel) Broadcast(b []byte) {
-	b, err := proto.Marshal(&Part{Key: c.key, Data: b})
+	b, err := proto.Marshal(&pb.Part{Key: c.key, Data: b})
 	if err != nil {
 		return
 	}

@@ -10,6 +10,7 @@ import (
 
 	proto "github.com/golang/protobuf/proto"
 	"github.com/hashicorp/memberlist"
+	"github.com/vx-labs/mqtt-broker/cluster/pb"
 )
 
 type Config struct {
@@ -17,8 +18,8 @@ type Config struct {
 	AdvertiseAddr string
 	AdvertisePort int
 	BindPort      int
-	onNodeJoin    func(id string, meta NodeMeta)
-	onNodeLeave   func(id string, meta NodeMeta)
+	onNodeJoin    func(id string, meta pb.NodeMeta)
+	onNodeLeave   func(id string, meta pb.NodeMeta)
 }
 
 type layer struct {
@@ -29,9 +30,9 @@ type layer struct {
 	mtx         sync.RWMutex
 	states      map[string]State
 	bcastQueue  *memberlist.TransmitLimitedQueue
-	meta        NodeMeta
-	onNodeJoin  func(id string, meta NodeMeta)
-	onNodeLeave func(id string, meta NodeMeta)
+	meta        pb.NodeMeta
+	onNodeJoin  func(id string, meta pb.NodeMeta)
+	onNodeLeave func(id string, meta pb.NodeMeta)
 }
 
 func (m *layer) Members() []*memberlist.Node {
@@ -58,7 +59,7 @@ func (m *layer) AddState(key string, state State) (Channel, error) {
 	return userCh, nil
 }
 func (m *layer) NotifyMsg(b []byte) {
-	var p Part
+	var p pb.Part
 	if err := proto.Unmarshal(b, &p); err != nil {
 		log.Printf("ERROR: failed to decode remote state: %v", err)
 		return
@@ -92,11 +93,11 @@ func (m *layer) LocalState(join bool) []byte {
 	m.mtx.RLock()
 	defer m.mtx.RUnlock()
 
-	dump := &FullState{
-		Parts: make([]*Part, 0, len(m.states)),
+	dump := &pb.FullState{
+		Parts: make([]*pb.Part, 0, len(m.states)),
 	}
 	for key, state := range m.states {
-		dump.Parts = append(dump.Parts, &Part{Key: key, Data: state.MarshalBinary()})
+		dump.Parts = append(dump.Parts, &pb.Part{Key: key, Data: state.MarshalBinary()})
 	}
 	payload, err := proto.Marshal(dump)
 	if err != nil {
@@ -106,7 +107,7 @@ func (m *layer) LocalState(join bool) []byte {
 	return payload
 }
 func (m *layer) MergeRemoteState(buf []byte, join bool) {
-	var fs FullState
+	var fs pb.FullState
 	if err := proto.Unmarshal(buf, &fs); err != nil {
 		log.Printf("ERROR: failed to decode remote full state: %v", err)
 		return
@@ -193,7 +194,7 @@ func (self *layer) numMembers() int {
 	return self.mlist.NumMembers()
 }
 
-func NewLayer(name string, userConfig Config, meta NodeMeta) Layer {
+func NewLayer(name string, userConfig Config, meta pb.NodeMeta) Layer {
 	self := &layer{
 		id:          userConfig.ID,
 		name:        name,

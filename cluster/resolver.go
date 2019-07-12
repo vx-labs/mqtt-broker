@@ -3,11 +3,12 @@ package cluster
 import (
 	"log"
 
+	"github.com/vx-labs/mqtt-broker/cluster/pb"
 	"google.golang.org/grpc/resolver"
 )
 
 type Discoverer interface {
-	EndpointsByService(name string) ([]*NodeService, error)
+	EndpointsByService(name string) ([]*pb.NodeService, error)
 	ByID(id string) (Peer, error)
 	On(event string, handler func(Peer)) func()
 }

@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/golang/protobuf/proto"
+	"github.com/vx-labs/mqtt-broker/cluster/pb"
 	"github.com/vx-labs/mqtt-broker/crdt"
 
 	"github.com/vx-labs/mqtt-broker/events"
@@ -31,12 +32,12 @@ var now = func() int64 {
 }
 
 type Peer struct {
-	Metadata
+	pb.Metadata
 }
 type PeerStore interface {
 	ByID(id string) (Peer, error)
 	ByService(name string) (SubscriptionSet, error)
-	EndpointsByService(name string) ([]*NodeService, error)
+	EndpointsByService(name string) ([]*pb.NodeService, error)
 	All() (SubscriptionSet, error)
 	Exists(id string) bool
 	Upsert(p Peer) error
@@ -152,12 +153,12 @@ func (m *memDBStore) ByService(service string) (SubscriptionSet, error) {
 	})
 }
 
-func (m *memDBStore) EndpointsByService(name string) ([]*NodeService, error) {
+func (m *memDBStore) EndpointsByService(name string) ([]*pb.NodeService, error) {
 	peers, err := m.ByService(name)
 	if err != nil {
 		return nil, err
 	}
-	out := make([]*NodeService, 0)
+	out := make([]*pb.NodeService, 0)
 	for _, peer := range peers {
 		for _, service := range peer.HostedServices {
 			if service.ID == name {
@@ -207,8 +208,8 @@ func (m *memDBStore) insert(message Peer) error {
 		return nil
 	})
 	if err == nil {
-		buf, err := proto.Marshal(&PeerMetadataList{
-			Metadatas: []*Metadata{
+		buf, err := proto.Marshal(&pb.PeerMetadataList{
+			Metadatas: []*pb.Metadata{
 				&message.Metadata,
 			},
 		})

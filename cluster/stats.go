@@ -3,6 +3,8 @@ package cluster
 import (
 	"runtime"
 	"time"
+
+	"github.com/vx-labs/mqtt-broker/cluster/pb"
 )
 
 func memUsage() runtime.MemStats {
@@ -20,11 +22,11 @@ func (b *memberlistMesh) oSStatsReporter() {
 		if err != nil {
 			return
 		}
-		self.ComputeUsage = &ComputeUsage{
+		self.ComputeUsage = &pb.ComputeUsage{
 			Cores:      int64(nbCores),
 			Goroutines: int64(nbRoutines),
 		}
-		self.MemoryUsage = &MemoryUsage{
+		self.MemoryUsage = &pb.MemoryUsage{
 			Alloc:      m.Alloc,
 			TotalAlloc: m.TotalAlloc,
 			NumGC:      m.NumGC,
