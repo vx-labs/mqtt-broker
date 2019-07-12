@@ -152,25 +152,14 @@ func (m *layer) Join(newHosts []string) {
 	if len(hosts) == 0 {
 		return
 	}
-	ticker := time.NewTicker(5 * time.Second)
-	go func() {
-		defer ticker.Stop()
-		retry := 5
-		for retry > 0 {
-			log.Printf("INFO: service/%s: joining hosts %v", m.name, hosts)
-			_, err := m.mlist.Join(hosts)
-			if err == nil {
-				return
-			}
-			if retry > 0 {
-				log.Printf("WARN: service/%s: failed to join the provided node list: %v. Will retry", m.name, hosts)
-				<-ticker.C
-			} else {
-				log.Printf("WARN: service/%s: failed to join the provided node list: %v", m.name, hosts)
-			}
-			retry--
-		}
-	}()
+
+	log.Printf("INFO: service/%s: joining hosts %v", m.name, hosts)
+	_, err := m.mlist.Join(hosts)
+	if err == nil {
+		return
+	}
+	log.Printf("WARN: service/%s: failed to join the provided node list: %v", m.name, hosts)
+
 }
 func (self *layer) DiscoverPeers(discovery PeerStore) {
 	peers, _ := discovery.EndpointsByService(fmt.Sprintf("%s_cluster", self.name))
