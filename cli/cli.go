@@ -48,14 +48,11 @@ func AddClusterFlags(root *cobra.Command) {
 
 func JoinConsulPeers(api *consul.Client, service string, selfAddress string, selfPort int, mesh cluster.Mesh) error {
 	foundSelf := false
-	var (
-		services []*consul.ServiceEntry
-		err      error
-	)
+
 	var index uint64
 	ticker := time.NewTicker(5 * time.Second)
 	for {
-		services, _, err = api.Health().Service(
+		services, meta, err := api.Health().Service(
 			service,
 			"",
 			true,
@@ -68,6 +65,7 @@ func JoinConsulPeers(api *consul.Client, service string, selfAddress string, sel
 			<-ticker.C
 			continue
 		}
+		index = meta.LastIndex
 		peers := []string{}
 		for _, service := range services {
 			if service.Checks.AggregatedStatus() == consul.HealthCritical {
@@ -83,6 +81,7 @@ func JoinConsulPeers(api *consul.Client, service string, selfAddress string, sel
 		}
 		if foundSelf && len(peers) > 0 {
 			mesh.Join(peers)
+			return nil
 		}
 	}
 }
