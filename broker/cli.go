@@ -15,3 +15,6 @@ func (b *Broker) Shutdown() {
 func (b *Broker) JoinServiceLayer(layer cluster.ServiceLayer) {
 	b.Start(layer)
 }
+func (b *Broker) Health() string {
+	return "ok"
+}

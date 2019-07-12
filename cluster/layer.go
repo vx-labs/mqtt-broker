@@ -2,6 +2,7 @@ package cluster
 
 import (
 	fmt "fmt"
+	"io/ioutil"
 	"log"
 	"sync"
 	"time"
@@ -130,7 +131,24 @@ func (m *layer) MergeRemoteState(buf []byte, join bool) {
 	}
 }
 
-func (m *layer) Join(hosts []string) {
+func (m *layer) Join(newHosts []string) {
+	if len(newHosts) == 0 {
+		return
+	}
+	hosts := []string{}
+	curHosts := m.mlist.Members()
+	for _, host := range newHosts {
+		for _, curHost := range curHosts {
+			found := false
+			if curHost.Address() == host {
+				found = true
+				break
+			}
+			if !found {
+				hosts = append(hosts, host)
+			}
+		}
+	}
 	if len(hosts) == 0 {
 		return
 	}
@@ -144,8 +162,12 @@ func (m *layer) Join(hosts []string) {
 			if err == nil {
 				return
 			}
-			log.Printf("WARN: service/%s: failed to join the provided node list: %v", m.name, err)
-			<-ticker.C
+			if retry > 0 {
+				log.Printf("WARN: service/%s: failed to join the provided node list: %v. Will retry", m.name, hosts)
+				<-ticker.C
+			} else {
+				log.Printf("WARN: service/%s: failed to join the provided node list: %v", m.name, hosts)
+			}
 			retry--
 		}
 	}()
@@ -203,7 +225,7 @@ func NewLayer(name string, userConfig Config, meta NodeMeta) Layer {
 	config.Name = userConfig.ID
 	config.Delegate = self
 	config.Events = self
-	//config.LogOutput = ioutil.Discard
+	config.LogOutput = ioutil.Discard
 	list, err := memberlist.Create(config)
 	if err != nil {
 		panic(err)

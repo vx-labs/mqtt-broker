@@ -4,10 +4,8 @@ import (
 	"context"
 	"crypto/rand"
 	"crypto/tls"
-	"fmt"
 	"log"
 	"os"
-	"time"
 
 	"github.com/vx-labs/mqtt-broker/cli"
 	"github.com/vx-labs/mqtt-broker/cluster"
@@ -17,13 +15,11 @@ import (
 	vault "github.com/hashicorp/vault/api"
 
 	mqttConfig "github.com/vx-labs/iot-mqtt-config"
-	"github.com/vx-labs/mqtt-broker/network"
 	tlsProvider "github.com/vx-labs/mqtt-broker/tls/api"
 
 	_ "net/http/pprof"
 
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 )
 
 func getTLSProvider(consulAPI *consul.Client, vaultAPI *vault.Client, email string) *tlsProvider.Client {
@@ -65,51 +61,10 @@ func tlsConfigFromVault(consulAPI *consul.Client, vaultAPI *vault.Client) *tls.C
 
 }
 
-func ConsulPeers(api *consul.Client, service string, selfAddress string, selfPort int) ([]string, error) {
-	foundSelf := false
-	var (
-		services []*consul.ServiceEntry
-		err      error
-	)
-	opts := &consul.QueryOptions{}
-	for {
-		services, _, err = api.Health().Service(
-			service,
-			"",
-			true,
-			opts,
-		)
-		if err != nil {
-			return nil, err
-		}
-		peers := []string{}
-		for _, service := range services {
-			if service.Checks.AggregatedStatus() == consul.HealthCritical {
-				continue
-			}
-			if service.Service.Address == selfAddress &&
-				service.Service.Port == selfPort {
-				foundSelf = true
-				continue
-			}
-			peer := fmt.Sprintf("%s:%d", service.Service.Address, service.Service.Port)
-			peers = append(peers, peer)
-		}
-		if foundSelf && len(peers) > 0 {
-			return peers, nil
-		}
-		log.Println("INFO: waiting for other peers to appear on consul registry")
-		time.Sleep(3 * time.Second)
-	}
-}
-
 func main() {
 	root := &cobra.Command{
 		Use: "listener",
 		Run: func(cmd *cobra.Command, args []string) {
-
-			clusterNetConf := network.ConfigurationFromFlags(cmd, cli.FLAG_NAME_CLUSTER)
-
 			cli.Run(cmd, "listener", func(id string, mesh cluster.Mesh) cli.Service {
 				tcpPort, _ := cmd.Flags().GetInt("tcp-port")
 				tlsPort, _ := cmd.Flags().GetInt("tls-port")
@@ -118,17 +73,12 @@ func main() {
 				var tlsConfig *tls.Config
 
 				if os.Getenv("NOMAD_ALLOC_ID") != "" && (tlsPort > 0 || wssPort > 0) {
-					nodes := viper.GetStringSlice("join")
 					consulAPI, vaultAPI, err := mqttConfig.DefaultClients()
 					if err != nil {
 						panic(err)
 					}
 					tlsConfig = tlsConfigFromVault(consulAPI, vaultAPI)
-					peers, err := ConsulPeers(consulAPI, "cluster", clusterNetConf.AdvertisedAddress, clusterNetConf.AdvertisedPort)
-					if err == nil {
-						nodes = append(nodes, peers...)
-						viper.Set("join", nodes)
-					}
+
 				}
 				return listener.New(id, mesh, listener.Config{
 					TCPPort: tcpPort,

@@ -8,7 +8,11 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
+	mqttConfig "github.com/vx-labs/iot-mqtt-config"
+
+	consul "github.com/hashicorp/consul/api"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
 	"github.com/google/uuid"
@@ -28,6 +32,7 @@ type Service interface {
 	Serve(port int) net.Listener
 	Shutdown()
 	JoinServiceLayer(layer cluster.ServiceLayer)
+	Health() string
 }
 
 func AddClusterFlags(root *cobra.Command) {
@@ -39,6 +44,47 @@ func AddClusterFlags(root *cobra.Command) {
 	network.RegisterFlagsForService(root, FLAG_NAME_CLUSTER, 3500)
 	network.RegisterFlagsForService(root, FLAG_NAME_SERVICE_GOSSIP, 0)
 	network.RegisterFlagsForService(root, FLAG_NAME_SERVICE, 0)
+}
+
+func JoinConsulPeers(api *consul.Client, service string, selfAddress string, selfPort int, mesh cluster.Mesh) error {
+	foundSelf := false
+	var (
+		services []*consul.ServiceEntry
+		err      error
+	)
+	var index uint64
+	ticker := time.NewTicker(5 * time.Second)
+	for {
+		services, _, err = api.Health().Service(
+			service,
+			"",
+			true,
+			&consul.QueryOptions{
+				WaitIndex: index,
+				WaitTime:  15 * time.Second,
+			},
+		)
+		if err != nil {
+			<-ticker.C
+			continue
+		}
+		peers := []string{}
+		for _, service := range services {
+			if service.Checks.AggregatedStatus() == consul.HealthCritical {
+				continue
+			}
+			if service.Service.Address == selfAddress &&
+				service.Service.Port == selfPort {
+				foundSelf = true
+				continue
+			}
+			peer := fmt.Sprintf("%s:%d", service.Service.Address, service.Service.Port)
+			peers = append(peers, peer)
+		}
+		if foundSelf && len(peers) > 0 {
+			mesh.Join(peers)
+		}
+	}
 }
 
 func Run(cmd *cobra.Command, name string, serviceFunc func(id string, mesh cluster.Mesh) Service) {
@@ -54,10 +100,19 @@ func Run(cmd *cobra.Command, name string, serviceFunc func(id string, mesh clust
 	serviceNetConf := network.ConfigurationFromFlags(cmd, FLAG_NAME_SERVICE)
 	serviceGossipNetConf := network.ConfigurationFromFlags(cmd, FLAG_NAME_SERVICE_GOSSIP)
 	id := uuid.New().String()
-	go serveHTTPHealth()
 	mesh := joinMesh(id, clusterNetConf)
 
 	service := serviceFunc(id, mesh)
+
+	if os.Getenv("NOMAD_ALLOC_ID") != "" {
+		consulAPI, _, err := mqttConfig.DefaultClients()
+		if err != nil {
+			panic(err)
+		}
+		go JoinConsulPeers(consulAPI, "cluster", clusterNetConf.AdvertisedAddress, clusterNetConf.AdvertisedPort, mesh)
+	}
+
+	go serveHTTPHealth(service)
 	nodes := viper.GetStringSlice("join")
 	mesh.Join(nodes)
 
@@ -105,11 +160,23 @@ func Run(cmd *cobra.Command, name string, serviceFunc func(id string, mesh clust
 
 }
 
-func serveHTTPHealth() {
+type healthChecker interface {
+	Health() string
+}
+
+func serveHTTPHealth(h healthChecker) {
 	mux := http.NewServeMux()
 	mux.Handle("/metrics", promhttp.Handler())
 	mux.HandleFunc("/health", func(w http.ResponseWriter, _ *http.Request) {
-		w.WriteHeader(http.StatusOK)
+		status := h.Health()
+		switch status {
+		case "ok":
+			w.WriteHeader(http.StatusOK)
+		case "warning":
+			w.WriteHeader(http.StatusTooManyRequests)
+		case "critical":
+			w.WriteHeader(http.StatusInternalServerError)
+		}
 	})
 	err := http.ListenAndServe("[::]:9000", mux)
 	if err != nil {

@@ -14,3 +14,6 @@ func (b *endpoint) Shutdown() {
 }
 func (b *endpoint) JoinServiceLayer(layer cluster.ServiceLayer) {
 }
+func (b *endpoint) Health() string {
+	return "ok"
+}
