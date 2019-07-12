@@ -67,6 +67,15 @@ message UnsubscribeInput {
 message UnsubscribeOutput {
   packet.UnsubAck UnsubAck = 1;
 }
+
+message PingReqInput {
+  string ID = 1;
+  packet.PingReq PingReq = 2;
+}
+message PingReqOutput {
+  packet.PingResp PingResp = 1;
+}
+
 service BrokerService {
     rpc ListSessions(SessionFilter) returns (ListSessionsOutput);
     rpc CloseSession(CloseSessionInput) returns (CloseSessionOutput);
@@ -77,4 +86,5 @@ service BrokerService {
     rpc Publish(PublishInput) returns (PublishOutput);
     rpc Subscribe(SubscribeInput) returns (SubscribeOutput);
     rpc Unsubscribe(UnsubscribeInput) returns (UnsubscribeOutput);
+    rpc PingReq(PingReqInput) returns (PingReqOutput);
 }

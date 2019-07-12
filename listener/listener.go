@@ -29,6 +29,7 @@ type Broker interface {
 	Subscribe(context.Context, string, *packet.Subscribe) (*packet.SubAck, error)
 	Unsubscribe(context.Context, string, *packet.Unsubscribe) (*packet.UnsubAck, error)
 	CloseSession(context.Context, string) error
+	PingReq(context.Context, string, *packet.PingReq) (*packet.PingResp, error)
 }
 
 type Endpoint interface {

@@ -128,9 +128,11 @@ func (local *endpoint) runLocalSession(t transport.Metadata) {
 				return ErrConnectNotDone
 			}
 			renewDeadline(timer, t.Channel)
-			return session.encoder.PingResp(&packet.PingResp{
-				Header: p.Header,
-			})
+			pingresp, err := local.broker.PingReq(ctx, session.id, p)
+			if err != nil {
+				return err
+			}
+			return session.encoder.PingResp(pingresp)
 		}),
 		decoder.OnDisconnect(func(p *packet.Disconnect) error {
 			if session.id == "" {

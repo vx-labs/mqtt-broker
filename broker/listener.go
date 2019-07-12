@@ -300,3 +300,13 @@ func (b *Broker) CloseSession(ctx context.Context, id string) error {
 	}
 	return nil
 }
+
+func (b *Broker) PingReq(ctx context.Context, id string, _ *packet.PingReq) (*packet.PingResp, error) {
+	_, err := b.Sessions.ByID(id)
+	if err != nil {
+		return nil, err
+	}
+	return &packet.PingResp{
+		Header: &packet.Header{},
+	}, nil
+}
