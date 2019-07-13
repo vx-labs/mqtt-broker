@@ -11,6 +11,7 @@ import (
 	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
 
 	"github.com/vx-labs/mqtt-broker/cluster/pb"
+	"github.com/vx-labs/mqtt-broker/cluster/peers"
 	"github.com/vx-labs/mqtt-broker/cluster/pool"
 
 	"google.golang.org/grpc"
@@ -26,7 +27,7 @@ type memberlistMesh struct {
 	id        string
 	rpcCaller *pool.Caller
 	layer     Layer
-	peers     PeerStore
+	peers     peers.PeerStore
 }
 
 type cachedState struct {
@@ -57,7 +58,7 @@ func (m *memberlistMesh) DialAddress(service, id string, f func(*grpc.ClientConn
 func (m *memberlistMesh) ID() string {
 	return m.id
 }
-func (m *memberlistMesh) Peers() PeerStore {
+func (m *memberlistMesh) Peers() peers.PeerStore {
 	return m.peers
 }
 
@@ -81,11 +82,12 @@ func New(userConfig Config) *memberlistMesh {
 	self.layer = NewLayer("cluster", userConfig, pb.NodeMeta{
 		ID: userConfig.ID,
 	})
-	peers, err := NewPeerStore(self.layer)
+	store, err := peers.NewPeerStore(self.layer)
+	self.layer.AddState("", store)
 	if err != nil {
 		panic(err)
 	}
-	self.peers = peers
+	self.peers = store
 	hostname, err := os.Hostname()
 	if err != nil {
 		hostname = os.Getenv("HOSTNAME")
@@ -94,7 +96,7 @@ func New(userConfig Config) *memberlistMesh {
 		hostname = "hostname_not_available"
 	}
 
-	self.peers.Upsert(Peer{
+	self.peers.Upsert(peers.Peer{
 		Metadata: pb.Metadata{
 			ID:       self.id,
 			Hostname: hostname,

@@ -8,9 +8,8 @@ import (
 	"time"
 
 	proto "github.com/golang/protobuf/proto"
+	"github.com/vx-labs/mqtt-broker/cluster/types"
 	"github.com/vx-labs/mqtt-broker/crdt"
-
-	"github.com/vx-labs/mqtt-broker/cluster"
 
 	memdb "github.com/hashicorp/go-memdb"
 )
@@ -55,7 +54,7 @@ var now = func() int64 {
 	return time.Now().UnixNano()
 }
 
-func NewMemDBStore(mesh cluster.ServiceLayer) (*memDBStore, error) {
+func NewMemDBStore(mesh types.ServiceLayer) (*memDBStore, error) {
 	db, err := memdb.NewMemDB(&memdb.DBSchema{
 		Tables: map[string]*memdb.TableSchema{
 			table: &memdb.TableSchema{

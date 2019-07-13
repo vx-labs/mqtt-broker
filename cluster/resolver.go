@@ -4,13 +4,14 @@ import (
 	"log"
 
 	"github.com/vx-labs/mqtt-broker/cluster/pb"
+	"github.com/vx-labs/mqtt-broker/cluster/peers"
 	"google.golang.org/grpc/resolver"
 )
 
 type Discoverer interface {
 	EndpointsByService(name string) ([]*pb.NodeService, error)
-	ByID(id string) (Peer, error)
-	On(event string, handler func(Peer)) func()
+	ByID(id string) (peers.Peer, error)
+	On(event string, handler func(peers.Peer)) func()
 }
 
 func newResolver(d Discoverer) resolver.Builder {
@@ -34,8 +35,8 @@ func (r *meshResolver) Scheme() string {
 	return "mesh"
 }
 
-func (r *meshResolver) updateConn(target resolver.Target, cc resolver.ClientConn, opts resolver.BuildOption) func(peer Peer) {
-	return func(p Peer) {
+func (r *meshResolver) updateConn(target resolver.Target, cc resolver.ClientConn, opts resolver.BuildOption) func(peer peers.Peer) {
+	return func(p peers.Peer) {
 		peers, err := r.peers.EndpointsByService(target.Endpoint)
 		if err != nil {
 			log.Printf("ERR: failed to search peers for service %s", target.Endpoint)
@@ -57,8 +58,8 @@ func (r *meshResolver) updateConn(target resolver.Target, cc resolver.ClientConn
 	}
 }
 func (r *meshResolver) Build(target resolver.Target, cc resolver.ClientConn, opts resolver.BuildOption) (resolver.Resolver, error) {
-	cancelCreate := r.peers.On(PeerCreated, r.updateConn(target, cc, opts))
-	cancelDelete := r.peers.On(PeerDeleted, r.updateConn(target, cc, opts))
+	cancelCreate := r.peers.On(peers.PeerCreated, r.updateConn(target, cc, opts))
+	cancelDelete := r.peers.On(peers.PeerDeleted, r.updateConn(target, cc, opts))
 	r.subscriptions = append(r.subscriptions, cancelCreate, cancelDelete)
 	r.updateConn(target, cc, opts)
 	return r, nil

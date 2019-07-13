@@ -3,7 +3,7 @@ package broker
 import (
 	"net"
 
-	"github.com/vx-labs/mqtt-broker/cluster"
+	"github.com/vx-labs/mqtt-broker/cluster/types"
 )
 
 func (b *Broker) Serve(port int) net.Listener {
@@ -12,7 +12,7 @@ func (b *Broker) Serve(port int) net.Listener {
 func (b *Broker) Shutdown() {
 	b.Stop()
 }
-func (b *Broker) JoinServiceLayer(layer cluster.ServiceLayer) {
+func (b *Broker) JoinServiceLayer(layer types.ServiceLayer) {
 	b.Start(layer)
 }
 func (b *Broker) Health() string {

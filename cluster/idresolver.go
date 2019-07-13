@@ -4,6 +4,7 @@ import (
 	"log"
 	"strings"
 
+	"github.com/vx-labs/mqtt-broker/cluster/peers"
 	"google.golang.org/grpc/resolver"
 )
 
@@ -30,8 +31,8 @@ func (r *meshIDResolver) Scheme() string {
 	return "meshid"
 }
 
-func (r *meshIDResolver) updateConn(target resolver.Target, cc resolver.ClientConn, opts resolver.BuildOption) func(peer Peer) {
-	return func(_ Peer) {
+func (r *meshIDResolver) updateConn(target resolver.Target, cc resolver.ClientConn, opts resolver.BuildOption) func(peer peers.Peer) {
+	return func(_ peers.Peer) {
 		tokens := strings.Split(target.Endpoint, "+")
 		service := tokens[0]
 		peerID := tokens[1]
@@ -64,8 +65,8 @@ func (r *meshIDResolver) updateConn(target resolver.Target, cc resolver.ClientCo
 	}
 }
 func (r *meshIDResolver) Build(target resolver.Target, cc resolver.ClientConn, opts resolver.BuildOption) (resolver.Resolver, error) {
-	cancelCreate := r.peers.On(PeerCreated, r.updateConn(target, cc, opts))
-	cancelDelete := r.peers.On(PeerDeleted, r.updateConn(target, cc, opts))
+	cancelCreate := r.peers.On(peers.PeerCreated, r.updateConn(target, cc, opts))
+	cancelDelete := r.peers.On(peers.PeerDeleted, r.updateConn(target, cc, opts))
 	r.subscriptions = append(r.subscriptions, cancelCreate, cancelDelete)
 	r.updateConn(target, cc, opts)
 	return r, nil

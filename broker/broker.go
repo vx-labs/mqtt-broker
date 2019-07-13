@@ -5,6 +5,8 @@ import (
 	"log"
 
 	"github.com/sirupsen/logrus"
+	"github.com/vx-labs/mqtt-broker/cluster/peers"
+	"github.com/vx-labs/mqtt-broker/cluster/types"
 	"github.com/vx-labs/mqtt-broker/pool"
 	"github.com/vx-labs/mqtt-broker/transport"
 
@@ -26,10 +28,10 @@ const (
 )
 
 type PeerStore interface {
-	ByID(id string) (cluster.Peer, error)
-	All() (cluster.SubscriptionSet, error)
+	ByID(id string) (peers.Peer, error)
+	All() (peers.SubscriptionSet, error)
 	Delete(id string) error
-	On(event string, handler func(cluster.Peer)) func()
+	On(event string, handler func(peers.Peer)) func()
 }
 type SessionStore interface {
 	ByID(id string) (sessions.Session, error)
@@ -108,7 +110,7 @@ func New(id string, mesh cluster.Mesh, config Config) *Broker {
 	broker.startPublishConsumers()
 	return broker
 }
-func (broker *Broker) Start(layer cluster.ServiceLayer) {
+func (broker *Broker) Start(layer types.ServiceLayer) {
 	subscriptionsStore, err := subscriptions.NewMemDBStore(layer, func(host string, id string, publish packet.Publish) error {
 		session, err := broker.Sessions.ByID(id)
 		if err != nil {
@@ -133,9 +135,9 @@ func (broker *Broker) Start(layer cluster.ServiceLayer) {
 	broker.Topics = topicssStore
 	broker.Subscriptions = subscriptionsStore
 	broker.Sessions = sessionsStore
-	broker.Peers.On(cluster.PeerDeleted, broker.onPeerDown)
+	broker.Peers.On(peers.PeerDeleted, broker.onPeerDown)
 }
-func (b *Broker) onPeerDown(peer cluster.Peer) {
+func (b *Broker) onPeerDown(peer peers.Peer) {
 	name := peer.ID
 	set, err := b.Subscriptions.ByPeer(name)
 	if err != nil {

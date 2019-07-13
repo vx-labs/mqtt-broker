@@ -10,9 +10,8 @@ import (
 
 	"github.com/vx-labs/mqtt-protocol/packet"
 
+	"github.com/vx-labs/mqtt-broker/cluster/types"
 	"github.com/vx-labs/mqtt-broker/crdt"
-
-	"github.com/vx-labs/mqtt-broker/cluster"
 
 	memdb "github.com/hashicorp/go-memdb"
 )
@@ -69,7 +68,7 @@ type memDBStore struct {
 	channel                 Channel
 }
 
-func NewSessionStore(mesh cluster.ServiceLayer, remoteTransportProvider RemoteTransportProvider, logger Logger) (SessionStore, error) {
+func NewSessionStore(mesh types.ServiceLayer, remoteTransportProvider RemoteTransportProvider, logger Logger) (SessionStore, error) {
 	db, err := memdb.NewMemDB(&memdb.DBSchema{
 		Tables: map[string]*memdb.TableSchema{
 			memdbTable: {

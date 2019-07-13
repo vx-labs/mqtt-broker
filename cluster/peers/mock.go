@@ -1,8 +1,9 @@
-package cluster
+package peers
 
 import (
+	"errors"
+
 	"github.com/hashicorp/memberlist"
-	"github.com/vx-labs/mqtt-broker/cluster/peers"
 	"github.com/vx-labs/mqtt-broker/cluster/types"
 	"google.golang.org/grpc"
 )
@@ -18,12 +19,12 @@ func (m *mockedMesh) AddState(key string, state types.State) (types.Channel, err
 }
 func (m *mockedMesh) Join(hosts []string) {}
 func (m *mockedMesh) MemberRPCAddress(string) (string, error) {
-	return "", ErrNodeNotFound
+	return "", errors.New("node found found")
 }
 func (m *mockedMesh) ID() string {
 	return "id"
 }
-func (m *mockedMesh) Peers() peers.PeerStore {
+func (m *mockedMesh) Peers() PeerStore {
 	return nil
 }
 
@@ -37,8 +38,8 @@ func (m *mockedMesh) DialService(id string) (*grpc.ClientConn, error) {
 func (m *mockedMesh) RegisterService(name, addr string) error {
 	return nil
 }
-func (m *mockedMesh) Leave()                        {}
-func (m *mockedMesh) DiscoverPeers(peers.PeerStore) {}
+func (m *mockedMesh) Leave()                  {}
+func (m *mockedMesh) DiscoverPeers(PeerStore) {}
 func (m *mockedMesh) Members() []*memberlist.Node {
 	return nil
 }

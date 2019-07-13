@@ -11,6 +11,8 @@ import (
 	proto "github.com/golang/protobuf/proto"
 	"github.com/hashicorp/memberlist"
 	"github.com/vx-labs/mqtt-broker/cluster/pb"
+	"github.com/vx-labs/mqtt-broker/cluster/peers"
+	"github.com/vx-labs/mqtt-broker/cluster/types"
 )
 
 type Config struct {
@@ -28,7 +30,7 @@ type layer struct {
 	mlist *memberlist.Memberlist
 
 	mtx         sync.RWMutex
-	states      map[string]State
+	states      map[string]types.State
 	bcastQueue  *memberlist.TransmitLimitedQueue
 	meta        pb.NodeMeta
 	onNodeJoin  func(id string, meta pb.NodeMeta)
@@ -39,7 +41,7 @@ func (m *layer) Members() []*memberlist.Node {
 	return m.mlist.Members()
 }
 
-func (m *layer) AddState(key string, state State) (Channel, error) {
+func (m *layer) AddState(key string, state types.State) (types.Channel, error) {
 	//log.Printf("INFO: service/%s: registering %s state", m.name, key)
 	m.mtx.Lock()
 	defer m.mtx.Unlock()
@@ -163,7 +165,7 @@ func (m *layer) Join(newHosts []string) {
 	log.Printf("WARN: service/%s: failed to join the provided node list: %v", m.name, hosts)
 
 }
-func (self *layer) DiscoverPeers(discovery PeerStore) {
+func (self *layer) DiscoverPeers(discovery peers.PeerStore) {
 	peers, _ := discovery.EndpointsByService(fmt.Sprintf("%s_cluster", self.name))
 	addresses := []string{}
 	for _, peer := range peers {
@@ -198,7 +200,7 @@ func NewLayer(name string, userConfig Config, meta pb.NodeMeta) Layer {
 	self := &layer{
 		id:          userConfig.ID,
 		name:        name,
-		states:      map[string]State{},
+		states:      map[string]types.State{},
 		meta:        meta,
 		onNodeJoin:  userConfig.onNodeJoin,
 		onNodeLeave: userConfig.onNodeLeave,

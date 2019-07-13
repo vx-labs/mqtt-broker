@@ -19,6 +19,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"github.com/vx-labs/mqtt-broker/cluster"
+	"github.com/vx-labs/mqtt-broker/cluster/types"
 	"github.com/vx-labs/mqtt-broker/network"
 )
 
@@ -31,7 +32,7 @@ const (
 type Service interface {
 	Serve(port int) net.Listener
 	Shutdown()
-	JoinServiceLayer(layer cluster.ServiceLayer)
+	JoinServiceLayer(layer types.ServiceLayer)
 	Health() string
 }
 

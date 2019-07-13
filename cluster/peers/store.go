@@ -1,4 +1,4 @@
-package cluster
+package peers
 
 import (
 	"errors"
@@ -7,6 +7,7 @@ import (
 
 	"github.com/golang/protobuf/proto"
 	"github.com/vx-labs/mqtt-broker/cluster/pb"
+	"github.com/vx-labs/mqtt-broker/cluster/types"
 	"github.com/vx-labs/mqtt-broker/crdt"
 
 	"github.com/vx-labs/mqtt-broker/events"
@@ -44,14 +45,16 @@ type PeerStore interface {
 	Delete(id string) error
 	On(event string, handler func(Peer)) func()
 }
-
+type Channel interface {
+	Broadcast(b []byte)
+}
 type memDBStore struct {
 	db      *memdb.MemDB
 	events  *events.Bus
 	channel Channel
 }
 
-func NewPeerStore(mesh Layer) (PeerStore, error) {
+func NewPeerStore(mesh types.ServiceLayer) (*memDBStore, error) {
 	db, err := memdb.NewMemDB(&memdb.DBSchema{
 		Tables: map[string]*memdb.TableSchema{
 			peerTable: {

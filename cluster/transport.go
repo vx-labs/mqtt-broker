@@ -1,7 +1,9 @@
 package cluster
 
+import "github.com/vx-labs/mqtt-broker/cluster/peers"
+
 type meshTransport struct {
 	id    string
-	peers PeerStore
+	peers peers.PeerStore
 	mesh  Mesh
 }

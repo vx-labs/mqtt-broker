@@ -5,6 +5,8 @@ import (
 	"log"
 
 	"github.com/vx-labs/mqtt-broker/cluster/pb"
+	"github.com/vx-labs/mqtt-broker/cluster/peers"
+	"github.com/vx-labs/mqtt-broker/cluster/types"
 )
 
 type ServiceConfig struct {
@@ -15,7 +17,7 @@ type ServiceConfig struct {
 	ServicePort   int
 }
 
-func NewServiceLayer(name string, serviceConfig ServiceConfig, discovery Mesh) ServiceLayer {
+func NewServiceLayer(name string, serviceConfig ServiceConfig, discovery Mesh) types.ServiceLayer {
 	userConfig := Config{
 		ID:            serviceConfig.ID,
 		AdvertiseAddr: serviceConfig.AdvertiseAddr,
@@ -29,7 +31,7 @@ func NewServiceLayer(name string, serviceConfig ServiceConfig, discovery Mesh) S
 		ID: userConfig.ID,
 	})
 
-	discovery.Peers().On(PeerCreated, func(Peer) {
+	discovery.Peers().On(peers.PeerCreated, func(peers.Peer) {
 		layer.DiscoverPeers(discovery.Peers())
 	})
 	discovery.RegisterService(name, fmt.Sprintf("%s:%d", userConfig.AdvertiseAddr, serviceConfig.ServicePort))
