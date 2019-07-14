@@ -1,6 +1,7 @@
 package transport
 
 import (
+	"bytes"
 	"crypto/tls"
 	"fmt"
 	"io"
@@ -14,41 +15,37 @@ import (
 )
 
 type Conn struct {
-	conn      net.Conn
-	reader    *wsutil.Reader
-	writer    *wsutil.Writer
-	state     tls.ConnectionState
-	opHandler wsutil.FrameHandler
+	conn   net.Conn
+	reader io.Reader
+	state  tls.ConnectionState
 }
 
+func (c *Conn) nextFrame() error {
+	buf, err := wsutil.ReadClientBinary(c.conn)
+	if err != nil {
+		return err
+	}
+	c.reader = bytes.NewBuffer(buf)
+	return nil
+}
 func (c *Conn) Read(b []byte) (int, error) {
-	n, err := c.reader.Read(b)
-	if err == io.EOF || err == wsutil.ErrNoFrameAdvance {
-		for {
-			header, err := c.reader.NextFrame()
+	for {
+		if c.reader == nil {
+			err := c.nextFrame()
 			if err != nil {
-				return n, err
-			}
-			if header.OpCode.IsData() {
-				return c.Read(b)
-			}
-			if header.OpCode.IsControl() {
-				if err = c.opHandler(header, c.reader); err != nil {
-					log.Printf("websocket control op handler failed: %v", err)
-					return n, io.EOF
-				}
+				return 0, err
 			}
 		}
+		n, err := c.reader.Read(b)
+		if err == io.EOF {
+			c.reader = nil
+			return n, nil
+		}
+		return n, err
 	}
-
-	return n, err
 }
 func (c *Conn) Write(b []byte) (int, error) {
-	n, err := c.writer.Write(b)
-	if err == nil {
-		return n, c.writer.Flush()
-	}
-	return n, err
+	return len(b), wsutil.WriteServerBinary(c.conn, b)
 }
 
 func (c *Conn) Close() error {
@@ -83,23 +80,14 @@ func NewWSTransport(port int, handler func(Metadata) error) (net.Listener, error
 	mux := http.NewServeMux()
 	mux.HandleFunc("/mqtt", func(w http.ResponseWriter, r *http.Request) {
 		log.Printf("INFO: starting websocket negociation with %s", r.RemoteAddr)
-		conn, _, _, err := ws.UpgradeHTTP(r, w, http.Header{
-			"Sec-WebSocket-Protocol": {"mqtt"},
-		})
+		conn, _, _, err := ws.UpgradeHTTP(r, w)
 		if err != nil {
 			log.Printf("ERR: websocket negociation with %s failed: %v", r.RemoteAddr, err)
 			return
 		}
-		var (
-			state  = ws.StateServerSide
-			reader = wsutil.NewReader(conn, state)
-			writer = wsutil.NewWriter(conn, state, ws.OpBinary)
-		)
+
 		listener.queueSession(&Conn{
-			conn:      conn,
-			reader:    reader,
-			writer:    writer,
-			opHandler: wsutil.ControlHandler(conn, state),
+			conn: conn,
 		}, handler)
 	})
 	ln, err := net.Listen("tcp", fmt.Sprintf(":%d", port))

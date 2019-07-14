@@ -8,7 +8,6 @@ import (
 	"net/http"
 
 	"github.com/gobwas/ws"
-	"github.com/gobwas/ws/wsutil"
 )
 
 type wssListener struct {
@@ -21,26 +20,16 @@ func NewWSSTransport(port int, TLSConfig *tls.Config, handler func(Metadata) err
 	mux := http.NewServeMux()
 	mux.HandleFunc("/mqtt", func(w http.ResponseWriter, r *http.Request) {
 		log.Printf("INFO: starting websocket negociation with %s", r.RemoteAddr)
-		conn, _, _, err := ws.UpgradeHTTP(r, w, http.Header{
-			"Sec-WebSocket-Protocol": {"mqtt"},
-		})
+		conn, _, _, err := ws.UpgradeHTTP(r, w)
 		if err != nil {
 			log.Printf("ERR: websocket negociation with %s failed: %v", r.RemoteAddr, err)
 			return
 		}
 
-		var (
-			state  = ws.StateServerSide
-			reader = wsutil.NewReader(conn, state)
-			writer = wsutil.NewWriter(conn, state, ws.OpBinary)
-		)
 		tlsConn := conn.(*tls.Conn)
 		listener.queueSession(&Conn{
-			conn:      conn,
-			reader:    reader,
-			writer:    writer,
-			opHandler: wsutil.ControlHandler(conn, state),
-			state:     tlsConn.ConnectionState(),
+			conn:  conn,
+			state: tlsConn.ConnectionState(),
 		}, handler)
 	})
 	ln, err := tls.Listen("tcp", fmt.Sprintf(":%d", port), TLSConfig)
