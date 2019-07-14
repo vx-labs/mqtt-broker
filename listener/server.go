@@ -6,6 +6,9 @@ import (
 	"log"
 	"net"
 
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+
 	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
 	"github.com/vx-labs/mqtt-broker/listener/pb"
 
@@ -17,7 +20,11 @@ type server struct {
 }
 
 func (s *server) SendPublish(ctx context.Context, input *pb.SendPublishInput) (*pb.SendPublishOutput, error) {
-	return &pb.SendPublishOutput{}, s.endpoint.Publish(ctx, input.ID, input.Publish)
+	err := s.endpoint.Publish(ctx, input.ID, input.Publish)
+	if err == ErrSessionNotFound {
+		return &pb.SendPublishOutput{}, status.Error(codes.NotFound, err.Error())
+	}
+	return &pb.SendPublishOutput{}, err
 }
 func (s *server) Shutdown(ctx context.Context, input *pb.ShutdownInput) (*pb.ShutdownOutput, error) {
 	return &pb.ShutdownOutput{}, s.endpoint.CloseSession(ctx, input.ID)
