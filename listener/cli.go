@@ -14,6 +14,9 @@ func (b *endpoint) Shutdown() {
 }
 func (b *endpoint) JoinServiceLayer(layer types.ServiceLayer) {
 }
-func (b *endpoint) Health() string {
-	return "ok"
+func (m *endpoint) Health() string {
+	if len(m.mesh.Members()) > 1 {
+		return "ok"
+	}
+	return "warning"
 }

@@ -114,7 +114,7 @@ func (broker *Broker) Start(layer types.ServiceLayer) {
 	subscriptionsStore, err := subscriptions.NewMemDBStore(layer, func(host string, id string, publish packet.Publish) error {
 		session, err := broker.Sessions.ByID(id)
 		if err != nil {
-			log.Printf("ERR: session not found")
+			log.Printf("ERR: session %s not found", id)
 			return err
 		}
 		return session.Transport.Publish(broker.ctx, &publish)

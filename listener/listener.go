@@ -44,6 +44,7 @@ type endpoint struct {
 	sessions   *btree.BTree
 	transports []net.Listener
 	broker     Broker
+	mesh       cluster.Mesh
 }
 
 func (local *endpoint) newSession(metadata transport.Metadata) error {
@@ -108,6 +109,7 @@ func New(id string, mesh cluster.Mesh, config Config) *endpoint {
 		broker:   brokerClient,
 		sessions: btree.New(2),
 		id:       id,
+		mesh:     mesh,
 	}
 	if config.TCPPort > 0 {
 		tcpTransport, err := transport.NewTCPTransport(config.TCPPort, local.newSession)
