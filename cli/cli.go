@@ -100,6 +100,14 @@ func Run(cmd *cobra.Command, name string, serviceFunc func(id string, mesh clust
 	serviceNetConf := network.ConfigurationFromFlags(cmd, FLAG_NAME_SERVICE)
 	serviceGossipNetConf := network.ConfigurationFromFlags(cmd, FLAG_NAME_SERVICE_GOSSIP)
 	id := uuid.New().String()
+	if allocID := os.Getenv("NOMAD_ALLOC_ID"); allocID != "" {
+		id = fmt.Sprintf("%s-%s-%s-%s",
+			os.Getenv("NOMAD_JOB_NAME"),
+			os.Getenv("NOMAD_GROUP_NAME"),
+			os.Getenv("NOMAD_TASK_NAME"),
+			os.Getenv("NOMAD_ALLOC_INDEX"),
+		)
+	}
 	mesh := joinMesh(id, clusterNetConf)
 
 	service := serviceFunc(id, mesh)
