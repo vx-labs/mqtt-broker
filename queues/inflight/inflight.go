@@ -75,7 +75,7 @@ func (q *Queue) Ack(p *packet.PubAck) {
 		mid: p.MessageId,
 	})
 	if ack == nil {
-		log.Printf("WARN: received ack for an unknown message")
+		log.Printf("WARN: received ack for an unknown message id: %d", p.MessageId)
 		return
 	}
 	ack.(*acknowleger).ch <- p
