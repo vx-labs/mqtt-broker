@@ -131,3 +131,9 @@ func (m *memberlistMesh) RegisterService(name, address string) error {
 	log.Printf("INFO: registering service %s on %s", name, address)
 	return m.peers.Upsert(self)
 }
+func (m *memberlistMesh) Health() string {
+	if len(m.layer.Members()) > 1 {
+		return "ok"
+	}
+	return "warning"
+}

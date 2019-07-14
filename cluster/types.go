@@ -15,6 +15,7 @@ type Mesh interface {
 	DialAddress(service, id string, f func(*grpc.ClientConn) error) error
 	RegisterService(name, address string) error
 	Leave()
+	Health() string
 }
 
 // Mesh represents the mesh state network, being able to broadcast state across the nodes.

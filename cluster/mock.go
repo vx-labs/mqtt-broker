@@ -37,6 +37,9 @@ func (m *mockedMesh) DialService(id string) (*grpc.ClientConn, error) {
 func (m *mockedMesh) RegisterService(name, addr string) error {
 	return nil
 }
+func (m *mockedMesh) Health() string {
+	return "ok"
+}
 func (m *mockedMesh) Leave()                        {}
 func (m *mockedMesh) DiscoverPeers(peers.PeerStore) {}
 func (m *mockedMesh) Members() []*memberlist.Node {

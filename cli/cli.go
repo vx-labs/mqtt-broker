@@ -120,7 +120,7 @@ func Run(cmd *cobra.Command, name string, serviceFunc func(id string, mesh clust
 		go JoinConsulPeers(consulAPI, "cluster", clusterNetConf.AdvertisedAddress, clusterNetConf.AdvertisedPort, mesh)
 	}
 
-	go serveHTTPHealth(service)
+	go serveHTTPHealth(mesh, service)
 	nodes := viper.GetStringSlice("join")
 	mesh.Join(nodes)
 
@@ -172,19 +172,21 @@ type healthChecker interface {
 	Health() string
 }
 
-func serveHTTPHealth(h healthChecker) {
+func serveHTTPHealth(mesh healthChecker, service healthChecker) {
 	mux := http.NewServeMux()
 	mux.Handle("/metrics", promhttp.Handler())
 	mux.HandleFunc("/health", func(w http.ResponseWriter, _ *http.Request) {
-		status := h.Health()
-		switch status {
-		case "ok":
-			w.WriteHeader(http.StatusOK)
-		case "warning":
-			w.WriteHeader(http.StatusTooManyRequests)
-		case "critical":
-			w.WriteHeader(http.StatusInternalServerError)
+		for _, status := range []string{mesh.Health(), service.Health()} {
+			switch status {
+			case "warning":
+				w.WriteHeader(http.StatusTooManyRequests)
+				return
+			case "critical":
+				w.WriteHeader(http.StatusInternalServerError)
+				return
+			}
 		}
+		w.WriteHeader(http.StatusOK)
 	})
 	err := http.ListenAndServe("[::]:9000", mux)
 	if err != nil {
