@@ -3,7 +3,6 @@ package inflight
 import (
 	"errors"
 	"log"
-	"sync"
 
 	"github.com/google/btree"
 
@@ -19,7 +18,6 @@ type Queue struct {
 	messages     chan *packet.Publish
 	sender       func(*packet.Publish) error
 	stop         chan struct{}
-	mutex        sync.Mutex
 	jobs         chan chan *packet.Publish
 }
 
