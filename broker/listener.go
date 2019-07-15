@@ -115,6 +115,7 @@ func (b *Broker) Connect(ctx context.Context, metadata transport.Metadata, p *pa
 		if err != nil {
 			return err
 		}
+		log.Printf("INFO: session created %s (client-id %q)", sess.ID, sess.ClientID)
 		out.connack.ReturnCode = packet.CONNACK_CONNECTION_ACCEPTED
 		return nil
 	})
@@ -144,6 +145,8 @@ func (b *Broker) Subscribe(ctx context.Context, id string, p *packet.Subscribe) 
 		if err != nil {
 			return nil, err
 		}
+		log.Printf("INFO: session %s (client-id %q) subscribed to %s", sess.ID, sess.ClientID, string(event.
+			Pattern))
 		// Look for retained messages
 		set, err := b.Topics.ByTopicPattern(sess.Tenant, pattern)
 		if err != nil {
@@ -199,7 +202,7 @@ func (b *Broker) routeMessage(tenant string, p *packet.Publish) error {
 func (b *Broker) Publish(ctx context.Context, id string, p *packet.Publish) (*packet.PubAck, error) {
 	session, err := b.Sessions.ByID(id)
 	if err != nil {
-		log.Printf("WARN: publish issued to unknown session")
+		log.Printf("WARN: publish issued from an unknown session")
 		return nil, err
 	}
 	if p.Header.Qos == 2 {
@@ -256,6 +259,7 @@ func (b *Broker) Disconnect(ctx context.Context, id string, p *packet.Disconnect
 		log.Printf("WARN: failed to delete session subscriptions: %v", err)
 		return err
 	}
+	log.Printf("INFO: session disconnected %s (client-id %q)", sess.ID, sess.ClientID)
 	return nil
 }
 
@@ -298,6 +302,7 @@ func (b *Broker) CloseSession(ctx context.Context, id string) error {
 		log.Printf("WARN: failed to delete session subscriptions: %v", err)
 		return err
 	}
+	log.Printf("INFO: session lost %s (client-id %q)", sess.ID, sess.ClientID)
 	return nil
 }
 

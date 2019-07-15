@@ -29,6 +29,8 @@ func (c *Conn) nextFrame() error {
 	return nil
 }
 func (c *Conn) Read(b []byte) (int, error) {
+	n := 0
+	var err error
 	for {
 		if c.reader == nil {
 			err := c.nextFrame()
@@ -36,9 +38,12 @@ func (c *Conn) Read(b []byte) (int, error) {
 				return 0, err
 			}
 		}
-		n, err := c.reader.Read(b)
+		n, err = c.reader.Read(b)
 		if err == io.EOF {
 			c.reader = nil
+			if len(b) > n {
+				continue
+			}
 			return n, nil
 		}
 		return n, err
