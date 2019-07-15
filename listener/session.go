@@ -32,7 +32,7 @@ func (local *endpoint) runLocalSession(t transport.Metadata) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	logger := logrus.New().WithField("service", "listener").WithField("listener", t.Name).WithField("remote", t.RemoteAddress)
-	//logger.Info("accepted new connection")
+	logger.Info("accepted new connection")
 	session := &localSession{
 		encoder:   encoder.New(t.Channel),
 		transport: t.Channel,
@@ -68,13 +68,13 @@ func (local *endpoint) runLocalSession(t transport.Metadata) {
 			if old != nil {
 				old.(*localSession).transport.Close()
 			}
-			//			logger.Info("starting session")
 			enc.ConnAck(&packet.ConnAck{
 				ReturnCode: packet.CONNACK_CONNECTION_ACCEPTED,
 				Header:     &packet.Header{},
 			})
 			timer = p.KeepaliveTimer
 			renewDeadline(timer, t.Channel)
+			logger.Info("started session")
 			return nil
 		}),
 		decoder.OnPublish(func(p *packet.Publish) error {
@@ -85,6 +85,7 @@ func (local *endpoint) runLocalSession(t transport.Metadata) {
 			return publishWorkers.Call(func() error {
 				puback, err := local.broker.Publish(ctx, session.id, p)
 				if err != nil {
+					logger.Errorf("failed to publish message: %v", err)
 					return err
 				}
 				if puback != nil {

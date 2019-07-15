@@ -31,10 +31,6 @@ func authHelper(ctx context.Context) func(transport transport.Metadata, sessionI
 		panic(err)
 	}
 	return func(transport transport.Metadata, sessionID []byte, username string, password string) (tenant string, err error) {
-		log.Println("INFO: calling VX auth handler")
-		defer func() {
-			log.Println("INFO: VX auth handler returned")
-		}()
 		success, tenant, err := api.Authenticate(
 			ctx,
 			auth.WithProtocolContext(

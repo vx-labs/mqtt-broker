@@ -114,8 +114,16 @@ func (broker *Broker) Start(layer types.ServiceLayer) {
 	subscriptionsStore, err := subscriptions.NewMemDBStore(layer, func(host string, id string, publish packet.Publish) error {
 		session, err := broker.Sessions.ByID(id)
 		if err != nil {
-			log.Printf("ERR: session %s not found", id)
-			return err
+			log.Printf("WARN: session %s not found", id)
+			set, err := broker.Subscriptions.BySession(id)
+			if err != nil {
+				log.Printf("ERR: failed to fetch session %s subscriptions for deletion", id)
+				return err
+			}
+			set.Apply(func(subscription subscriptions.Subscription) {
+				broker.Subscriptions.Delete(subscription.ID)
+			})
+			return nil
 		}
 		return session.Transport.Publish(broker.ctx, &publish)
 	})
