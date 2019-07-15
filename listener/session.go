@@ -32,7 +32,7 @@ func (local *endpoint) runLocalSession(t transport.Metadata) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	logger := logrus.New().WithField("service", "listener").WithField("listener", t.Name).WithField("remote", t.RemoteAddress)
-	//logger.Info("accepted new connection")
+	logger.Info("accepted new connection")
 	session := &localSession{
 		encoder:   encoder.New(t.Channel),
 		transport: t.Channel,
