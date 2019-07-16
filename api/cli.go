@@ -21,6 +21,7 @@ func httpFail(w http.ResponseWriter, err error) {
 func (b *api) acceptLoop(listener net.Listener) {
 	mux := http.NewServeMux()
 	mux.HandleFunc(prefixVersion("sessions/"), func(w http.ResponseWriter, r *http.Request) {
+
 		if r.Method != http.MethodGet {
 			w.WriteHeader(http.StatusMethodNotAllowed)
 			return
@@ -46,7 +47,11 @@ func (b *api) acceptLoop(listener net.Listener) {
 		w.WriteHeader(http.StatusOK)
 		json.NewEncoder(w).Encode(peers)
 	})
-	go http.Serve(listener, mux)
+	go http.Serve(listener, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		mux.ServeHTTP(w, r)
+		log.Printf("%s %s %s", r.Method, r.URL.String(), r.RemoteAddr)
+	}))
 }
 
 func (b *api) Serve(_ int) net.Listener {
