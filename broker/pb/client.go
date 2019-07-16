@@ -3,6 +3,8 @@ package pb
 import (
 	"context"
 
+	"github.com/vx-labs/mqtt-broker/subscriptions"
+
 	"github.com/vx-labs/mqtt-broker/transport"
 
 	"github.com/vx-labs/mqtt-broker/sessions"
@@ -34,6 +36,23 @@ func (c *Client) ListSessions(ctx context.Context) (sessions.SessionSet, error) 
 		set[idx] = sessions.Session{
 			Transport: nil,
 			Metadata:  *out.Sessions[idx],
+		}
+	}
+	return set, nil
+}
+func (c *Client) ListSubscriptions(ctx context.Context) (subscriptions.SubscriptionSet, error) {
+	out, err := c.api.ListSubscriptions(ctx, &SubscriptionFilter{})
+	if err != nil {
+		return subscriptions.SubscriptionSet{}, err
+	}
+	set := make(subscriptions.SubscriptionSet, len(out.Subscriptions))
+	for idx := range set {
+		set[idx] = subscriptions.Subscription{
+			Sender: func(ctx context.Context, publish packet.Publish) error {
+				_, err := c.Publish(ctx, set[idx].SessionID, &publish)
+				return err
+			},
+			Metadata: *out.Subscriptions[idx],
 		}
 	}
 	return set, nil
