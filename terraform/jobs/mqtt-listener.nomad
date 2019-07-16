@@ -135,7 +135,7 @@ job "mqtt-listener" {
           health = 9000
           cluster    = 3500
           service = 4000
-          service = 3100
+          gossip = 3100
           mqtts   = 8883
         }
       }
@@ -236,7 +236,7 @@ job "mqtt-listener" {
           health = 9000
           cluster    = 3500
           service = 4000
-          service = 3100
+          gossip = 3100
           wss   = 8008
         }
       }
