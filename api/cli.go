@@ -48,6 +48,7 @@ func (b *api) acceptLoop(listener net.Listener) {
 		json.NewEncoder(w).Encode(peers)
 	})
 	go http.Serve(listener, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
 		w.Header().Set("Access-Control-Allow-Origin", "*")
 		mux.ServeHTTP(w, r)
 		log.Printf("%s %s %s", r.Method, r.URL.String(), r.RemoteAddr)
