@@ -10,5 +10,7 @@ release: build
 	docker push quay.io/vxlabs/mqtt-api:${VERSION}
 deploy: release
 	cd terraform && terraform apply -var broker_version=${VERSION} -var listener_version=${VERSION} -var api_version=${VERSION}
+deploy-nodep:
+	cd terraform && terraform apply -var broker_version=${VERSION} -var listener_version=${VERSION} -var api_version=${VERSION}
 nuke:
 	cd terraform && terraform destroy

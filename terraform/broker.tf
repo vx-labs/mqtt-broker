@@ -2,6 +2,7 @@ provider "nomad" {}
 
 variable "broker_version" {}
 variable "listener_version" {}
+variable "api_version" {}
 
 resource "nomad_job" "iot" {
   jobspec = templatefile("${path.module}/jobs/mqtt-broker.nomad", { broker_version = "${var.broker_version}"})
@@ -11,3 +12,6 @@ resource "nomad_job" "listener" {
   jobspec = templatefile("${path.module}/jobs/mqtt-listener.nomad", { broker_version = "${var.listener_version}"})
 }
 
+resource "nomad_job" "api" {
+  jobspec = templatefile("${path.module}/jobs/mqtt-api.nomad", { broker_version = "${var.api_version}"})
+}

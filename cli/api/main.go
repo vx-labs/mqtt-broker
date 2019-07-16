@@ -45,10 +45,9 @@ func tlsConfigFromVault(consulAPI *consul.Client, vaultAPI *vault.Client) *tls.C
 	if err != nil {
 		panic(err)
 	}
-	cn := tlsAppConfig.CN
 	email := tlsAppConfig.LetsEncryptAccountEmail
 	api := getTLSProvider(consulAPI, vaultAPI, email)
-
+	cn := os.Getenv("TLS_CN")
 	log.Printf("INFO: fetching TLS configuration for CN=%s", cn)
 	certs, err := api.GetCertificate(ctx, cn)
 	if err != nil {

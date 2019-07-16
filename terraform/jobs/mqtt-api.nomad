@@ -35,6 +35,7 @@ job "mqtt-api" {
       driver = "docker"
 
       env {
+        TLS_CN = "broker-api.cloud.vx-labs.net"
         CONSUL_HTTP_ADDR          = "172.17.0.1:8500"
         AUTH_HOST                 = "172.17.0.1:4141"
         JAEGER_SAMPLER_TYPE       = "const"
@@ -89,7 +90,7 @@ job "mqtt-api" {
       service {
         name = "tls-api"
         port = "https"
-        tags = ["urlprefix-api.broker.iot.cloud.vx-labs.net/ proto=tcp+sni"]
+        tags = ["urlprefix-broker-api.iot.cloud.vx-labs.net/ proto=tcp+sni"]
 
         check {
           type     = "http"
