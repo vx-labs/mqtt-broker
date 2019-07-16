@@ -117,25 +117,26 @@ func Run(cmd *cobra.Command, name string, serviceFunc func(id string, mesh clust
 	mesh.Join(nodes)
 
 	listener := service.Serve(serviceNetConf.BindPort)
-	port := listener.Addr().(*net.TCPAddr).Port
+	if listener != nil {
+		port := listener.Addr().(*net.TCPAddr).Port
 
-	log.Printf(serviceNetConf.Describe(FLAG_NAME_SERVICE))
-	log.Printf(serviceGossipNetConf.Describe(FLAG_NAME_SERVICE_GOSSIP))
+		log.Printf(serviceNetConf.Describe(FLAG_NAME_SERVICE))
+		log.Printf(serviceGossipNetConf.Describe(FLAG_NAME_SERVICE_GOSSIP))
 
-	serviceConfig := cluster.ServiceConfig{
-		AdvertiseAddr: serviceGossipNetConf.AdvertisedAddress,
-		AdvertisePort: serviceGossipNetConf.AdvertisedPort,
-		BindPort:      serviceGossipNetConf.BindPort,
-		ID:            id,
-		ServicePort:   serviceNetConf.AdvertisedPort,
+		serviceConfig := cluster.ServiceConfig{
+			AdvertiseAddr: serviceGossipNetConf.AdvertisedAddress,
+			AdvertisePort: serviceGossipNetConf.AdvertisedPort,
+			BindPort:      serviceGossipNetConf.BindPort,
+			ID:            id,
+			ServicePort:   serviceNetConf.AdvertisedPort,
+		}
+		if serviceConfig.AdvertisePort == 0 {
+			serviceConfig.AdvertisePort = serviceConfig.BindPort
+			serviceConfig.ServicePort = port
+		}
+		layer := cluster.NewServiceLayer(name, serviceConfig, mesh)
+		service.JoinServiceLayer(layer)
 	}
-	if serviceConfig.AdvertisePort == 0 {
-		serviceConfig.AdvertisePort = serviceConfig.BindPort
-		serviceConfig.ServicePort = port
-	}
-	layer := cluster.NewServiceLayer(name, serviceConfig, mesh)
-	service.JoinServiceLayer(layer)
-
 	quit := make(chan struct{})
 	signal.Notify(sigc,
 		syscall.SIGINT,
@@ -151,9 +152,11 @@ func Run(cmd *cobra.Command, name string, serviceFunc func(id string, mesh clust
 		log.Printf(fmt.Sprintf("INFO: stopping %s", name))
 		service.Shutdown()
 		log.Printf(fmt.Sprintf("INFO: %s stopped", name))
-		log.Printf(fmt.Sprintf("INFO: stopping %s RPC listener", name))
-		listener.Close()
-		log.Printf(fmt.Sprintf("INFO: %s RPC listener stopped", name))
+		if listener != nil {
+			log.Printf(fmt.Sprintf("INFO: stopping %s RPC listener", name))
+			listener.Close()
+			log.Printf(fmt.Sprintf("INFO: %s RPC listener stopped", name))
+		}
 		log.Printf(fmt.Sprintf("INFO: %s stopped", name))
 	}()
 	<-quit
