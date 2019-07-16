@@ -6,6 +6,7 @@ import "github.com/vx-labs/mqtt-protocol/packet/pb.proto";
 
 
 message SessionFilter {}
+message SubscriptionFilter {}
 message CloseSessionInput {
   string ID = 1;
 }
@@ -14,6 +15,9 @@ message CloseSessionOutput {
 }
 message ListSessionsOutput{
   repeated sessions.Metadata Sessions = 1;
+}
+message ListSubscriptionsOutput{
+  repeated subscriptions.Metadata Subscriptions = 1;
 }
 message MessagePublished {
   string Recipient = 1;
@@ -78,6 +82,7 @@ message PingReqOutput {
 
 service BrokerService {
     rpc ListSessions(SessionFilter) returns (ListSessionsOutput);
+    rpc ListSubscriptions(SubscriptionFilter) returns (ListSubscriptionsOutput);
     rpc CloseSession(CloseSessionInput) returns (CloseSessionOutput);
     rpc DistributeMessage(MessagePublished) returns (MessagePublishedOutput);
 

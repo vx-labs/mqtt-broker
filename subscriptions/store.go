@@ -18,7 +18,7 @@ const table = "subscriptions"
 
 type Subscription struct {
 	Metadata
-	Sender func(context.Context, packet.Publish) error
+	Sender func(context.Context, packet.Publish) error `json:"-"`
 }
 
 type Channel interface {

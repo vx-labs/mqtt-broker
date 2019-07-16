@@ -20,6 +20,20 @@ func httpFail(w http.ResponseWriter, err error) {
 }
 func (b *api) acceptLoop(listener net.Listener) {
 	mux := http.NewServeMux()
+	mux.HandleFunc(prefixVersion("subscriptions/"), func(w http.ResponseWriter, r *http.Request) {
+
+		if r.Method != http.MethodGet {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
+		sessions, err := b.brokerClient.ListSubscriptions(r.Context())
+		if err != nil {
+			httpFail(w, err)
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(sessions)
+	})
 	mux.HandleFunc(prefixVersion("sessions/"), func(w http.ResponseWriter, r *http.Request) {
 
 		if r.Method != http.MethodGet {
