@@ -7,6 +7,7 @@ import (
 	"github.com/vx-labs/mqtt-broker/cluster/pb"
 	"github.com/vx-labs/mqtt-broker/cluster/peers"
 	"github.com/vx-labs/mqtt-broker/cluster/types"
+	"go.uber.org/zap"
 )
 
 type ServiceConfig struct {
@@ -17,7 +18,7 @@ type ServiceConfig struct {
 	ServicePort   int
 }
 
-func NewServiceLayer(name string, serviceConfig ServiceConfig, discovery Mesh) types.ServiceLayer {
+func NewServiceLayer(name string, logger *zap.Logger, serviceConfig ServiceConfig, discovery Mesh) types.ServiceLayer {
 	userConfig := Config{
 		ID:            serviceConfig.ID,
 		AdvertiseAddr: serviceConfig.AdvertiseAddr,
@@ -27,7 +28,7 @@ func NewServiceLayer(name string, serviceConfig ServiceConfig, discovery Mesh) t
 	if userConfig.BindPort == 0 {
 		log.Fatalf("FATAL: service/%s: user provided 0 as bind port value", name)
 	}
-	layer := NewLayer(name, userConfig, pb.NodeMeta{
+	layer := NewLayer(name, logger, userConfig, pb.NodeMeta{
 		ID: userConfig.ID,
 	})
 

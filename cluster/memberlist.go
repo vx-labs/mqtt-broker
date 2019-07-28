@@ -9,6 +9,7 @@ import (
 	"time"
 
 	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
+	"go.uber.org/zap"
 
 	"github.com/vx-labs/mqtt-broker/cluster/pb"
 	"github.com/vx-labs/mqtt-broker/cluster/peers"
@@ -67,7 +68,7 @@ type Service struct {
 	Address string
 }
 
-func New(userConfig Config) *memberlistMesh {
+func New(logger *zap.Logger, userConfig Config) *memberlistMesh {
 	self := &memberlistMesh{
 		id:        userConfig.ID,
 		rpcCaller: pool.NewCaller(),
@@ -77,9 +78,8 @@ func New(userConfig Config) *memberlistMesh {
 			self.rpcCaller.Cancel(service.NetworkAddress)
 		}
 		self.peers.Delete(id)
-		log.Printf("INFO: deleted peer %s from discovery store", id)
 	}
-	self.layer = NewLayer("cluster", userConfig, pb.NodeMeta{
+	self.layer = NewLayer("cluster", logger, userConfig, pb.NodeMeta{
 		ID: userConfig.ID,
 	})
 	store, err := peers.NewPeerStore(self.layer)
@@ -109,12 +109,11 @@ func New(userConfig Config) *memberlistMesh {
 	go self.oSStatsReporter()
 	return self
 }
-
 func (m *memberlistMesh) Leave() {
 	m.layer.Leave()
 }
-func (m *memberlistMesh) Join(peers []string) {
-	m.layer.Join(peers)
+func (m *memberlistMesh) Join(peers []string) error {
+	return m.layer.Join(peers)
 }
 
 func (m *memberlistMesh) RegisterService(name, address string) error {

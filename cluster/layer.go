@@ -3,7 +3,6 @@ package cluster
 import (
 	fmt "fmt"
 	"io/ioutil"
-	"log"
 	"os"
 	"sync"
 	"time"
@@ -13,6 +12,7 @@ import (
 	"github.com/vx-labs/mqtt-broker/cluster/pb"
 	"github.com/vx-labs/mqtt-broker/cluster/peers"
 	"github.com/vx-labs/mqtt-broker/cluster/types"
+	"go.uber.org/zap"
 )
 
 type Config struct {
@@ -25,10 +25,10 @@ type Config struct {
 }
 
 type layer struct {
-	id    string
-	name  string
-	mlist *memberlist.Memberlist
-
+	id          string
+	name        string
+	mlist       *memberlist.Memberlist
+	logger      *zap.Logger
 	mtx         sync.RWMutex
 	states      map[string]types.State
 	bcastQueue  *memberlist.TransmitLimitedQueue
@@ -48,7 +48,6 @@ func (m *layer) AddState(key string, state types.State) (types.Channel, error) {
 	old, ok := m.states[key]
 	m.states[key] = state
 	if ok {
-		log.Printf("INFO: service/%s: merging cached state into new state %q", m.name, key)
 		err := state.Merge(old.MarshalBinary(), true)
 		if err != nil {
 			return nil, err
@@ -63,7 +62,7 @@ func (m *layer) AddState(key string, state types.State) (types.Channel, error) {
 func (m *layer) NotifyMsg(b []byte) {
 	var p pb.Part
 	if err := proto.Unmarshal(b, &p); err != nil {
-		log.Printf("ERROR: failed to decode remote state: %v", err)
+		m.logger.Error("failed to decode remote state", zap.String("node_id", m.id), zap.Error(err))
 		return
 	}
 	m.mtx.Lock()
@@ -76,7 +75,7 @@ func (m *layer) NotifyMsg(b []byte) {
 		return
 	}
 	if err := s.Merge(p.Data, false); err != nil {
-		log.Printf("ERROR: failed to merge remote %q state: %v", p.Key, err)
+		m.logger.Error("failed to merge remote state", zap.String("node_id", m.id), zap.Error(err))
 		return
 	}
 }
@@ -86,7 +85,7 @@ func (m *layer) GetBroadcasts(overhead, limit int) [][]byte {
 func (m *layer) NodeMeta(limit int) []byte {
 	payload, err := proto.Marshal(&m.meta)
 	if err != nil || len(payload) > limit {
-		log.Printf("WARN: not publishing node meta because limit of %d is exeeded (%d)", limit, len(payload))
+		m.logger.Warn("not publishing node meta because limit is exceeded", zap.String("node_id", m.id))
 		return []byte{}
 	}
 	return payload
@@ -103,7 +102,7 @@ func (m *layer) LocalState(join bool) []byte {
 	}
 	payload, err := proto.Marshal(dump)
 	if err != nil {
-		log.Printf("ERROR: failed to marshal full state: %v", err)
+		m.logger.Error("failed to marshal full state", zap.String("node_id", m.id), zap.Error(err))
 		return nil
 	}
 	return payload
@@ -111,7 +110,7 @@ func (m *layer) LocalState(join bool) []byte {
 func (m *layer) MergeRemoteState(buf []byte, join bool) {
 	var fs pb.FullState
 	if err := proto.Unmarshal(buf, &fs); err != nil {
-		log.Printf("ERROR: failed to decode remote full state: %v", err)
+		m.logger.Error("failed to decode remote state", zap.String("node_id", m.id), zap.Error(err))
 		return
 	}
 	m.mtx.Lock()
@@ -120,7 +119,6 @@ func (m *layer) MergeRemoteState(buf []byte, join bool) {
 	for _, p := range fs.Parts {
 		s, ok := m.states[p.Key]
 		if !ok {
-			log.Printf("WARN: caching state for key %s", p.Key)
 			m.states[p.Key] = &cachedState{
 				data: p.Data,
 			}
@@ -128,16 +126,15 @@ func (m *layer) MergeRemoteState(buf []byte, join bool) {
 		}
 		//now := time.Now()
 		if err := s.Merge(p.Data, join); err != nil {
-			log.Printf("ERROR: failed to merge remote full %q state: %v", p.Key, err)
+			m.logger.Error("failed to merge remote state", zap.String("node_id", m.id), zap.Error(err))
 			return
 		}
-		//log.Printf("DEBUG: %s merge done (%s elapsed)", p.Key, time.Now().Sub(now).String())
 	}
 }
 
-func (m *layer) Join(newHosts []string) {
+func (m *layer) Join(newHosts []string) error {
 	if len(newHosts) == 0 {
-		return
+		return nil
 	}
 	hosts := []string{}
 	curHosts := m.mlist.Members()
@@ -154,16 +151,14 @@ func (m *layer) Join(newHosts []string) {
 		}
 	}
 	if len(hosts) == 0 {
-		return
+		return nil
 	}
 
-	log.Printf("INFO: service/%s: joining hosts %v", m.name, hosts)
 	_, err := m.mlist.Join(hosts)
-	if err == nil {
-		return
+	if err != nil {
+		m.logger.Warn("failed to join cluster", zap.String("node_id", m.id), zap.Error(err))
 	}
-	log.Printf("WARN: service/%s: failed to join the provided node list: %v", m.name, hosts)
-
+	return err
 }
 func (self *layer) DiscoverPeers(discovery peers.PeerStore) {
 	peers, _ := discovery.EndpointsByService(fmt.Sprintf("%s_cluster", self.name))
@@ -196,7 +191,7 @@ func (self *layer) numMembers() int {
 	return self.mlist.NumMembers()
 }
 
-func NewLayer(name string, userConfig Config, meta pb.NodeMeta) Layer {
+func NewLayer(name string, logger *zap.Logger, userConfig Config, meta pb.NodeMeta) Layer {
 	self := &layer{
 		id:          userConfig.ID,
 		name:        name,
@@ -204,6 +199,7 @@ func NewLayer(name string, userConfig Config, meta pb.NodeMeta) Layer {
 		meta:        meta,
 		onNodeJoin:  userConfig.onNodeJoin,
 		onNodeLeave: userConfig.onNodeLeave,
+		logger:      logger,
 	}
 
 	self.bcastQueue = &memberlist.TransmitLimitedQueue{
