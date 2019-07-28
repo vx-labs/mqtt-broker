@@ -1,9 +1,10 @@
 VERSION = $(shell git describe --abbrev=0 --tags)
+DOCKER_BUILD_ARGS = --network host --build-arg https_proxy=${https_proxy}
 
 build:
-	docker build -t quay.io/vxlabs/mqtt-broker:${VERSION} .
-	docker build -f Dockerfile.listener  -t quay.io/vxlabs/mqtt-listener:${VERSION} .
-	docker build -f Dockerfile.api  -t quay.io/vxlabs/mqtt-api:${VERSION} .
+	docker build ${DOCKER_BUILD_ARGS} --target broker -t quay.io/vxlabs/mqtt-broker:${VERSION} .
+	docker build ${DOCKER_BUILD_ARGS} --target api -t quay.io/vxlabs/mqtt-api:${VERSION} .
+	docker build ${DOCKER_BUILD_ARGS} --target listener -t quay.io/vxlabs/mqtt-listener:${VERSION} .
 release: build
 	docker push quay.io/vxlabs/mqtt-broker:${VERSION}
 	docker push quay.io/vxlabs/mqtt-listener:${VERSION}

@@ -2,7 +2,6 @@ package cli
 
 import (
 	"fmt"
-	"log"
 	"net"
 	"net/http"
 	"os"
@@ -11,6 +10,7 @@ import (
 	"time"
 
 	mqttConfig "github.com/vx-labs/iot-mqtt-config"
+	"go.uber.org/zap"
 
 	consul "github.com/hashicorp/consul/api"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -87,22 +87,40 @@ func JoinConsulPeers(api *consul.Client, service string, selfAddress string, sel
 	}
 }
 
-func Run(cmd *cobra.Command, name string, serviceFunc func(id string, mesh cluster.Mesh) Service) {
+func logService(logger *zap.Logger, id, name string, config network.Configuration) {
+	logger.Info("loaded service config",
+		zap.String("node_id", id),
+		zap.String("service_name", name),
+		zap.String("bind_address", config.BindAddress),
+		zap.Int("bind_port", config.BindPort),
+		zap.String("advertized_address", config.AdvertisedAddress),
+		zap.Int("advertized_port", config.AdvertisedPort),
+	)
+}
+
+func Run(cmd *cobra.Command, name string, serviceFunc func(id string, logger *zap.Logger, mesh cluster.Mesh) Service) {
 	if viper.GetBool("pprof") {
 		go func() {
-			log.Printf("INFO: enable pprof endpoint on port 8080")
-			log.Println(http.ListenAndServe(":8080", nil))
+			fmt.Println("pprof endpoint is running on port 8080")
+			http.ListenAndServe(":8080", nil)
 		}()
 	}
 	sigc := make(chan os.Signal, 1)
+	logger, err := zap.NewProduction()
+	if err != nil {
+		panic(err)
+	}
+	defer logger.Sync()
 
 	clusterNetConf := network.ConfigurationFromFlags(cmd, FLAG_NAME_CLUSTER)
 	serviceNetConf := network.ConfigurationFromFlags(cmd, FLAG_NAME_SERVICE)
 	serviceGossipNetConf := network.ConfigurationFromFlags(cmd, FLAG_NAME_SERVICE_GOSSIP)
 	id := uuid.New().String()
-	mesh := joinMesh(id, clusterNetConf)
 
-	service := serviceFunc(id, mesh)
+	mesh := joinMesh(id, clusterNetConf)
+	logService(logger, id, FLAG_NAME_CLUSTER, clusterNetConf)
+
+	service := serviceFunc(id, logger, mesh)
 
 	if allocID := os.Getenv("NOMAD_ALLOC_ID"); allocID != "" {
 		consulAPI, _, err := mqttConfig.DefaultClients()
@@ -112,16 +130,15 @@ func Run(cmd *cobra.Command, name string, serviceFunc func(id string, mesh clust
 		go JoinConsulPeers(consulAPI, "cluster", clusterNetConf.AdvertisedAddress, clusterNetConf.AdvertisedPort, mesh)
 	}
 
-	go serveHTTPHealth(mesh, service)
+	go serveHTTPHealth(logger, mesh, service)
 	nodes := viper.GetStringSlice("join")
 	mesh.Join(nodes)
 
 	listener := service.Serve(serviceNetConf.BindPort)
 	if listener != nil {
 		port := listener.Addr().(*net.TCPAddr).Port
-
-		log.Printf(serviceNetConf.Describe(FLAG_NAME_SERVICE))
-		log.Printf(serviceGossipNetConf.Describe(FLAG_NAME_SERVICE_GOSSIP))
+		logService(logger, id, FLAG_NAME_SERVICE, serviceNetConf)
+		logService(logger, id, FLAG_NAME_SERVICE_GOSSIP, serviceGossipNetConf)
 
 		serviceConfig := cluster.ServiceConfig{
 			AdvertiseAddr: serviceGossipNetConf.AdvertisedAddress,
@@ -145,19 +162,15 @@ func Run(cmd *cobra.Command, name string, serviceFunc func(id string, mesh clust
 	go func() {
 		defer close(quit)
 		<-sigc
-		log.Printf("INFO: received termination signal")
-		log.Printf("INFO: leaving cluster")
+		logger.Info("received termination signal", zap.String("node_id", id))
 		mesh.Leave()
-		log.Printf("INFO: cluster left")
-		log.Printf(fmt.Sprintf("INFO: stopping %s", name))
+		logger.Info("cluster left", zap.String("node_id", id))
 		service.Shutdown()
-		log.Printf(fmt.Sprintf("INFO: %s stopped", name))
+		logger.Info("stopped service", zap.String("node_id", id), zap.String("service_name", name))
 		if listener != nil {
-			log.Printf(fmt.Sprintf("INFO: stopping %s RPC listener", name))
 			listener.Close()
-			log.Printf(fmt.Sprintf("INFO: %s RPC listener stopped", name))
+			logger.Info("stopped rpc listener", zap.String("node_id", id), zap.String("service_name", name))
 		}
-		log.Printf(fmt.Sprintf("INFO: %s stopped", name))
 	}()
 	<-quit
 
@@ -167,7 +180,7 @@ type healthChecker interface {
 	Health() string
 }
 
-func serveHTTPHealth(mesh healthChecker, service healthChecker) {
+func serveHTTPHealth(logger *zap.Logger, mesh healthChecker, service healthChecker) {
 	mux := http.NewServeMux()
 	mux.Handle("/metrics", promhttp.Handler())
 	mux.HandleFunc("/health", func(w http.ResponseWriter, _ *http.Request) {
@@ -185,7 +198,7 @@ func serveHTTPHealth(mesh healthChecker, service healthChecker) {
 	})
 	err := http.ListenAndServe("[::]:9000", mux)
 	if err != nil {
-		log.Printf("ERROR: failed to run healthcheck endpoint: %v", err)
+		logger.Error("failed to run healthcheck endpoint", zap.Error(err))
 	}
 }
 
@@ -196,7 +209,6 @@ func joinMesh(id string, clusterNetConf network.Configuration) cluster.Mesh {
 		AdvertiseAddr: clusterNetConf.AdvertisedAddress,
 		ID:            id,
 	})
-	log.Printf(clusterNetConf.Describe(FLAG_NAME_CLUSTER))
-	log.Printf("INFO: use the following address to join the cluster: %s:%d", clusterNetConf.AdvertisedAddress, clusterNetConf.AdvertisedPort)
+	fmt.Printf("Use the following address to join the cluster: %s:%d\n", clusterNetConf.AdvertisedAddress, clusterNetConf.AdvertisedPort)
 	return mesh
 }

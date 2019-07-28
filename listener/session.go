@@ -5,7 +5,8 @@ import (
 	"errors"
 	"time"
 
-	"github.com/sirupsen/logrus"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 
 	"github.com/vx-labs/mqtt-broker/pool"
 	"github.com/vx-labs/mqtt-broker/queues/inflight"
@@ -31,8 +32,12 @@ func renewDeadline(timer int32, conn transport.TimeoutReadWriteCloser) {
 func (local *endpoint) runLocalSession(t transport.Metadata) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	logger := logrus.New().WithField("service", "listener").WithField("listener", t.Name).WithField("remote", t.RemoteAddress)
-	logger.Info("accepted new connection")
+	fields := []zapcore.Field{
+		zap.String("node_id", local.id),
+		zap.String("remote_address", t.RemoteAddress),
+		zap.String("transport", t.Name),
+	}
+	local.logger.Info("accepted new connection", fields...)
 	session := &localSession{
 		encoder:   encoder.New(t.Channel),
 		transport: t.Channel,
@@ -48,19 +53,18 @@ func (local *endpoint) runLocalSession(t transport.Metadata) {
 		decoder.OnConnect(func(p *packet.Connect) error {
 			id, connack, err := local.broker.Connect(ctx, t, p)
 			if err != nil {
-				logger.Errorf("failed to send CONNECT: %v", err)
+				local.logger.Error("failed to send CONNECT", append(fields, zap.Error(err))...)
 				return enc.ConnAck(connack)
 			}
 			if id == "" {
-				logger.Error("broker returned an empty session id")
+				local.logger.Error("broker returned an empty session id", fields...)
 				enc.ConnAck(&packet.ConnAck{
 					ReturnCode: packet.CONNACK_REFUSED_SERVER_UNAVAILABLE,
 					Header:     &packet.Header{},
 				})
 				return errors.New("broker returned an empty session id")
 			}
-			logger = logger.WithField("session_id", id)
-			logger = logger.WithField("session_client_id", string(p.ClientId))
+			fields = append(fields, zap.String("session_id", id), zap.String("client_id", string(p.ClientId)))
 			session.id = id
 			local.mutex.Lock()
 			old := local.sessions.ReplaceOrInsert(session)
@@ -74,7 +78,7 @@ func (local *endpoint) runLocalSession(t transport.Metadata) {
 			})
 			timer = p.KeepaliveTimer
 			renewDeadline(timer, t.Channel)
-			logger.Info("started session")
+			local.logger.Info("started session", fields...)
 			return nil
 		}),
 		decoder.OnPublish(func(p *packet.Publish) error {
@@ -85,7 +89,7 @@ func (local *endpoint) runLocalSession(t transport.Metadata) {
 			return publishWorkers.Call(func() error {
 				puback, err := local.broker.Publish(ctx, session.id, p)
 				if err != nil {
-					logger.Errorf("failed to publish message: %v", err)
+					local.logger.Error("failed to publish message", append(fields, zap.Error(err))...)
 					return err
 				}
 				if puback != nil {
@@ -154,11 +158,11 @@ func (local *endpoint) runLocalSession(t transport.Metadata) {
 		err = dec.Decode(t.Channel)
 		if err != nil {
 			if err == ErrSessionDisconnected {
-				logger.Info("session disconnected")
+				local.logger.Info("session disconnected", fields...)
 				break
 			}
-			logger.Warn("session lost")
-			logger.Errorf("decoding failed: %v", err)
+			local.logger.Warn("session lost", fields...)
+			local.logger.Error("decoding failed", append(fields, zap.Error(err))...)
 			break
 		}
 	}

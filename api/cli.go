@@ -3,12 +3,14 @@ package api
 import (
 	"crypto/tls"
 	"encoding/json"
+	"errors"
 	"fmt"
-	"log"
 	"net"
 	"net/http"
+	"time"
 
 	"github.com/vx-labs/mqtt-broker/cluster/types"
+	"go.uber.org/zap"
 )
 
 func prefixVersion(suffix string) string {
@@ -62,10 +64,16 @@ func (b *api) acceptLoop(listener net.Listener) {
 		json.NewEncoder(w).Encode(peers)
 	})
 	go http.Serve(listener, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		now := time.Now()
 		w.Header().Set("Content-Type", "application/json")
 		w.Header().Set("Access-Control-Allow-Origin", "*")
 		mux.ServeHTTP(w, r)
-		log.Printf("%s %s %s", r.Method, r.URL.String(), r.RemoteAddr)
+		b.logger.Info("served http request",
+			zap.String("node_id", b.id),
+			zap.String("http_request_method", r.Method),
+			zap.String("http_request_url", r.URL.String()),
+			zap.String("remote_address", r.RemoteAddr),
+			zap.Duration("request_duration", time.Since(now)))
 	}))
 }
 
@@ -74,21 +82,26 @@ func (b *api) Serve(_ int) net.Listener {
 		if b.config.TlsConfig != nil {
 			ln, err := tls.Listen("tcp", fmt.Sprintf(":%d", b.config.TlsPort), b.config.TlsConfig)
 			if err != nil {
-				log.Fatalf("failed to start TLS listener: %v", err)
+				b.logger.Fatal("failed to start listener", zap.String("node_id", b.id),
+					zap.String("transport", "tls"), zap.Error(err))
 			}
 			b.listeners = append(b.listeners, ln)
-			log.Printf("INFO: started TLS listener on port %d", b.config.TlsPort)
+			b.logger.Info("started listener", zap.String("node_id", b.id),
+				zap.String("transport", "tls"))
 		} else {
-			log.Printf("WARN: not starting TLS listener: TLS config is empty")
+			b.logger.Warn("not started listener", zap.String("node_id", b.id),
+				zap.Error(errors.New("tls config is empty")))
 		}
 	}
 	if b.config.TcpPort > 0 {
 		ln, err := net.Listen("tcp", fmt.Sprintf(":%d", b.config.TcpPort))
 		if err != nil {
-			log.Fatalf("failed to start TCP listener: %v", err)
+			b.logger.Fatal("failed to start listener", zap.String("node_id", b.id),
+				zap.String("transport", "tcp"), zap.Error(err))
 		}
 		b.listeners = append(b.listeners, ln)
-		log.Printf("INFO: started TCP listener on port %d", b.config.TcpPort)
+		b.logger.Info("started listener", zap.String("node_id", b.id),
+			zap.String("transport", "tcp"))
 	}
 	for _, lis := range b.listeners {
 		b.acceptLoop(lis)

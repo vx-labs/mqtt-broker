@@ -3,7 +3,6 @@ package broker
 import (
 	"fmt"
 	"io"
-	"log"
 	"net"
 
 	"github.com/vx-labs/mqtt-broker/subscriptions"
@@ -40,7 +39,6 @@ type server struct {
 func Serve(port int, handler broker) net.Listener {
 	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
 	if err != nil {
-		log.Printf("WARN: failed to start rpc listener: %v", err)
 		return nil
 	}
 	s := grpc.NewServer(

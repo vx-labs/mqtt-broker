@@ -9,6 +9,8 @@ import (
 	"github.com/vx-labs/mqtt-broker/cluster/types"
 	"github.com/vx-labs/mqtt-broker/pool"
 	"github.com/vx-labs/mqtt-broker/transport"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 
 	"github.com/vx-labs/mqtt-broker/broker/pb"
 	"github.com/vx-labs/mqtt-broker/cluster"
@@ -66,13 +68,13 @@ type Queue interface {
 
 type Broker struct {
 	ID            string
+	logger        *zap.Logger
 	authHelper    func(transport transport.Metadata, sessionID []byte, username string, password string) (tenant string, err error)
 	mesh          cluster.Mesh
 	Subscriptions SubscriptionStore
 	Sessions      SessionStore
 	Topics        TopicStore
 	Peers         PeerStore
-	STANOutput    chan STANMessage
 	workers       *pool.Pool
 	ctx           context.Context
 	publishQueue  Queue
@@ -87,7 +89,7 @@ func (b *Broker) RemoteRPCProvider(id, peer string) sessions.Transport {
 	}
 }
 
-func New(id string, mesh cluster.Mesh, config Config) *Broker {
+func New(id string, logger *zap.Logger, mesh cluster.Mesh, config Config) *Broker {
 	ctx := context.Background()
 	broker := &Broker{
 		ID:           id,
@@ -96,28 +98,24 @@ func New(id string, mesh cluster.Mesh, config Config) *Broker {
 		ctx:          ctx,
 		mesh:         mesh,
 		publishQueue: publishQueue.New(),
+		logger:       logger,
 	}
 
-	if config.NATSURL != "" {
-		ch := make(chan STANMessage)
-		if err := exportToSTAN(config, ch); err != nil {
-			log.Printf("WARN: failed to start STAN message exporter to %s: %v", config.NATSURL, err)
-		} else {
-			log.Printf("INFO: started NATS message exporter")
-			broker.STANOutput = ch
-		}
-	}
 	broker.startPublishConsumers()
 	return broker
 }
+func (broker *Broker) zapNodeID() zapcore.Field {
+	return zap.String("node_id", broker.ID)
+}
+
 func (broker *Broker) Start(layer types.ServiceLayer) {
 	subscriptionsStore, err := subscriptions.NewMemDBStore(layer, func(host string, id string, publish packet.Publish) error {
 		session, err := broker.Sessions.ByID(id)
 		if err != nil {
-			log.Printf("WARN: session %s not found", id)
+			broker.logger.Warn("publish subscription toward an unknown session", broker.zapNodeID(), zap.String("session_id", id), zap.Binary("topic_pattern", publish.Topic))
 			set, err := broker.Subscriptions.BySession(id)
 			if err != nil {
-				log.Printf("ERR: failed to fetch session %s subscriptions for deletion", id)
+				broker.logger.Error("failed to fetch session subscriptions", broker.zapNodeID(), zap.String("session_id", id), zap.Error(err))
 				return err
 			}
 			set.Apply(func(subscription subscriptions.Subscription) {
@@ -149,21 +147,21 @@ func (b *Broker) onPeerDown(peer peers.Peer) {
 	name := peer.ID
 	set, err := b.Subscriptions.ByPeer(name)
 	if err != nil {
-		log.Printf("ERR: failed to remove subscriptions from peer %s: %v", name, err)
+		b.logger.Error("failed to remove subscriptions from old peer", b.zapNodeID(), zap.String("peer_id", name), zap.Error(err))
+
 		return
 	}
 	set.Apply(func(sub subscriptions.Subscription) {
-		log.Printf("INFO: removing subscription %s", sub.ID)
 		b.Subscriptions.Delete(sub.ID)
 	})
+	b.logger.Error("removed subscriptions from old peer", b.zapNodeID(), zap.String("peer_id", name), zap.Error(err), zap.Int("count", len(set)))
 
 	sessionSet, err := b.Sessions.ByPeer(name)
 	if err != nil {
-		log.Printf("ERR: failed to fetch sessions from peer %s: %v", name, err)
+		b.logger.Error("failed to remove sessions from old peer", b.zapNodeID(), zap.String("peer_id", name), zap.Error(err))
 		return
 	}
 	sessionSet.Apply(func(s sessions.Session) {
-		log.Printf("INFO: removing session %s", s.ID)
 		b.Sessions.Delete(s.ID, "session_lost")
 		if s.WillRetain {
 			retainedMessage := topics.RetainedMessage{
@@ -221,7 +219,5 @@ func (b *Broker) dispatch(message *pb.MessagePublished) error {
 }
 
 func (b *Broker) Stop() {
-	log.Printf("INFO: stopping broker")
 	b.publishQueue.Close()
-	log.Printf("INFO: broker stopped")
 }

@@ -1,10 +1,9 @@
 package broker
 
 import (
-	"log"
-
 	publishQueue "github.com/vx-labs/mqtt-broker/queues/publish"
 	"github.com/vx-labs/mqtt-broker/topics"
+	"go.uber.org/zap"
 )
 
 func (b *Broker) startPublishConsumers() {
@@ -12,7 +11,7 @@ func (b *Broker) startPublishConsumers() {
 		go b.publishQueue.Consume(func(p *publishQueue.Message) {
 			err := b.consumePublish(p)
 			if err != nil {
-				log.Printf("ERR: failed to publish message: %v", err)
+				b.logger.Error("failed to publish message", b.zapNodeID(), zap.Binary("topic_pattern", p.Publish.Topic), zap.Error(err))
 				b.publishQueue.Enqueue(p)
 			}
 		})
@@ -31,12 +30,12 @@ func (b *Broker) consumePublish(message *publishQueue.Message) error {
 		}
 		err := b.Topics.Create(message)
 		if err != nil {
-			log.Printf("WARN: failed to save retained message: %v", err)
+			b.logger.Error("failed to save retained message", b.zapNodeID(), zap.Binary("topic_pattern", message.Topic), zap.Error(err))
 		}
 	}
 	err := b.routeMessage(message.Tenant, p)
 	if err != nil {
-		log.Printf("ERR: failed to route message: %v", err)
+		b.logger.Error("failed to route message", b.zapNodeID(), zap.Binary("topic_pattern", message.Publish.Topic), zap.Error(err))
 		return err
 	}
 	return nil

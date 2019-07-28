@@ -4,10 +4,10 @@ import (
 	"crypto/rand"
 	"crypto/sha1"
 	"fmt"
-	"log"
 
 	"github.com/vx-labs/mqtt-broker/sessions"
 	"github.com/vx-labs/mqtt-broker/transport"
+	"go.uber.org/zap"
 
 	subscriptions "github.com/vx-labs/mqtt-broker/subscriptions"
 )
@@ -58,7 +58,7 @@ func (b *Broker) deleteSessionSubscriptions(sess sessions.Session) error {
 func (b *Broker) Authenticate(transport transport.Metadata, sessionID []byte, username string, password string) (tenant string, err error) {
 	tenant, err = b.authHelper(transport, sessionID, username, password)
 	if err != nil {
-		log.Printf("WARN: authentication failed from %s: %v", transport.RemoteAddress, err)
+		b.logger.Warn("authentication failed", b.zapNodeID(), zap.String("username", username), zap.String("remote_address", transport.RemoteAddress), zap.String("transport", transport.Name), zap.Error(err))
 	}
 	return tenant, err
 }
