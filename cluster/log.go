@@ -1,11 +1,10 @@
 package cluster
 
 import (
-	"log"
-
 	"github.com/gogo/protobuf/proto"
 	"github.com/hashicorp/memberlist"
 	"github.com/vx-labs/mqtt-broker/cluster/pb"
+	"go.uber.org/zap"
 )
 
 // NotifyJoin is called if a peer joins the cluster.
@@ -14,7 +13,7 @@ func (b *layer) NotifyJoin(n *memberlist.Node) {
 	err := proto.Unmarshal(n.Meta, &meta)
 	if err == nil {
 		if b.id != n.Name {
-			log.Printf("INFO: service/%s: node %s joined the mesh", b.name, n.Name)
+			b.logger.Info("node joined the mesh", zap.String("node_id", b.id), zap.String("peer_id", n.Name))
 		}
 		if b.onNodeJoin != nil {
 			b.onNodeJoin(n.Name, meta)
@@ -29,7 +28,7 @@ func (b *layer) NotifyLeave(n *memberlist.Node) {
 	err := proto.Unmarshal(n.Meta, &meta)
 	if err == nil {
 		if b.id != n.Name {
-			log.Printf("INFO: service/%s: node %s left the mesh", b.name, n.Name)
+			b.logger.Info("node left the mesh", zap.String("node_id", b.id), zap.String("peer_id", n.Name))
 		}
 		if b.onNodeLeave != nil {
 			b.onNodeLeave(n.Name, meta)

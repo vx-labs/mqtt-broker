@@ -52,6 +52,7 @@ func JoinConsulPeers(api *consul.Client, service string, selfAddress string, sel
 
 	var index uint64
 	ticker := time.NewTicker(5 * time.Second)
+	defer ticker.Stop()
 	for {
 		services, meta, err := api.Health().Service(
 			service,
@@ -81,8 +82,9 @@ func JoinConsulPeers(api *consul.Client, service string, selfAddress string, sel
 			peers = append(peers, peer)
 		}
 		if foundSelf && len(peers) > 0 {
-			mesh.Join(peers)
-			return nil
+			if mesh.Join(peers) == nil {
+				return nil
+			}
 		}
 	}
 }
@@ -117,23 +119,29 @@ func Run(cmd *cobra.Command, name string, serviceFunc func(id string, logger *za
 	serviceGossipNetConf := network.ConfigurationFromFlags(cmd, FLAG_NAME_SERVICE_GOSSIP)
 	id := uuid.New().String()
 
-	mesh := joinMesh(id, clusterNetConf)
+	mesh := joinMesh(id, logger, clusterNetConf)
 	logService(logger, id, FLAG_NAME_CLUSTER, clusterNetConf)
 
 	service := serviceFunc(id, logger, mesh)
-
+	var clusterMemberFound chan struct{}
 	if allocID := os.Getenv("NOMAD_ALLOC_ID"); allocID != "" {
 		consulAPI, _, err := mqttConfig.DefaultClients()
 		if err != nil {
 			panic(err)
 		}
-		go JoinConsulPeers(consulAPI, "cluster", clusterNetConf.AdvertisedAddress, clusterNetConf.AdvertisedPort, mesh)
+		clusterMemberFound = make(chan struct{})
+		go func() {
+			JoinConsulPeers(consulAPI, "cluster", clusterNetConf.AdvertisedAddress, clusterNetConf.AdvertisedPort, mesh)
+			close(clusterMemberFound)
+		}()
 	}
 
 	go serveHTTPHealth(logger, mesh, service)
 	nodes := viper.GetStringSlice("join")
 	mesh.Join(nodes)
-
+	if clusterMemberFound != nil {
+		<-clusterMemberFound
+	}
 	listener := service.Serve(serviceNetConf.BindPort)
 	if listener != nil {
 		port := listener.Addr().(*net.TCPAddr).Port
@@ -151,7 +159,7 @@ func Run(cmd *cobra.Command, name string, serviceFunc func(id string, logger *za
 			serviceConfig.AdvertisePort = serviceConfig.BindPort
 			serviceConfig.ServicePort = port
 		}
-		layer := cluster.NewServiceLayer(name, serviceConfig, mesh)
+		layer := cluster.NewServiceLayer(name, logger, serviceConfig, mesh)
 		service.JoinServiceLayer(layer)
 	}
 	quit := make(chan struct{})
@@ -173,7 +181,6 @@ func Run(cmd *cobra.Command, name string, serviceFunc func(id string, logger *za
 		}
 	}()
 	<-quit
-
 }
 
 type healthChecker interface {
@@ -202,8 +209,8 @@ func serveHTTPHealth(logger *zap.Logger, mesh healthChecker, service healthCheck
 	}
 }
 
-func joinMesh(id string, clusterNetConf network.Configuration) cluster.Mesh {
-	mesh := cluster.New(cluster.Config{
+func joinMesh(id string, logger *zap.Logger, clusterNetConf network.Configuration) cluster.Mesh {
+	mesh := cluster.New(logger, cluster.Config{
 		BindPort:      clusterNetConf.BindPort,
 		AdvertisePort: clusterNetConf.AdvertisedPort,
 		AdvertiseAddr: clusterNetConf.AdvertisedAddress,

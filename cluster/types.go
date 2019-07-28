@@ -9,7 +9,7 @@ import (
 
 // Mesh represents  the mesh discovery network.
 type Mesh interface {
-	Join(hosts []string)
+	Join(hosts []string) error
 	Peers() peers.PeerStore
 	DialService(name string) (*grpc.ClientConn, error)
 	DialAddress(service, id string, f func(*grpc.ClientConn) error) error
@@ -22,7 +22,7 @@ type Mesh interface {
 type Layer interface {
 	AddState(key string, state types.State) (types.Channel, error)
 	DiscoverPeers(discovery peers.PeerStore)
-	Join(peers []string)
+	Join(peers []string) error
 	Members() []*memberlist.Node
 	Leave()
 }
