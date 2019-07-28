@@ -135,9 +135,9 @@ func (m *layer) MergeRemoteState(buf []byte, join bool) {
 	}
 }
 
-func (m *layer) Join(newHosts []string) {
+func (m *layer) Join(newHosts []string) error {
 	if len(newHosts) == 0 {
-		return
+		return nil
 	}
 	hosts := []string{}
 	curHosts := m.mlist.Members()
@@ -154,16 +154,15 @@ func (m *layer) Join(newHosts []string) {
 		}
 	}
 	if len(hosts) == 0 {
-		return
+		return nil
 	}
 
 	log.Printf("INFO: service/%s: joining hosts %v", m.name, hosts)
 	_, err := m.mlist.Join(hosts)
-	if err == nil {
-		return
+	if err != nil {
+		log.Printf("WARN: service/%s: failed to join the provided node list: %v", m.name, err)
 	}
-	log.Printf("WARN: service/%s: failed to join the provided node list: %v", m.name, hosts)
-
+	return err
 }
 func (self *layer) DiscoverPeers(discovery peers.PeerStore) {
 	peers, _ := discovery.EndpointsByService(fmt.Sprintf("%s_cluster", self.name))
