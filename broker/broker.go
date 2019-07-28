@@ -148,13 +148,12 @@ func (b *Broker) onPeerDown(peer peers.Peer) {
 	set, err := b.Subscriptions.ByPeer(name)
 	if err != nil {
 		b.logger.Error("failed to remove subscriptions from old peer", b.zapNodeID(), zap.String("peer_id", name), zap.Error(err))
-
 		return
 	}
 	set.Apply(func(sub subscriptions.Subscription) {
 		b.Subscriptions.Delete(sub.ID)
 	})
-	b.logger.Error("removed subscriptions from old peer", b.zapNodeID(), zap.String("peer_id", name), zap.Error(err), zap.Int("count", len(set)))
+	b.logger.Info("removed subscriptions from old peer", b.zapNodeID(), zap.String("peer_id", name), zap.Int("count", len(set)))
 
 	sessionSet, err := b.Sessions.ByPeer(name)
 	if err != nil {
@@ -190,10 +189,6 @@ func (b *Broker) onPeerDown(peer peers.Peer) {
 			sub.Sender(b.ctx, lwt)
 		})
 	})
-}
-
-func (b *Broker) Join(hosts []string) {
-	b.mesh.Join(hosts)
 }
 
 func (b *Broker) isSessionLocal(session sessions.Session) bool {
