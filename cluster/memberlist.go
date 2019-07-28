@@ -113,8 +113,8 @@ func New(userConfig Config) *memberlistMesh {
 func (m *memberlistMesh) Leave() {
 	m.layer.Leave()
 }
-func (m *memberlistMesh) Join(peers []string) {
-	m.layer.Join(peers)
+func (m *memberlistMesh) Join(peers []string) error {
+	return m.layer.Join(peers)
 }
 
 func (m *memberlistMesh) RegisterService(name, address string) error {

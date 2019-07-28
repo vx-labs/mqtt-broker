@@ -52,6 +52,7 @@ func JoinConsulPeers(api *consul.Client, service string, selfAddress string, sel
 
 	var index uint64
 	ticker := time.NewTicker(5 * time.Second)
+	defer ticker.Stop()
 	for {
 		services, meta, err := api.Health().Service(
 			service,
@@ -81,8 +82,9 @@ func JoinConsulPeers(api *consul.Client, service string, selfAddress string, sel
 			peers = append(peers, peer)
 		}
 		if foundSelf && len(peers) > 0 {
-			mesh.Join(peers)
-			return nil
+			if mesh.Join(peers) == nil {
+				return nil
+			}
 		}
 	}
 }
