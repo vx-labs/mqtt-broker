@@ -10,6 +10,7 @@ import (
 	"github.com/vx-labs/mqtt-broker/cli"
 	"github.com/vx-labs/mqtt-broker/cluster"
 	"github.com/vx-labs/mqtt-broker/listener"
+	"go.uber.org/zap"
 
 	consul "github.com/hashicorp/consul/api"
 	vault "github.com/hashicorp/vault/api"
@@ -65,7 +66,7 @@ func main() {
 	root := &cobra.Command{
 		Use: "listener",
 		Run: func(cmd *cobra.Command, args []string) {
-			cli.Run(cmd, "listener", func(id string, mesh cluster.Mesh) cli.Service {
+			cli.Run(cmd, "listener", func(id string, logger *zap.Logger, mesh cluster.Mesh) cli.Service {
 				tcpPort, _ := cmd.Flags().GetInt("tcp-port")
 				tlsPort, _ := cmd.Flags().GetInt("tls-port")
 				wssPort, _ := cmd.Flags().GetInt("wss-port")
@@ -80,7 +81,7 @@ func main() {
 					tlsConfig = tlsConfigFromVault(consulAPI, vaultAPI)
 
 				}
-				return listener.New(id, mesh, listener.Config{
+				return listener.New(id, logger, mesh, listener.Config{
 					TCPPort: tcpPort,
 					TLS:     tlsConfig,
 					TLSPort: tlsPort,

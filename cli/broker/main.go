@@ -8,6 +8,7 @@ import (
 
 	"github.com/vx-labs/mqtt-broker/cli"
 	"github.com/vx-labs/mqtt-broker/transport"
+	"go.uber.org/zap"
 
 	"github.com/vx-labs/mqtt-broker/broker"
 
@@ -55,12 +56,12 @@ func main() {
 		Use: "broker",
 		Run: func(cmd *cobra.Command, args []string) {
 
-			cli.Run(cmd, "broker", func(id string, mesh cluster.Mesh) cli.Service {
+			cli.Run(cmd, "broker", func(id string, logger *zap.Logger, mesh cluster.Mesh) cli.Service {
 				config := broker.DefaultConfig()
 				if os.Getenv("NOMAD_ALLOC_ID") != "" {
 					config.AuthHelper = authHelper(context.Background())
 				}
-				return broker.New(id, mesh, config)
+				return broker.New(id, logger, mesh, config)
 			})
 		},
 	}

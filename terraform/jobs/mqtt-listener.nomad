@@ -12,7 +12,8 @@ job "mqtt-listener" {
   }
 
   group "tcp-listener" {
-    count = 2
+    count = 1
+
     restart {
       attempts = 10
       interval = "5m"
@@ -37,16 +38,25 @@ job "mqtt-listener" {
       }
 
       config {
+        logging {
+          type = "fluentd"
+
+          config {
+            fluentd-address = "localhost:24224"
+            tag             = "mqtt-listener"
+          }
+        }
+
         image      = "quay.io/vxlabs/mqtt-listener:${broker_version}"
         args       = ["-t", "1883"]
         force_pull = true
 
         port_map {
-          health = 9000
-          cluster    = 3500
-          mqtt   = 1883
+          health  = 9000
+          cluster = 3500
+          mqtt    = 1883
           service = 4000
-          gossip = 3100
+          gossip  = 3100
         }
       }
 
@@ -58,10 +68,10 @@ job "mqtt-listener" {
           mbits = 10
           port  "mqtt"{}
           port  "broker"{}
-          port  "cluster" {}
+          port  "cluster"{}
           port  "health"{}
-                    port "service" {}
-                    port "gossip" {}
+          port  "service"{}
+          port  "gossip"{}
         }
       }
 
@@ -94,7 +104,6 @@ job "mqtt-listener" {
     }
   }
 
-
   group "tls-listener" {
     vault {
       policies      = ["nomad-tls-storer"]
@@ -102,7 +111,9 @@ job "mqtt-listener" {
       change_signal = "SIGUSR1"
       env           = false
     }
-    count = 2
+
+    count = 1
+
     restart {
       attempts = 10
       interval = "5m"
@@ -132,10 +143,10 @@ job "mqtt-listener" {
         force_pull = true
 
         port_map {
-          health = 9000
-          cluster    = 3500
+          health  = 9000
+          cluster = 3500
           service = 4000
-          gossip = 3100
+          gossip  = 3100
           mqtts   = 8883
         }
       }
@@ -148,10 +159,10 @@ job "mqtt-listener" {
           mbits = 10
           port  "mqtts"{}
           port  "broker"{}
-          port  "cluster" {}
+          port  "cluster"{}
           port  "health"{}
-          port "service" {}
-                    port "gossip" {}
+          port  "service"{}
+          port  "gossip"{}
         }
       }
 
@@ -196,6 +207,7 @@ job "mqtt-listener" {
       }
     }
   }
+
   group "wss-listener" {
     vault {
       policies      = ["nomad-tls-storer"]
@@ -203,7 +215,9 @@ job "mqtt-listener" {
       change_signal = "SIGUSR1"
       env           = false
     }
-    count = 2
+
+    count = 1
+
     restart {
       attempts = 10
       interval = "5m"
@@ -233,11 +247,11 @@ job "mqtt-listener" {
         force_pull = true
 
         port_map {
-          health = 9000
-          cluster    = 3500
+          health  = 9000
+          cluster = 3500
           service = 4000
-          gossip = 3100
-          wss   = 8008
+          gossip  = 3100
+          wss     = 8008
         }
       }
 
@@ -247,12 +261,12 @@ job "mqtt-listener" {
 
         network {
           mbits = 10
-          port  "wss"{}
+          port  "wss" {}
           port  "broker"{}
-          port  "cluster" {}
+          port  "cluster"{}
           port  "health"{}
-          port "service" {}
-                    port "gossip" {}
+          port  "service"{}
+          port  "gossip"{}
         }
       }
 

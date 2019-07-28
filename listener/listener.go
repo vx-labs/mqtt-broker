@@ -5,7 +5,6 @@ import (
 	"crypto/tls"
 	"errors"
 	"io"
-	"log"
 	"net"
 	"strings"
 	"sync"
@@ -16,6 +15,7 @@ import (
 	"github.com/vx-labs/mqtt-broker/transport"
 	"github.com/vx-labs/mqtt-protocol/encoder"
 	"github.com/vx-labs/mqtt-protocol/packet"
+	"go.uber.org/zap"
 )
 
 var (
@@ -45,6 +45,7 @@ type endpoint struct {
 	transports []net.Listener
 	broker     Broker
 	mesh       cluster.Mesh
+	logger     *zap.Logger
 }
 
 func (local *endpoint) newSession(metadata transport.Metadata) error {
@@ -74,7 +75,7 @@ func (local *endpoint) Publish(ctx context.Context, id string, publish *packet.P
 		id: id,
 	})
 	if session == nil {
-		log.Printf("WARN: publish issued to an unknown session %s", id)
+		local.logger.Warn("session not found", zap.String("node_id", local.id), zap.String("session_id", id))
 		return ErrSessionNotFound
 	}
 	return session.(*localSession).encoder.Publish(publish)
@@ -99,7 +100,7 @@ type Config struct {
 	WSPort  int
 }
 
-func New(id string, mesh cluster.Mesh, config Config) *endpoint {
+func New(id string, logger *zap.Logger, mesh cluster.Mesh, config Config) *endpoint {
 	brokerConn, err := mesh.DialService("broker")
 	if err != nil {
 		panic(err)
@@ -110,21 +111,27 @@ func New(id string, mesh cluster.Mesh, config Config) *endpoint {
 		sessions: btree.New(2),
 		id:       id,
 		mesh:     mesh,
+		logger:   logger,
 	}
 	if config.TCPPort > 0 {
 		tcpTransport, err := transport.NewTCPTransport(config.TCPPort, local.newSession)
 		if err != nil {
-			log.Printf("WARN: failed to start TCP listener on port %d: %v", config.TCPPort, err)
+			local.logger.Warn("failed to start listener", zap.String("node_id", id),
+				zap.String("transport", "tcp"), zap.Error(err))
 		} else {
+			local.logger.Info("started listener", zap.String("node_id", id),
+				zap.String("transport", "tcp"))
 			local.transports = append(local.transports, tcpTransport)
 		}
 	}
 	if config.WSPort > 0 {
 		wsTransport, err := transport.NewWSTransport(config.WSPort, local.newSession)
 		if err != nil {
-			log.Printf("WARN: failed to start WS listener on port %d: %v", config.WSPort, err)
+			local.logger.Warn("failed to start listener", zap.String("node_id", id),
+				zap.String("transport", "ws"), zap.Error(err))
 		} else {
-			log.Printf("INFO: started WS listener on port %d", config.WSPort)
+			local.logger.Info("started listener", zap.String("node_id", id),
+				zap.String("transport", "ws"))
 			local.transports = append(local.transports, wsTransport)
 		}
 	}
@@ -132,18 +139,22 @@ func New(id string, mesh cluster.Mesh, config Config) *endpoint {
 		if config.WSSPort > 0 {
 			wssTransport, err := transport.NewWSSTransport(config.WSSPort, config.TLS, local.newSession)
 			if err != nil {
-				log.Printf("WARN: failed to start WSS listener on port %d: %v", config.WSSPort, err)
+				local.logger.Warn("failed to start listener", zap.String("node_id", id),
+					zap.String("transport", "wss"), zap.Error(err))
 			} else {
-				log.Printf("INFO: started WSS listener on port %d", config.WSSPort)
+				local.logger.Info("started listener", zap.String("node_id", id),
+					zap.String("transport", "wss"))
 				local.transports = append(local.transports, wssTransport)
 			}
 		}
 		if config.TLSPort > 0 {
 			tlsTransport, err := transport.NewTLSTransport(config.TLSPort, config.TLS, local.newSession)
 			if err != nil {
-				log.Printf("WARN: failed to start TLS listener on port %d: %v", config.TLSPort, err)
+				local.logger.Warn("failed to start listener", zap.String("node_id", id),
+					zap.String("transport", "tls"), zap.Error(err))
 			} else {
-				log.Printf("INFO: started TLS listener on port %d", config.TLSPort)
+				local.logger.Info("started listener", zap.String("node_id", id),
+					zap.String("transport", "tls"))
 				local.transports = append(local.transports, tlsTransport)
 			}
 		}

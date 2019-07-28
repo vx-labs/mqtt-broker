@@ -11,7 +11,6 @@ job "mqtt-api" {
     canary           = 0
   }
 
-
   group "tls-api" {
     vault {
       policies      = ["nomad-tls-storer"]
@@ -19,7 +18,9 @@ job "mqtt-api" {
       change_signal = "SIGUSR1"
       env           = false
     }
-    count = 2
+
+    count = 1
+
     restart {
       attempts = 10
       interval = "5m"
@@ -35,7 +36,7 @@ job "mqtt-api" {
       driver = "docker"
 
       env {
-        TLS_CN = "broker-api.iot.cloud.vx-labs.net"
+        TLS_CN                    = "broker-api.iot.cloud.vx-labs.net"
         CONSUL_HTTP_ADDR          = "172.17.0.1:8500"
         AUTH_HOST                 = "172.17.0.1:4141"
         JAEGER_SAMPLER_TYPE       = "const"
@@ -45,15 +46,24 @@ job "mqtt-api" {
       }
 
       config {
+        logging {
+          type = "fluentd"
+
+          config {
+            fluentd-address = "localhost:24224"
+            tag             = "mqtt-api"
+          }
+        }
+
         image      = "quay.io/vxlabs/mqtt-api:${broker_version}"
         args       = ["--tls-port", "3000"]
         force_pull = true
 
         port_map {
-          health = 9000
-          cluster    = 3500
+          health  = 9000
+          cluster = 3500
           service = 4000
-          gossip = 3100
+          gossip  = 3100
           https   = 3000
         }
       }
@@ -66,11 +76,11 @@ job "mqtt-api" {
           mbits = 10
           port  "mqtts"{}
           port  "broker"{}
-          port  "cluster" {}
+          port  "cluster"{}
           port  "health"{}
-          port "service" {}
-                    port "gossip" {}
-                    port "https" {}
+          port  "service"{}
+          port  "gossip"{}
+          port  "https"{}
         }
       }
 

@@ -11,7 +11,6 @@ job "mqtt-broker" {
     canary           = 0
   }
 
-
   group "broker" {
     vault {
       policies      = ["nomad-tls-storer"]
@@ -19,7 +18,9 @@ job "mqtt-broker" {
       change_signal = "SIGUSR1"
       env           = false
     }
+
     count = 3
+
     restart {
       attempts = 10
       interval = "5m"
@@ -44,15 +45,24 @@ job "mqtt-broker" {
       }
 
       config {
+        logging {
+          type = "fluentd"
+
+          config {
+            fluentd-address = "localhost:24224"
+            tag             = "mqtt-broker"
+          }
+        }
+
         image      = "quay.io/vxlabs/mqtt-broker:${broker_version}"
         force_pull = true
 
         port_map {
-          health = 9000
-          cluster    = 3500
-          mqtt   = 1883
+          health  = 9000
+          cluster = 3500
+          mqtt    = 1883
           service = 4000
-          gossip = 3100
+          gossip  = 3100
         }
       }
 
@@ -64,12 +74,13 @@ job "mqtt-broker" {
           mbits = 10
           port  "mqtt"{}
           port  "broker"{}
-          port  "cluster" {}
+          port  "cluster"{}
           port  "health"{}
-                    port "service" {}
-                    port "gossip" {}
+          port  "service"{}
+          port  "gossip"{}
         }
       }
+
       service {
         name = "mqtt-metrics"
         port = "health"
@@ -82,6 +93,7 @@ job "mqtt-broker" {
           timeout  = "2s"
         }
       }
+
       service {
         name = "cluster"
         port = "cluster"
