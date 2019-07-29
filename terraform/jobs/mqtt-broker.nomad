@@ -19,7 +19,7 @@ job "mqtt-broker" {
       env           = false
     }
 
-    count = 3
+    count = 1
 
     restart {
       attempts = 10
@@ -55,6 +55,7 @@ job "mqtt-broker" {
         }
 
         image      = "quay.io/vxlabs/mqtt-broker:${broker_version}"
+        args       = ["--cluster-bind-port=3500", "--gossip-bind-port=3100", "--service-bind-port=4000"]
         force_pull = true
 
         port_map {
@@ -68,7 +69,7 @@ job "mqtt-broker" {
 
       resources {
         cpu    = 200
-        memory = 128
+        memory = 64
 
         network {
           mbits = 10

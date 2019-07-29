@@ -95,8 +95,8 @@ func logService(logger *zap.Logger, id, name string, config network.Configuratio
 		zap.String("service_name", name),
 		zap.String("bind_address", config.BindAddress),
 		zap.Int("bind_port", config.BindPort),
-		zap.String("advertized_address", config.AdvertisedAddress),
-		zap.Int("advertized_port", config.AdvertisedPort),
+		zap.String("advertised_address", config.AdvertisedAddress),
+		zap.Int("advertised_port", config.AdvertisedPort),
 	)
 }
 

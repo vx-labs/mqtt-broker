@@ -48,7 +48,7 @@ job "mqtt-listener" {
         }
 
         image      = "quay.io/vxlabs/mqtt-listener:${broker_version}"
-        args       = ["-t", "1883"]
+        args       = ["-t", "1883", "--cluster-bind-port=3500", "--gossip-bind-port=3100", "--service-bind-port=4000"]
         force_pull = true
 
         port_map {
@@ -62,7 +62,7 @@ job "mqtt-listener" {
 
       resources {
         cpu    = 200
-        memory = 128
+        memory = 32
 
         network {
           mbits = 10
@@ -139,7 +139,7 @@ job "mqtt-listener" {
 
       config {
         image      = "quay.io/vxlabs/mqtt-listener:${broker_version}"
-        args       = ["-s", "8883"]
+        args       = ["-s", "8883", "--cluster-bind-port=3500", "--gossip-bind-port=3100", "--service-bind-port=4000"]
         force_pull = true
 
         port_map {
@@ -153,7 +153,7 @@ job "mqtt-listener" {
 
       resources {
         cpu    = 200
-        memory = 128
+        memory = 32
 
         network {
           mbits = 10
@@ -243,7 +243,7 @@ job "mqtt-listener" {
 
       config {
         image      = "quay.io/vxlabs/mqtt-listener:${broker_version}"
-        args       = ["-w", "8008"]
+        args       = ["-w", "8008", "--cluster-bind-port=3500", "--gossip-bind-port=3100", "--service-bind-port=4000"]
         force_pull = true
 
         port_map {
@@ -257,7 +257,7 @@ job "mqtt-listener" {
 
       resources {
         cpu    = 200
-        memory = 128
+        memory = 32
 
         network {
           mbits = 10
