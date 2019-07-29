@@ -19,7 +19,7 @@ job "mqtt-broker" {
       env           = false
     }
 
-    count = 1
+    count = 3
 
     restart {
       attempts = 10

@@ -12,7 +12,7 @@ job "mqtt-listener" {
   }
 
   group "tcp-listener" {
-    count = 1
+    count = 2
 
     restart {
       attempts = 10
@@ -112,7 +112,7 @@ job "mqtt-listener" {
       env           = false
     }
 
-    count = 1
+    count = 2
 
     restart {
       attempts = 10
@@ -216,7 +216,7 @@ job "mqtt-listener" {
       env           = false
     }
 
-    count = 1
+    count = 2
 
     restart {
       attempts = 10
