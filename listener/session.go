@@ -3,6 +3,7 @@ package listener
 import (
 	"context"
 	"errors"
+	"io"
 	"time"
 
 	"go.uber.org/zap"
@@ -162,7 +163,9 @@ func (local *endpoint) runLocalSession(t transport.Metadata) {
 				break
 			}
 			local.logger.Warn("session lost", fields...)
-			local.logger.Error("decoding failed", append(fields, zap.Error(err))...)
+			if err != io.EOF {
+				local.logger.Error("decoding failed", append(fields, zap.Error(err))...)
+			}
 			break
 		}
 	}

@@ -108,7 +108,13 @@ func Run(cmd *cobra.Command, name string, serviceFunc func(id string, logger *za
 		}()
 	}
 	sigc := make(chan os.Signal, 1)
-	logger, err := zap.NewProduction()
+	var logger *zap.Logger
+	var err error
+	if os.Getenv("ENABLE_PRETTY_LOG") == "true" {
+		logger, err = zap.NewDevelopment()
+	} else {
+		logger, err = zap.NewProduction()
+	}
 	if err != nil {
 		panic(err)
 	}
