@@ -30,6 +30,11 @@ func (i *inode) cas(old, new *node) bool {
 	return atomic.CompareAndSwapPointer(oldPtr, unsafe.Pointer(old), unsafe.Pointer(new))
 }
 
+type Queue interface {
+	Enqueue(p *Message)
+	Pop() *Message
+}
+
 type queue struct {
 	head *inode
 	tail *inode

@@ -11,6 +11,8 @@ import (
 
 	"github.com/google/btree"
 	brokerpb "github.com/vx-labs/mqtt-broker/broker/pb"
+	publishQueue "github.com/vx-labs/mqtt-broker/queues/publish"
+
 	"github.com/vx-labs/mqtt-broker/cluster"
 	"github.com/vx-labs/mqtt-broker/transport"
 	"github.com/vx-labs/mqtt-protocol/encoder"
@@ -78,12 +80,14 @@ func (local *endpoint) Publish(ctx context.Context, id string, publish *packet.P
 		local.logger.Warn("session not found", zap.String("node_id", local.id), zap.String("session_id", id))
 		return ErrSessionNotFound
 	}
-	return session.(*localSession).encoder.Publish(publish)
+	session.(*localSession).queue.Enqueue(&publishQueue.Message{Publish: publish})
+	return nil
 }
 
 type localSession struct {
 	id        string
 	encoder   *encoder.Encoder
+	queue     publishQueue.Queue
 	transport io.Closer
 	quit      chan struct{}
 }

@@ -49,6 +49,7 @@ func (local *endpoint) runLocalSession(t transport.Metadata) {
 	inflight := inflight.New(enc.Publish)
 	queue := publishQueue.New()
 	defer close(session.quit)
+	session.queue = queue
 	publishWorkers := pool.NewPool(5)
 	dec := decoder.New(
 		decoder.OnConnect(func(p *packet.Connect) error {

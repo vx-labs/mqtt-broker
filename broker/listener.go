@@ -140,12 +140,21 @@ func (b *Broker) Subscribe(ctx context.Context, id string, p *packet.Subscribe) 
 			},
 		}
 		err := b.Subscriptions.Create(event, func(ctx context.Context, publish packet.Publish) error {
+			if (publish.Header.Qos) > event.Qos {
+				publish.Header.Qos = event.Qos
+			}
 			return sess.Transport.Publish(ctx, &publish)
 		})
 		if err != nil {
 			return nil, err
 		}
-		b.logger.Info("session subscribed", b.zapNodeID(), zap.String("session_id", sess.ID), zap.Binary("topic_pattern", event.Pattern))
+		b.logger.Info("session subscribed",
+			b.zapNodeID(),
+			zap.String("session_id", sess.ID),
+			zap.String("subscription_id", subID),
+			zap.Int32("qos", p.Qos[idx]),
+			zap.Binary("topic_pattern", event.Pattern))
+
 		// Look for retained messages
 		set, err := b.Topics.ByTopicPattern(sess.Tenant, pattern)
 		if err != nil {

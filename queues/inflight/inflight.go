@@ -46,7 +46,7 @@ func New(sender func(*packet.Publish) error) *Queue {
 		jobs:         make(chan chan *packet.Publish),
 	}
 	var i int32
-	for i = 0; i < 10; i++ {
+	for i = 1; i <= 10; i++ {
 		q.acknowlegers.ReplaceOrInsert(startDeliverer(i, q.jobs, sender))
 	}
 	go func() {
