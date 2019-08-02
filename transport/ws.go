@@ -83,9 +83,15 @@ func NewWSTransport(port int, handler func(Metadata) error) (net.Listener, error
 	listener := &wsListener{}
 
 	mux := http.NewServeMux()
+	upgrader := ws.HTTPUpgrader{
+		Header: http.Header{
+			"Sec-WebSocket-Protocol": []string{
+				"mqtt",
+			},
+		},
+	}
 	mux.HandleFunc("/mqtt", func(w http.ResponseWriter, r *http.Request) {
-		log.Printf("INFO: starting websocket negociation with %s", r.RemoteAddr)
-		conn, _, _, err := ws.UpgradeHTTP(r, w)
+		conn, _, _, err := upgrader.Upgrade(r, w)
 		if err != nil {
 			log.Printf("ERR: websocket negociation with %s failed: %v", r.RemoteAddr, err)
 			return
