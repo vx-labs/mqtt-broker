@@ -138,6 +138,15 @@ job "mqtt-listener" {
       }
 
       config {
+        logging {
+          type = "fluentd"
+
+          config {
+            fluentd-address = "localhost:24224"
+            tag             = "mqtt-listener"
+          }
+        }
+
         image      = "quay.io/vxlabs/mqtt-listener:${broker_version}"
         args       = ["-s", "8883", "--cluster-bind-port=3500", "--gossip-bind-port=3100", "--service-bind-port=4000"]
         force_pull = true
@@ -242,6 +251,15 @@ job "mqtt-listener" {
       }
 
       config {
+        logging {
+          type = "fluentd"
+
+          config {
+            fluentd-address = "localhost:24224"
+            tag             = "mqtt-listener"
+          }
+        }
+
         image      = "quay.io/vxlabs/mqtt-listener:${broker_version}"
         args       = ["-w", "8008", "--cluster-bind-port=3500", "--gossip-bind-port=3100", "--service-bind-port=4000"]
         force_pull = true

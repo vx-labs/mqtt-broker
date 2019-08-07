@@ -41,6 +41,13 @@ func (m *layer) Members() []*memberlist.Node {
 	return m.mlist.Members()
 }
 
+func (m *layer) OnNodeJoin(f func(id string, meta pb.NodeMeta)) {
+	m.onNodeJoin = f
+}
+func (m *layer) OnNodeLeave(f func(id string, meta pb.NodeMeta)) {
+	m.onNodeLeave = f
+}
+
 func (m *layer) AddState(key string, state types.State) (types.Channel, error) {
 	//log.Printf("INFO: service/%s: registering %s state", m.name, key)
 	m.mtx.Lock()

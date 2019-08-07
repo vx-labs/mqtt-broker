@@ -2,6 +2,7 @@ package cluster
 
 import (
 	"github.com/hashicorp/memberlist"
+	"github.com/vx-labs/mqtt-broker/cluster/pb"
 	"github.com/vx-labs/mqtt-broker/cluster/peers"
 	"github.com/vx-labs/mqtt-broker/cluster/types"
 	"google.golang.org/grpc"
@@ -24,5 +25,7 @@ type Layer interface {
 	DiscoverPeers(discovery peers.PeerStore)
 	Join(peers []string) error
 	Members() []*memberlist.Node
+	OnNodeJoin(func(id string, meta pb.NodeMeta))
+	OnNodeLeave(func(id string, meta pb.NodeMeta))
 	Leave()
 }

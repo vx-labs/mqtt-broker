@@ -266,11 +266,7 @@ func (b *Broker) Disconnect(ctx context.Context, id string, p *packet.Disconnect
 	b.Sessions.Delete(id, "session_disconnected")
 	err = b.deleteSessionSubscriptions(sess)
 	if err != nil {
-		if err != nil {
-			b.logger.Error("failed to delete session subscriptions when disconnecting", b.zapNodeID(), zap.String("session_id", id), zap.Error(err))
-			return err
-		}
-		return err
+		b.logger.Error("failed to delete session subscriptions when disconnecting", b.zapNodeID(), zap.String("session_id", id), zap.Error(err))
 	}
 	b.logger.Info("session disconnected", b.zapNodeID(), zap.String("session_id", sess.ID))
 	return nil

@@ -18,6 +18,7 @@ type Conn struct {
 	conn   net.Conn
 	reader io.Reader
 	state  tls.ConnectionState
+	writer *wsutil.Writer
 }
 
 func (c *Conn) nextFrame() error {
@@ -50,7 +51,7 @@ func (c *Conn) Read(b []byte) (int, error) {
 	}
 }
 func (c *Conn) Write(b []byte) (int, error) {
-	return len(b), wsutil.WriteServerBinary(c.conn, b)
+	return c.writer.WriteThrough(b)
 }
 
 func (c *Conn) Close() error {
@@ -98,7 +99,8 @@ func NewWSTransport(port int, handler func(Metadata) error) (net.Listener, error
 		}
 
 		listener.queueSession(&Conn{
-			conn: conn,
+			writer: wsutil.NewWriter(conn, ws.StateServerSide, ws.OpBinary),
+			conn:   conn,
 		}, handler)
 	})
 	ln, err := net.Listen("tcp", fmt.Sprintf(":%d", port))

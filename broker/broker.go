@@ -14,6 +14,7 @@ import (
 
 	"github.com/vx-labs/mqtt-broker/broker/pb"
 	"github.com/vx-labs/mqtt-broker/cluster"
+	clusterpb "github.com/vx-labs/mqtt-broker/cluster/pb"
 
 	"github.com/vx-labs/mqtt-broker/sessions"
 	"github.com/vx-labs/mqtt-broker/topics"
@@ -141,10 +142,12 @@ func (broker *Broker) Start(layer types.ServiceLayer) {
 	broker.Topics = topicssStore
 	broker.Subscriptions = subscriptionsStore
 	broker.Sessions = sessionsStore
-	broker.Peers.On(peers.PeerDeleted, broker.onPeerDown)
+	layer.OnNodeLeave(func(id string, meta clusterpb.NodeMeta) {
+		broker.onPeerDown(id)
+	})
 }
-func (b *Broker) onPeerDown(peer peers.Peer) {
-	name := peer.ID
+func (b *Broker) onPeerDown(name string) {
+	b.logger.Info("peer down", b.zapNodeID(), zap.String("peer_id", name))
 	set, err := b.Subscriptions.ByPeer(name)
 	if err != nil {
 		b.logger.Error("failed to remove subscriptions from old peer", b.zapNodeID(), zap.String("peer_id", name), zap.Error(err))
