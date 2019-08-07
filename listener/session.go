@@ -170,8 +170,14 @@ func (local *endpoint) runLocalSession(t transport.Metadata) {
 			break
 		}
 	}
-	t.Channel.Close()
-	local.broker.CloseSession(ctx, session.id)
+	err = t.Channel.Close()
+	if err != nil {
+		local.logger.Warn("failed to close session channel", append(fields, zap.Error(err))...)
+	}
+	err = local.broker.CloseSession(ctx, session.id)
+	if err != nil {
+		local.logger.Warn("failed to close session on broker", append(fields, zap.Error(err))...)
+	}
 	local.mutex.Lock()
 	local.sessions.Delete(session)
 	local.mutex.Unlock()
