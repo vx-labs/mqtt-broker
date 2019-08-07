@@ -2,6 +2,7 @@ package cluster
 
 import (
 	"github.com/hashicorp/memberlist"
+	"github.com/vx-labs/mqtt-broker/cluster/pb"
 	"github.com/vx-labs/mqtt-broker/cluster/peers"
 	"github.com/vx-labs/mqtt-broker/cluster/types"
 	"google.golang.org/grpc"
@@ -16,7 +17,8 @@ type mockedMesh struct{}
 func (m *mockedMesh) AddState(key string, state types.State) (types.Channel, error) {
 	return &mockedChannel{}, nil
 }
-func (m *mockedMesh) Join(hosts []string) {}
+func (m *mockedMesh) OnNodeLeave(f func(id string, meta pb.NodeMeta)) {}
+func (m *mockedMesh) Join(hosts []string)                             {}
 func (m *mockedMesh) MemberRPCAddress(string) (string, error) {
 	return "", ErrNodeNotFound
 }
