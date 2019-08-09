@@ -1,6 +1,7 @@
 package transport
 
 import (
+	"context"
 	"crypto/tls"
 	"fmt"
 	"log"
@@ -8,14 +9,20 @@ import (
 	"time"
 
 	"github.com/armon/go-proxyproto"
+	"github.com/vx-labs/mqtt-broker/vaultacme"
 )
 
 type tlsListener struct {
 	listener net.Listener
 }
 
-func NewTLSTransport(port int, TLSConfig *tls.Config, handler func(Metadata) error) (net.Listener, error) {
+func NewTLSTransport(ctx context.Context, cn string, port int, handler func(Metadata) error) (net.Listener, error) {
 	listener := &tlsListener{}
+	TLSConfig, err := vaultacme.GetConfig(ctx, cn)
+	if err != nil {
+		return nil, err
+	}
+
 	tcp, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
 	if err != nil {
 		return nil, err

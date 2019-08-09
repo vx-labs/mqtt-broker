@@ -3,11 +3,12 @@ package api
 import (
 	"crypto/tls"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net"
 	"net/http"
 	"time"
+
+	"github.com/vx-labs/mqtt-broker/vaultacme"
 
 	"github.com/vx-labs/mqtt-broker/cluster/types"
 	"go.uber.org/zap"
@@ -79,19 +80,18 @@ func (b *api) acceptLoop(listener net.Listener) {
 
 func (b *api) Serve(_ int) net.Listener {
 	if b.config.TlsPort > 0 {
-		if b.config.TlsConfig != nil {
-			ln, err := tls.Listen("tcp", fmt.Sprintf(":%d", b.config.TlsPort), b.config.TlsConfig)
-			if err != nil {
-				b.logger.Fatal("failed to start listener", zap.String("node_id", b.id),
-					zap.String("transport", "tls"), zap.Error(err))
-			}
-			b.listeners = append(b.listeners, ln)
-			b.logger.Info("started listener", zap.String("node_id", b.id),
-				zap.String("transport", "tls"))
-		} else {
-			b.logger.Warn("not started listener", zap.String("node_id", b.id),
-				zap.Error(errors.New("tls config is empty")))
+		TLSConfig, err := vaultacme.GetConfig(b.ctx, b.config.TlsCommonName)
+		if err != nil {
+			panic(err)
 		}
+		ln, err := tls.Listen("tcp", fmt.Sprintf(":%d", b.config.TlsPort), TLSConfig)
+		if err != nil {
+			b.logger.Fatal("failed to start listener", zap.String("node_id", b.id),
+				zap.String("transport", "tls"), zap.Error(err))
+		}
+		b.listeners = append(b.listeners, ln)
+		b.logger.Info("started listener", zap.String("node_id", b.id),
+			zap.String("transport", "tls"))
 	}
 	if b.config.TcpPort > 0 {
 		ln, err := net.Listen("tcp", fmt.Sprintf(":%d", b.config.TcpPort))

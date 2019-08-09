@@ -129,7 +129,9 @@ job "mqtt-listener" {
       driver = "docker"
 
       env {
+        LE_EMAIL = "julien@bonachera.fr"
         CONSUL_HTTP_ADDR          = "172.17.0.1:8500"
+        VAULT_ADDR                = "172.17.0.1:8200"
         AUTH_HOST                 = "172.17.0.1:4141"
         JAEGER_SAMPLER_TYPE       = "const"
         JAEGER_SAMPLER_PARAM      = "1"
@@ -242,7 +244,9 @@ job "mqtt-listener" {
       driver = "docker"
 
       env {
+        LE_EMAIL = "julien@bonachera.fr"
         CONSUL_HTTP_ADDR          = "172.17.0.1:8500"
+        VAULT_ADDR                = "172.17.0.1:8200"
         AUTH_HOST                 = "172.17.0.1:4141"
         JAEGER_SAMPLER_TYPE       = "const"
         JAEGER_SAMPLER_PARAM      = "1"

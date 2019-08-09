@@ -1,6 +1,7 @@
 package transport
 
 import (
+	"context"
 	"crypto/tls"
 	"fmt"
 	"log"
@@ -8,15 +9,19 @@ import (
 	"net/http"
 
 	"github.com/gobwas/ws"
+	"github.com/vx-labs/mqtt-broker/vaultacme"
 )
 
 type wssListener struct {
 	listener net.Listener
 }
 
-func NewWSSTransport(port int, TLSConfig *tls.Config, handler func(Metadata) error) (net.Listener, error) {
+func NewWSSTransport(ctx context.Context, cn string, port int, handler func(Metadata) error) (net.Listener, error) {
 	listener := &wssListener{}
-
+	TLSConfig, err := vaultacme.GetConfig(ctx, cn)
+	if err != nil {
+		return nil, err
+	}
 	mux := http.NewServeMux()
 	mux.HandleFunc("/mqtt", func(w http.ResponseWriter, r *http.Request) {
 		log.Printf("INFO: starting websocket negociation with %s", r.RemoteAddr)

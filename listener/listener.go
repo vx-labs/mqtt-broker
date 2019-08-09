@@ -2,7 +2,6 @@ package listener
 
 import (
 	"context"
-	"crypto/tls"
 	"errors"
 	"io"
 	"net"
@@ -97,14 +96,15 @@ func (local *localSession) Less(remote btree.Item) bool {
 }
 
 type Config struct {
-	TCPPort int
-	TLS     *tls.Config
-	TLSPort int
-	WSSPort int
-	WSPort  int
+	TCPPort       int
+	TLSCommonName string
+	TLSPort       int
+	WSSPort       int
+	WSPort        int
 }
 
 func New(id string, logger *zap.Logger, mesh cluster.Mesh, config Config) *endpoint {
+	ctx := context.Background()
 	brokerConn, err := mesh.DialService("broker")
 	if err != nil {
 		panic(err)
@@ -139,29 +139,28 @@ func New(id string, logger *zap.Logger, mesh cluster.Mesh, config Config) *endpo
 			local.transports = append(local.transports, wsTransport)
 		}
 	}
-	if config.TLS != nil {
-		if config.WSSPort > 0 {
-			wssTransport, err := transport.NewWSSTransport(config.WSSPort, config.TLS, local.newSession)
-			if err != nil {
-				local.logger.Warn("failed to start listener", zap.String("node_id", id),
-					zap.String("transport", "wss"), zap.Error(err))
-			} else {
-				local.logger.Info("started listener", zap.String("node_id", id),
-					zap.String("transport", "wss"))
-				local.transports = append(local.transports, wssTransport)
-			}
+	if config.WSSPort > 0 {
+		wssTransport, err := transport.NewWSSTransport(ctx, config.TLSCommonName, config.WSSPort, local.newSession)
+		if err != nil {
+			local.logger.Warn("failed to start listener", zap.String("node_id", id),
+				zap.String("transport", "wss"), zap.Error(err))
+		} else {
+			local.logger.Info("started listener", zap.String("node_id", id),
+				zap.String("transport", "wss"))
+			local.transports = append(local.transports, wssTransport)
 		}
-		if config.TLSPort > 0 {
-			tlsTransport, err := transport.NewTLSTransport(config.TLSPort, config.TLS, local.newSession)
-			if err != nil {
-				local.logger.Warn("failed to start listener", zap.String("node_id", id),
-					zap.String("transport", "tls"), zap.Error(err))
-			} else {
-				local.logger.Info("started listener", zap.String("node_id", id),
-					zap.String("transport", "tls"))
-				local.transports = append(local.transports, tlsTransport)
-			}
+	}
+	if config.TLSPort > 0 {
+		tlsTransport, err := transport.NewTLSTransport(ctx, config.TLSCommonName, config.TLSPort, local.newSession)
+		if err != nil {
+			local.logger.Warn("failed to start listener", zap.String("node_id", id),
+				zap.String("transport", "tls"), zap.Error(err))
+		} else {
+			local.logger.Info("started listener", zap.String("node_id", id),
+				zap.String("transport", "tls"))
+			local.transports = append(local.transports, tlsTransport)
 		}
+
 	}
 	return local
 }
