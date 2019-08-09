@@ -1,7 +1,7 @@
 package api
 
 import (
-	"crypto/tls"
+	"context"
 	"net"
 
 	"go.uber.org/zap"
@@ -12,6 +12,7 @@ import (
 
 type api struct {
 	id           string
+	ctx          context.Context
 	config       Config
 	listeners    []net.Listener
 	mesh         cluster.Mesh
@@ -19,10 +20,10 @@ type api struct {
 	logger       *zap.Logger
 }
 type Config struct {
-	TlsConfig *tls.Config
-	TlsPort   int
-	TcpPort   int
-	logger    *zap.Logger
+	TlsCommonName string
+	TlsPort       int
+	TcpPort       int
+	logger        *zap.Logger
 }
 
 func New(id string, logger *zap.Logger, mesh cluster.Mesh, config Config) *api {
@@ -32,6 +33,7 @@ func New(id string, logger *zap.Logger, mesh cluster.Mesh, config Config) *api {
 	}
 	return &api{
 		id:           id,
+		ctx:          context.Background(),
 		mesh:         mesh,
 		config:       config,
 		brokerClient: brokerClient.NewClient(conn),
