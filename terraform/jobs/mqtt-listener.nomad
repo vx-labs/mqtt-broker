@@ -30,11 +30,6 @@ job "mqtt-listener" {
 
       env {
         CONSUL_HTTP_ADDR          = "172.17.0.1:8500"
-        AUTH_HOST                 = "172.17.0.1:4141"
-        JAEGER_SAMPLER_TYPE       = "const"
-        JAEGER_SAMPLER_PARAM      = "1"
-        JAEGER_REPORTER_LOG_SPANS = "true"
-        JAEGER_AGENT_HOST         = "$${NOMAD_IP_health}"
       }
 
       config {
@@ -129,12 +124,22 @@ job "mqtt-listener" {
       driver = "docker"
 
       env {
-        CONSUL_HTTP_ADDR          = "172.17.0.1:8500"
-        AUTH_HOST                 = "172.17.0.1:4141"
-        JAEGER_SAMPLER_TYPE       = "const"
-        JAEGER_SAMPLER_PARAM      = "1"
-        JAEGER_REPORTER_LOG_SPANS = "true"
-        JAEGER_AGENT_HOST         = "$${NOMAD_IP_health}"
+        TLS_CN           = "broker.iot.cloud.vx-labs.net"
+        CONSUL_HTTP_ADDR = "$${NOMAD_IP_health}:8500"
+        VAULT_ADDR       = "http://$${NOMAD_IP_health}:8200"
+      }
+
+      template {
+        destination = "local/proxy.conf"
+        env = true
+        data = <<EOH
+{{with secret "secret/data/vx/mqtt"}}
+http_proxy="{{.Data.http_proxy}}"
+https_proxy="{{.Data.http_proxy}}"
+LE_EMAIL="{{.Data.acme_email}}"
+no_proxy="172.17.0.1,{{ env "NOMAD_IP_health" }}"
+{{end}}
+        EOH
       }
 
       config {
@@ -242,12 +247,22 @@ job "mqtt-listener" {
       driver = "docker"
 
       env {
-        CONSUL_HTTP_ADDR          = "172.17.0.1:8500"
-        AUTH_HOST                 = "172.17.0.1:4141"
-        JAEGER_SAMPLER_TYPE       = "const"
-        JAEGER_SAMPLER_PARAM      = "1"
-        JAEGER_REPORTER_LOG_SPANS = "true"
-        JAEGER_AGENT_HOST         = "$${NOMAD_IP_health}"
+        TLS_CN           = "broker.iot.cloud.vx-labs.net"
+        CONSUL_HTTP_ADDR = "$${NOMAD_IP_health}:8500"
+        VAULT_ADDR       = "http://$${NOMAD_IP_health}:8200"
+      }
+
+      template {
+        destination = "local/proxy.conf"
+        env = true
+        data = <<EOH
+{{with secret "secret/data/vx/mqtt"}}
+http_proxy="{{.Data.http_proxy}}"
+https_proxy="{{.Data.http_proxy}}"
+LE_EMAIL="{{.Data.acme_email}}"
+no_proxy="172.17.0.1,{{ env "NOMAD_IP_health" }}"
+{{end}}
+        EOH
       }
 
       config {
