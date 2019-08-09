@@ -9,7 +9,6 @@ import (
 	"syscall"
 	"time"
 
-	mqttConfig "github.com/vx-labs/iot-mqtt-config"
 	"go.uber.org/zap"
 
 	consul "github.com/hashicorp/consul/api"
@@ -131,9 +130,11 @@ func Run(cmd *cobra.Command, name string, serviceFunc func(id string, logger *za
 	service := serviceFunc(id, logger, mesh)
 	var clusterMemberFound chan struct{}
 	if allocID := os.Getenv("NOMAD_ALLOC_ID"); allocID != "" {
-		consulAPI, _, err := mqttConfig.DefaultClients()
+		consulConfig := consul.DefaultConfig()
+		consulConfig.HttpClient = http.DefaultClient
+		consulAPI, err := consul.NewClient(consulConfig)
 		if err != nil {
-			panic(err)
+			logger.Fatal("failed to connect to consul", zap.String("node_id", id), zap.String("service_name", name))
 		}
 		clusterMemberFound = make(chan struct{})
 		go func() {

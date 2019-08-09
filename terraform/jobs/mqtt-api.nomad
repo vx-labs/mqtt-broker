@@ -37,8 +37,9 @@ job "mqtt-api" {
 
       env {
         TLS_CN                    = "broker-api.iot.cloud.vx-labs.net"
-        CONSUL_HTTP_ADDR          = "172.17.0.1:8500"
-        AUTH_HOST                 = "172.17.0.1:4141"
+        LE_EMAIL = "julien@bonachera.fr"
+        CONSUL_HTTP_ADDR          = "$${NOMAD_IP_health}:8500"
+        VAULT_ADDR                = "http://$${NOMAD_IP_health}:8200"
         JAEGER_SAMPLER_TYPE       = "const"
         JAEGER_SAMPLER_PARAM      = "1"
         JAEGER_REPORTER_LOG_SPANS = "true"
