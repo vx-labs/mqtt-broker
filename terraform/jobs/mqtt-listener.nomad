@@ -137,7 +137,7 @@ job "mqtt-listener" {
 http_proxy="{{.Data.http_proxy}}"
 https_proxy="{{.Data.http_proxy}}"
 LE_EMAIL="{{.Data.acme_email}}"
-no_proxy="172.17.0.1,{{ env "NOMAD_IP_health" }}"
+no_proxy="10.0.0.0/8,172.17.0.1,{{ env "NOMAD_IP_health" }}"
 {{end}}
         EOH
       }
@@ -260,7 +260,7 @@ no_proxy="172.17.0.1,{{ env "NOMAD_IP_health" }}"
 http_proxy="{{.Data.http_proxy}}"
 https_proxy="{{.Data.http_proxy}}"
 LE_EMAIL="{{.Data.acme_email}}"
-no_proxy="172.17.0.1,{{ env "NOMAD_IP_health" }}"
+no_proxy="10.0.0.0/8,172.17.0.1,{{ env "NOMAD_IP_health" }}"
 {{end}}
         EOH
       }
