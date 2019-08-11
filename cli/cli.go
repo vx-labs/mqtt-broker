@@ -80,7 +80,7 @@ func JoinConsulPeers(api *consul.Client, service string, selfAddress string, sel
 			peer := fmt.Sprintf("%s:%d", service.Service.Address, service.Service.Port)
 			peers = append(peers, peer)
 		}
-		if foundSelf && len(peers) > 3 {
+		if foundSelf && len(peers) >= 3 {
 			if mesh.Join(peers) == nil {
 				return nil
 			}
