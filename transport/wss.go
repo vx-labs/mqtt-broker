@@ -9,6 +9,7 @@ import (
 	"net/http"
 
 	"github.com/gobwas/ws"
+	"github.com/gobwas/ws/wsutil"
 	"github.com/vx-labs/mqtt-broker/vaultacme"
 	"go.uber.org/zap"
 )
@@ -34,8 +35,9 @@ func NewWSSTransport(ctx context.Context, cn string, port int, logger *zap.Logge
 
 		tlsConn := conn.(*tls.Conn)
 		listener.queueSession(&Conn{
-			conn:  conn,
-			state: tlsConn.ConnectionState(),
+			conn:   conn,
+			state:  tlsConn.ConnectionState(),
+			writer: wsutil.NewWriter(conn, ws.StateServerSide, ws.OpBinary),
 		}, handler)
 	})
 	ln, err := tls.Listen("tcp", fmt.Sprintf(":%d", port), TLSConfig)
