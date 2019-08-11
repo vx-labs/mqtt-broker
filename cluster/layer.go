@@ -145,8 +145,10 @@ func (m *layer) Join(newHosts []string) error {
 	}
 	hosts := []string{}
 	curHosts := m.mlist.Members()
-	for _, host := range newHosts {
-		for _, curHost := range curHosts {
+	for idx := range newHosts {
+		host := newHosts[idx]
+		for idx := range curHosts {
+			curHost := curHosts[idx]
 			found := false
 			if curHost.Address() == host {
 				found = true
@@ -160,7 +162,7 @@ func (m *layer) Join(newHosts []string) error {
 	if len(hosts) == 0 {
 		return nil
 	}
-	m.logger.Info("joining cluster", zap.String("node_id", m.id), zap.Strings("nodes", hosts))
+	m.logger.Info("joining cluster", zap.String("node_id", m.id), zap.Strings("nodes", hosts), zap.Strings("provided_nodes", newHosts))
 	count, err := m.mlist.Join(hosts)
 	if err != nil {
 		if count == 0 {
