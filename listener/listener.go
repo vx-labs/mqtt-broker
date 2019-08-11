@@ -51,7 +51,7 @@ type endpoint struct {
 
 func (local *endpoint) newSession(metadata transport.Metadata) error {
 	metadata.Endpoint = local.id
-	go local.runLocalSession(metadata)
+	local.runLocalSession(metadata)
 	return nil
 }
 func (local *endpoint) Close() error {

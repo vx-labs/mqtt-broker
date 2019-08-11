@@ -79,7 +79,7 @@ func (t *tlsListener) acceptLoop(handler func(Metadata) error) {
 
 func (t *tlsListener) queueSession(c *tls.Conn, handler func(Metadata) error) {
 	state := c.ConnectionState()
-	handler(Metadata{
+	go handler(Metadata{
 		Channel:         c,
 		Encrypted:       true,
 		EncryptionState: &state,

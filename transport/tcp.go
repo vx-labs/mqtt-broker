@@ -55,7 +55,7 @@ func (t *tcp) acceptLoop(handler func(Metadata) error) {
 }
 
 func (t *tcp) queueSession(c net.Conn, handler func(Metadata) error) {
-	handler(Metadata{
+	go handler(Metadata{
 		Channel:         c,
 		Encrypted:       false,
 		EncryptionState: nil,

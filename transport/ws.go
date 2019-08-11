@@ -1,80 +1,13 @@
 package transport
 
 import (
-	"bytes"
-	"crypto/tls"
 	"fmt"
-	"io"
 	"log"
 	"net"
 	"net/http"
-	"time"
 
-	"github.com/gobwas/ws"
-	"github.com/gobwas/ws/wsutil"
+	"golang.org/x/net/websocket"
 )
-
-type Conn struct {
-	conn   net.Conn
-	reader io.Reader
-	state  tls.ConnectionState
-	writer *wsutil.Writer
-}
-
-func (c *Conn) nextFrame() error {
-	buf, err := wsutil.ReadClientBinary(c.conn)
-	if err != nil {
-		return err
-	}
-	c.reader = bytes.NewBuffer(buf)
-	return nil
-}
-func (c *Conn) Read(b []byte) (int, error) {
-	n := 0
-	var err error
-	for {
-		if c.reader == nil {
-			err := c.nextFrame()
-			if err != nil {
-				return 0, err
-			}
-		}
-		n, err = c.reader.Read(b)
-		if err == io.EOF {
-			c.reader = nil
-			if len(b) > n {
-				continue
-			}
-			return n, nil
-		}
-		return n, err
-	}
-}
-func (c *Conn) Write(b []byte) (int, error) {
-	return c.writer.WriteThrough(b)
-}
-
-func (c *Conn) Close() error {
-	return c.conn.Close()
-}
-
-func (c *Conn) LocalAddr() net.Addr {
-	return c.conn.LocalAddr()
-}
-
-func (c *Conn) RemoteAddr() net.Addr {
-	return c.conn.RemoteAddr()
-}
-
-func (c *Conn) SetDeadline(t time.Time) error {
-	return c.conn.SetDeadline(t)
-}
-func (c *Conn) SetReadDeadline(t time.Time) error {
-	return c.conn.SetReadDeadline(t)
-}
-func (c *Conn) SetWriteDeadline(t time.Time) error {
-	return c.conn.SetWriteDeadline(t)
-}
 
 type wsListener struct {
 	listener net.Listener
@@ -84,25 +17,19 @@ func NewWSTransport(port int, handler func(Metadata) error) (net.Listener, error
 	listener := &wsListener{}
 
 	mux := http.NewServeMux()
-	upgrader := ws.HTTPUpgrader{
-		Header: http.Header{
-			"Sec-WebSocket-Protocol": []string{
-				"mqtt",
-			},
+	server := &websocket.Server{
+		Handshake: func(config *websocket.Config, r *http.Request) error {
+			log.Printf("new websocket connection from %s", r.RemoteAddr)
+			return nil
+		},
+		Handler: websocket.Handler(func(conn *websocket.Conn) {
+			listener.queueSession(conn, handler)
+		}),
+		Config: websocket.Config{
+			Version: websocket.ProtocolVersionHybi13,
 		},
 	}
-	mux.HandleFunc("/mqtt", func(w http.ResponseWriter, r *http.Request) {
-		conn, _, _, err := upgrader.Upgrade(r, w)
-		if err != nil {
-			log.Printf("ERR: websocket negociation with %s failed: %v", r.RemoteAddr, err)
-			return
-		}
-
-		listener.queueSession(&Conn{
-			writer: wsutil.NewWriter(conn, ws.StateServerSide, ws.OpBinary),
-			conn:   conn,
-		}, handler)
-	})
+	mux.Handle("/mqtt", server)
 	ln, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
 	if err != nil {
 		log.Fatalf("failed to start WS listener: %v", err)
@@ -112,12 +39,13 @@ func NewWSTransport(port int, handler func(Metadata) error) (net.Listener, error
 	return ln, nil
 }
 
-func (t *wsListener) queueSession(c *Conn, handler func(Metadata) error) {
+func (t *wsListener) queueSession(c *websocket.Conn, handler func(Metadata) error) {
+	r := c.Request()
 	handler(Metadata{
 		Channel:         c,
 		Encrypted:       false,
 		EncryptionState: nil,
 		Name:            "ws",
-		RemoteAddress:   c.RemoteAddr().String(),
+		RemoteAddress:   r.RemoteAddr,
 	})
 }

@@ -8,10 +8,9 @@ import (
 	"net"
 	"net/http"
 
-	"github.com/gobwas/ws"
-	"github.com/gobwas/ws/wsutil"
 	"github.com/vx-labs/mqtt-broker/vaultacme"
 	"go.uber.org/zap"
+	"golang.org/x/net/websocket"
 )
 
 type wssListener struct {
@@ -25,21 +24,19 @@ func NewWSSTransport(ctx context.Context, cn string, port int, logger *zap.Logge
 		return nil, err
 	}
 	mux := http.NewServeMux()
-	mux.HandleFunc("/mqtt", func(w http.ResponseWriter, r *http.Request) {
-		log.Printf("INFO: starting websocket negociation with %s", r.RemoteAddr)
-		conn, _, _, err := ws.UpgradeHTTP(r, w)
-		if err != nil {
-			log.Printf("ERR: websocket negociation with %s failed: %v", r.RemoteAddr, err)
-			return
-		}
-
-		tlsConn := conn.(*tls.Conn)
-		listener.queueSession(&Conn{
-			conn:   conn,
-			state:  tlsConn.ConnectionState(),
-			writer: wsutil.NewWriter(conn, ws.StateServerSide, ws.OpBinary),
-		}, handler)
-	})
+	server := &websocket.Server{
+		Handshake: func(config *websocket.Config, r *http.Request) error {
+			log.Printf("new secure websocket connection from %s", r.RemoteAddr)
+			return nil
+		},
+		Handler: websocket.Handler(func(conn *websocket.Conn) {
+			listener.queueSession(conn, handler)
+		}),
+		Config: websocket.Config{
+			Version: websocket.ProtocolVersionHybi13,
+		},
+	}
+	mux.Handle("/mqtt", server)
 	ln, err := tls.Listen("tcp", fmt.Sprintf(":%d", port), TLSConfig)
 	if err != nil {
 		log.Fatalf("failed to start WSS listener: %v", err)
@@ -49,13 +46,13 @@ func NewWSSTransport(ctx context.Context, cn string, port int, logger *zap.Logge
 	return ln, nil
 }
 
-func (t *wssListener) queueSession(c *Conn, handler func(Metadata) error) {
-	state := c.state
+func (t *wssListener) queueSession(c *websocket.Conn, handler func(Metadata) error) {
+	r := c.Request()
 	handler(Metadata{
 		Channel:         c,
 		Encrypted:       true,
-		EncryptionState: &state,
+		EncryptionState: nil,
 		Name:            "wss",
-		RemoteAddress:   c.RemoteAddr().String(),
+		RemoteAddress:   r.RemoteAddr,
 	})
 }

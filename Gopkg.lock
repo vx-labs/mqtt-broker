@@ -34,20 +34,12 @@
   revision = "68259f75880e8bcc207a49de82466957646af353"
 
 [[projects]]
-  digest = "1:0d3deb8a6da8ffba5635d6fb1d2144662200def6c9d82a35a6d05d6c2d4a48f9"
+  digest = "1:ac2a05be7167c495fe8aaf8aaf62ecf81e78d2180ecb04e16778dc6c185c96a5"
   name = "github.com/beorn7/perks"
   packages = ["quantile"]
   pruneopts = ""
-  revision = "4b2b341e8d7715fae06375aa633dbb6e91b3fb46"
-  version = "v1.0.0"
-
-[[projects]]
-  digest = "1:8561fc011218ed9821f6d73057154e692cdfd0f37e929ef6c4a574b6299136cb"
-  name = "github.com/cenkalti/backoff"
-  packages = ["."]
-  pruneopts = ""
-  revision = "4b4cebaf850ec58f1bb1fec5bdebdf8501c2bc3f"
-  version = "v3.0.0"
+  revision = "37c8de3658fcb183f997c4e13e8337516ab753e6"
+  version = "v1.0.1"
 
 [[projects]]
   branch = "master"
@@ -69,14 +61,6 @@
   version = "v0.3.4"
 
 [[projects]]
-  digest = "1:a0088423882f1b86b92e17bf1df068d4a105c1fb5fe256da59279194a15ad460"
-  name = "github.com/cloudflare/cloudflare-go"
-  packages = ["."]
-  pruneopts = ""
-  revision = "b59d4f05eec361422b388c7ed74293ce8a3d5f97"
-  version = "v0.9.4"
-
-[[projects]]
   digest = "1:0deddd908b6b4b768cfc272c16ee61e7088a60f7fe2f06c547bd3d8e1f8b8e77"
   name = "github.com/davecgh/go-spew"
   packages = ["spew"]
@@ -91,65 +75,6 @@
   pruneopts = ""
   revision = "c2828203cd70a50dcccfb2761f8b1f8ceef9a8e9"
   version = "v1.4.7"
-
-[[projects]]
-  digest = "1:b155b503330ca71e323983f2343eb69a21cfefcfefc10fba5e695523832e02d0"
-  name = "github.com/go-acme/lego"
-  packages = [
-    "acme",
-    "acme/api",
-    "acme/api/internal/nonces",
-    "acme/api/internal/secure",
-    "acme/api/internal/sender",
-    "certcrypto",
-    "certificate",
-    "challenge",
-    "challenge/dns01",
-    "challenge/http01",
-    "challenge/resolver",
-    "challenge/tlsalpn01",
-    "lego",
-    "log",
-    "platform/config/env",
-    "platform/wait",
-    "providers/dns/cloudflare",
-    "registration",
-  ]
-  pruneopts = ""
-  revision = "b6808bf0d9ceb7a5d96a0605502ae42d963e7002"
-  version = "v2.7.1"
-
-[[projects]]
-  branch = "master"
-  digest = "1:be23fcfb36ec6756f321989ab9498008c1a8ee4153af546f058863e08ad26b0b"
-  name = "github.com/gobwas/httphead"
-  packages = ["."]
-  pruneopts = ""
-  revision = "2c6c146eadee0b69f856f87e3e9f1d0cd6aad2f5"
-
-[[projects]]
-  digest = "1:173252fb31220c85b98c22c3e2e31b3c7b6dae82544ba1a56e5a10c3c599c73a"
-  name = "github.com/gobwas/pool"
-  packages = [
-    ".",
-    "internal/pmath",
-    "pbufio",
-    "pbytes",
-  ]
-  pruneopts = ""
-  revision = "fa3125c39d7eca32e1387bb69b1b38dcb31b1e0b"
-  version = "v0.2.0"
-
-[[projects]]
-  digest = "1:e292446b5467c846bf36b35fa83d8ddd2052569e4497db40b315a2abae8aef94"
-  name = "github.com/gobwas/ws"
-  packages = [
-    ".",
-    "wsutil",
-  ]
-  pruneopts = ""
-  revision = "05baaea2bbcfe8963301c62d9931c882d59595cd"
-  version = "v1.0.2"
 
 [[projects]]
   digest = "1:fd53b471edb4c28c7d297f617f4da0d33402755f58d6301e7ca1197ef0a90937"
@@ -504,23 +429,15 @@
   revision = "33fb24c13b99c46c93183c291836c573ac382536"
 
 [[projects]]
-  digest = "1:b21fb116e51b5c95eccbad65f2717d7d01f52c7f0d596d926e37749c7592fb88"
+  digest = "1:230e4db8117493b67a1325ac736e78b7db5bc425deaa46a83ee882af934d8c22"
   name = "github.com/pierrec/lz4"
   packages = [
     ".",
     "internal/xxh32",
   ]
   pruneopts = ""
-  revision = "057d66e894a4e55853274a3bbbf7de02ba639e43"
-  version = "v2.2.4"
-
-[[projects]]
-  digest = "1:1d7e1867c49a6dd9856598ef7c3123604ea3daabf5b83f303ff457bcbc410b1d"
-  name = "github.com/pkg/errors"
-  packages = ["."]
-  pruneopts = ""
-  revision = "ba968bfe8b2f7e042a574c888954fccecfa385b4"
-  version = "v0.8.1"
+  revision = "8ef35db8296124c4969aab929c16c91c3cb2c8a0"
+  version = "v2.2.6"
 
 [[projects]]
   digest = "1:256484dbbcd271f9ecebc6795b2df8cad4c458dd0f5fd82a8c2fa0c29f233411"
@@ -531,7 +448,7 @@
   version = "v1.0.0"
 
 [[projects]]
-  digest = "1:d1c6da923f9044766d87a464bfcce4afe9456da4cca84cfe7a6d714dac57ca95"
+  digest = "1:6bea0cda3fc62855d5312163e7d259fb97e31692d93c08cfffbeb2d00df0f13c"
   name = "github.com/prometheus/client_golang"
   packages = [
     "prometheus",
@@ -539,8 +456,8 @@
     "prometheus/promhttp",
   ]
   pruneopts = ""
-  revision = "4ab88e80c249ed361d3299e2930427d9ac43ef8d"
-  version = "v1.0.0"
+  revision = "170205fb58decfd011f1550d4cfb737230d7ae4f"
+  version = "v1.1.0"
 
 [[projects]]
   branch = "master"
@@ -679,15 +596,7 @@
   version = "v1.0.2"
 
 [[projects]]
-  digest = "1:bf98bf7ea22559cb286719e579c1c62430f7ab152b8a4ec03546472d880a8167"
-  name = "github.com/vx-labs/iot-mqtt-config"
-  packages = ["."]
-  pruneopts = ""
-  revision = "a8d4c71d37acd8a9882a6ef7c4408922ffe90ede"
-  version = "v0.0.9"
-
-[[projects]]
-  digest = "1:c3d54936aac86831211503c7e3d1c57d84346be2537efb1f0033d41bc37be67b"
+  digest = "1:a6896eb3845e982a54c8fcbeaf41809f069c44c7cb97a3eeae5a23f9a3008450"
   name = "github.com/vx-labs/mqtt-protocol"
   packages = [
     "decoder",
@@ -695,8 +604,8 @@
     "packet",
   ]
   pruneopts = ""
-  revision = "017efce578c614a98399de7b8f582e506e878eab"
-  version = "v4.0.4"
+  revision = "bbe604cb8fbe2e1193c811ee97de1134f2721858"
+  version = "v4.0.5"
 
 [[projects]]
   digest = "1:e6ff7840319b6fda979a918a8801005ec2049abca62af19211d96971d8ec3327"
@@ -734,10 +643,10 @@
   digest = "1:086760278d762dbb0e9a26e09b57f04c89178c86467d8d94fae47d64c222f328"
   name = "golang.org/x/crypto"
   packages = [
+    "acme",
+    "acme/autocert",
     "ed25519",
     "ed25519/internal/edwards25519",
-    "ocsp",
-    "pbkdf2",
   ]
   pruneopts = ""
   revision = "4def268fd1a49955bfb3dda92fe3db4f924f2285"
@@ -759,20 +668,21 @@
     "ipv4",
     "ipv6",
     "trace",
+    "websocket",
   ]
   pruneopts = ""
   revision = "ca1201d0de80cfde86cb01aea620983605dfe99b"
 
 [[projects]]
   branch = "master"
-  digest = "1:99cdf3e6a8e8b44d680573992c2a19192f47da37a05eccf205cd16add40de159"
+  digest = "1:0b5c2207c72f2d13995040f176feb6e3f453d6b01af2b9d57df76b05ded2e926"
   name = "golang.org/x/sys"
   packages = [
     "unix",
     "windows",
   ]
   pruneopts = ""
-  revision = "fc99dfbffb4e5ed5758a37e31dd861afe285406b"
+  revision = "51ab0e2deafac1f46c46ad59cf0921be2f180c3d"
 
 [[projects]]
   digest = "1:740b51a55815493a8d0f2b1e0d0ae48fe48953bf7eaf3fcc4198823bf67768c0"
@@ -809,7 +719,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:25abbbb72d270b9b4b36d475f38ba6521a34a64c164c9bef74efdc6fe05854bd"
+  digest = "1:923bfd9361299e12b8515055308030948e8f60c7e2b0f9b21d8b9e952769dcef"
   name = "golang.org/x/tools"
   packages = [
     "go/ast/astutil",
@@ -818,15 +728,15 @@
     "go/types/typeutil",
   ]
   pruneopts = ""
-  revision = "fc6e2057e7f6701ef9b5ef49a089bff4da7f4610"
+  revision = "6d4652c779c4add9e1a69db058dabafddba21c37"
 
 [[projects]]
   branch = "master"
-  digest = "1:53a69ca05e2f34d0d6e5cc02d2d3b0c0f815628965757fb5aaf04aa83ca5cc07"
+  digest = "1:95b0a53d4d31736b2483a8c41667b2bd83f303706106f81bd2f54e3f9c24eaf4"
   name = "google.golang.org/genproto"
   packages = ["googleapis/rpc/status"]
   pruneopts = ""
-  revision = "c506a9f9061087022822e8da603a52fc387115a8"
+  revision = "fa694d86fc64c7654a660f8908de4e879866748d"
 
 [[projects]]
   digest = "1:425ee670b3e8b6562e31754021a82d78aa46b9281247827376616c8aa78f4687"
@@ -879,18 +789,6 @@
   revision = "df19058c872cddcd279411d709047160e543a700"
 
 [[projects]]
-  digest = "1:40cf02345bfa29fb217cfe0767a9416d99569d4ff21dbb1fd3378ef10682549c"
-  name = "gopkg.in/square/go-jose.v2"
-  packages = [
-    ".",
-    "cipher",
-    "json",
-  ]
-  pruneopts = ""
-  revision = "730df5f748271903322feb182be83b43ebbbe27d"
-  version = "v2.3.1"
-
-[[projects]]
   digest = "1:cedccf16b71e86db87a24f8d4c70b0a855872eb967cb906a66b95de56aefbd0d"
   name = "gopkg.in/yaml.v2"
   packages = ["."]
@@ -903,14 +801,6 @@
   analyzer-version = 1
   input-imports = [
     "github.com/armon/go-proxyproto",
-    "github.com/go-acme/lego/certificate",
-    "github.com/go-acme/lego/challenge",
-    "github.com/go-acme/lego/challenge/dns01",
-    "github.com/go-acme/lego/lego",
-    "github.com/go-acme/lego/providers/dns/cloudflare",
-    "github.com/go-acme/lego/registration",
-    "github.com/gobwas/ws",
-    "github.com/gobwas/ws/wsutil",
     "github.com/gogo/protobuf/proto",
     "github.com/golang/protobuf/proto",
     "github.com/google/btree",
@@ -929,13 +819,15 @@
     "github.com/stretchr/testify/assert",
     "github.com/stretchr/testify/require",
     "github.com/vx-labs/iot-mqtt-auth/api",
-    "github.com/vx-labs/iot-mqtt-config",
     "github.com/vx-labs/mqtt-protocol/decoder",
     "github.com/vx-labs/mqtt-protocol/encoder",
     "github.com/vx-labs/mqtt-protocol/packet",
     "go.uber.org/zap",
     "go.uber.org/zap/zapcore",
+    "golang.org/x/crypto/acme",
+    "golang.org/x/crypto/acme/autocert",
     "golang.org/x/net/context",
+    "golang.org/x/net/websocket",
     "google.golang.org/grpc",
     "google.golang.org/grpc/balancer",
     "google.golang.org/grpc/balancer/base",
