@@ -9,6 +9,7 @@ import (
 
 type Token struct {
 	SessionID     string `json:"session_id"`
+	PeerID        string `json:"peer_id"`
 	SessionTenant string `json:"session_tenant"`
 	jwt.StandardClaims
 }
@@ -16,6 +17,7 @@ type Token struct {
 func EncodeSessionToken(signKey string, session sessions.Session) (string, error) {
 	t := Token{
 		SessionID:     session.ID,
+		PeerID:        session.Peer,
 		SessionTenant: session.Tenant,
 		StandardClaims: jwt.StandardClaims{
 			ExpiresAt: time.Now().Add(72 * time.Hour).Unix(),
@@ -24,17 +26,17 @@ func EncodeSessionToken(signKey string, session sessions.Session) (string, error
 		},
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, t)
-	return token.SignedString(signKey)
+	return token.SignedString([]byte(signKey))
 }
 func DecodeSessionToken(signKey string, signedToken string) (Token, error) {
 	token, err := jwt.ParseWithClaims(signedToken, &Token{}, func(token *jwt.Token) (interface{}, error) {
-		return []byte(signedToken), nil
+		return []byte(signKey), nil
 	})
 	if err != nil {
-		return Token{}, nil
+		return Token{}, err
 	}
 	if claims, ok := token.Claims.(*Token); ok && token.Valid {
 		return *claims, nil
 	}
-	return Token{}, nil
+	return Token{}, err
 }

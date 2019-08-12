@@ -67,9 +67,11 @@ func (local *endpoint) runLocalSession(t transport.Metadata) {
 			}
 			if token == "" {
 				local.logger.Warn("broker returned an empty session token", fields...)
+				return errors.New("broker returned an empty session token")
 			}
 			fields = append(fields, zap.String("session_id", id), zap.String("client_id", string(p.ClientId)))
 			session.id = id
+			session.token = token
 			local.mutex.Lock()
 			old := local.sessions.ReplaceOrInsert(session)
 			local.mutex.Unlock()
@@ -86,12 +88,12 @@ func (local *endpoint) runLocalSession(t transport.Metadata) {
 			return nil
 		}),
 		decoder.OnPublish(func(p *packet.Publish) error {
-			if session.id == "" {
+			if session.token == "" {
 				return ErrConnectNotDone
 			}
 			renewDeadline(timer, t.Channel)
 			return publishWorkers.Call(func() error {
-				puback, err := local.broker.Publish(ctx, session.id, p)
+				puback, err := local.broker.Publish(ctx, session.token, p)
 				if err != nil {
 					local.logger.Error("failed to publish message", append(fields, zap.Error(err))...)
 					return err
@@ -103,29 +105,29 @@ func (local *endpoint) runLocalSession(t transport.Metadata) {
 			})
 		}),
 		decoder.OnSubscribe(func(p *packet.Subscribe) error {
-			if session.id == "" {
+			if session.token == "" {
 				return ErrConnectNotDone
 			}
 			renewDeadline(timer, t.Channel)
-			suback, err := local.broker.Subscribe(ctx, session.id, p)
+			suback, err := local.broker.Subscribe(ctx, session.token, p)
 			if err != nil {
 				return err
 			}
 			return enc.SubAck(suback)
 		}),
 		decoder.OnUnsubscribe(func(p *packet.Unsubscribe) error {
-			if session.id == "" {
+			if session.token == "" {
 				return ErrConnectNotDone
 			}
 			renewDeadline(timer, t.Channel)
-			unsuback, err := local.broker.Unsubscribe(ctx, session.id, p)
+			unsuback, err := local.broker.Unsubscribe(ctx, session.token, p)
 			if err != nil {
 				return err
 			}
 			return enc.UnsubAck(unsuback)
 		}),
 		decoder.OnPubAck(func(p *packet.PubAck) error {
-			if session.id == "" {
+			if session.token == "" {
 				return ErrConnectNotDone
 			}
 			renewDeadline(timer, t.Channel)
@@ -133,22 +135,22 @@ func (local *endpoint) runLocalSession(t transport.Metadata) {
 			return nil
 		}),
 		decoder.OnPingReq(func(p *packet.PingReq) error {
-			if session.id == "" {
+			if session.token == "" {
 				return ErrConnectNotDone
 			}
 			renewDeadline(timer, t.Channel)
-			pingresp, err := local.broker.PingReq(ctx, session.id, p)
+			pingresp, err := local.broker.PingReq(ctx, session.token, p)
 			if err != nil {
 				return err
 			}
 			return session.encoder.PingResp(pingresp)
 		}),
 		decoder.OnDisconnect(func(p *packet.Disconnect) error {
-			if session.id == "" {
+			if session.token == "" {
 				return ErrConnectNotDone
 			}
 			renewDeadline(timer, t.Channel)
-			local.broker.Disconnect(ctx, session.id, p)
+			local.broker.Disconnect(ctx, session.token, p)
 			return ErrSessionDisconnected
 		}),
 	)
@@ -176,9 +178,11 @@ func (local *endpoint) runLocalSession(t transport.Metadata) {
 	if err != nil {
 		local.logger.Warn("failed to close session channel", append(fields, zap.Error(err))...)
 	}
-	err = local.broker.CloseSession(ctx, session.id)
-	if err != nil {
-		local.logger.Warn("failed to close session on broker", append(fields, zap.Error(err))...)
+	if session.id != "" {
+		err = local.broker.CloseSession(ctx, session.token)
+		if err != nil {
+			local.logger.Warn("failed to close session on broker", append(fields, zap.Error(err))...)
+		}
 	}
 	local.mutex.Lock()
 	local.sessions.Delete(session)

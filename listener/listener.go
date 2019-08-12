@@ -85,6 +85,7 @@ func (local *endpoint) Publish(ctx context.Context, id string, publish *packet.P
 
 type localSession struct {
 	id        string
+	token     string
 	encoder   *encoder.Encoder
 	queue     publishQueue.Queue
 	transport io.Closer
