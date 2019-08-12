@@ -10,7 +10,6 @@ import (
 	"github.com/vx-labs/mqtt-broker/pool"
 	"github.com/vx-labs/mqtt-broker/transport"
 	"go.uber.org/zap"
-	"go.uber.org/zap/zapcore"
 
 	"github.com/vx-labs/mqtt-broker/broker/pb"
 	"github.com/vx-labs/mqtt-broker/cluster"
@@ -105,18 +104,15 @@ func New(id string, logger *zap.Logger, mesh cluster.Mesh, config Config) *Broke
 	broker.startPublishConsumers()
 	return broker
 }
-func (broker *Broker) zapNodeID() zapcore.Field {
-	return zap.String("node_id", broker.ID)
-}
 
 func (broker *Broker) Start(layer types.ServiceLayer) {
 	subscriptionsStore, err := subscriptions.NewMemDBStore(layer, func(host string, id string, publish packet.Publish) error {
 		session, err := broker.Sessions.ByID(id)
 		if err != nil {
-			broker.logger.Warn("publish subscription toward an unknown session", broker.zapNodeID(), zap.String("session_id", id), zap.Binary("topic_pattern", publish.Topic))
+			broker.logger.Warn("publish subscription toward an unknown session", zap.String("session_id", id), zap.Binary("topic_pattern", publish.Topic))
 			set, err := broker.Subscriptions.BySession(id)
 			if err != nil {
-				broker.logger.Error("failed to fetch session subscriptions", broker.zapNodeID(), zap.String("session_id", id), zap.Error(err))
+				broker.logger.Error("failed to fetch session subscriptions", zap.String("session_id", id), zap.Error(err))
 				return err
 			}
 			set.Apply(func(subscription subscriptions.Subscription) {
@@ -147,20 +143,20 @@ func (broker *Broker) Start(layer types.ServiceLayer) {
 	})
 }
 func (b *Broker) onPeerDown(name string) {
-	b.logger.Info("peer down", b.zapNodeID(), zap.String("peer_id", name))
+	b.logger.Info("peer down", zap.String("peer_id", name))
 	set, err := b.Subscriptions.ByPeer(name)
 	if err != nil {
-		b.logger.Error("failed to remove subscriptions from old peer", b.zapNodeID(), zap.String("peer_id", name), zap.Error(err))
+		b.logger.Error("failed to remove subscriptions from old peer", zap.String("peer_id", name), zap.Error(err))
 		return
 	}
 	set.Apply(func(sub subscriptions.Subscription) {
 		b.Subscriptions.Delete(sub.ID)
 	})
-	b.logger.Info("removed subscriptions from old peer", b.zapNodeID(), zap.String("peer_id", name), zap.Int("count", len(set)))
+	b.logger.Info("removed subscriptions from old peer", zap.String("peer_id", name), zap.Int("count", len(set)))
 
 	sessionSet, err := b.Sessions.ByPeer(name)
 	if err != nil {
-		b.logger.Error("failed to remove sessions from old peer", b.zapNodeID(), zap.String("peer_id", name), zap.Error(err))
+		b.logger.Error("failed to remove sessions from old peer", zap.String("peer_id", name), zap.Error(err))
 		return
 	}
 	sessionSet.Apply(func(s sessions.Session) {

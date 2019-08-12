@@ -69,7 +69,7 @@ func (m *layer) AddState(key string, state types.State) (types.Channel, error) {
 func (m *layer) NotifyMsg(b []byte) {
 	var p pb.Part
 	if err := proto.Unmarshal(b, &p); err != nil {
-		m.logger.Error("failed to decode remote state", zap.String("node_id", m.id), zap.Error(err))
+		m.logger.Error("failed to decode remote state", zap.Error(err))
 		return
 	}
 	m.mtx.Lock()
@@ -82,7 +82,7 @@ func (m *layer) NotifyMsg(b []byte) {
 		return
 	}
 	if err := s.Merge(p.Data, false); err != nil {
-		m.logger.Error("failed to merge remote state", zap.String("node_id", m.id), zap.Error(err))
+		m.logger.Error("failed to merge remote state", zap.Error(err))
 		return
 	}
 }
@@ -92,7 +92,7 @@ func (m *layer) GetBroadcasts(overhead, limit int) [][]byte {
 func (m *layer) NodeMeta(limit int) []byte {
 	payload, err := proto.Marshal(&m.meta)
 	if err != nil || len(payload) > limit {
-		m.logger.Warn("not publishing node meta because limit is exceeded", zap.String("node_id", m.id))
+		m.logger.Warn("not publishing node meta because limit is exceeded")
 		return []byte{}
 	}
 	return payload
@@ -109,7 +109,7 @@ func (m *layer) LocalState(join bool) []byte {
 	}
 	payload, err := proto.Marshal(dump)
 	if err != nil {
-		m.logger.Error("failed to marshal full state", zap.String("node_id", m.id), zap.Error(err))
+		m.logger.Error("failed to marshal full state", zap.Error(err))
 		return nil
 	}
 	return payload
@@ -117,7 +117,7 @@ func (m *layer) LocalState(join bool) []byte {
 func (m *layer) MergeRemoteState(buf []byte, join bool) {
 	var fs pb.FullState
 	if err := proto.Unmarshal(buf, &fs); err != nil {
-		m.logger.Error("failed to decode remote state", zap.String("node_id", m.id), zap.Error(err))
+		m.logger.Error("failed to decode remote state", zap.Error(err))
 		return
 	}
 	m.mtx.Lock()
@@ -133,7 +133,7 @@ func (m *layer) MergeRemoteState(buf []byte, join bool) {
 		}
 		//now := time.Now()
 		if err := s.Merge(p.Data, join); err != nil {
-			m.logger.Error("failed to merge remote state", zap.String("node_id", m.id), zap.Error(err))
+			m.logger.Error("failed to merge remote state", zap.Error(err))
 			return
 		}
 	}
@@ -162,14 +162,14 @@ func (m *layer) Join(newHosts []string) error {
 	if len(hosts) == 0 {
 		return nil
 	}
-	m.logger.Info("joining cluster", zap.String("node_id", m.id), zap.Strings("nodes", hosts), zap.Strings("provided_nodes", newHosts))
+	m.logger.Info("joining cluster", zap.Strings("nodes", hosts), zap.Strings("provided_nodes", newHosts))
 	count, err := m.mlist.Join(hosts)
 	if err != nil {
 		if count == 0 {
-			m.logger.Error("failed to join cluster", zap.String("node_id", m.id), zap.Error(err))
+			m.logger.Error("failed to join cluster", zap.Error(err))
 			return err
 		}
-		m.logger.Warn("failed to join some member of cluster", zap.String("node_id", m.id), zap.Error(err))
+		m.logger.Warn("failed to join some member of cluster", zap.Error(err))
 	}
 	return nil
 }
