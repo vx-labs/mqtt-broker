@@ -22,7 +22,7 @@ type broker interface {
 	ListSubscriptions() (subscriptions.SubscriptionSet, error)
 	CloseSession(ctx context.Context, id string) error
 	DistributeMessage(*pb.MessagePublished) error
-	Connect(context.Context, transport.Metadata, *packet.Connect) (string, *packet.ConnAck, error)
+	Connect(context.Context, transport.Metadata, *packet.Connect) (string, string, *packet.ConnAck, error)
 	Disconnect(context.Context, string, *packet.Disconnect) error
 	Publish(context.Context, string, *packet.Publish) (*packet.PubAck, error)
 	Subscribe(context.Context, string, *packet.Subscribe) (*packet.SubAck, error)
@@ -92,7 +92,7 @@ func (s *server) DistributeMessage(ctx context.Context, msg *pb.MessagePublished
 }
 
 func (s *server) Connect(ctx context.Context, input *pb.ConnectInput) (*pb.ConnectOutput, error) {
-	id, connack, err := s.broker.Connect(ctx, transport.Metadata{
+	id, token, connack, err := s.broker.Connect(ctx, transport.Metadata{
 		Encrypted:     input.TransportMetadata.Encrypted,
 		Name:          input.TransportMetadata.Name,
 		RemoteAddress: input.TransportMetadata.RemoteAddress,
@@ -100,6 +100,7 @@ func (s *server) Connect(ctx context.Context, input *pb.ConnectInput) (*pb.Conne
 	}, input.Connect)
 	return &pb.ConnectOutput{
 		ID:      id,
+		Token:   token,
 		ConnAck: connack,
 	}, err
 }

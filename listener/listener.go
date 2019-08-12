@@ -24,7 +24,7 @@ var (
 )
 
 type Broker interface {
-	Connect(context.Context, transport.Metadata, *packet.Connect) (string, *packet.ConnAck, error)
+	Connect(context.Context, transport.Metadata, *packet.Connect) (string, string, *packet.ConnAck, error)
 	Disconnect(context.Context, string, *packet.Disconnect) error
 	Publish(context.Context, string, *packet.Publish) (*packet.PubAck, error)
 	Subscribe(context.Context, string, *packet.Subscribe) (*packet.SubAck, error)

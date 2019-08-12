@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"time"
 
 	"github.com/vx-labs/mqtt-broker/cluster"
@@ -48,13 +49,13 @@ func (local *localTransport) Publish(ctx context.Context, p *packet.Publish) err
 }
 
 type connectReturn struct {
-	sessionID string
-	connack   *packet.ConnAck
+	token   string
+	connack *packet.ConnAck
 }
 
-func (b *Broker) Connect(ctx context.Context, metadata transport.Metadata, p *packet.Connect) (string, *packet.ConnAck, error) {
+func (b *Broker) Connect(ctx context.Context, metadata transport.Metadata, p *packet.Connect) (string, string, *packet.ConnAck, error) {
+	sessionID := newUUID()
 	out := connectReturn{
-		sessionID: newUUID(),
 		connack: &packet.ConnAck{
 			Header:     p.Header,
 			ReturnCode: packet.CONNACK_REFUSED_SERVER_UNAVAILABLE,
@@ -95,7 +96,7 @@ func (b *Broker) Connect(ctx context.Context, metadata transport.Metadata, p *pa
 		}
 		sess := sessions.Session{
 			Metadata: sessions.Metadata{
-				ID:                out.sessionID,
+				ID:                sessionID,
 				ClientID:          clientIDstr,
 				Created:           time.Now().Unix(),
 				Tenant:            tenant,
@@ -109,17 +110,22 @@ func (b *Broker) Connect(ctx context.Context, metadata transport.Metadata, p *pa
 				KeepaliveInterval: p.KeepaliveTimer,
 			},
 		}
-		err = b.Sessions.Upsert(sess, b.RemoteRPCProvider(out.sessionID, sess.Peer))
+		err = b.Sessions.Upsert(sess, b.RemoteRPCProvider(sessionID, sess.Peer))
 		if err != nil {
 			return err
 		}
-		b.logger.Info("session connected", zap.String("session_id", out.sessionID), zap.String("client_id", string(p.ClientId)), zap.String("username", string(p.Username)), zap.String("remote_address", metadata.RemoteAddress), zap.String("transport", metadata.Name))
+		token, err := EncodeSessionToken(os.Getenv("JWT_SIGN_KEY"), sess)
+		if err != nil {
+			return err
+		}
+		out.token = token
+		b.logger.Info("session connected", zap.String("session_id", sessionID), zap.String("client_id", string(p.ClientId)), zap.String("username", string(p.Username)), zap.String("remote_address", metadata.RemoteAddress), zap.String("transport", metadata.Name))
 
 		out.connack.ReturnCode = packet.CONNACK_CONNECTION_ACCEPTED
 		return nil
 	})
 	<-done
-	return out.sessionID, out.connack, err
+	return sessionID, out.token, out.connack, err
 }
 func (b *Broker) Subscribe(ctx context.Context, id string, p *packet.Subscribe) (*packet.SubAck, error) {
 	sess, err := b.Sessions.ByID(id)

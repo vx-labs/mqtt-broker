@@ -52,7 +52,7 @@ func (local *endpoint) runLocalSession(t transport.Metadata) {
 	publishWorkers := pool.NewPool(5)
 	dec := decoder.New(
 		decoder.OnConnect(func(p *packet.Connect) error {
-			id, connack, err := local.broker.Connect(ctx, t, p)
+			id, token, connack, err := local.broker.Connect(ctx, t, p)
 			if err != nil {
 				local.logger.Error("failed to send CONNECT", append(fields, zap.Error(err))...)
 				return enc.ConnAck(connack)
@@ -64,6 +64,9 @@ func (local *endpoint) runLocalSession(t transport.Metadata) {
 					Header:     &packet.Header{},
 				})
 				return errors.New("broker returned an empty session id")
+			}
+			if token == "" {
+				local.logger.Warn("broker returned an empty session token", fields...)
 			}
 			fields = append(fields, zap.String("session_id", id), zap.String("client_id", string(p.ClientId)))
 			session.id = id

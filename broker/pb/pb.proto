@@ -43,6 +43,7 @@ message ConnectInput {
 }
 message ConnectOutput {
   string ID = 1;
+  string Token = 3;
   packet.ConnAck ConnAck = 2;
 }
 message DisconnectInput {
