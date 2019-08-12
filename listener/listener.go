@@ -76,7 +76,7 @@ func (local *endpoint) Publish(ctx context.Context, id string, publish *packet.P
 		id: id,
 	})
 	if session == nil {
-		local.logger.Warn("session not found", zap.String("node_id", local.id), zap.String("session_id", id))
+		local.logger.Warn("session not found", zap.String("session_id", id))
 		return ErrSessionNotFound
 	}
 	session.(*localSession).queue.Enqueue(&publishQueue.Message{Publish: publish})
@@ -120,10 +120,10 @@ func New(id string, logger *zap.Logger, mesh cluster.Mesh, config Config) *endpo
 	if config.TCPPort > 0 {
 		tcpTransport, err := transport.NewTCPTransport(config.TCPPort, local.newSession)
 		if err != nil {
-			local.logger.Warn("failed to start listener", zap.String("node_id", id),
+			local.logger.Warn("failed to start listener",
 				zap.String("transport", "tcp"), zap.Error(err))
 		} else {
-			local.logger.Info("started listener", zap.String("node_id", id),
+			local.logger.Info("started listener",
 				zap.String("transport", "tcp"))
 			local.transports = append(local.transports, tcpTransport)
 		}
@@ -131,10 +131,10 @@ func New(id string, logger *zap.Logger, mesh cluster.Mesh, config Config) *endpo
 	if config.WSPort > 0 {
 		wsTransport, err := transport.NewWSTransport(config.WSPort, local.newSession)
 		if err != nil {
-			local.logger.Warn("failed to start listener", zap.String("node_id", id),
+			local.logger.Warn("failed to start listener",
 				zap.String("transport", "ws"), zap.Error(err))
 		} else {
-			local.logger.Info("started listener", zap.String("node_id", id),
+			local.logger.Info("started listener",
 				zap.String("transport", "ws"))
 			local.transports = append(local.transports, wsTransport)
 		}
@@ -142,10 +142,10 @@ func New(id string, logger *zap.Logger, mesh cluster.Mesh, config Config) *endpo
 	if config.WSSPort > 0 {
 		wssTransport, err := transport.NewWSSTransport(ctx, config.TLSCommonName, config.WSSPort, logger, local.newSession)
 		if err != nil {
-			local.logger.Warn("failed to start listener", zap.String("node_id", id),
+			local.logger.Warn("failed to start listener",
 				zap.String("transport", "wss"), zap.Error(err))
 		} else {
-			local.logger.Info("started listener", zap.String("node_id", id),
+			local.logger.Info("started listener",
 				zap.String("transport", "wss"))
 			local.transports = append(local.transports, wssTransport)
 		}
@@ -153,10 +153,10 @@ func New(id string, logger *zap.Logger, mesh cluster.Mesh, config Config) *endpo
 	if config.TLSPort > 0 {
 		tlsTransport, err := transport.NewTLSTransport(ctx, config.TLSCommonName, config.TLSPort, logger, local.newSession)
 		if err != nil {
-			local.logger.Warn("failed to start listener", zap.String("node_id", id),
+			local.logger.Warn("failed to start listener",
 				zap.String("transport", "tls"), zap.Error(err))
 		} else {
-			local.logger.Info("started listener", zap.String("node_id", id),
+			local.logger.Info("started listener",
 				zap.String("transport", "tls"))
 			local.transports = append(local.transports, tlsTransport)
 		}

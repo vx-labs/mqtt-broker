@@ -36,6 +36,7 @@ job "mqtt-broker" {
       driver = "docker"
 
       env {
+        GRPC_ARG_ENABLE_HTTP_PROXY = "0"
         CONSUL_HTTP_ADDR          = "172.17.0.1:8500"
         AUTH_HOST                 = "172.17.0.1:4141"
         JAEGER_SAMPLER_TYPE       = "const"

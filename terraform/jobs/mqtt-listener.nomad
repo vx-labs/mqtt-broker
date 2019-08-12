@@ -29,6 +29,7 @@ job "mqtt-listener" {
       driver = "docker"
 
       env {
+        GRPC_ARG_ENABLE_HTTP_PROXY = "0"
         CONSUL_HTTP_ADDR          = "172.17.0.1:8500"
       }
 
@@ -124,6 +125,7 @@ job "mqtt-listener" {
       driver = "docker"
 
       env {
+        GRPC_ARG_ENABLE_HTTP_PROXY = "0"
         TLS_CN           = "broker.iot.cloud.vx-labs.net"
         CONSUL_HTTP_ADDR = "$${NOMAD_IP_health}:8500"
         VAULT_ADDR       = "http://$${NOMAD_IP_health}:8200"
@@ -247,6 +249,7 @@ no_proxy="10.0.0.0/8,172.17.0.1,{{ env "NOMAD_IP_health" }}"
       driver = "docker"
 
       env {
+        GRPC_ARG_ENABLE_HTTP_PROXY = "0"
         TLS_CN           = "broker.iot.cloud.vx-labs.net"
         CONSUL_HTTP_ADDR = "$${NOMAD_IP_health}:8500"
         VAULT_ADDR       = "http://$${NOMAD_IP_health}:8200"

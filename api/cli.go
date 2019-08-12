@@ -70,7 +70,6 @@ func (b *api) acceptLoop(listener net.Listener) {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
 		mux.ServeHTTP(w, r)
 		b.logger.Info("served http request",
-			zap.String("node_id", b.id),
 			zap.String("http_request_method", r.Method),
 			zap.String("http_request_url", r.URL.String()),
 			zap.String("remote_address", r.RemoteAddr),
@@ -82,25 +81,25 @@ func (b *api) Serve(_ int) net.Listener {
 	if b.config.TlsPort > 0 {
 		TLSConfig, err := vaultacme.GetConfig(b.ctx, b.config.TlsCommonName, b.logger)
 		if err != nil {
-			b.logger.Fatal("failed to load TLS config", zap.Error(err), zap.String("node_id", b.id))
+			b.logger.Fatal("failed to load TLS config", zap.Error(err))
 		}
 		ln, err := tls.Listen("tcp", fmt.Sprintf(":%d", b.config.TlsPort), TLSConfig)
 		if err != nil {
-			b.logger.Fatal("failed to start listener", zap.String("node_id", b.id),
+			b.logger.Fatal("failed to start listener",
 				zap.String("transport", "tls"), zap.Error(err))
 		}
 		b.listeners = append(b.listeners, ln)
-		b.logger.Info("started listener", zap.String("node_id", b.id),
+		b.logger.Info("started listener",
 			zap.String("transport", "tls"))
 	}
 	if b.config.TcpPort > 0 {
 		ln, err := net.Listen("tcp", fmt.Sprintf(":%d", b.config.TcpPort))
 		if err != nil {
-			b.logger.Fatal("failed to start listener", zap.String("node_id", b.id),
+			b.logger.Fatal("failed to start listener",
 				zap.String("transport", "tcp"), zap.Error(err))
 		}
 		b.listeners = append(b.listeners, ln)
-		b.logger.Info("started listener", zap.String("node_id", b.id),
+		b.logger.Info("started listener",
 			zap.String("transport", "tcp"))
 	}
 	for _, lis := range b.listeners {
