@@ -36,6 +36,7 @@ job "mqtt-api" {
       driver = "docker"
 
       env {
+        GRPC_ARG_ENABLE_HTTP_PROXY = "0"
         TLS_CN           = "broker-api.iot.cloud.vx-labs.net"
         CONSUL_HTTP_ADDR = "$${NOMAD_IP_health}:8500"
         VAULT_ADDR       = "http://$${NOMAD_IP_health}:8200"

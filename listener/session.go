@@ -34,7 +34,6 @@ func (local *endpoint) runLocalSession(t transport.Metadata) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	fields := []zapcore.Field{
-		zap.String("node_id", local.id),
 		zap.String("remote_address", t.RemoteAddress),
 		zap.String("transport", t.Name),
 	}

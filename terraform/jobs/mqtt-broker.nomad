@@ -36,6 +36,7 @@ job "mqtt-broker" {
       driver = "docker"
 
       env {
+        GRPC_ARG_ENABLE_HTTP_PROXY = "0"
         CONSUL_HTTP_ADDR          = "172.17.0.1:8500"
         AUTH_HOST                 = "172.17.0.1:4141"
         JAEGER_SAMPLER_TYPE       = "const"
@@ -43,7 +44,17 @@ job "mqtt-broker" {
         JAEGER_REPORTER_LOG_SPANS = "true"
         JAEGER_AGENT_HOST         = "$${NOMAD_IP_health}"
       }
-
+      template {
+        destination = "local/proxy.conf"
+        env = true
+        data = <<EOH
+{{ with secret "secret/data/vx/mqtt" }}
+http_proxy="{{ .Data.http_proxy }}"
+https_proxy="{{ .Data.http_proxy }}"
+no_proxy="10.0.0.0/8,172.17.0.1,{{ env "NOMAD_IP_health" }}"
+{{ end }}
+EOH
+      }
       config {
         logging {
           type = "fluentd"

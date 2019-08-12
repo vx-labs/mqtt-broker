@@ -11,7 +11,7 @@ func (b *Broker) startPublishConsumers() {
 		go b.publishQueue.Consume(func(p *publishQueue.Message) {
 			err := b.consumePublish(p)
 			if err != nil {
-				b.logger.Error("failed to publish message", b.zapNodeID(), zap.Binary("topic_pattern", p.Publish.Topic), zap.Error(err))
+				b.logger.Error("failed to publish message", zap.Binary("topic_pattern", p.Publish.Topic), zap.Error(err))
 				b.publishQueue.Enqueue(p)
 			}
 		})
@@ -30,12 +30,12 @@ func (b *Broker) consumePublish(message *publishQueue.Message) error {
 		}
 		err := b.Topics.Create(message)
 		if err != nil {
-			b.logger.Error("failed to save retained message", b.zapNodeID(), zap.Binary("topic_pattern", message.Topic), zap.Error(err))
+			b.logger.Error("failed to save retained message", zap.Binary("topic_pattern", message.Topic), zap.Error(err))
 		}
 	}
 	err := b.routeMessage(message.Tenant, p)
 	if err != nil {
-		b.logger.Error("failed to route message", b.zapNodeID(), zap.Binary("topic_pattern", message.Publish.Topic), zap.Error(err))
+		b.logger.Error("failed to route message", zap.Binary("topic_pattern", message.Publish.Topic), zap.Error(err))
 		return err
 	}
 	return nil

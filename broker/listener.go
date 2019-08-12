@@ -83,7 +83,7 @@ func (b *Broker) Connect(ctx context.Context, metadata transport.Metadata, p *pa
 				if err := set.ApplyE(func(session sessions.Session) error {
 					b.Sessions.Delete(session.ID, "session_disconnected")
 					if b.isSessionLocal(session) {
-						b.logger.Info("closing old session to free client-id", b.zapNodeID(), zap.String("session_id", session.ID), zap.String("client_id", session.ClientID))
+						b.logger.Info("closing old session to free client-id", zap.String("session_id", session.ID), zap.String("client_id", session.ClientID))
 						session.Transport.Close()
 					}
 					return nil
@@ -113,7 +113,7 @@ func (b *Broker) Connect(ctx context.Context, metadata transport.Metadata, p *pa
 		if err != nil {
 			return err
 		}
-		b.logger.Info("session connected", b.zapNodeID(), zap.String("session_id", out.sessionID), zap.String("client_id", string(p.ClientId)), zap.String("username", string(p.Username)), zap.String("remote_address", metadata.RemoteAddress), zap.String("transport", metadata.Name))
+		b.logger.Info("session connected", zap.String("session_id", out.sessionID), zap.String("client_id", string(p.ClientId)), zap.String("username", string(p.Username)), zap.String("remote_address", metadata.RemoteAddress), zap.String("transport", metadata.Name))
 
 		out.connack.ReturnCode = packet.CONNACK_CONNECTION_ACCEPTED
 		return nil
@@ -124,7 +124,7 @@ func (b *Broker) Connect(ctx context.Context, metadata transport.Metadata, p *pa
 func (b *Broker) Subscribe(ctx context.Context, id string, p *packet.Subscribe) (*packet.SubAck, error) {
 	sess, err := b.Sessions.ByID(id)
 	if err != nil {
-		b.logger.Warn("received packet from an unknown session", b.zapNodeID(), zap.String("session_id", id), zap.String("packet", "subscribe"))
+		b.logger.Warn("received packet from an unknown session", zap.String("session_id", id), zap.String("packet", "subscribe"))
 		return nil, err
 	}
 	for idx, pattern := range p.Topic {
@@ -149,7 +149,6 @@ func (b *Broker) Subscribe(ctx context.Context, id string, p *packet.Subscribe) 
 			return nil, err
 		}
 		b.logger.Info("session subscribed",
-			b.zapNodeID(),
 			zap.String("session_id", sess.ID),
 			zap.String("subscription_id", subID),
 			zap.Int32("qos", p.Qos[idx]),
@@ -210,7 +209,7 @@ func (b *Broker) routeMessage(tenant string, p *packet.Publish) error {
 func (b *Broker) Publish(ctx context.Context, id string, p *packet.Publish) (*packet.PubAck, error) {
 	session, err := b.Sessions.ByID(id)
 	if err != nil {
-		b.logger.Warn("received packet from an unknown session", b.zapNodeID(), zap.String("session_id", id), zap.String("packet", "publish"))
+		b.logger.Warn("received packet from an unknown session", zap.String("session_id", id), zap.String("packet", "publish"))
 		return nil, err
 	}
 	if p.Header.Qos == 2 {
@@ -234,7 +233,7 @@ func (b *Broker) Publish(ctx context.Context, id string, p *packet.Publish) (*pa
 func (b *Broker) Unsubscribe(ctx context.Context, id string, p *packet.Unsubscribe) (*packet.UnsubAck, error) {
 	sess, err := b.Sessions.ByID(id)
 	if err != nil {
-		b.logger.Warn("received packet from an unknown session", b.zapNodeID(), zap.String("session_id", id), zap.String("packet", "unsubscribe"))
+		b.logger.Warn("received packet from an unknown session", zap.String("session_id", id), zap.String("packet", "unsubscribe"))
 		return nil, err
 	}
 	set, err := b.Subscriptions.BySession(sess.ID)
@@ -260,15 +259,15 @@ func (b *Broker) Unsubscribe(ctx context.Context, id string, p *packet.Unsubscri
 func (b *Broker) Disconnect(ctx context.Context, id string, p *packet.Disconnect) error {
 	sess, err := b.Sessions.ByID(id)
 	if err != nil {
-		b.logger.Warn("received packet from an unknown session", b.zapNodeID(), zap.String("session_id", id), zap.String("packet", "disconnect"))
+		b.logger.Warn("received packet from an unknown session", zap.String("session_id", id), zap.String("packet", "disconnect"))
 		return err
 	}
 	b.Sessions.Delete(id, "session_disconnected")
 	err = b.deleteSessionSubscriptions(sess)
 	if err != nil {
-		b.logger.Error("failed to delete session subscriptions when disconnecting", b.zapNodeID(), zap.String("session_id", id), zap.Error(err))
+		b.logger.Error("failed to delete session subscriptions when disconnecting", zap.String("session_id", id), zap.Error(err))
 	}
-	b.logger.Info("session disconnected", b.zapNodeID(), zap.String("session_id", sess.ID))
+	b.logger.Info("session disconnected", zap.String("session_id", sess.ID))
 	return nil
 }
 
@@ -292,7 +291,7 @@ func (b *Broker) CloseSession(ctx context.Context, id string) error {
 			}
 			b.Topics.Create(retainedMessage)
 			if err != nil {
-				b.logger.Warn("failed to retain LWT", b.zapNodeID(), zap.String("session_id", sess.ID), zap.Error(err))
+				b.logger.Warn("failed to retain LWT", zap.String("session_id", sess.ID), zap.Error(err))
 			}
 		}
 		b.routeMessage(sess.Tenant, &packet.Publish{
@@ -308,17 +307,17 @@ func (b *Broker) CloseSession(ctx context.Context, id string) error {
 	b.Sessions.Delete(id, "session_lost")
 	err = b.deleteSessionSubscriptions(sess)
 	if err != nil {
-		b.logger.Error("failed to delete session subscriptions", b.zapNodeID(), zap.String("session_id", sess.ID), zap.Error(err))
+		b.logger.Error("failed to delete session subscriptions", zap.String("session_id", sess.ID), zap.Error(err))
 		return err
 	}
-	b.logger.Info("session lost", b.zapNodeID(), zap.String("session_id", sess.ID))
+	b.logger.Info("session lost", zap.String("session_id", sess.ID))
 	return nil
 }
 
 func (b *Broker) PingReq(ctx context.Context, id string, _ *packet.PingReq) (*packet.PingResp, error) {
 	_, err := b.Sessions.ByID(id)
 	if err != nil {
-		b.logger.Warn("received packet from an unknown session", b.zapNodeID(), zap.String("session_id", id), zap.String("packet", "pingreq"))
+		b.logger.Warn("received packet from an unknown session", zap.String("session_id", id), zap.String("packet", "pingreq"))
 		return nil, err
 	}
 	return &packet.PingResp{

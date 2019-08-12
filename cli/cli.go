@@ -90,8 +90,6 @@ func JoinConsulPeers(api *consul.Client, service string, selfAddress string, sel
 
 func logService(logger *zap.Logger, id, name string, config network.Configuration) {
 	logger.Info("loaded service config",
-		zap.String("node_id", id),
-		zap.String("service_name", name),
 		zap.String("bind_address", config.BindAddress),
 		zap.Int("bind_port", config.BindPort),
 		zap.String("advertised_address", config.AdvertisedAddress),
@@ -100,6 +98,8 @@ func logService(logger *zap.Logger, id, name string, config network.Configuratio
 }
 
 func Run(cmd *cobra.Command, name string, serviceFunc func(id string, logger *zap.Logger, mesh cluster.Mesh) Service) {
+	id := uuid.New().String()
+
 	if viper.GetBool("pprof") {
 		go func() {
 			fmt.Println("pprof endpoint is running on port 8080")
@@ -109,10 +109,13 @@ func Run(cmd *cobra.Command, name string, serviceFunc func(id string, logger *za
 	sigc := make(chan os.Signal, 1)
 	var logger *zap.Logger
 	var err error
+	opts := []zap.Option{
+		zap.Fields(zap.String("node_id", id), zap.String("service_name", name)),
+	}
 	if os.Getenv("ENABLE_PRETTY_LOG") == "true" {
-		logger, err = zap.NewDevelopment()
+		logger, err = zap.NewDevelopment(opts...)
 	} else {
-		logger, err = zap.NewProduction()
+		logger, err = zap.NewProduction(opts...)
 	}
 	if err != nil {
 		panic(err)
@@ -122,7 +125,6 @@ func Run(cmd *cobra.Command, name string, serviceFunc func(id string, logger *za
 	clusterNetConf := network.ConfigurationFromFlags(cmd, FLAG_NAME_CLUSTER)
 	serviceNetConf := network.ConfigurationFromFlags(cmd, FLAG_NAME_SERVICE)
 	serviceGossipNetConf := network.ConfigurationFromFlags(cmd, FLAG_NAME_SERVICE_GOSSIP)
-	id := uuid.New().String()
 
 	mesh := joinMesh(id, logger, clusterNetConf)
 	logService(logger, id, FLAG_NAME_CLUSTER, clusterNetConf)
@@ -134,7 +136,7 @@ func Run(cmd *cobra.Command, name string, serviceFunc func(id string, logger *za
 		consulConfig.HttpClient = http.DefaultClient
 		consulAPI, err := consul.NewClient(consulConfig)
 		if err != nil {
-			logger.Fatal("failed to connect to consul", zap.String("node_id", id), zap.String("service_name", name))
+			logger.Fatal("failed to connect to consul")
 		}
 		clusterMemberFound = make(chan struct{})
 		go func() {
@@ -177,14 +179,14 @@ func Run(cmd *cobra.Command, name string, serviceFunc func(id string, logger *za
 	go func() {
 		defer close(quit)
 		<-sigc
-		logger.Info("received termination signal", zap.String("node_id", id))
+		logger.Info("received termination signal")
 		mesh.Leave()
-		logger.Info("cluster left", zap.String("node_id", id))
+		logger.Info("cluster left")
 		service.Shutdown()
-		logger.Info("stopped service", zap.String("node_id", id), zap.String("service_name", name))
+		logger.Info("stopped service")
 		if listener != nil {
 			listener.Close()
-			logger.Info("stopped rpc listener", zap.String("node_id", id), zap.String("service_name", name))
+			logger.Info("stopped rpc listener")
 		}
 	}()
 	<-quit
