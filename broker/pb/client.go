@@ -65,7 +65,7 @@ func (c *Client) Connect(ctx context.Context, metadata transport.Metadata, conne
 		RemoteAddress: metadata.RemoteAddress,
 		Endpoint:      metadata.Endpoint,
 	}})
-	if out == nil {
+	if out == nil || out.Token == "" || out.ID == "" {
 		return "", "", &packet.ConnAck{
 			Header:     &packet.Header{},
 			ReturnCode: packet.CONNACK_REFUSED_SERVER_UNAVAILABLE,

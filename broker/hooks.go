@@ -5,7 +5,6 @@ import (
 	"crypto/sha1"
 	"fmt"
 
-	"github.com/vx-labs/mqtt-broker/sessions"
 	"github.com/vx-labs/mqtt-broker/transport"
 	"go.uber.org/zap"
 
@@ -44,8 +43,8 @@ func getLowerQoS(a, b int32) int32 {
 	}
 	return b
 }
-func (b *Broker) deleteSessionSubscriptions(sess sessions.Session) error {
-	set, err := b.Subscriptions.BySession(sess.ID)
+func (b *Broker) deleteSessionSubscriptions(sess string) error {
+	set, err := b.Subscriptions.BySession(sess)
 	if err != nil {
 		return err
 	}
