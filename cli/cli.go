@@ -46,7 +46,7 @@ func AddClusterFlags(root *cobra.Command) {
 	network.RegisterFlagsForService(root, FLAG_NAME_SERVICE, 0)
 }
 
-func JoinConsulPeers(api *consul.Client, service string, selfAddress string, selfPort int, mesh cluster.Mesh) error {
+func JoinConsulPeers(api *consul.Client, service string, selfAddress string, selfPort int, mesh cluster.Mesh, logger *zap.Logger) error {
 	foundSelf := false
 
 	var index uint64
@@ -69,6 +69,7 @@ func JoinConsulPeers(api *consul.Client, service string, selfAddress string, sel
 		index = meta.LastIndex
 		peers := []string{}
 		for _, service := range services {
+			logger.Info("discovered node", zap.String("node_address", service.Service.Address), zap.Int("node_port", service.Service.Port), zap.String("node_health", service.Checks.AggregatedStatus()))
 			if service.Checks.AggregatedStatus() == consul.HealthCritical {
 				continue
 			}
@@ -109,8 +110,19 @@ func Run(cmd *cobra.Command, name string, serviceFunc func(id string, logger *za
 	sigc := make(chan os.Signal, 1)
 	var logger *zap.Logger
 	var err error
+	fields := []zap.Field{
+		zap.String("node_id", id), zap.String("service_name", name),
+	}
+	if allocID := os.Getenv("NOMAD_ALLOC_ID"); allocID != "" {
+		fields = append(fields,
+			zap.String("nomad_alloc_id", os.Getenv("NOMAD_ALLOC_ID")),
+			zap.String("nomad_alloc_name", os.Getenv("NOMAD_ALLOC_NAME")),
+			zap.String("nomad_alloc_index", os.Getenv("NOMAD_ALLOC_INDEX")),
+		)
+	}
+
 	opts := []zap.Option{
-		zap.Fields(zap.String("node_id", id), zap.String("service_name", name)),
+		zap.Fields(fields...),
 	}
 	if os.Getenv("ENABLE_PRETTY_LOG") == "true" {
 		logger, err = zap.NewDevelopment(opts...)
@@ -140,7 +152,7 @@ func Run(cmd *cobra.Command, name string, serviceFunc func(id string, logger *za
 		}
 		clusterMemberFound = make(chan struct{})
 		go func() {
-			JoinConsulPeers(consulAPI, "cluster", clusterNetConf.AdvertisedAddress, clusterNetConf.AdvertisedPort, mesh)
+			JoinConsulPeers(consulAPI, "cluster", clusterNetConf.AdvertisedAddress, clusterNetConf.AdvertisedPort, mesh, logger)
 			close(clusterMemberFound)
 		}()
 	}
