@@ -206,7 +206,7 @@ func (self *layer) numMembers() int {
 	return self.mlist.NumMembers()
 }
 
-func NewLayer(name string, logger *zap.Logger, userConfig Config, meta pb.NodeMeta) Layer {
+func NewGossipLayer(name string, logger *zap.Logger, userConfig Config, meta pb.NodeMeta) GossipLayer {
 	self := &layer{
 		id:          userConfig.ID,
 		name:        name,

@@ -24,7 +24,7 @@ var (
 type memberlistMesh struct {
 	id        string
 	rpcCaller *pool.Caller
-	layer     Layer
+	layer     GossipLayer
 	peers     peers.PeerStore
 }
 
@@ -51,7 +51,7 @@ func New(logger *zap.Logger, userConfig Config) *memberlistMesh {
 		}
 		self.peers.Delete(id)
 	}
-	self.layer = NewLayer("cluster", logger, userConfig, pb.NodeMeta{
+	self.layer = NewGossipLayer("cluster", logger, userConfig, pb.NodeMeta{
 		ID: userConfig.ID,
 	})
 	store, err := peers.NewPeerStore(self.layer)

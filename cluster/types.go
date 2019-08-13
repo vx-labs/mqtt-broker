@@ -20,7 +20,7 @@ type Mesh interface {
 }
 
 // Mesh represents the mesh state network, being able to broadcast state across the nodes.
-type Layer interface {
+type GossipLayer interface {
 	AddState(key string, state types.State) (types.Channel, error)
 	DiscoverPeers(discovery peers.PeerStore)
 	Join(peers []string) error

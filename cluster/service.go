@@ -28,7 +28,7 @@ func NewServiceLayer(name string, logger *zap.Logger, serviceConfig ServiceConfi
 	if userConfig.BindPort == 0 {
 		log.Fatalf("FATAL: service/%s: user provided 0 as bind port value", name)
 	}
-	layer := NewLayer(name, logger, userConfig, pb.NodeMeta{
+	layer := NewGossipLayer(name, logger, userConfig, pb.NodeMeta{
 		ID: userConfig.ID,
 	})
 
