@@ -51,7 +51,7 @@ job "mqtt-broker" {
 {{ with secret "secret/data/vx/mqtt" }}
 http_proxy="{{ .Data.http_proxy }}"
 https_proxy="{{ .Data.http_proxy }}"
-no_proxy="10.0.0.0/8,172.17.0.1,{{ env "NOMAD_IP_health" }}"
+no_proxy="10.0.0.0/8,172.17.0.1,{{ env "NOMAD_IP_health" }},listener,broker,api,10.*.*.*"
 {{ end }}
 EOH
       }

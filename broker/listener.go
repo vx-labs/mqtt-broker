@@ -179,7 +179,7 @@ func (b *Broker) Subscribe(ctx context.Context, token string, p *packet.Subscrib
 		go func() {
 			set.Apply(func(message topics.RetainedMessage) {
 				qos := getLowerQoS(message.Qos, packetQoS)
-				err := b.sendToSession(ctx, sess.SessionID, sess.PeerID, &packet.Publish{
+				err := b.sendToSession(b.ctx, sess.SessionID, sess.PeerID, &packet.Publish{
 					Header: &packet.Header{
 						Qos:    qos,
 						Retain: true,
@@ -189,7 +189,7 @@ func (b *Broker) Subscribe(ctx context.Context, token string, p *packet.Subscrib
 					Topic:     message.Topic,
 				})
 				if err != nil {
-					b.logger.Error("retained message published",
+					b.logger.Error("failed to publish retained message",
 						zap.Error(err),
 						zap.String("session_id", sess.SessionID),
 						zap.String("subscription_id", subID),
