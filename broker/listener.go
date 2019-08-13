@@ -300,6 +300,9 @@ func (b *Broker) CloseSession(ctx context.Context, token string) error {
 		return err
 	}
 	sess, err := b.Sessions.ByID(decodedToken.SessionID)
+	if err == sessions.ErrSessionNotFound {
+		return nil
+	}
 	if err != nil {
 		return err
 	}
