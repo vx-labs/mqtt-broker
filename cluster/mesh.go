@@ -28,21 +28,6 @@ type memberlistMesh struct {
 	peers     peers.PeerStore
 }
 
-type cachedState struct {
-	data []byte
-}
-
-func (c *cachedState) MarshalBinary() []byte {
-	return c.data
-}
-
-func (c *cachedState) Merge(b []byte, full bool) error {
-	if full {
-		c.data = b
-	}
-	return nil
-}
-
 func (m *memberlistMesh) ID() string {
 	return m.id
 }

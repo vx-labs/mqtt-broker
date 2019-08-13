@@ -76,9 +76,6 @@ func (m *layer) NotifyMsg(b []byte) {
 	defer m.mtx.Unlock()
 	s, ok := m.states[p.Key]
 	if !ok {
-		m.states[p.Key] = &cachedState{
-			data: p.Data,
-		}
 		return
 	}
 	if err := s.Merge(p.Data, false); err != nil {
@@ -126,9 +123,6 @@ func (m *layer) MergeRemoteState(buf []byte, join bool) {
 	for _, p := range fs.Parts {
 		s, ok := m.states[p.Key]
 		if !ok {
-			m.states[p.Key] = &cachedState{
-				data: p.Data,
-			}
 			continue
 		}
 		//now := time.Now()
