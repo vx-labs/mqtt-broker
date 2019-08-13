@@ -36,7 +36,6 @@ job "mqtt-broker" {
       driver = "docker"
 
       env {
-        GRPC_ARG_ENABLE_HTTP_PROXY = "0"
         CONSUL_HTTP_ADDR          = "172.17.0.1:8500"
         AUTH_HOST                 = "172.17.0.1:4141"
         JAEGER_SAMPLER_TYPE       = "const"
@@ -52,7 +51,7 @@ job "mqtt-broker" {
 http_proxy="{{ .Data.http_proxy }}"
 https_proxy="{{ .Data.http_proxy }}"
 JWT_SIGN_KEY="{{ .Data.jwt_sign_key }}"
-no_proxy="10.0.0.0/8,172.17.0.1,{{ env "NOMAD_IP_health" }},listener,broker,api,10.*.*.*"
+no_proxy="10.0.0.0/8,172.16.0.0/12"
 {{ end }}
 EOH
       }

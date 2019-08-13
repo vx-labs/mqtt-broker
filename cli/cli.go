@@ -48,7 +48,6 @@ func AddClusterFlags(root *cobra.Command) {
 
 func JoinConsulPeers(api *consul.Client, service string, selfAddress string, selfPort int, mesh cluster.Mesh, logger *zap.Logger) error {
 	foundSelf := false
-
 	var index uint64
 	ticker := time.NewTicker(5 * time.Second)
 	defer ticker.Stop()
