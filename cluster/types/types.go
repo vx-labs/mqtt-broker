@@ -30,6 +30,6 @@ type GossipServiceLayer interface {
 }
 
 type RaftServiceLayer interface {
-	Start(state RaftState) error
+	Start(name string, state RaftState) error
 	Shutdown() error
 }
