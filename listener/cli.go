@@ -12,7 +12,7 @@ func (b *endpoint) Serve(port int) net.Listener {
 func (b *endpoint) Shutdown() {
 	b.Close()
 }
-func (b *endpoint) JoinServiceLayer(layer types.ServiceLayer) {
+func (b *endpoint) JoinServiceLayer(layer types.GossipServiceLayer) {
 }
 func (m *endpoint) Health() string {
 	return "ok"

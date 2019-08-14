@@ -68,7 +68,7 @@ type memDBStore struct {
 	channel                 Channel
 }
 
-func NewSessionStore(mesh types.ServiceLayer, remoteTransportProvider RemoteTransportProvider, logger Logger) (SessionStore, error) {
+func NewSessionStore(mesh types.GossipServiceLayer, remoteTransportProvider RemoteTransportProvider, logger Logger) (SessionStore, error) {
 	db, err := memdb.NewMemDB(&memdb.DBSchema{
 		Tables: map[string]*memdb.TableSchema{
 			memdbTable: {

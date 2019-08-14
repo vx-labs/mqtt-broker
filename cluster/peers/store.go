@@ -54,7 +54,7 @@ type memDBStore struct {
 	channel Channel
 }
 
-func NewPeerStore(mesh types.ServiceLayer) (*memDBStore, error) {
+func NewPeerStore(mesh types.GossipServiceLayer) (*memDBStore, error) {
 	db, err := memdb.NewMemDB(&memdb.DBSchema{
 		Tables: map[string]*memdb.TableSchema{
 			peerTable: {

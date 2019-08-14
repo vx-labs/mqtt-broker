@@ -1,4 +1,4 @@
-package cluster
+package discovery
 
 import (
 	"errors"
@@ -9,13 +9,13 @@ import (
 
 	"go.uber.org/zap"
 
+	"github.com/hashicorp/memberlist"
 	"github.com/vx-labs/mqtt-broker/cluster/config"
 	"github.com/vx-labs/mqtt-broker/cluster/layer"
 	"github.com/vx-labs/mqtt-broker/cluster/pb"
 	"github.com/vx-labs/mqtt-broker/cluster/peers"
 	"github.com/vx-labs/mqtt-broker/cluster/pool"
-
-	"google.golang.org/grpc/resolver"
+	"github.com/vx-labs/mqtt-broker/cluster/types"
 )
 
 var (
@@ -23,17 +23,17 @@ var (
 	ErrNodeNotFound       = errors.New("specified node not found in mesh")
 )
 
-type memberlistMesh struct {
+type discoveryLayer struct {
 	id        string
 	rpcCaller *pool.Caller
 	layer     GossipLayer
 	peers     peers.PeerStore
 }
 
-func (m *memberlistMesh) ID() string {
+func (m *discoveryLayer) ID() string {
 	return m.id
 }
-func (m *memberlistMesh) Peers() peers.PeerStore {
+func (m *discoveryLayer) Peers() peers.PeerStore {
 	return m.peers
 }
 
@@ -41,18 +41,18 @@ type Service struct {
 	ID      string
 	Address string
 }
-
-type Config struct {
-	ID            string
-	AdvertiseAddr string
-	AdvertisePort int
-	BindPort      int
-	onNodeJoin    func(id string, meta pb.NodeMeta)
-	onNodeLeave   func(id string, meta pb.NodeMeta)
+type GossipLayer interface {
+	AddState(key string, state types.GossipState) (types.Channel, error)
+	DiscoverPeers(discovery peers.PeerStore)
+	Join(peers []string) error
+	Members() []*memberlist.Node
+	OnNodeJoin(func(id string, meta pb.NodeMeta))
+	OnNodeLeave(func(id string, meta pb.NodeMeta))
+	Leave()
 }
 
-func New(logger *zap.Logger, userConfig config.Config) *memberlistMesh {
-	self := &memberlistMesh{
+func NewDiscoveryLayer(logger *zap.Logger, userConfig config.Config) *discoveryLayer {
+	self := &discoveryLayer{
 		id:        userConfig.ID,
 		rpcCaller: pool.NewCaller(),
 	}
@@ -87,19 +87,17 @@ func New(logger *zap.Logger, userConfig config.Config) *memberlistMesh {
 			Started:  time.Now().Unix(),
 		},
 	})
-	resolver.Register(newResolver(self.peers))
-	resolver.Register(newIDResolver(self.peers))
 	go self.oSStatsReporter()
 	return self
 }
-func (m *memberlistMesh) Leave() {
+func (m *discoveryLayer) Leave() {
 	m.layer.Leave()
 }
-func (m *memberlistMesh) Join(peers []string) error {
+func (m *discoveryLayer) Join(peers []string) error {
 	return m.layer.Join(peers)
 }
 
-func (m *memberlistMesh) RegisterService(name, address string) error {
+func (m *discoveryLayer) RegisterService(name, address string) error {
 	self, err := m.peers.ByID(m.id)
 	if err != nil {
 		return err
@@ -113,7 +111,7 @@ func (m *memberlistMesh) RegisterService(name, address string) error {
 	log.Printf("INFO: registering service %s on %s", name, address)
 	return m.peers.Upsert(self)
 }
-func (m *memberlistMesh) Health() string {
+func (m *discoveryLayer) Health() string {
 	if len(m.layer.Members()) > 1 {
 		return "ok"
 	}

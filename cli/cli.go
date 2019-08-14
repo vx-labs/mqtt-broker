@@ -32,7 +32,7 @@ const (
 type Service interface {
 	Serve(port int) net.Listener
 	Shutdown()
-	JoinServiceLayer(layer types.ServiceLayer)
+	JoinServiceLayer(layer types.GossipServiceLayer)
 	Health() string
 }
 
@@ -98,7 +98,7 @@ func logService(logger *zap.Logger, id, name string, config network.Configuratio
 	)
 }
 
-func Run(cmd *cobra.Command, name string, serviceFunc func(id string, logger *zap.Logger, mesh cluster.Mesh) Service) {
+func Run(cmd *cobra.Command, name string, serviceFunc func(id string, logger *zap.Logger, mesh cluster.DiscoveryLayer) Service) {
 	id := uuid.New().String()
 
 	if viper.GetBool("pprof") {
@@ -180,7 +180,7 @@ func Run(cmd *cobra.Command, name string, serviceFunc func(id string, logger *za
 			serviceConfig.AdvertisePort = serviceConfig.BindPort
 			serviceConfig.ServicePort = port
 		}
-		layer := cluster.NewServiceLayer(name, logger, serviceConfig, mesh)
+		layer := cluster.NewGossipServiceLayer(name, logger, serviceConfig, mesh)
 		service.JoinServiceLayer(layer)
 	}
 	quit := make(chan struct{})
@@ -230,8 +230,8 @@ func serveHTTPHealth(logger *zap.Logger, mesh healthChecker, service healthCheck
 	}
 }
 
-func joinMesh(id string, logger *zap.Logger, clusterNetConf network.Configuration) cluster.Mesh {
-	mesh := cluster.New(logger, clusterconfig.Config{
+func joinMesh(id string, logger *zap.Logger, clusterNetConf network.Configuration) cluster.DiscoveryLayer {
+	mesh := cluster.NewDiscoveryLayer(logger, clusterconfig.Config{
 		BindPort:      clusterNetConf.BindPort,
 		AdvertisePort: clusterNetConf.AdvertisedPort,
 		AdvertiseAddr: clusterNetConf.AdvertisedAddress,

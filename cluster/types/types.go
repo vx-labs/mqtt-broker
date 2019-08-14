@@ -2,8 +2,8 @@ package types
 
 import "github.com/vx-labs/mqtt-broker/cluster/pb"
 
-// State represents a CRDT state store, that will be distributed over the mesh network.
-type State interface {
+// GossipState represents a CRDT state store, that will be distributed over the mesh network.
+type GossipState interface {
 	Merge(inc []byte, full bool) error
 	MarshalBinary() []byte
 }
@@ -14,7 +14,7 @@ type Channel interface {
 	Broadcast(b []byte)
 }
 
-type ServiceLayer interface {
-	AddState(key string, state State) (Channel, error)
+type GossipServiceLayer interface {
+	AddState(key string, state GossipState) (Channel, error)
 	OnNodeLeave(f func(id string, meta pb.NodeMeta))
 }

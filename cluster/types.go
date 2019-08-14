@@ -18,10 +18,19 @@ type Mesh interface {
 	Leave()
 	Health() string
 }
+type DiscoveryLayer interface {
+	Peers() peers.PeerStore
+	DialService(name string) (*grpc.ClientConn, error)
+	DialAddress(service, id string, f func(*grpc.ClientConn) error) error
+	RegisterService(name, address string) error
+	Leave()
+	Join(hosts []string) error
+	Health() string
+}
 
 // Mesh represents the mesh state network, being able to broadcast state across the nodes.
 type GossipLayer interface {
-	AddState(key string, state types.State) (types.Channel, error)
+	AddState(key string, state types.GossipState) (types.Channel, error)
 	DiscoverPeers(discovery peers.PeerStore)
 	Join(peers []string) error
 	Members() []*memberlist.Node

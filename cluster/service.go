@@ -20,7 +20,7 @@ type ServiceConfig struct {
 	ServicePort   int
 }
 
-func NewServiceLayer(name string, logger *zap.Logger, serviceConfig ServiceConfig, discovery Mesh) types.ServiceLayer {
+func NewGossipServiceLayer(name string, logger *zap.Logger, serviceConfig ServiceConfig, discovery DiscoveryLayer) types.GossipServiceLayer {
 	userConfig := config.Config{
 		ID:            serviceConfig.ID,
 		AdvertiseAddr: serviceConfig.AdvertiseAddr,

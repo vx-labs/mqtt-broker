@@ -1,11 +1,18 @@
 package cluster
 
 import (
+	"errors"
+
 	"github.com/hashicorp/memberlist"
 	"github.com/vx-labs/mqtt-broker/cluster/pb"
 	"github.com/vx-labs/mqtt-broker/cluster/peers"
 	"github.com/vx-labs/mqtt-broker/cluster/types"
 	"google.golang.org/grpc"
+)
+
+var (
+	ErrStateKeyAlreadySet = errors.New("specified key is already taken")
+	ErrNodeNotFound       = errors.New("specified node not found in mesh")
 )
 
 type mockedChannel struct{}
@@ -14,7 +21,7 @@ func (m *mockedChannel) Broadcast([]byte) {}
 
 type mockedMesh struct{}
 
-func (m *mockedMesh) AddState(key string, state types.State) (types.Channel, error) {
+func (m *mockedMesh) AddState(key string, state types.GossipState) (types.Channel, error) {
 	return &mockedChannel{}, nil
 }
 func (m *mockedMesh) OnNodeLeave(f func(id string, meta pb.NodeMeta)) {}

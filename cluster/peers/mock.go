@@ -15,7 +15,7 @@ func (m *mockedChannel) Broadcast([]byte) {}
 
 type mockedMesh struct{}
 
-func (m *mockedMesh) AddState(key string, state types.State) (types.Channel, error) {
+func (m *mockedMesh) AddState(key string, state types.GossipState) (types.Channel, error) {
 	return &mockedChannel{}, nil
 }
 func (m *mockedMesh) OnNodeLeave(f func(id string, meta pb.NodeMeta)) {}

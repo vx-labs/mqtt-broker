@@ -12,7 +12,7 @@ func (b *Broker) Serve(port int) net.Listener {
 func (b *Broker) Shutdown() {
 	b.Stop()
 }
-func (b *Broker) JoinServiceLayer(layer types.ServiceLayer) {
+func (b *Broker) JoinServiceLayer(layer types.GossipServiceLayer) {
 	b.Start(layer)
 }
 func (b *Broker) Health() string {

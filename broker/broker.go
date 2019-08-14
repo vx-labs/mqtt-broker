@@ -105,7 +105,7 @@ func New(id string, logger *zap.Logger, mesh cluster.Mesh, config Config) *Broke
 	return broker
 }
 
-func (broker *Broker) Start(layer types.ServiceLayer) {
+func (broker *Broker) Start(layer types.GossipServiceLayer) {
 	subscriptionsStore, err := subscriptions.NewMemDBStore(layer, func(host string, id string, publish packet.Publish) error {
 		session, err := broker.Sessions.ByID(id)
 		if err != nil {

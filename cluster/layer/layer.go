@@ -22,7 +22,7 @@ type layer struct {
 	mlist       *memberlist.Memberlist
 	logger      *zap.Logger
 	mtx         sync.RWMutex
-	states      map[string]types.State
+	states      map[string]types.GossipState
 	bcastQueue  *memberlist.TransmitLimitedQueue
 	meta        pb.NodeMeta
 	onNodeJoin  func(id string, meta pb.NodeMeta)
@@ -40,7 +40,7 @@ func (m *layer) OnNodeLeave(f func(id string, meta pb.NodeMeta)) {
 	m.onNodeLeave = f
 }
 
-func (m *layer) AddState(key string, state types.State) (types.Channel, error) {
+func (m *layer) AddState(key string, state types.GossipState) (types.Channel, error) {
 	//log.Printf("INFO: service/%s: registering %s state", m.name, key)
 	m.mtx.Lock()
 	defer m.mtx.Unlock()
@@ -202,7 +202,7 @@ func NewGossipLayer(name string, logger *zap.Logger, userConfig config.Config, m
 	self := &layer{
 		id:          userConfig.ID,
 		name:        name,
-		states:      map[string]types.State{},
+		states:      map[string]types.GossipState{},
 		meta:        meta,
 		onNodeJoin:  userConfig.OnNodeJoin,
 		onNodeLeave: userConfig.OnNodeLeave,

@@ -112,7 +112,7 @@ func (b *api) Shutdown() {
 		lis.Close()
 	}
 }
-func (b *api) JoinServiceLayer(layer types.ServiceLayer) {
+func (b *api) JoinServiceLayer(layer types.GossipServiceLayer) {
 }
 func (m *api) Health() string {
 	return "ok"
