@@ -1,4 +1,4 @@
-package cluster
+package layer
 
 import (
 	"github.com/gogo/protobuf/proto"

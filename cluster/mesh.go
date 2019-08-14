@@ -9,6 +9,8 @@ import (
 
 	"go.uber.org/zap"
 
+	"github.com/vx-labs/mqtt-broker/cluster/config"
+	"github.com/vx-labs/mqtt-broker/cluster/layer"
 	"github.com/vx-labs/mqtt-broker/cluster/pb"
 	"github.com/vx-labs/mqtt-broker/cluster/peers"
 	"github.com/vx-labs/mqtt-broker/cluster/pool"
@@ -40,18 +42,27 @@ type Service struct {
 	Address string
 }
 
-func New(logger *zap.Logger, userConfig Config) *memberlistMesh {
+type Config struct {
+	ID            string
+	AdvertiseAddr string
+	AdvertisePort int
+	BindPort      int
+	onNodeJoin    func(id string, meta pb.NodeMeta)
+	onNodeLeave   func(id string, meta pb.NodeMeta)
+}
+
+func New(logger *zap.Logger, userConfig config.Config) *memberlistMesh {
 	self := &memberlistMesh{
 		id:        userConfig.ID,
 		rpcCaller: pool.NewCaller(),
 	}
-	userConfig.onNodeLeave = func(id string, meta pb.NodeMeta) {
+	userConfig.OnNodeLeave = func(id string, meta pb.NodeMeta) {
 		for _, service := range meta.Services {
 			self.rpcCaller.Cancel(service.NetworkAddress)
 		}
 		self.peers.Delete(id)
 	}
-	self.layer = NewGossipLayer("cluster", logger, userConfig, pb.NodeMeta{
+	self.layer = layer.NewGossipLayer("cluster", logger, userConfig, pb.NodeMeta{
 		ID: userConfig.ID,
 	})
 	store, err := peers.NewPeerStore(self.layer)

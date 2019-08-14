@@ -4,6 +4,8 @@ import (
 	fmt "fmt"
 	"log"
 
+	"github.com/vx-labs/mqtt-broker/cluster/config"
+	"github.com/vx-labs/mqtt-broker/cluster/layer"
 	"github.com/vx-labs/mqtt-broker/cluster/pb"
 	"github.com/vx-labs/mqtt-broker/cluster/peers"
 	"github.com/vx-labs/mqtt-broker/cluster/types"
@@ -19,7 +21,7 @@ type ServiceConfig struct {
 }
 
 func NewServiceLayer(name string, logger *zap.Logger, serviceConfig ServiceConfig, discovery Mesh) types.ServiceLayer {
-	userConfig := Config{
+	userConfig := config.Config{
 		ID:            serviceConfig.ID,
 		AdvertiseAddr: serviceConfig.AdvertiseAddr,
 		AdvertisePort: serviceConfig.AdvertisePort,
@@ -28,7 +30,7 @@ func NewServiceLayer(name string, logger *zap.Logger, serviceConfig ServiceConfi
 	if userConfig.BindPort == 0 {
 		log.Fatalf("FATAL: service/%s: user provided 0 as bind port value", name)
 	}
-	layer := NewGossipLayer(name, logger, userConfig, pb.NodeMeta{
+	layer := layer.NewGossipLayer(name, logger, userConfig, pb.NodeMeta{
 		ID: userConfig.ID,
 	})
 

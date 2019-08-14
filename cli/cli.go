@@ -18,6 +18,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"github.com/vx-labs/mqtt-broker/cluster"
+	clusterconfig "github.com/vx-labs/mqtt-broker/cluster/config"
 	"github.com/vx-labs/mqtt-broker/cluster/types"
 	"github.com/vx-labs/mqtt-broker/network"
 )
@@ -230,7 +231,7 @@ func serveHTTPHealth(logger *zap.Logger, mesh healthChecker, service healthCheck
 }
 
 func joinMesh(id string, logger *zap.Logger, clusterNetConf network.Configuration) cluster.Mesh {
-	mesh := cluster.New(logger, cluster.Config{
+	mesh := cluster.New(logger, clusterconfig.Config{
 		BindPort:      clusterNetConf.BindPort,
 		AdvertisePort: clusterNetConf.AdvertisedPort,
 		AdvertiseAddr: clusterNetConf.AdvertisedAddress,

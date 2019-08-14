@@ -1,4 +1,4 @@
-package cluster
+package layer
 
 import (
 	fmt "fmt"
@@ -9,20 +9,12 @@ import (
 
 	proto "github.com/golang/protobuf/proto"
 	"github.com/hashicorp/memberlist"
+	"github.com/vx-labs/mqtt-broker/cluster/config"
 	"github.com/vx-labs/mqtt-broker/cluster/pb"
 	"github.com/vx-labs/mqtt-broker/cluster/peers"
 	"github.com/vx-labs/mqtt-broker/cluster/types"
 	"go.uber.org/zap"
 )
-
-type Config struct {
-	ID            string
-	AdvertiseAddr string
-	AdvertisePort int
-	BindPort      int
-	onNodeJoin    func(id string, meta pb.NodeMeta)
-	onNodeLeave   func(id string, meta pb.NodeMeta)
-}
 
 type layer struct {
 	id          string
@@ -206,14 +198,14 @@ func (self *layer) numMembers() int {
 	return self.mlist.NumMembers()
 }
 
-func NewGossipLayer(name string, logger *zap.Logger, userConfig Config, meta pb.NodeMeta) GossipLayer {
+func NewGossipLayer(name string, logger *zap.Logger, userConfig config.Config, meta pb.NodeMeta) *layer {
 	self := &layer{
 		id:          userConfig.ID,
 		name:        name,
 		states:      map[string]types.State{},
 		meta:        meta,
-		onNodeJoin:  userConfig.onNodeJoin,
-		onNodeLeave: userConfig.onNodeLeave,
+		onNodeJoin:  userConfig.OnNodeJoin,
+		onNodeLeave: userConfig.OnNodeLeave,
 		logger:      logger,
 	}
 

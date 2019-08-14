@@ -1,4 +1,4 @@
-package cluster
+package layer
 
 import (
 	proto "github.com/golang/protobuf/proto"
