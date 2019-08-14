@@ -31,5 +31,6 @@ type GossipServiceLayer interface {
 
 type RaftServiceLayer interface {
 	Start(name string, state RaftState) error
+	ApplyEvent(event []byte) error
 	Shutdown() error
 }

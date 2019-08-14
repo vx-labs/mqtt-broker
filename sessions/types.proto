@@ -22,3 +22,36 @@ message Metadata {
 message SessionMetadataList {
   repeated Metadata Metadatas = 1;
 }
+
+message SessionCreateInput {
+  string ID = 1;
+  string Tenant = 2;
+  string Peer = 3;
+  bytes WillTopic = 4;
+  int32 WillQoS = 5;
+  bytes WillPayload = 6;
+  bool WillRetain = 7;
+  string ClientID = 9;
+  string Transport = 10;
+  string RemoteAddress = 11;
+  int32 KeepaliveInterval = 12;
+}
+message SessionCreateOutput {}
+
+service SessionsService {
+  rpc Create(SessionCreateInput) returns (SessionCreateOutput);
+}
+
+message StateTransition {
+  string Kind = 1;
+  StateTransitionSessionCreated SessionCreated = 2;
+  StateTransitionSessionDeleted SessionDeleted = 3;
+}
+
+message StateTransitionSessionCreated {
+  SessionCreateInput Input = 1;
+}
+
+message StateTransitionSessionDeleted {
+  string ID = 1;
+}

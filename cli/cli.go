@@ -19,7 +19,6 @@ import (
 	"github.com/spf13/viper"
 	"github.com/vx-labs/mqtt-broker/cluster"
 	clusterconfig "github.com/vx-labs/mqtt-broker/cluster/config"
-	"github.com/vx-labs/mqtt-broker/cluster/types"
 	"github.com/vx-labs/mqtt-broker/network"
 )
 
@@ -32,7 +31,7 @@ const (
 type Service interface {
 	Serve(port int) net.Listener
 	Shutdown()
-	JoinServiceLayer(layer types.GossipServiceLayer)
+	JoinServiceLayer(string, *zap.Logger, cluster.ServiceConfig, cluster.DiscoveryLayer)
 	Health() string
 }
 
@@ -180,8 +179,7 @@ func Run(cmd *cobra.Command, name string, serviceFunc func(id string, logger *za
 			serviceConfig.AdvertisePort = serviceConfig.BindPort
 			serviceConfig.ServicePort = port
 		}
-		layer := cluster.NewGossipServiceLayer(name, logger, serviceConfig, mesh)
-		service.JoinServiceLayer(layer)
+		service.JoinServiceLayer(name, logger, serviceConfig, mesh)
 	}
 	quit := make(chan struct{})
 	signal.Notify(sigc,

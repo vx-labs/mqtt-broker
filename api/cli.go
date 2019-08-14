@@ -8,9 +8,9 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/vx-labs/mqtt-broker/cluster"
 	"github.com/vx-labs/mqtt-broker/vaultacme"
 
-	"github.com/vx-labs/mqtt-broker/cluster/types"
 	"go.uber.org/zap"
 )
 
@@ -112,7 +112,8 @@ func (b *api) Shutdown() {
 		lis.Close()
 	}
 }
-func (b *api) JoinServiceLayer(layer types.GossipServiceLayer) {
+func (b *api) JoinServiceLayer(name string, logger *zap.Logger, config cluster.ServiceConfig, mesh cluster.DiscoveryLayer) {
+	cluster.NewGossipServiceLayer(name, logger, config, mesh)
 }
 func (m *api) Health() string {
 	return "ok"

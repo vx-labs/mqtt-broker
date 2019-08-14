@@ -3,7 +3,8 @@ package listener
 import (
 	"net"
 
-	"github.com/vx-labs/mqtt-broker/cluster/types"
+	"github.com/vx-labs/mqtt-broker/cluster"
+	"go.uber.org/zap"
 )
 
 func (b *endpoint) Serve(port int) net.Listener {
@@ -12,7 +13,8 @@ func (b *endpoint) Serve(port int) net.Listener {
 func (b *endpoint) Shutdown() {
 	b.Close()
 }
-func (b *endpoint) JoinServiceLayer(layer types.GossipServiceLayer) {
+func (b *endpoint) JoinServiceLayer(name string, logger *zap.Logger, config cluster.ServiceConfig, mesh cluster.DiscoveryLayer) {
+	cluster.NewGossipServiceLayer(name, logger, config, mesh)
 }
 func (m *endpoint) Health() string {
 	return "ok"
