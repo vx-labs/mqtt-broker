@@ -47,3 +47,13 @@ message MemoryUsage {
 message PeerMetadataList {
   repeated Metadata Metadatas = 1;
 }
+
+message StatusInput {}
+message StatusOutput {
+  string layer = 1;
+  string status = 2;
+}
+
+service Layer {
+  rpc Status(StatusInput) returns (StatusOutput);
+}

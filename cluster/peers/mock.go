@@ -1,6 +1,7 @@
 package peers
 
 import (
+	"context"
 	"errors"
 
 	"github.com/hashicorp/memberlist"
@@ -19,12 +20,17 @@ func (m *mockedMesh) AddState(key string, state types.GossipState) (types.Channe
 	return &mockedChannel{}, nil
 }
 func (m *mockedMesh) OnNodeLeave(f func(id string, meta pb.NodeMeta)) {}
-func (m *mockedMesh) Join(hosts []string)                             {}
+func (m *mockedMesh) Join(hosts []string) error {
+	return nil
+}
 func (m *mockedMesh) MemberRPCAddress(string) (string, error) {
 	return "", errors.New("node found found")
 }
 func (m *mockedMesh) ID() string {
 	return "id"
+}
+func (m *mockedMesh) Status(context.Context, *pb.StatusInput) (*pb.StatusOutput, error) {
+	return nil, nil
 }
 func (m *mockedMesh) Peers() PeerStore {
 	return nil

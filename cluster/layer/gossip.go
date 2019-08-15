@@ -1,6 +1,7 @@
 package layer
 
 import (
+	"context"
 	fmt "fmt"
 	"io/ioutil"
 	"os"
@@ -29,6 +30,12 @@ type layer struct {
 	onNodeLeave func(id string, meta pb.NodeMeta)
 }
 
+func (s *layer) Status(ctx context.Context, input *pb.StatusInput) (*pb.StatusOutput, error) {
+	return &pb.StatusOutput{
+		Layer:  "gossip",
+		Status: "ok",
+	}, nil
+}
 func (m *layer) Members() []*memberlist.Node {
 	return m.mlist.Members()
 }

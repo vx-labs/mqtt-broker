@@ -1,6 +1,7 @@
 package layer
 
 import (
+	"context"
 	fmt "fmt"
 	"io"
 	"io/ioutil"
@@ -117,6 +118,13 @@ func (s *raftlayer) joinCluster(name string, expectNodeCount int) error {
 	}
 
 	return nil
+}
+
+func (s *raftlayer) Status(ctx context.Context, input *pb.StatusInput) (*pb.StatusOutput, error) {
+	return &pb.StatusOutput{
+		Layer:  "raft",
+		Status: "ok",
+	}, nil
 }
 
 func (s *raftlayer) leaderRoutine() {

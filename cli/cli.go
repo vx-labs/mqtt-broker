@@ -23,15 +23,16 @@ import (
 )
 
 const (
-	FLAG_NAME_CLUSTER        = "cluster"
-	FLAG_NAME_SERVICE        = "service"
-	FLAG_NAME_SERVICE_GOSSIP = "gossip"
+	FLAG_NAME_CLUSTER            = "cluster"
+	FLAG_NAME_SERVICE            = "service"
+	FLAG_NAME_SERVICE_GOSSIP     = "gossip"
+	FLAG_NAME_SERVICE_GOSSIP_RPC = "gossip_rpc"
 )
 
 type Service interface {
 	Serve(port int) net.Listener
 	Shutdown()
-	JoinServiceLayer(string, *zap.Logger, cluster.ServiceConfig, cluster.DiscoveryLayer)
+	JoinServiceLayer(string, *zap.Logger, cluster.ServiceConfig, cluster.ServiceConfig, cluster.DiscoveryLayer)
 	Health() string
 }
 
@@ -43,6 +44,7 @@ func AddClusterFlags(root *cobra.Command) {
 	viper.BindPFlag("pprof", root.Flags().Lookup("pprof"))
 	network.RegisterFlagsForService(root, FLAG_NAME_CLUSTER, 3500)
 	network.RegisterFlagsForService(root, FLAG_NAME_SERVICE_GOSSIP, 0)
+	network.RegisterFlagsForService(root, FLAG_NAME_SERVICE_GOSSIP_RPC, 0)
 	network.RegisterFlagsForService(root, FLAG_NAME_SERVICE, 0)
 }
 
@@ -90,6 +92,7 @@ func JoinConsulPeers(api *consul.Client, service string, selfAddress string, sel
 
 func logService(logger *zap.Logger, id, name string, config network.Configuration) {
 	logger.Info("loaded service config",
+		zap.String("service_kind", name),
 		zap.String("bind_address", config.BindAddress),
 		zap.Int("bind_port", config.BindPort),
 		zap.String("advertised_address", config.AdvertisedAddress),
@@ -136,6 +139,7 @@ func Run(cmd *cobra.Command, name string, serviceFunc func(id string, logger *za
 	clusterNetConf := network.ConfigurationFromFlags(cmd, FLAG_NAME_CLUSTER)
 	serviceNetConf := network.ConfigurationFromFlags(cmd, FLAG_NAME_SERVICE)
 	serviceGossipNetConf := network.ConfigurationFromFlags(cmd, FLAG_NAME_SERVICE_GOSSIP)
+	serviceGossipRPCNetConf := network.ConfigurationFromFlags(cmd, FLAG_NAME_SERVICE_GOSSIP_RPC)
 
 	mesh := joinMesh(id, logger, clusterNetConf)
 	logService(logger, id, FLAG_NAME_CLUSTER, clusterNetConf)
@@ -167,6 +171,7 @@ func Run(cmd *cobra.Command, name string, serviceFunc func(id string, logger *za
 		port := listener.Addr().(*net.TCPAddr).Port
 		logService(logger, id, FLAG_NAME_SERVICE, serviceNetConf)
 		logService(logger, id, FLAG_NAME_SERVICE_GOSSIP, serviceGossipNetConf)
+		logService(logger, id, FLAG_NAME_SERVICE_GOSSIP_RPC, serviceGossipRPCNetConf)
 
 		serviceConfig := cluster.ServiceConfig{
 			AdvertiseAddr: serviceGossipNetConf.AdvertisedAddress,
@@ -179,7 +184,18 @@ func Run(cmd *cobra.Command, name string, serviceFunc func(id string, logger *za
 			serviceConfig.AdvertisePort = serviceConfig.BindPort
 			serviceConfig.ServicePort = port
 		}
-		service.JoinServiceLayer(name, logger, serviceConfig, mesh)
+		gossipRPCConfig := cluster.ServiceConfig{
+			AdvertiseAddr: serviceGossipRPCNetConf.AdvertisedAddress,
+			AdvertisePort: serviceGossipRPCNetConf.AdvertisedPort,
+			BindPort:      serviceGossipRPCNetConf.BindPort,
+			ID:            id,
+			ServicePort:   serviceGossipRPCNetConf.AdvertisedPort,
+		}
+		if gossipRPCConfig.AdvertisePort == 0 {
+			gossipRPCConfig.AdvertisePort = gossipRPCConfig.BindPort
+			gossipRPCConfig.ServicePort = port
+		}
+		service.JoinServiceLayer(name, logger, serviceConfig, gossipRPCConfig, mesh)
 	}
 	quit := make(chan struct{})
 	signal.Notify(sigc,

@@ -13,7 +13,7 @@ func (b *Broker) Serve(port int) net.Listener {
 func (b *Broker) Shutdown() {
 	b.Stop()
 }
-func (b *Broker) JoinServiceLayer(name string, logger *zap.Logger, config cluster.ServiceConfig, mesh cluster.DiscoveryLayer) {
+func (b *Broker) JoinServiceLayer(name string, logger *zap.Logger, config cluster.ServiceConfig, rpcConfig cluster.ServiceConfig, mesh cluster.DiscoveryLayer) {
 	l := cluster.NewGossipServiceLayer(name, logger, config, mesh)
 	b.Start(l)
 }

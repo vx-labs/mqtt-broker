@@ -3,6 +3,7 @@ package types
 import (
 	"io"
 
+	"github.com/hashicorp/memberlist"
 	"github.com/vx-labs/mqtt-broker/cluster/pb"
 )
 
@@ -10,6 +11,10 @@ import (
 type GossipState interface {
 	Merge(inc []byte, full bool) error
 	MarshalBinary() []byte
+}
+
+type ServiceLayer interface {
+	pb.LayerServer
 }
 
 type RaftState interface {
@@ -25,11 +30,16 @@ type Channel interface {
 }
 
 type GossipServiceLayer interface {
+	ServiceLayer
+	Leave()
+	Members() []*memberlist.Node
+	Join([]string) error
 	AddState(key string, state GossipState) (Channel, error)
 	OnNodeLeave(f func(id string, meta pb.NodeMeta))
 }
 
 type RaftServiceLayer interface {
+	ServiceLayer
 	Start(name string, state RaftState) error
 	ApplyEvent(event []byte) error
 	Shutdown() error

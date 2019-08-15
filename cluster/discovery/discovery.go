@@ -9,7 +9,6 @@ import (
 
 	"go.uber.org/zap"
 
-	"github.com/hashicorp/memberlist"
 	"github.com/vx-labs/mqtt-broker/cluster/config"
 	"github.com/vx-labs/mqtt-broker/cluster/layer"
 	"github.com/vx-labs/mqtt-broker/cluster/pb"
@@ -26,7 +25,7 @@ var (
 type discoveryLayer struct {
 	id        string
 	rpcCaller *pool.Caller
-	layer     GossipLayer
+	layer     types.GossipServiceLayer
 	peers     peers.PeerStore
 }
 
@@ -40,15 +39,6 @@ func (m *discoveryLayer) Peers() peers.PeerStore {
 type Service struct {
 	ID      string
 	Address string
-}
-type GossipLayer interface {
-	AddState(key string, state types.GossipState) (types.Channel, error)
-	DiscoverPeers(discovery peers.PeerStore)
-	Join(peers []string) error
-	Members() []*memberlist.Node
-	OnNodeJoin(func(id string, meta pb.NodeMeta))
-	OnNodeLeave(func(id string, meta pb.NodeMeta))
-	Leave()
 }
 
 func NewDiscoveryLayer(logger *zap.Logger, userConfig config.Config) *discoveryLayer {

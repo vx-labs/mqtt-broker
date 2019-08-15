@@ -112,7 +112,7 @@ func (b *api) Shutdown() {
 		lis.Close()
 	}
 }
-func (b *api) JoinServiceLayer(name string, logger *zap.Logger, config cluster.ServiceConfig, mesh cluster.DiscoveryLayer) {
+func (b *api) JoinServiceLayer(name string, logger *zap.Logger, config cluster.ServiceConfig, rpcConfig cluster.ServiceConfig, mesh cluster.DiscoveryLayer) {
 	cluster.NewGossipServiceLayer(name, logger, config, mesh)
 }
 func (m *api) Health() string {

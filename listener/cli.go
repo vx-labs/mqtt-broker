@@ -13,7 +13,7 @@ func (b *endpoint) Serve(port int) net.Listener {
 func (b *endpoint) Shutdown() {
 	b.Close()
 }
-func (b *endpoint) JoinServiceLayer(name string, logger *zap.Logger, config cluster.ServiceConfig, mesh cluster.DiscoveryLayer) {
+func (b *endpoint) JoinServiceLayer(name string, logger *zap.Logger, config cluster.ServiceConfig, rpcConfig cluster.ServiceConfig, mesh cluster.DiscoveryLayer) {
 	cluster.NewGossipServiceLayer(name, logger, config, mesh)
 }
 func (m *endpoint) Health() string {
