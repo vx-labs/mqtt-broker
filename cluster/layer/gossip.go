@@ -48,7 +48,6 @@ func (m *layer) OnNodeLeave(f func(id string, meta pb.NodeMeta)) {
 }
 
 func (m *layer) AddState(key string, state types.GossipState) (types.Channel, error) {
-	//log.Printf("INFO: service/%s: registering %s state", m.name, key)
 	m.mtx.Lock()
 	defer m.mtx.Unlock()
 	old, ok := m.states[key]

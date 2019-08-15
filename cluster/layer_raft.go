@@ -20,7 +20,7 @@ func NewRaftServiceLayer(name string, logger *zap.Logger, serviceConfig ServiceC
 	if userConfig.BindPort == 0 {
 		log.Fatalf("FATAL: service/%s: user provided 0 as bind port value", name)
 	}
-	l, err := layer.NewRaftLayer(logger, userConfig, discovery.Peers())
+	l, err := layer.NewRaftLayer(logger, userConfig, discovery)
 	if err != nil {
 		logger.Error("raft starting failed", zap.Error(err))
 	}

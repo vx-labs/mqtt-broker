@@ -2,7 +2,6 @@ package discovery
 
 import (
 	"errors"
-	"log"
 	"os"
 	"runtime"
 	"time"
@@ -98,7 +97,6 @@ func (m *discoveryLayer) RegisterService(name, address string) error {
 		Peer:           m.id,
 	})
 	self.Services = append(self.Services, name)
-	log.Printf("INFO: registering service %s on %s", name, address)
 	return m.peers.Upsert(self)
 }
 func (m *discoveryLayer) Health() string {
