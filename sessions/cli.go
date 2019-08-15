@@ -33,6 +33,7 @@ func (b *server) JoinServiceLayer(name string, logger *zap.Logger, config cluste
 	if err != nil {
 		panic(err)
 	}
+	b.state = l
 }
 func (m *server) Restore(io.Reader) error {
 	return nil
@@ -58,26 +59,80 @@ func (m *server) Serve(port int) net.Listener {
 	return lis
 }
 
+func (m *server) ByID(ctx context.Context, input *SessionByIDInput) (*Metadata, error) {
+	session, err := m.store.ByID(input.ID)
+	if err != nil {
+		return nil, err
+	}
+	return &session.Metadata, nil
+}
+func (m *server) ByClientID(ctx context.Context, input *SessionByClientIDInput) (*SessionMetadataList, error) {
+	sessions, err := m.store.ByClientID(input.ClientID)
+	if err != nil {
+		return nil, err
+	}
+	set := &SessionMetadataList{
+		Metadatas: make([]*Metadata, len(sessions)),
+	}
+	for idx := range sessions {
+		set.Metadatas[idx] = &sessions[idx].Metadata
+	}
+	return set, nil
+}
+func (m *server) ByPeer(ctx context.Context, input *SessionByPeerInput) (*SessionMetadataList, error) {
+	sessions, err := m.store.ByPeer(input.Peer)
+	if err != nil {
+		return nil, err
+	}
+	set := &SessionMetadataList{
+		Metadatas: make([]*Metadata, len(sessions)),
+	}
+	for idx := range sessions {
+		set.Metadatas[idx] = &sessions[idx].Metadata
+	}
+	return set, nil
+}
+func (m *server) All(ctx context.Context, input *SessionFilterInput) (*SessionMetadataList, error) {
+	sessions, err := m.store.All()
+	if err != nil {
+		return nil, err
+	}
+	set := &SessionMetadataList{
+		Metadatas: make([]*Metadata, len(sessions)),
+	}
+	for idx := range sessions {
+		set.Metadatas[idx] = &sessions[idx].Metadata
+	}
+	return set, nil
+}
 func (m *server) Create(ctx context.Context, input *SessionCreateInput) (*SessionCreateOutput, error) {
-	return &SessionCreateOutput{}, m.store.Upsert(Session{
-		Metadata: Metadata{
-			ClientID:          input.ClientID,
-			ID:                input.ID,
-			KeepaliveInterval: input.KeepaliveInterval,
-			Peer:              input.Peer,
-			RemoteAddress:     input.RemoteAddress,
-			Tenant:            input.Tenant,
-			Transport:         input.Transport,
-			WillPayload:       input.WillPayload,
-			WillTopic:         input.WillTopic,
-			WillRetain:        input.WillRetain,
-			WillQoS:           input.WillQoS,
+	ev := SessionStateTransition{
+		Kind: transitionSessionCreated,
+		SessionCreated: &SessionStateTransitionSessionCreated{
+			Input: &SessionCreateInput{
+				ClientID:          input.ClientID,
+				ID:                input.ID,
+				KeepaliveInterval: input.KeepaliveInterval,
+				Peer:              input.Peer,
+				RemoteAddress:     input.RemoteAddress,
+				Tenant:            input.Tenant,
+				Transport:         input.Transport,
+				WillPayload:       input.WillPayload,
+				WillTopic:         input.WillTopic,
+				WillRetain:        input.WillRetain,
+				WillQoS:           input.WillQoS,
+			},
 		},
-	}, nil)
+	}
+	payload, err := proto.Marshal(&ev)
+	if err != nil {
+		return nil, err
+	}
+	return &SessionCreateOutput{}, m.state.ApplyEvent(payload)
 }
 
 func (m *server) Apply(payload []byte, leader bool) error {
-	event := StateTransition{}
+	event := SessionStateTransition{}
 	err := proto.Unmarshal(payload, &event)
 	if err != nil {
 		return err

@@ -364,133 +364,281 @@ func (m *SessionCreateOutput) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_SessionCreateOutput proto.InternalMessageInfo
 
-type StateTransition struct {
-	Kind                 string                         `protobuf:"bytes,1,opt,name=Kind,proto3" json:"Kind,omitempty"`
-	SessionCreated       *StateTransitionSessionCreated `protobuf:"bytes,2,opt,name=SessionCreated,proto3" json:"SessionCreated,omitempty"`
-	SessionDeleted       *StateTransitionSessionDeleted `protobuf:"bytes,3,opt,name=SessionDeleted,proto3" json:"SessionDeleted,omitempty"`
-	XXX_NoUnkeyedLiteral struct{}                       `json:"-"`
-	XXX_unrecognized     []byte                         `json:"-"`
-	XXX_sizecache        int32                          `json:"-"`
-}
-
-func (m *StateTransition) Reset()         { *m = StateTransition{} }
-func (m *StateTransition) String() string { return proto.CompactTextString(m) }
-func (*StateTransition) ProtoMessage()    {}
-func (*StateTransition) Descriptor() ([]byte, []int) {
-	return fileDescriptor_d938547f84707355, []int{4}
-}
-
-func (m *StateTransition) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_StateTransition.Unmarshal(m, b)
-}
-func (m *StateTransition) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_StateTransition.Marshal(b, m, deterministic)
-}
-func (m *StateTransition) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_StateTransition.Merge(m, src)
-}
-func (m *StateTransition) XXX_Size() int {
-	return xxx_messageInfo_StateTransition.Size(m)
-}
-func (m *StateTransition) XXX_DiscardUnknown() {
-	xxx_messageInfo_StateTransition.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_StateTransition proto.InternalMessageInfo
-
-func (m *StateTransition) GetKind() string {
-	if m != nil {
-		return m.Kind
-	}
-	return ""
-}
-
-func (m *StateTransition) GetSessionCreated() *StateTransitionSessionCreated {
-	if m != nil {
-		return m.SessionCreated
-	}
-	return nil
-}
-
-func (m *StateTransition) GetSessionDeleted() *StateTransitionSessionDeleted {
-	if m != nil {
-		return m.SessionDeleted
-	}
-	return nil
-}
-
-type StateTransitionSessionCreated struct {
-	Input                *SessionCreateInput `protobuf:"bytes,1,opt,name=Input,proto3" json:"Input,omitempty"`
-	XXX_NoUnkeyedLiteral struct{}            `json:"-"`
-	XXX_unrecognized     []byte              `json:"-"`
-	XXX_sizecache        int32               `json:"-"`
-}
-
-func (m *StateTransitionSessionCreated) Reset()         { *m = StateTransitionSessionCreated{} }
-func (m *StateTransitionSessionCreated) String() string { return proto.CompactTextString(m) }
-func (*StateTransitionSessionCreated) ProtoMessage()    {}
-func (*StateTransitionSessionCreated) Descriptor() ([]byte, []int) {
-	return fileDescriptor_d938547f84707355, []int{5}
-}
-
-func (m *StateTransitionSessionCreated) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_StateTransitionSessionCreated.Unmarshal(m, b)
-}
-func (m *StateTransitionSessionCreated) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_StateTransitionSessionCreated.Marshal(b, m, deterministic)
-}
-func (m *StateTransitionSessionCreated) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_StateTransitionSessionCreated.Merge(m, src)
-}
-func (m *StateTransitionSessionCreated) XXX_Size() int {
-	return xxx_messageInfo_StateTransitionSessionCreated.Size(m)
-}
-func (m *StateTransitionSessionCreated) XXX_DiscardUnknown() {
-	xxx_messageInfo_StateTransitionSessionCreated.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_StateTransitionSessionCreated proto.InternalMessageInfo
-
-func (m *StateTransitionSessionCreated) GetInput() *SessionCreateInput {
-	if m != nil {
-		return m.Input
-	}
-	return nil
-}
-
-type StateTransitionSessionDeleted struct {
+type SessionByIDInput struct {
 	ID                   string   `protobuf:"bytes,1,opt,name=ID,proto3" json:"ID,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *StateTransitionSessionDeleted) Reset()         { *m = StateTransitionSessionDeleted{} }
-func (m *StateTransitionSessionDeleted) String() string { return proto.CompactTextString(m) }
-func (*StateTransitionSessionDeleted) ProtoMessage()    {}
-func (*StateTransitionSessionDeleted) Descriptor() ([]byte, []int) {
+func (m *SessionByIDInput) Reset()         { *m = SessionByIDInput{} }
+func (m *SessionByIDInput) String() string { return proto.CompactTextString(m) }
+func (*SessionByIDInput) ProtoMessage()    {}
+func (*SessionByIDInput) Descriptor() ([]byte, []int) {
+	return fileDescriptor_d938547f84707355, []int{4}
+}
+
+func (m *SessionByIDInput) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_SessionByIDInput.Unmarshal(m, b)
+}
+func (m *SessionByIDInput) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_SessionByIDInput.Marshal(b, m, deterministic)
+}
+func (m *SessionByIDInput) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_SessionByIDInput.Merge(m, src)
+}
+func (m *SessionByIDInput) XXX_Size() int {
+	return xxx_messageInfo_SessionByIDInput.Size(m)
+}
+func (m *SessionByIDInput) XXX_DiscardUnknown() {
+	xxx_messageInfo_SessionByIDInput.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_SessionByIDInput proto.InternalMessageInfo
+
+func (m *SessionByIDInput) GetID() string {
+	if m != nil {
+		return m.ID
+	}
+	return ""
+}
+
+type SessionByClientIDInput struct {
+	ClientID             string   `protobuf:"bytes,1,opt,name=ClientID,proto3" json:"ClientID,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *SessionByClientIDInput) Reset()         { *m = SessionByClientIDInput{} }
+func (m *SessionByClientIDInput) String() string { return proto.CompactTextString(m) }
+func (*SessionByClientIDInput) ProtoMessage()    {}
+func (*SessionByClientIDInput) Descriptor() ([]byte, []int) {
+	return fileDescriptor_d938547f84707355, []int{5}
+}
+
+func (m *SessionByClientIDInput) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_SessionByClientIDInput.Unmarshal(m, b)
+}
+func (m *SessionByClientIDInput) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_SessionByClientIDInput.Marshal(b, m, deterministic)
+}
+func (m *SessionByClientIDInput) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_SessionByClientIDInput.Merge(m, src)
+}
+func (m *SessionByClientIDInput) XXX_Size() int {
+	return xxx_messageInfo_SessionByClientIDInput.Size(m)
+}
+func (m *SessionByClientIDInput) XXX_DiscardUnknown() {
+	xxx_messageInfo_SessionByClientIDInput.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_SessionByClientIDInput proto.InternalMessageInfo
+
+func (m *SessionByClientIDInput) GetClientID() string {
+	if m != nil {
+		return m.ClientID
+	}
+	return ""
+}
+
+type SessionByPeerInput struct {
+	Peer                 string   `protobuf:"bytes,1,opt,name=Peer,proto3" json:"Peer,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *SessionByPeerInput) Reset()         { *m = SessionByPeerInput{} }
+func (m *SessionByPeerInput) String() string { return proto.CompactTextString(m) }
+func (*SessionByPeerInput) ProtoMessage()    {}
+func (*SessionByPeerInput) Descriptor() ([]byte, []int) {
 	return fileDescriptor_d938547f84707355, []int{6}
 }
 
-func (m *StateTransitionSessionDeleted) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_StateTransitionSessionDeleted.Unmarshal(m, b)
+func (m *SessionByPeerInput) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_SessionByPeerInput.Unmarshal(m, b)
 }
-func (m *StateTransitionSessionDeleted) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_StateTransitionSessionDeleted.Marshal(b, m, deterministic)
+func (m *SessionByPeerInput) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_SessionByPeerInput.Marshal(b, m, deterministic)
 }
-func (m *StateTransitionSessionDeleted) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_StateTransitionSessionDeleted.Merge(m, src)
+func (m *SessionByPeerInput) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_SessionByPeerInput.Merge(m, src)
 }
-func (m *StateTransitionSessionDeleted) XXX_Size() int {
-	return xxx_messageInfo_StateTransitionSessionDeleted.Size(m)
+func (m *SessionByPeerInput) XXX_Size() int {
+	return xxx_messageInfo_SessionByPeerInput.Size(m)
 }
-func (m *StateTransitionSessionDeleted) XXX_DiscardUnknown() {
-	xxx_messageInfo_StateTransitionSessionDeleted.DiscardUnknown(m)
+func (m *SessionByPeerInput) XXX_DiscardUnknown() {
+	xxx_messageInfo_SessionByPeerInput.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_StateTransitionSessionDeleted proto.InternalMessageInfo
+var xxx_messageInfo_SessionByPeerInput proto.InternalMessageInfo
 
-func (m *StateTransitionSessionDeleted) GetID() string {
+func (m *SessionByPeerInput) GetPeer() string {
+	if m != nil {
+		return m.Peer
+	}
+	return ""
+}
+
+type SessionFilterInput struct {
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *SessionFilterInput) Reset()         { *m = SessionFilterInput{} }
+func (m *SessionFilterInput) String() string { return proto.CompactTextString(m) }
+func (*SessionFilterInput) ProtoMessage()    {}
+func (*SessionFilterInput) Descriptor() ([]byte, []int) {
+	return fileDescriptor_d938547f84707355, []int{7}
+}
+
+func (m *SessionFilterInput) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_SessionFilterInput.Unmarshal(m, b)
+}
+func (m *SessionFilterInput) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_SessionFilterInput.Marshal(b, m, deterministic)
+}
+func (m *SessionFilterInput) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_SessionFilterInput.Merge(m, src)
+}
+func (m *SessionFilterInput) XXX_Size() int {
+	return xxx_messageInfo_SessionFilterInput.Size(m)
+}
+func (m *SessionFilterInput) XXX_DiscardUnknown() {
+	xxx_messageInfo_SessionFilterInput.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_SessionFilterInput proto.InternalMessageInfo
+
+type SessionStateTransition struct {
+	Kind                 string                                `protobuf:"bytes,1,opt,name=Kind,proto3" json:"Kind,omitempty"`
+	SessionCreated       *SessionStateTransitionSessionCreated `protobuf:"bytes,2,opt,name=SessionCreated,proto3" json:"SessionCreated,omitempty"`
+	SessionDeleted       *SessionStateTransitionSessionDeleted `protobuf:"bytes,3,opt,name=SessionDeleted,proto3" json:"SessionDeleted,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}                              `json:"-"`
+	XXX_unrecognized     []byte                                `json:"-"`
+	XXX_sizecache        int32                                 `json:"-"`
+}
+
+func (m *SessionStateTransition) Reset()         { *m = SessionStateTransition{} }
+func (m *SessionStateTransition) String() string { return proto.CompactTextString(m) }
+func (*SessionStateTransition) ProtoMessage()    {}
+func (*SessionStateTransition) Descriptor() ([]byte, []int) {
+	return fileDescriptor_d938547f84707355, []int{8}
+}
+
+func (m *SessionStateTransition) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_SessionStateTransition.Unmarshal(m, b)
+}
+func (m *SessionStateTransition) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_SessionStateTransition.Marshal(b, m, deterministic)
+}
+func (m *SessionStateTransition) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_SessionStateTransition.Merge(m, src)
+}
+func (m *SessionStateTransition) XXX_Size() int {
+	return xxx_messageInfo_SessionStateTransition.Size(m)
+}
+func (m *SessionStateTransition) XXX_DiscardUnknown() {
+	xxx_messageInfo_SessionStateTransition.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_SessionStateTransition proto.InternalMessageInfo
+
+func (m *SessionStateTransition) GetKind() string {
+	if m != nil {
+		return m.Kind
+	}
+	return ""
+}
+
+func (m *SessionStateTransition) GetSessionCreated() *SessionStateTransitionSessionCreated {
+	if m != nil {
+		return m.SessionCreated
+	}
+	return nil
+}
+
+func (m *SessionStateTransition) GetSessionDeleted() *SessionStateTransitionSessionDeleted {
+	if m != nil {
+		return m.SessionDeleted
+	}
+	return nil
+}
+
+type SessionStateTransitionSessionCreated struct {
+	Input                *SessionCreateInput `protobuf:"bytes,1,opt,name=Input,proto3" json:"Input,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}            `json:"-"`
+	XXX_unrecognized     []byte              `json:"-"`
+	XXX_sizecache        int32               `json:"-"`
+}
+
+func (m *SessionStateTransitionSessionCreated) Reset()         { *m = SessionStateTransitionSessionCreated{} }
+func (m *SessionStateTransitionSessionCreated) String() string { return proto.CompactTextString(m) }
+func (*SessionStateTransitionSessionCreated) ProtoMessage()    {}
+func (*SessionStateTransitionSessionCreated) Descriptor() ([]byte, []int) {
+	return fileDescriptor_d938547f84707355, []int{9}
+}
+
+func (m *SessionStateTransitionSessionCreated) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_SessionStateTransitionSessionCreated.Unmarshal(m, b)
+}
+func (m *SessionStateTransitionSessionCreated) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_SessionStateTransitionSessionCreated.Marshal(b, m, deterministic)
+}
+func (m *SessionStateTransitionSessionCreated) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_SessionStateTransitionSessionCreated.Merge(m, src)
+}
+func (m *SessionStateTransitionSessionCreated) XXX_Size() int {
+	return xxx_messageInfo_SessionStateTransitionSessionCreated.Size(m)
+}
+func (m *SessionStateTransitionSessionCreated) XXX_DiscardUnknown() {
+	xxx_messageInfo_SessionStateTransitionSessionCreated.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_SessionStateTransitionSessionCreated proto.InternalMessageInfo
+
+func (m *SessionStateTransitionSessionCreated) GetInput() *SessionCreateInput {
+	if m != nil {
+		return m.Input
+	}
+	return nil
+}
+
+type SessionStateTransitionSessionDeleted struct {
+	ID                   string   `protobuf:"bytes,1,opt,name=ID,proto3" json:"ID,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *SessionStateTransitionSessionDeleted) Reset()         { *m = SessionStateTransitionSessionDeleted{} }
+func (m *SessionStateTransitionSessionDeleted) String() string { return proto.CompactTextString(m) }
+func (*SessionStateTransitionSessionDeleted) ProtoMessage()    {}
+func (*SessionStateTransitionSessionDeleted) Descriptor() ([]byte, []int) {
+	return fileDescriptor_d938547f84707355, []int{10}
+}
+
+func (m *SessionStateTransitionSessionDeleted) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_SessionStateTransitionSessionDeleted.Unmarshal(m, b)
+}
+func (m *SessionStateTransitionSessionDeleted) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_SessionStateTransitionSessionDeleted.Marshal(b, m, deterministic)
+}
+func (m *SessionStateTransitionSessionDeleted) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_SessionStateTransitionSessionDeleted.Merge(m, src)
+}
+func (m *SessionStateTransitionSessionDeleted) XXX_Size() int {
+	return xxx_messageInfo_SessionStateTransitionSessionDeleted.Size(m)
+}
+func (m *SessionStateTransitionSessionDeleted) XXX_DiscardUnknown() {
+	xxx_messageInfo_SessionStateTransitionSessionDeleted.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_SessionStateTransitionSessionDeleted proto.InternalMessageInfo
+
+func (m *SessionStateTransitionSessionDeleted) GetID() string {
 	if m != nil {
 		return m.ID
 	}
@@ -502,47 +650,58 @@ func init() {
 	proto.RegisterType((*SessionMetadataList)(nil), "sessions.SessionMetadataList")
 	proto.RegisterType((*SessionCreateInput)(nil), "sessions.SessionCreateInput")
 	proto.RegisterType((*SessionCreateOutput)(nil), "sessions.SessionCreateOutput")
-	proto.RegisterType((*StateTransition)(nil), "sessions.StateTransition")
-	proto.RegisterType((*StateTransitionSessionCreated)(nil), "sessions.StateTransitionSessionCreated")
-	proto.RegisterType((*StateTransitionSessionDeleted)(nil), "sessions.StateTransitionSessionDeleted")
+	proto.RegisterType((*SessionByIDInput)(nil), "sessions.SessionByIDInput")
+	proto.RegisterType((*SessionByClientIDInput)(nil), "sessions.SessionByClientIDInput")
+	proto.RegisterType((*SessionByPeerInput)(nil), "sessions.SessionByPeerInput")
+	proto.RegisterType((*SessionFilterInput)(nil), "sessions.SessionFilterInput")
+	proto.RegisterType((*SessionStateTransition)(nil), "sessions.SessionStateTransition")
+	proto.RegisterType((*SessionStateTransitionSessionCreated)(nil), "sessions.SessionStateTransitionSessionCreated")
+	proto.RegisterType((*SessionStateTransitionSessionDeleted)(nil), "sessions.SessionStateTransitionSessionDeleted")
 }
 
 func init() { proto.RegisterFile("types.proto", fileDescriptor_d938547f84707355) }
 
 var fileDescriptor_d938547f84707355 = []byte{
-	// 510 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xd4, 0x54, 0x51, 0x6b, 0xdb, 0x3c,
-	0x14, 0xc5, 0x49, 0x93, 0x26, 0xd7, 0x69, 0xc2, 0xa7, 0x8f, 0x0d, 0x51, 0xda, 0x61, 0xcc, 0x60,
-	0x7e, 0x18, 0xd9, 0xc8, 0x7e, 0x41, 0x49, 0xc6, 0x30, 0xed, 0x68, 0x27, 0x07, 0xb6, 0x57, 0xad,
-	0xba, 0x0f, 0x02, 0x4f, 0x32, 0x96, 0x12, 0xe8, 0x2f, 0xdc, 0xdb, 0x9e, 0xf7, 0x73, 0x86, 0x64,
-	0xbb, 0x76, 0xd2, 0xa6, 0xdd, 0xeb, 0xde, 0x74, 0x8e, 0xce, 0x3d, 0xba, 0xb9, 0xe7, 0xc6, 0x10,
-	0xda, 0xbb, 0x02, 0xcd, 0xbc, 0x28, 0xb5, 0xd5, 0x64, 0x64, 0xd0, 0x18, 0xa9, 0x95, 0x89, 0x7f,
-	0xf5, 0x61, 0xf4, 0x19, 0x2d, 0x17, 0xdc, 0x72, 0x32, 0x85, 0x5e, 0xba, 0xa2, 0x41, 0x14, 0x24,
-	0x63, 0xd6, 0x4b, 0x57, 0xe4, 0x25, 0x0c, 0xd7, 0xa8, 0xb8, 0xb2, 0xb4, 0xe7, 0xb9, 0x1a, 0x11,
-	0x02, 0x47, 0x37, 0x88, 0x25, 0xed, 0x7b, 0xd6, 0x9f, 0xc9, 0x19, 0x8c, 0xbf, 0xca, 0x3c, 0x5f,
-	0xeb, 0x42, 0xde, 0xd2, 0xa3, 0x28, 0x48, 0x26, 0xac, 0x25, 0x08, 0x85, 0x63, 0x07, 0xbe, 0xe8,
-	0x8c, 0x0e, 0xa2, 0x20, 0x19, 0xb0, 0x06, 0x92, 0x08, 0x42, 0x77, 0xbc, 0xe1, 0x77, 0xb9, 0xe6,
-	0x82, 0x0e, 0x7d, 0x65, 0x97, 0x22, 0xaf, 0x00, 0x1c, 0x64, 0x68, 0xb9, 0x54, 0xf4, 0x38, 0x0a,
-	0x92, 0x11, 0xeb, 0x30, 0xce, 0x7b, 0x59, 0x22, 0xb7, 0x28, 0xe8, 0x28, 0x0a, 0x92, 0x3e, 0x6b,
-	0x20, 0x39, 0x85, 0xd1, 0x32, 0x97, 0xa8, 0x6c, 0xba, 0xa2, 0x63, 0xdf, 0xeb, 0x3d, 0x76, 0xfd,
-	0x5e, 0x71, 0x63, 0x2f, 0x84, 0x40, 0x41, 0xc1, 0xd7, 0xb5, 0x84, 0xeb, 0xca, 0x81, 0x15, 0xe6,
-	0xe8, 0x7c, 0x43, 0x7f, 0xdf, 0xa5, 0x5c, 0xfd, 0xba, 0xe4, 0xca, 0x14, 0xba, 0xb4, 0x74, 0xe2,
-	0xcd, 0x5b, 0x82, 0xbc, 0x86, 0x13, 0x86, 0x3f, 0xb4, 0xc5, 0x0b, 0x21, 0x4a, 0x34, 0x86, 0x9e,
-	0x78, 0xc5, 0x2e, 0xe9, 0x54, 0xcb, 0x5c, 0x9b, 0x4d, 0x89, 0x0c, 0xb9, 0xd1, 0x8a, 0x4e, 0x2b,
-	0xd5, 0x0e, 0x49, 0xde, 0xc2, 0x7f, 0x97, 0x88, 0x05, 0xcf, 0xe5, 0x16, 0x53, 0x65, 0xb1, 0xdc,
-	0xf2, 0x9c, 0xce, 0xfc, 0x14, 0x1f, 0x5e, 0xc4, 0x9f, 0xe0, 0xff, 0xac, 0x0a, 0xb7, 0x89, 0xf5,
-	0x4a, 0x1a, 0x4b, 0xde, 0xc3, 0xb8, 0xc1, 0x86, 0x06, 0x51, 0x3f, 0x09, 0x17, 0x64, 0xde, 0x6c,
-	0xc1, 0xbc, 0xb9, 0x62, 0xad, 0x28, 0xfe, 0xdd, 0x03, 0x52, 0x3b, 0x55, 0xf3, 0x4c, 0x55, 0xb1,
-	0xb1, 0xff, 0xe8, 0x8e, 0x3c, 0xb3, 0x09, 0x6d, 0x92, 0xf0, 0x6c, 0x92, 0xe1, 0x63, 0x49, 0x3e,
-	0x9a, 0xd1, 0xe4, 0x50, 0x46, 0x2f, 0xee, 0x33, 0xaa, 0x26, 0x7b, 0xbd, 0xb1, 0xc5, 0xc6, 0xc6,
-	0x3f, 0x03, 0x98, 0x65, 0x96, 0x5b, 0xf4, 0xaf, 0x4b, 0x2b, 0xb5, 0x72, 0x63, 0xbc, 0x94, 0x4a,
-	0xd4, 0x03, 0xf7, 0x67, 0x72, 0x0d, 0xd3, 0x9d, 0x72, 0xe1, 0x47, 0x1f, 0x2e, 0xde, 0xb4, 0x81,
-	0xee, 0xd9, 0xec, 0xca, 0xd9, 0x5e, 0x79, 0xc7, 0xb0, 0x59, 0xf8, 0xfe, 0xdf, 0x19, 0xd6, 0x72,
-	0xb6, 0x57, 0x1e, 0x67, 0x70, 0xfe, 0x64, 0x07, 0x64, 0x01, 0x03, 0xbf, 0x4e, 0xfe, 0x77, 0x85,
-	0x8b, 0xb3, 0xce, 0x43, 0x0f, 0x56, 0x8e, 0x55, 0xd2, 0xf8, 0xdd, 0x21, 0xd3, 0xe6, 0x2f, 0xb9,
-	0xb7, 0x9a, 0x8b, 0x6f, 0x30, 0xab, 0x15, 0x26, 0xc3, 0x72, 0x2b, 0x6f, 0x91, 0x7c, 0x84, 0x61,
-	0xe5, 0x4c, 0x9e, 0x7c, 0xf2, 0xf4, 0xfc, 0xc0, 0x6d, 0x95, 0xd4, 0xf7, 0xa1, 0xff, 0x8c, 0x7e,
-	0xf8, 0x13, 0x00, 0x00, 0xff, 0xff, 0xbd, 0x50, 0x09, 0x7f, 0x55, 0x05, 0x00, 0x00,
+	// 618 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xd4, 0x55, 0x4f, 0x6f, 0xd3, 0x4e,
+	0x10, 0x95, 0xe3, 0x36, 0x4d, 0xc6, 0xfd, 0xf3, 0xfb, 0x2d, 0x50, 0xad, 0xa2, 0x82, 0x2c, 0xab,
+	0x07, 0x1f, 0x50, 0x84, 0x02, 0xea, 0xbd, 0x4d, 0x0a, 0xb2, 0xda, 0x8a, 0xb2, 0x89, 0x40, 0xe2,
+	0xb6, 0xd4, 0x73, 0x58, 0xc9, 0xd8, 0x96, 0x77, 0x13, 0x29, 0x5f, 0x92, 0x33, 0x07, 0x3e, 0x01,
+	0x9f, 0x02, 0xed, 0xfa, 0x7f, 0xe2, 0x12, 0x38, 0x72, 0xdb, 0x99, 0x7d, 0xf3, 0x76, 0x67, 0xde,
+	0xf3, 0x1a, 0x1c, 0xb5, 0x4e, 0x51, 0x8e, 0xd3, 0x2c, 0x51, 0x09, 0x19, 0x48, 0x94, 0x52, 0x24,
+	0xb1, 0xf4, 0xbe, 0xd9, 0x30, 0xb8, 0x43, 0xc5, 0x43, 0xae, 0x38, 0x39, 0x86, 0x5e, 0x30, 0xa3,
+	0x96, 0x6b, 0xf9, 0x43, 0xd6, 0x0b, 0x66, 0xe4, 0x14, 0xfa, 0x0b, 0x8c, 0x79, 0xac, 0x68, 0xcf,
+	0xe4, 0x8a, 0x88, 0x10, 0xd8, 0xbb, 0x47, 0xcc, 0xa8, 0x6d, 0xb2, 0x66, 0x4d, 0xce, 0x60, 0xf8,
+	0x49, 0x44, 0xd1, 0x22, 0x49, 0xc5, 0x03, 0xdd, 0x73, 0x2d, 0xff, 0x90, 0xd5, 0x09, 0x42, 0xe1,
+	0x40, 0x07, 0x1f, 0x92, 0x39, 0xdd, 0x77, 0x2d, 0x7f, 0x9f, 0x95, 0x21, 0x71, 0xc1, 0xd1, 0xcb,
+	0x7b, 0xbe, 0x8e, 0x12, 0x1e, 0xd2, 0xbe, 0xa9, 0x6c, 0xa6, 0xc8, 0x0b, 0x00, 0x1d, 0x32, 0x54,
+	0x5c, 0xc4, 0xf4, 0xc0, 0xb5, 0xfc, 0x01, 0x6b, 0x64, 0x34, 0xf7, 0x34, 0x43, 0xae, 0x30, 0xa4,
+	0x03, 0xd7, 0xf2, 0x6d, 0x56, 0x86, 0x64, 0x04, 0x83, 0x69, 0x24, 0x30, 0x56, 0xc1, 0x8c, 0x0e,
+	0xcd, 0x5d, 0xab, 0x58, 0xdf, 0xf7, 0x96, 0x4b, 0x75, 0x19, 0x86, 0x18, 0x52, 0x30, 0x75, 0x75,
+	0x42, 0xdf, 0x4a, 0x07, 0x33, 0x8c, 0x50, 0xf3, 0x3a, 0x66, 0xbf, 0x99, 0xd2, 0xf5, 0x8b, 0x8c,
+	0xc7, 0x32, 0x4d, 0x32, 0x45, 0x0f, 0x0d, 0x79, 0x9d, 0x20, 0xe7, 0x70, 0xc4, 0xf0, 0x6b, 0xa2,
+	0xf0, 0x32, 0x0c, 0x33, 0x94, 0x92, 0x1e, 0x19, 0x44, 0x3b, 0xa9, 0x51, 0xd3, 0x28, 0x91, 0xcb,
+	0x0c, 0x19, 0x72, 0x99, 0xc4, 0xf4, 0x38, 0x47, 0xb5, 0x92, 0xe4, 0x25, 0xfc, 0x7f, 0x83, 0x98,
+	0xf2, 0x48, 0xac, 0x30, 0x88, 0x15, 0x66, 0x2b, 0x1e, 0xd1, 0x13, 0x33, 0xc5, 0xed, 0x0d, 0xef,
+	0x1d, 0x3c, 0x99, 0xe7, 0xe2, 0x96, 0xb2, 0xde, 0x0a, 0xa9, 0xc8, 0x2b, 0x18, 0x96, 0xb1, 0xa4,
+	0x96, 0x6b, 0xfb, 0xce, 0x84, 0x8c, 0x4b, 0x17, 0x8c, 0xcb, 0x2d, 0x56, 0x83, 0xbc, 0xef, 0x3d,
+	0x20, 0x05, 0x53, 0x3e, 0xcf, 0x20, 0x4e, 0x97, 0xea, 0x1f, 0xf5, 0xc8, 0x0e, 0x27, 0xd4, 0x4a,
+	0xc2, 0x4e, 0x25, 0x9d, 0x2e, 0x25, 0x3b, 0x35, 0x3a, 0x7c, 0x4c, 0xa3, 0x67, 0x95, 0x46, 0xf9,
+	0x64, 0xdf, 0x2f, 0x55, 0xba, 0x54, 0x9e, 0x07, 0xff, 0x15, 0xe9, 0xab, 0x75, 0x30, 0xeb, 0x1c,
+	0xb7, 0xf7, 0x06, 0x4e, 0x2b, 0x4c, 0xd9, 0x41, 0x8e, 0x6c, 0xb6, 0x68, 0xb5, 0x5b, 0xf4, 0xfc,
+	0x4a, 0xca, 0xab, 0xb5, 0x56, 0x22, 0xaf, 0x28, 0x25, 0xb2, 0x6a, 0x89, 0xbc, 0xa7, 0x15, 0xf2,
+	0xad, 0x88, 0x54, 0x81, 0xf4, 0x7e, 0x58, 0xd5, 0xb1, 0x73, 0xc5, 0x15, 0x9a, 0xf1, 0x08, 0x25,
+	0x92, 0x58, 0x93, 0xdc, 0x88, 0x38, 0x2c, 0x49, 0xf4, 0x9a, 0x7c, 0x84, 0xe3, 0x56, 0x7f, 0xa1,
+	0xf1, 0x86, 0x33, 0x19, 0xd7, 0x8e, 0xeb, 0x66, 0x6b, 0x57, 0xb1, 0x0d, 0x96, 0x06, 0x6f, 0xf9,
+	0x61, 0xda, 0x7f, 0xc5, 0x5b, 0x54, 0xb1, 0x0d, 0x16, 0xef, 0x33, 0x9c, 0xff, 0xc9, 0x7d, 0xc8,
+	0x04, 0xf6, 0xcd, 0x3c, 0x4c, 0xb3, 0xce, 0xe4, 0x6c, 0xeb, 0xd8, 0xc6, 0x87, 0xc2, 0x72, 0xa8,
+	0x77, 0xb1, 0x83, 0xbb, 0x7c, 0x4f, 0x36, 0x84, 0x9e, 0xfc, 0xec, 0xc1, 0x49, 0x01, 0x91, 0x73,
+	0xcc, 0x56, 0xe2, 0x01, 0xc9, 0x35, 0xf4, 0xf3, 0x13, 0xc8, 0x6f, 0x8f, 0x1e, 0x3d, 0x7f, 0x64,
+	0x37, 0xf7, 0x19, 0xb9, 0x80, 0x3d, 0x6d, 0x30, 0x32, 0xda, 0x82, 0x55, 0xbe, 0x1b, 0x75, 0x3c,
+	0x0e, 0xe4, 0x0e, 0xa0, 0x36, 0x1d, 0x71, 0x3b, 0xaa, 0x5b, 0x8e, 0xec, 0xb8, 0x46, 0xeb, 0x49,
+	0xba, 0x86, 0x7e, 0xee, 0xc6, 0x8e, 0x6e, 0x1a, 0x36, 0xdd, 0x45, 0x73, 0x05, 0xf6, 0x65, 0x14,
+	0x75, 0x70, 0x34, 0x0c, 0xbc, 0x83, 0xe3, 0x4b, 0xdf, 0xfc, 0x16, 0x5f, 0xff, 0x0a, 0x00, 0x00,
+	0xff, 0xff, 0x3d, 0x84, 0x54, 0x5c, 0x25, 0x07, 0x00, 0x00,
 }
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -558,6 +717,10 @@ const _ = grpc.SupportPackageIsVersion4
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
 type SessionsServiceClient interface {
 	Create(ctx context.Context, in *SessionCreateInput, opts ...grpc.CallOption) (*SessionCreateOutput, error)
+	ByID(ctx context.Context, in *SessionByIDInput, opts ...grpc.CallOption) (*Metadata, error)
+	ByClientID(ctx context.Context, in *SessionByClientIDInput, opts ...grpc.CallOption) (*SessionMetadataList, error)
+	ByPeer(ctx context.Context, in *SessionByPeerInput, opts ...grpc.CallOption) (*SessionMetadataList, error)
+	All(ctx context.Context, in *SessionFilterInput, opts ...grpc.CallOption) (*SessionMetadataList, error)
 }
 
 type sessionsServiceClient struct {
@@ -577,9 +740,49 @@ func (c *sessionsServiceClient) Create(ctx context.Context, in *SessionCreateInp
 	return out, nil
 }
 
+func (c *sessionsServiceClient) ByID(ctx context.Context, in *SessionByIDInput, opts ...grpc.CallOption) (*Metadata, error) {
+	out := new(Metadata)
+	err := c.cc.Invoke(ctx, "/sessions.SessionsService/ByID", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *sessionsServiceClient) ByClientID(ctx context.Context, in *SessionByClientIDInput, opts ...grpc.CallOption) (*SessionMetadataList, error) {
+	out := new(SessionMetadataList)
+	err := c.cc.Invoke(ctx, "/sessions.SessionsService/ByClientID", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *sessionsServiceClient) ByPeer(ctx context.Context, in *SessionByPeerInput, opts ...grpc.CallOption) (*SessionMetadataList, error) {
+	out := new(SessionMetadataList)
+	err := c.cc.Invoke(ctx, "/sessions.SessionsService/ByPeer", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *sessionsServiceClient) All(ctx context.Context, in *SessionFilterInput, opts ...grpc.CallOption) (*SessionMetadataList, error) {
+	out := new(SessionMetadataList)
+	err := c.cc.Invoke(ctx, "/sessions.SessionsService/All", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // SessionsServiceServer is the server API for SessionsService service.
 type SessionsServiceServer interface {
 	Create(context.Context, *SessionCreateInput) (*SessionCreateOutput, error)
+	ByID(context.Context, *SessionByIDInput) (*Metadata, error)
+	ByClientID(context.Context, *SessionByClientIDInput) (*SessionMetadataList, error)
+	ByPeer(context.Context, *SessionByPeerInput) (*SessionMetadataList, error)
+	All(context.Context, *SessionFilterInput) (*SessionMetadataList, error)
 }
 
 // UnimplementedSessionsServiceServer can be embedded to have forward compatible implementations.
@@ -588,6 +791,18 @@ type UnimplementedSessionsServiceServer struct {
 
 func (*UnimplementedSessionsServiceServer) Create(ctx context.Context, req *SessionCreateInput) (*SessionCreateOutput, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Create not implemented")
+}
+func (*UnimplementedSessionsServiceServer) ByID(ctx context.Context, req *SessionByIDInput) (*Metadata, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ByID not implemented")
+}
+func (*UnimplementedSessionsServiceServer) ByClientID(ctx context.Context, req *SessionByClientIDInput) (*SessionMetadataList, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ByClientID not implemented")
+}
+func (*UnimplementedSessionsServiceServer) ByPeer(ctx context.Context, req *SessionByPeerInput) (*SessionMetadataList, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ByPeer not implemented")
+}
+func (*UnimplementedSessionsServiceServer) All(ctx context.Context, req *SessionFilterInput) (*SessionMetadataList, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method All not implemented")
 }
 
 func RegisterSessionsServiceServer(s *grpc.Server, srv SessionsServiceServer) {
@@ -612,6 +827,78 @@ func _SessionsService_Create_Handler(srv interface{}, ctx context.Context, dec f
 	return interceptor(ctx, in, info, handler)
 }
 
+func _SessionsService_ByID_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SessionByIDInput)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SessionsServiceServer).ByID(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/sessions.SessionsService/ByID",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SessionsServiceServer).ByID(ctx, req.(*SessionByIDInput))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _SessionsService_ByClientID_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SessionByClientIDInput)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SessionsServiceServer).ByClientID(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/sessions.SessionsService/ByClientID",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SessionsServiceServer).ByClientID(ctx, req.(*SessionByClientIDInput))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _SessionsService_ByPeer_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SessionByPeerInput)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SessionsServiceServer).ByPeer(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/sessions.SessionsService/ByPeer",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SessionsServiceServer).ByPeer(ctx, req.(*SessionByPeerInput))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _SessionsService_All_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SessionFilterInput)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SessionsServiceServer).All(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/sessions.SessionsService/All",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SessionsServiceServer).All(ctx, req.(*SessionFilterInput))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 var _SessionsService_serviceDesc = grpc.ServiceDesc{
 	ServiceName: "sessions.SessionsService",
 	HandlerType: (*SessionsServiceServer)(nil),
@@ -619,6 +906,22 @@ var _SessionsService_serviceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "Create",
 			Handler:    _SessionsService_Create_Handler,
+		},
+		{
+			MethodName: "ByID",
+			Handler:    _SessionsService_ByID_Handler,
+		},
+		{
+			MethodName: "ByClientID",
+			Handler:    _SessionsService_ByClientID_Handler,
+		},
+		{
+			MethodName: "ByPeer",
+			Handler:    _SessionsService_ByPeer_Handler,
+		},
+		{
+			MethodName: "All",
+			Handler:    _SessionsService_All_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

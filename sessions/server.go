@@ -4,12 +4,14 @@ import (
 	"context"
 	"net"
 
+	"github.com/vx-labs/mqtt-broker/cluster/types"
 	"go.uber.org/zap"
 )
 
 type server struct {
 	id        string
 	store     SessionStore
+	state     types.RaftServiceLayer
 	ctx       context.Context
 	listeners []net.Listener
 	logger    *zap.Logger

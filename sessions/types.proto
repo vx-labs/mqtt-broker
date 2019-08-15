@@ -37,21 +37,35 @@ message SessionCreateInput {
   int32 KeepaliveInterval = 12;
 }
 message SessionCreateOutput {}
+message SessionByIDInput {
+  string ID = 1;
+}
+message SessionByClientIDInput {
+  string ClientID = 1;
+}
+message SessionByPeerInput {
+  string Peer = 1;
+}
+message SessionFilterInput {}
 
 service SessionsService {
   rpc Create(SessionCreateInput) returns (SessionCreateOutput);
+  rpc ByID(SessionByIDInput) returns (Metadata);
+  rpc ByClientID(SessionByClientIDInput) returns (SessionMetadataList);
+  rpc ByPeer(SessionByPeerInput) returns (SessionMetadataList);
+  rpc All(SessionFilterInput) returns (SessionMetadataList);
 }
 
-message StateTransition {
+message SessionStateTransition {
   string Kind = 1;
-  StateTransitionSessionCreated SessionCreated = 2;
-  StateTransitionSessionDeleted SessionDeleted = 3;
+  SessionStateTransitionSessionCreated SessionCreated = 2;
+  SessionStateTransitionSessionDeleted SessionDeleted = 3;
 }
 
-message StateTransitionSessionCreated {
+message SessionStateTransitionSessionCreated {
   SessionCreateInput Input = 1;
 }
 
-message StateTransitionSessionDeleted {
+message SessionStateTransitionSessionDeleted {
   string ID = 1;
 }
