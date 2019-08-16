@@ -1,20 +1,15 @@
 syntax = "proto3";
 import "github.com/vx-labs/mqtt-broker/topics/types.proto";
 import "github.com/vx-labs/mqtt-broker/subscriptions/types.proto";
-import "github.com/vx-labs/mqtt-broker/sessions/types.proto";
 import "github.com/vx-labs/mqtt-protocol/packet/pb.proto";
 
 
-message SessionFilter {}
 message SubscriptionFilter {}
 message CloseSessionInput {
   string ID = 1;
 }
 message CloseSessionOutput {
   string ID = 1;
-}
-message ListSessionsOutput{
-  repeated sessions.Metadata Sessions = 1;
 }
 message ListSubscriptionsOutput{
   repeated subscriptions.Metadata Subscriptions = 1;
@@ -82,7 +77,6 @@ message PingReqOutput {
 }
 
 service BrokerService {
-    rpc ListSessions(SessionFilter) returns (ListSessionsOutput);
     rpc ListSubscriptions(SubscriptionFilter) returns (ListSubscriptionsOutput);
     rpc CloseSession(CloseSessionInput) returns (CloseSessionOutput);
     rpc DistributeMessage(MessagePublished) returns (MessagePublishedOutput);

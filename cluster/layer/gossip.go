@@ -64,6 +64,10 @@ func (m *layer) AddState(key string, state types.GossipState) (types.Channel, er
 	}
 	return userCh, nil
 }
+func (s *layer) SendEvent(ctx context.Context, input *pb.SendEventInput) (*pb.SendEventOutput, error) {
+	s.NotifyMsg(input.Payload)
+	return &pb.SendEventOutput{}, nil
+}
 func (m *layer) NotifyMsg(b []byte) {
 	var p pb.Part
 	if err := proto.Unmarshal(b, &p); err != nil {

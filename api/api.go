@@ -8,16 +8,18 @@ import (
 
 	brokerClient "github.com/vx-labs/mqtt-broker/broker/pb"
 	"github.com/vx-labs/mqtt-broker/cluster"
+	sessionsClient "github.com/vx-labs/mqtt-broker/sessions/pb"
 )
 
 type api struct {
-	id           string
-	ctx          context.Context
-	config       Config
-	listeners    []net.Listener
-	mesh         cluster.Mesh
-	brokerClient *brokerClient.Client
-	logger       *zap.Logger
+	id             string
+	ctx            context.Context
+	config         Config
+	listeners      []net.Listener
+	mesh           cluster.Mesh
+	brokerClient   *brokerClient.Client
+	sessionsClient *sessionsClient.Client
+	logger         *zap.Logger
 }
 type Config struct {
 	TlsCommonName string
@@ -27,16 +29,21 @@ type Config struct {
 }
 
 func New(id string, logger *zap.Logger, mesh cluster.Mesh, config Config) *api {
-	conn, err := mesh.DialService("broker")
+	brokerConn, err := mesh.DialService("broker")
+	if err != nil {
+		panic(err)
+	}
+	sessionsConn, err := mesh.DialService("sessions")
 	if err != nil {
 		panic(err)
 	}
 	return &api{
-		id:           id,
-		ctx:          context.Background(),
-		mesh:         mesh,
-		config:       config,
-		brokerClient: brokerClient.NewClient(conn),
-		logger:       logger,
+		id:             id,
+		ctx:            context.Background(),
+		mesh:           mesh,
+		config:         config,
+		brokerClient:   brokerClient.NewClient(brokerConn),
+		sessionsClient: sessionsClient.NewClient(sessionsConn),
+		logger:         logger,
 	}
 }

@@ -246,6 +246,9 @@ func (s *raftlayer) Status(ctx context.Context, input *pb.StatusInput) (*pb.Stat
 		Status: s.status,
 	}, nil
 }
+func (s *raftlayer) SendEvent(ctx context.Context, input *pb.SendEventInput) (*pb.SendEventOutput, error) {
+	return &pb.SendEventOutput{}, s.ApplyEvent(input.Payload)
+}
 func (s *raftlayer) isLeader() bool {
 	return s.raft.State() == raft.Leader
 }
@@ -379,6 +382,32 @@ func (s *raftlayer) Shutdown() error {
 	return s.raft.Shutdown().Error()
 }
 func (s *raftlayer) ApplyEvent(event []byte) error {
+	if !s.isLeader() {
+		s.logger.Debug("forwarding event to leader")
+		leader := string(s.raft.Leader())
+		serviceRPC := fmt.Sprintf("%s_rpc", s.name)
+		members, err := s.discovery.Peers().EndpointsByService(fmt.Sprintf("%s_cluster", s.name))
+		if err != nil {
+			s.logger.Error("failed to discover nodes", zap.Error(err))
+			return err
+		}
+		memberAddresses := make([]string, len(members))
+		for idx, member := range members {
+			if member.NetworkAddress == leader {
+				memberAddresses[idx] = member.NetworkAddress
+				return s.discovery.DialAddress(serviceRPC, member.Peer, func(c *grpc.ClientConn) error {
+					client := pb.NewLayerClient(c)
+					_, err := client.SendEvent(context.TODO(), &pb.SendEventInput{Payload: event})
+					if err != nil {
+						return err
+					}
+					return nil
+				})
+			}
+		}
+		s.logger.Error("failed to find leader addess", zap.String("leader_address", leader), zap.Strings("members_addresses", memberAddresses))
+		return errors.New("failed to find leader address")
+	}
 	promise := s.raft.Apply(event, 300*time.Millisecond)
 	err := promise.Error()
 	if err != nil {
@@ -388,5 +417,5 @@ func (s *raftlayer) ApplyEvent(event []byte) error {
 	if resp != nil {
 		return resp.(error)
 	}
-	return nil
+	return s.raft.Barrier(300 * time.Millisecond).Error()
 }

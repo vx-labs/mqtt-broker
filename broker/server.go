@@ -10,7 +10,6 @@ import (
 	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
 
 	"github.com/vx-labs/mqtt-broker/broker/pb"
-	sessions "github.com/vx-labs/mqtt-broker/sessions"
 	"github.com/vx-labs/mqtt-broker/transport"
 	packet "github.com/vx-labs/mqtt-protocol/packet"
 	context "golang.org/x/net/context"
@@ -18,7 +17,6 @@ import (
 )
 
 type broker interface {
-	ListSessions() (sessions.SessionSet, error)
 	ListSubscriptions() (subscriptions.SubscriptionSet, error)
 	CloseSession(ctx context.Context, id string) error
 	DistributeMessage(*pb.MessagePublished) error
@@ -61,18 +59,6 @@ func (s *server) Close() error {
 }
 func (s *server) CloseSession(ctx context.Context, input *pb.CloseSessionInput) (*pb.CloseSessionOutput, error) {
 	return &pb.CloseSessionOutput{ID: input.ID}, s.broker.CloseSession(ctx, input.ID)
-}
-func (s *server) ListSessions(ctx context.Context, filters *pb.SessionFilter) (*pb.ListSessionsOutput, error) {
-	set, err := s.broker.ListSessions()
-	if err != nil {
-		return nil, err
-	}
-	out := []*sessions.Metadata{}
-	for idx := range set {
-		session := set[idx]
-		out = append(out, &session.Metadata)
-	}
-	return &pb.ListSessionsOutput{Sessions: out}, nil
 }
 func (s *server) ListSubscriptions(ctx context.Context, filters *pb.SubscriptionFilter) (*pb.ListSubscriptionsOutput, error) {
 	set, err := s.broker.ListSubscriptions()

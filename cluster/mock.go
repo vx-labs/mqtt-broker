@@ -29,6 +29,10 @@ func (m *mockedMesh) OnNodeLeave(f func(id string, meta pb.NodeMeta)) {}
 func (m *mockedMesh) Join(hosts []string) error {
 	return nil
 }
+func (m *mockedMesh) SendEvent(ctx context.Context, input *pb.SendEventInput) (*pb.SendEventOutput, error) {
+	return &pb.SendEventOutput{}, nil
+}
+
 func (m *mockedMesh) MemberRPCAddress(string) (string, error) {
 	return "", ErrNodeNotFound
 }

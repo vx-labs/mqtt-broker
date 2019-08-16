@@ -1,7 +1,6 @@
 syntax = "proto3";
-package sessions;
-
-message Metadata {
+package pb;
+message Session {
   string ID = 1;
   string Tenant = 2;
   string Peer = 3;
@@ -20,7 +19,7 @@ message Metadata {
 }
 
 message SessionMetadataList {
-  repeated Metadata Metadatas = 1;
+  repeated Session Sessions = 1;
 }
 
 message SessionCreateInput {
@@ -47,10 +46,15 @@ message SessionByPeerInput {
   string Peer = 1;
 }
 message SessionFilterInput {}
+message SessionDeleteInput {
+  string ID = 1;
+}
+message SessionDeleteOutput {}
 
 service SessionsService {
   rpc Create(SessionCreateInput) returns (SessionCreateOutput);
-  rpc ByID(SessionByIDInput) returns (Metadata);
+  rpc Delete(SessionDeleteInput) returns (SessionDeleteOutput);
+  rpc ByID(SessionByIDInput) returns (Session);
   rpc ByClientID(SessionByClientIDInput) returns (SessionMetadataList);
   rpc ByPeer(SessionByPeerInput) returns (SessionMetadataList);
   rpc All(SessionFilterInput) returns (SessionMetadataList);
