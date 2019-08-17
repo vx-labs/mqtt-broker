@@ -408,7 +408,7 @@ func (s *raftlayer) ApplyEvent(event []byte) error {
 		s.logger.Error("failed to find leader addess", zap.String("leader_address", leader), zap.Strings("members_addresses", memberAddresses))
 		return errors.New("failed to find leader address")
 	}
-	promise := s.raft.Apply(event, 300*time.Millisecond)
+	promise := s.raft.Apply(event, 0)
 	err := promise.Error()
 	if err != nil {
 		return err
@@ -417,5 +417,5 @@ func (s *raftlayer) ApplyEvent(event []byte) error {
 	if resp != nil {
 		return resp.(error)
 	}
-	return s.raft.Barrier(300 * time.Millisecond).Error()
+	return s.raft.Barrier(0).Error()
 }
