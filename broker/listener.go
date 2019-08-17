@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"time"
 
 	"github.com/vx-labs/mqtt-broker/cluster"
 	listenerpb "github.com/vx-labs/mqtt-broker/listener/pb"
@@ -14,7 +13,7 @@ import (
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 
-	"github.com/vx-labs/mqtt-broker/sessions"
+	sessions "github.com/vx-labs/mqtt-broker/sessions/pb"
 	"github.com/vx-labs/mqtt-broker/subscriptions"
 	"github.com/vx-labs/mqtt-broker/topics"
 	"github.com/vx-labs/mqtt-broker/transport"
@@ -79,42 +78,37 @@ func (b *Broker) Connect(ctx context.Context, metadata transport.Metadata, p *pa
 			return fmt.Errorf("WARN: authentication failed for client ID %q: %v", p.ClientId, err)
 		}
 		if enforceClientIDUniqueness {
-			set, err := b.Sessions.ByClientID(clientIDstr)
+			set, err := b.Sessions.ByClientID(b.ctx, clientIDstr)
 			if err != nil {
 				return fmt.Errorf("WARN: authentication failed for client ID %q: %v", clientIDstr, err)
 			}
 			if len(set) > 0 {
-				if err := set.ApplyE(func(session sessions.Session) error {
-					b.Sessions.Delete(session.ID, "session_disconnected")
-					if b.isSessionLocal(session) {
-						b.logger.Info("closing old session to free client-id", zap.String("session_id", session.ID), zap.String("client_id", session.ClientID))
-						session.Transport.Close()
-					}
-					return nil
-				}); err != nil {
-					out.connack.ReturnCode = packet.CONNACK_REFUSED_IDENTIFIER_REJECTED
-					return fmt.Errorf("invalid client ID")
+				for _, session := range set {
+					b.Sessions.Delete(b.ctx, session.ID)
 				}
 			}
 		}
-		sess := sessions.Session{
-			Metadata: sessions.Metadata{
-				ID:                sessionID,
-				ClientID:          clientIDstr,
-				Created:           time.Now().Unix(),
-				Tenant:            tenant,
-				Peer:              metadata.Endpoint,
-				WillPayload:       p.WillPayload,
-				WillQoS:           p.WillQos,
-				WillRetain:        p.WillRetain,
-				WillTopic:         p.WillTopic,
-				Transport:         metadata.Name,
-				RemoteAddress:     metadata.RemoteAddress,
-				KeepaliveInterval: p.KeepaliveTimer,
-			},
+		input := sessions.SessionCreateInput{
+			ID:                sessionID,
+			ClientID:          clientIDstr,
+			Tenant:            tenant,
+			Peer:              metadata.Endpoint,
+			WillPayload:       p.WillPayload,
+			WillQoS:           p.WillQos,
+			WillRetain:        p.WillRetain,
+			WillTopic:         p.WillTopic,
+			Transport:         metadata.Name,
+			RemoteAddress:     metadata.RemoteAddress,
+			KeepaliveInterval: p.KeepaliveTimer,
 		}
-		err = b.Sessions.Upsert(sess, b.RemoteRPCProvider(sessionID, sess.Peer))
+		err = b.Sessions.Create(b.ctx, input)
 		if err != nil {
+			b.logger.Error("failed to create session", zap.Error(err), zap.String("session_id", sessionID), zap.String("client_id", string(p.ClientId)), zap.String("username", string(p.Username)), zap.String("remote_address", metadata.RemoteAddress), zap.String("transport", metadata.Name))
+			return err
+		}
+		sess, err := b.Sessions.ByID(b.ctx, input.ID)
+		if err != nil {
+			b.logger.Error("failed to read session", zap.Error(err), zap.String("session_id", sessionID), zap.String("client_id", string(p.ClientId)), zap.String("username", string(p.Username)), zap.String("remote_address", metadata.RemoteAddress), zap.String("transport", metadata.Name))
 			return err
 		}
 		token, err := EncodeSessionToken(b.SigningKey(), sess)
@@ -285,7 +279,10 @@ func (b *Broker) Disconnect(ctx context.Context, token string, p *packet.Disconn
 		b.logger.Warn("received packet from an unknown session", zap.String("session_id", sess.SessionID), zap.String("packet", "disconnect"))
 		return err
 	}
-	b.Sessions.Delete(sess.SessionID, "session_disconnected")
+	err = b.Sessions.Delete(b.ctx, sess.SessionID)
+	if err != nil {
+		b.logger.Error("failed to delete session when disconnecting", zap.String("session_id", sess.SessionID), zap.Error(err))
+	}
 	err = b.deleteSessionSubscriptions(sess.SessionID)
 	if err != nil {
 		b.logger.Error("failed to delete session subscriptions when disconnecting", zap.String("session_id", sess.SessionID), zap.Error(err))
@@ -299,7 +296,7 @@ func (b *Broker) CloseSession(ctx context.Context, token string) error {
 	if err != nil {
 		return err
 	}
-	sess, err := b.Sessions.ByID(decodedToken.SessionID)
+	sess, err := b.Sessions.ByID(b.ctx, decodedToken.SessionID)
 	if err == sessions.ErrSessionNotFound {
 		return nil
 	}
@@ -331,7 +328,7 @@ func (b *Broker) CloseSession(ctx context.Context, token string) error {
 			Topic:   sess.WillTopic,
 		})
 	}
-	b.Sessions.Delete(decodedToken.SessionID, "session_lost")
+	b.Sessions.Delete(b.ctx, decodedToken.SessionID)
 	err = b.deleteSessionSubscriptions(decodedToken.SessionID)
 	if err != nil {
 		b.logger.Error("failed to delete session subscriptions", zap.String("session_id", decodedToken.SessionID), zap.Error(err))
@@ -342,9 +339,14 @@ func (b *Broker) CloseSession(ctx context.Context, token string) error {
 }
 
 func (b *Broker) PingReq(ctx context.Context, id string, _ *packet.PingReq) (*packet.PingResp, error) {
-	_, err := DecodeSessionToken(b.SigningKey(), id)
+	token, err := DecodeSessionToken(b.SigningKey(), id)
 	if err != nil {
-		b.logger.Warn("received packet from an unknown session", zap.String("session_id", id), zap.String("packet", "pingreq"))
+		b.logger.Warn("received packet from an unknown session", zap.String("session_id", token.SessionID), zap.String("packet", "pingreq"))
+		return nil, err
+	}
+	_, err = b.Sessions.ByID(ctx, token.SessionID)
+	if err != nil {
+		b.logger.Warn("received packet from an unknown session", zap.String("session_id", token.SessionID), zap.String("packet", "pingreq"))
 		return nil, err
 	}
 	return &packet.PingResp{

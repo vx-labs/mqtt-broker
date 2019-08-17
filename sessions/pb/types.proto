@@ -1,0 +1,75 @@
+syntax = "proto3";
+package pb;
+message Session {
+  string ID = 1;
+  string Tenant = 2;
+  string Peer = 3;
+  bytes WillTopic = 4;
+  int32 WillQoS = 5;
+  bytes WillPayload = 6;
+  bool WillRetain = 7;
+  int64 Created = 8;
+  string ClientID = 9;
+  int64 LastAdded = 10;
+  int64 LastDeleted = 11;
+  string Transport = 12;
+  string RemoteAddress = 13;
+  string ClosureReason = 14;
+  int32 KeepaliveInterval = 15;
+}
+
+message SessionMetadataList {
+  repeated Session Sessions = 1;
+}
+
+message SessionCreateInput {
+  string ID = 1;
+  string Tenant = 2;
+  string Peer = 3;
+  bytes WillTopic = 4;
+  int32 WillQoS = 5;
+  bytes WillPayload = 6;
+  bool WillRetain = 7;
+  string ClientID = 9;
+  string Transport = 10;
+  string RemoteAddress = 11;
+  int32 KeepaliveInterval = 12;
+}
+message SessionCreateOutput {}
+message SessionByIDInput {
+  string ID = 1;
+}
+message SessionByClientIDInput {
+  string ClientID = 1;
+}
+message SessionByPeerInput {
+  string Peer = 1;
+}
+message SessionFilterInput {}
+message SessionDeleteInput {
+  string ID = 1;
+}
+message SessionDeleteOutput {}
+
+service SessionsService {
+  rpc Create(SessionCreateInput) returns (SessionCreateOutput);
+  rpc Delete(SessionDeleteInput) returns (SessionDeleteOutput);
+  rpc ByID(SessionByIDInput) returns (Session);
+  rpc ByClientID(SessionByClientIDInput) returns (SessionMetadataList);
+  rpc ByPeer(SessionByPeerInput) returns (SessionMetadataList);
+  rpc All(SessionFilterInput) returns (SessionMetadataList);
+}
+
+message SessionStateTransition {
+  string Kind = 1;
+  SessionStateTransitionSessionCreated SessionCreated = 2;
+  SessionStateTransitionSessionDeleted SessionDeleted = 3;
+}
+
+message SessionStateTransitionSessionCreated {
+  SessionCreateInput Input = 1;
+}
+
+message SessionStateTransitionSessionDeleted {
+  string ID = 1;
+}

@@ -1,6 +1,7 @@
-package cluster
+package layer
 
 import (
+	"context"
 	fmt "fmt"
 	"io/ioutil"
 	"os"
@@ -9,20 +10,12 @@ import (
 
 	proto "github.com/golang/protobuf/proto"
 	"github.com/hashicorp/memberlist"
+	"github.com/vx-labs/mqtt-broker/cluster/config"
 	"github.com/vx-labs/mqtt-broker/cluster/pb"
 	"github.com/vx-labs/mqtt-broker/cluster/peers"
 	"github.com/vx-labs/mqtt-broker/cluster/types"
 	"go.uber.org/zap"
 )
-
-type Config struct {
-	ID            string
-	AdvertiseAddr string
-	AdvertisePort int
-	BindPort      int
-	onNodeJoin    func(id string, meta pb.NodeMeta)
-	onNodeLeave   func(id string, meta pb.NodeMeta)
-}
 
 type layer struct {
 	id          string
@@ -30,13 +23,19 @@ type layer struct {
 	mlist       *memberlist.Memberlist
 	logger      *zap.Logger
 	mtx         sync.RWMutex
-	states      map[string]types.State
+	states      map[string]types.GossipState
 	bcastQueue  *memberlist.TransmitLimitedQueue
 	meta        pb.NodeMeta
 	onNodeJoin  func(id string, meta pb.NodeMeta)
 	onNodeLeave func(id string, meta pb.NodeMeta)
 }
 
+func (s *layer) Status(ctx context.Context, input *pb.StatusInput) (*pb.StatusOutput, error) {
+	return &pb.StatusOutput{
+		Layer:  "gossip",
+		Status: "ok",
+	}, nil
+}
 func (m *layer) Members() []*memberlist.Node {
 	return m.mlist.Members()
 }
@@ -48,8 +47,7 @@ func (m *layer) OnNodeLeave(f func(id string, meta pb.NodeMeta)) {
 	m.onNodeLeave = f
 }
 
-func (m *layer) AddState(key string, state types.State) (types.Channel, error) {
-	//log.Printf("INFO: service/%s: registering %s state", m.name, key)
+func (m *layer) AddState(key string, state types.GossipState) (types.Channel, error) {
 	m.mtx.Lock()
 	defer m.mtx.Unlock()
 	old, ok := m.states[key]
@@ -66,6 +64,10 @@ func (m *layer) AddState(key string, state types.State) (types.Channel, error) {
 	}
 	return userCh, nil
 }
+func (s *layer) SendEvent(ctx context.Context, input *pb.SendEventInput) (*pb.SendEventOutput, error) {
+	s.NotifyMsg(input.Payload)
+	return &pb.SendEventOutput{}, nil
+}
 func (m *layer) NotifyMsg(b []byte) {
 	var p pb.Part
 	if err := proto.Unmarshal(b, &p); err != nil {
@@ -76,9 +78,6 @@ func (m *layer) NotifyMsg(b []byte) {
 	defer m.mtx.Unlock()
 	s, ok := m.states[p.Key]
 	if !ok {
-		m.states[p.Key] = &cachedState{
-			data: p.Data,
-		}
 		return
 	}
 	if err := s.Merge(p.Data, false); err != nil {
@@ -126,9 +125,6 @@ func (m *layer) MergeRemoteState(buf []byte, join bool) {
 	for _, p := range fs.Parts {
 		s, ok := m.states[p.Key]
 		if !ok {
-			m.states[p.Key] = &cachedState{
-				data: p.Data,
-			}
 			continue
 		}
 		//now := time.Now()
@@ -212,14 +208,14 @@ func (self *layer) numMembers() int {
 	return self.mlist.NumMembers()
 }
 
-func NewLayer(name string, logger *zap.Logger, userConfig Config, meta pb.NodeMeta) Layer {
+func NewGossipLayer(name string, logger *zap.Logger, userConfig config.Config, meta pb.NodeMeta) *layer {
 	self := &layer{
 		id:          userConfig.ID,
 		name:        name,
-		states:      map[string]types.State{},
+		states:      map[string]types.GossipState{},
 		meta:        meta,
-		onNodeJoin:  userConfig.onNodeJoin,
-		onNodeLeave: userConfig.onNodeLeave,
+		onNodeJoin:  userConfig.OnNodeJoin,
+		onNodeLeave: userConfig.OnNodeLeave,
 		logger:      logger,
 	}
 

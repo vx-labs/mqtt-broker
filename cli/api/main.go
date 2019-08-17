@@ -17,7 +17,7 @@ func main() {
 	root := &cobra.Command{
 		Use: "api",
 		Run: func(cmd *cobra.Command, args []string) {
-			cli.Run(cmd, "api", func(id string, logger *zap.Logger, mesh cluster.Mesh) cli.Service {
+			cli.Run(cmd, "api", func(id string, logger *zap.Logger, mesh cluster.DiscoveryLayer) cli.Service {
 				tcpPort, _ := cmd.Flags().GetInt("tcp-port")
 				tlsPort, _ := cmd.Flags().GetInt("tls-port")
 

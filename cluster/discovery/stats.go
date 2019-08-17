@@ -1,4 +1,4 @@
-package cluster
+package discovery
 
 import (
 	"runtime"
@@ -12,7 +12,7 @@ func memUsage() runtime.MemStats {
 	runtime.ReadMemStats(&m)
 	return m
 }
-func (b *memberlistMesh) oSStatsReporter() {
+func (b *discoveryLayer) oSStatsReporter() {
 	ticker := time.NewTicker(10 * time.Second)
 	for {
 		m := memUsage()

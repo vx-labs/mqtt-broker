@@ -1,11 +1,26 @@
 package types
 
-import "github.com/vx-labs/mqtt-broker/cluster/pb"
+import (
+	"io"
 
-// State represents a CRDT state store, that will be distributed over the mesh network.
-type State interface {
+	"github.com/hashicorp/memberlist"
+	"github.com/vx-labs/mqtt-broker/cluster/pb"
+)
+
+// GossipState represents a CRDT state store, that will be distributed over the mesh network.
+type GossipState interface {
 	Merge(inc []byte, full bool) error
 	MarshalBinary() []byte
+}
+
+type ServiceLayer interface {
+	pb.LayerServer
+}
+
+type RaftState interface {
+	Apply(event []byte, leader bool) error
+	Snapshot() io.Reader
+	Restore(io.Reader) error
 }
 
 // Channel allows clients to send messages for a specific state type that will be
@@ -14,7 +29,18 @@ type Channel interface {
 	Broadcast(b []byte)
 }
 
-type ServiceLayer interface {
-	AddState(key string, state State) (Channel, error)
+type GossipServiceLayer interface {
+	ServiceLayer
+	Leave()
+	Members() []*memberlist.Node
+	Join([]string) error
+	AddState(key string, state GossipState) (Channel, error)
 	OnNodeLeave(f func(id string, meta pb.NodeMeta))
+}
+
+type RaftServiceLayer interface {
+	ServiceLayer
+	Start(name string, state RaftState) error
+	ApplyEvent(event []byte) error
+	Shutdown() error
 }

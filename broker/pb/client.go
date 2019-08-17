@@ -7,7 +7,6 @@ import (
 
 	"github.com/vx-labs/mqtt-broker/transport"
 
-	"github.com/vx-labs/mqtt-broker/sessions"
 	"github.com/vx-labs/mqtt-protocol/packet"
 	"google.golang.org/grpc"
 )
@@ -25,20 +24,6 @@ func NewClient(conn *grpc.ClientConn) *Client {
 func (c *Client) CloseSession(ctx context.Context, id string) error {
 	_, err := c.api.CloseSession(ctx, &CloseSessionInput{ID: id})
 	return err
-}
-func (c *Client) ListSessions(ctx context.Context) (sessions.SessionSet, error) {
-	out, err := c.api.ListSessions(ctx, &SessionFilter{})
-	if err != nil {
-		return sessions.SessionSet{}, err
-	}
-	set := make(sessions.SessionSet, len(out.Sessions))
-	for idx := range set {
-		set[idx] = sessions.Session{
-			Transport: nil,
-			Metadata:  *out.Sessions[idx],
-		}
-	}
-	return set, nil
 }
 func (c *Client) ListSubscriptions(ctx context.Context) (subscriptions.SubscriptionSet, error) {
 	out, err := c.api.ListSubscriptions(ctx, &SubscriptionFilter{})

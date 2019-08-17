@@ -1,12 +1,12 @@
 package sessions
 
 import (
-	"io/ioutil"
-	"log"
 	"testing"
 
+	"go.uber.org/zap"
+
 	"github.com/stretchr/testify/require"
-	"github.com/vx-labs/mqtt-broker/cluster"
+	"github.com/vx-labs/mqtt-broker/sessions/pb"
 )
 
 const (
@@ -17,28 +17,22 @@ func returnNilErr() error {
 	return nil
 }
 func TestSessionStore(t *testing.T) {
-	store, _ := NewSessionStore(cluster.MockedMesh(), func(string, string) Transport {
-		return nil
-	}, log.New(ioutil.Discard, "", 0))
+	store := NewSessionStore(zap.NewNop())
 
 	t.Run("create", func(t *testing.T) {
-		err := store.Upsert(Session{
-			Metadata: Metadata{
-				ID:       sessionID,
-				Tenant:   "_default",
-				ClientID: "test1",
-				Peer:     "1",
-			},
-		}, nil)
+		err := store.Create(&pb.Session{
+			ID:       sessionID,
+			Tenant:   "_default",
+			ClientID: "test1",
+			Peer:     "1",
+		})
 		require.Nil(t, err)
-		err = store.Upsert(Session{
-			Metadata: Metadata{
-				ID:       "3",
-				Tenant:   "_default",
-				ClientID: "test2",
-				Peer:     "2",
-			},
-		}, nil)
+		err = store.Create(&pb.Session{
+			ID:       "3",
+			Tenant:   "_default",
+			ClientID: "test2",
+			Peer:     "2",
+		})
 		require.Nil(t, err)
 	})
 
@@ -46,19 +40,19 @@ func TestSessionStore(t *testing.T) {
 	t.Run("All", func(t *testing.T) {
 		set, err := store.All()
 		require.Nil(t, err)
-		require.Equal(t, 2, len(set))
+		require.Equal(t, 2, len(set.Sessions))
 	})
 	t.Run("lookup peer", func(t *testing.T) {
 		set, err := store.ByPeer("2")
 		require.Nil(t, err)
-		require.Equal(t, 1, len(set))
-		require.Equal(t, "3", set[0].ID)
+		require.Equal(t, 1, len(set.Sessions))
+		require.Equal(t, "3", set.Sessions[0].ID)
 	})
 	t.Run("lookup client id", func(t *testing.T) {
 		sessions, err := store.ByClientID("test1")
 		require.Nil(t, err)
-		require.Equal(t, 1, len(sessions))
-		session := sessions[0]
+		require.Equal(t, 1, len(sessions.Sessions))
+		session := sessions.Sessions[0]
 		require.NotNil(t, session)
 		require.Equal(t, sessionID, session.ID)
 	})
@@ -66,7 +60,7 @@ func TestSessionStore(t *testing.T) {
 	t.Run("delete", func(t *testing.T) {
 		_, err := store.ByID(sessionID)
 		require.NoError(t, err)
-		err = store.Delete(sessionID, "test")
+		err = store.Delete(sessionID)
 		require.NoError(t, err)
 		_, err = store.ByID(sessionID)
 		require.Error(t, err)

@@ -56,7 +56,7 @@ func main() {
 		Use: "broker",
 		Run: func(cmd *cobra.Command, args []string) {
 
-			cli.Run(cmd, "broker", func(id string, logger *zap.Logger, mesh cluster.Mesh) cli.Service {
+			cli.Run(cmd, "broker", func(id string, logger *zap.Logger, mesh cluster.DiscoveryLayer) cli.Service {
 				config := broker.DefaultConfig()
 				if os.Getenv("NOMAD_ALLOC_ID") != "" {
 					config.AuthHelper = authHelper(context.Background())

@@ -4,7 +4,7 @@ import (
 	"time"
 
 	"github.com/dgrijalva/jwt-go"
-	"github.com/vx-labs/mqtt-broker/sessions"
+	sessions "github.com/vx-labs/mqtt-broker/sessions/pb"
 )
 
 type Token struct {
@@ -14,7 +14,7 @@ type Token struct {
 	jwt.StandardClaims
 }
 
-func EncodeSessionToken(signKey string, session sessions.Session) (string, error) {
+func EncodeSessionToken(signKey string, session *sessions.Session) (string, error) {
 	t := Token{
 		SessionID:     session.ID,
 		PeerID:        session.Peer,
