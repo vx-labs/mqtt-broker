@@ -1,9 +1,11 @@
 package sessions
 
 import (
+	"bytes"
 	"errors"
 	fmt "fmt"
 	"io"
+	"io/ioutil"
 	"net"
 
 	"github.com/golang/protobuf/proto"
@@ -34,11 +36,35 @@ func (b *server) JoinServiceLayer(name string, logger *zap.Logger, config cluste
 		panic(err)
 	}
 }
-func (m *server) Restore(io.Reader) error {
+func (m *server) Restore(r io.Reader) error {
+	payload, err := ioutil.ReadAll(r)
+	if err != nil {
+		return err
+	}
+	snapshot := &pb.SessionMetadataList{}
+	err = proto.Unmarshal(payload, snapshot)
+	if err != nil {
+		return err
+	}
+	for _, session := range snapshot.Sessions {
+		m.store.Create(session)
+	}
+	m.logger.Info("restored snapshot", zap.Int("size", len(payload)))
 	return nil
 }
 func (m *server) Snapshot() io.Reader {
-	return nil
+	dump, err := m.store.All()
+	if err != nil {
+		m.logger.Error("failed to snapshot store", zap.Error(err))
+		return nil
+	}
+	payload, err := proto.Marshal(dump)
+	if err != nil {
+		m.logger.Error("failed to marshal snapshot", zap.Error(err))
+		return nil
+	}
+	m.logger.Info("snapshotted store", zap.Int("size", len(payload)))
+	return bytes.NewReader(payload)
 }
 func (m *server) Health() string {
 	return "ok"
