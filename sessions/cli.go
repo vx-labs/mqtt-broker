@@ -98,7 +98,9 @@ func (m *server) Apply(payload []byte, leader bool) error {
 	}
 	switch event.Kind {
 	case transitionSessionCreated:
-		m.logger.Info("created session", zap.String("session_id", event.SessionCreated.Input.ID))
+		if leader {
+			m.logger.Info("created session", zap.String("session_id", event.SessionCreated.Input.ID))
+		}
 		input := event.SessionCreated.Input
 		err := m.store.Create(&pb.Session{
 			ClientID:          input.ClientID,
@@ -115,7 +117,9 @@ func (m *server) Apply(payload []byte, leader bool) error {
 		})
 		return err
 	case transitionSessionDeleted:
-		m.logger.Info("deleted session", zap.String("session_id", event.SessionDeleted.ID))
+		if leader {
+			m.logger.Info("deleted session", zap.String("session_id", event.SessionDeleted.ID))
+		}
 		err := m.store.Delete(event.SessionDeleted.ID)
 		if leader {
 			set, err := m.Subscriptions.BySession(m.ctx, event.SessionDeleted.ID)

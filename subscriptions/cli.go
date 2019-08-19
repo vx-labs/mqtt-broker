@@ -92,7 +92,9 @@ func (m *server) Apply(payload []byte, leader bool) error {
 	}
 	switch event.Kind {
 	case transitionSessionCreated:
-		m.logger.Info("created subscription", zap.String("subscription_id", event.SubscriptionCreated.Input.ID))
+		if leader {
+			m.logger.Info("created subscription", zap.String("subscription_id", event.SubscriptionCreated.Input.ID))
+		}
 		input := event.SubscriptionCreated.Input
 		err := m.store.Create(&pb.Metadata{
 			ID:        input.ID,
@@ -104,7 +106,9 @@ func (m *server) Apply(payload []byte, leader bool) error {
 		})
 		return err
 	case transitionSessionDeleted:
-		m.logger.Info("deleted subscription", zap.String("subscription_id", event.SubscriptionDeleted.ID))
+		if leader {
+			m.logger.Info("deleted subscription", zap.String("subscription_id", event.SubscriptionDeleted.ID))
+		}
 		err := m.store.Delete(event.SubscriptionDeleted.ID)
 		return err
 	default:
