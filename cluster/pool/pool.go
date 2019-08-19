@@ -6,6 +6,7 @@ import (
 	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
 
 	grpc "google.golang.org/grpc"
+	"google.golang.org/grpc/balancer/roundrobin"
 )
 
 type RPCJob func(*grpc.ClientConn) error
@@ -33,7 +34,7 @@ func NewPool(addr string) (*Pool, error) {
 		grpc.WithStreamInterceptor(grpc_prometheus.StreamClientInterceptor),
 		grpc.WithUnaryInterceptor(grpc_prometheus.UnaryClientInterceptor),
 		grpc.WithInsecure(), grpc.WithAuthority(addr),
-	//	grpc.WithBalancerName("failover"),
+		grpc.WithBalancerName(roundrobin.Name),
 	)
 	if err != nil {
 		return nil, err
