@@ -3,6 +3,7 @@ package broker
 import (
 	publishQueue "github.com/vx-labs/mqtt-broker/queues/publish"
 	"github.com/vx-labs/mqtt-broker/topics"
+	"github.com/vx-labs/mqtt-protocol/packet"
 	"go.uber.org/zap"
 )
 
@@ -37,6 +38,18 @@ func (b *Broker) consumePublish(message *publishQueue.Message) error {
 	if err != nil {
 		b.logger.Error("failed to route message", zap.Binary("topic_pattern", message.Publish.Topic), zap.Error(err))
 		return err
+	}
+	return nil
+}
+func (b *Broker) routeMessage(tenant string, p *packet.Publish) error {
+	recipients, err := b.Subscriptions.ByTopic(b.ctx, tenant, p.Topic)
+	if err != nil {
+		return err
+	}
+	message := *p
+	message.Header.Retain = false
+	for _, recipient := range recipients {
+		b.sendToSession(b.ctx, recipient.SessionID, recipient.Peer, p)
 	}
 	return nil
 }

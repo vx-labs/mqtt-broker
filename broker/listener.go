@@ -200,18 +200,6 @@ func (b *Broker) Subscribe(ctx context.Context, token string, p *packet.Subscrib
 	}, nil
 }
 
-func (b *Broker) routeMessage(tenant string, p *packet.Publish) error {
-	recipients, err := b.Subscriptions.ByTopic(b.ctx, tenant, p.Topic)
-	if err != nil {
-		return err
-	}
-	message := *p
-	message.Header.Retain = false
-	for _, recipient := range recipients {
-		b.sendToSession(b.ctx, recipient.SessionID, recipient.Peer, p)
-	}
-	return nil
-}
 func (b *Broker) Publish(ctx context.Context, token string, p *packet.Publish) (*packet.PubAck, error) {
 	sess, err := DecodeSessionToken(b.SigningKey(), token)
 	if err != nil {
@@ -299,14 +287,17 @@ func (b *Broker) CloseSession(ctx context.Context, token string) error {
 				b.logger.Warn("failed to retain LWT", zap.String("session_id", sess.ID), zap.Error(err))
 			}
 		}
-		b.routeMessage(sess.Tenant, &packet.Publish{
-			Header: &packet.Header{
-				Dup:    false,
-				Retain: false,
-				Qos:    sess.WillQoS,
+		b.publishQueue.Enqueue(&publishQueue.Message{
+			Tenant: sess.Tenant,
+			Publish: &packet.Publish{
+				Header: &packet.Header{
+					Dup:    false,
+					Retain: false,
+					Qos:    sess.WillQoS,
+				},
+				Payload: sess.WillPayload,
+				Topic:   sess.WillTopic,
 			},
-			Payload: sess.WillPayload,
-			Topic:   sess.WillTopic,
 		})
 	}
 	b.Sessions.Delete(b.ctx, decodedToken.SessionID)

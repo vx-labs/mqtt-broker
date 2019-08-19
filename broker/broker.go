@@ -152,7 +152,10 @@ func (b *Broker) onPeerDown(name string) {
 				Qos: s.WillQoS,
 			},
 		}
-		b.routeMessage(s.Tenant, lwt)
+		b.publishQueue.Enqueue(&publishQueue.Message{
+			Tenant:  s.Tenant,
+			Publish: lwt,
+		})
 	}
 }
 
