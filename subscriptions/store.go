@@ -1,63 +1,31 @@
 package subscriptions
 
 import (
-	"context"
-	"errors"
-	"log"
-	"time"
-
-	"github.com/golang/protobuf/proto"
-	"github.com/vx-labs/mqtt-broker/cluster/types"
-	"github.com/vx-labs/mqtt-broker/crdt"
-	"github.com/vx-labs/mqtt-protocol/packet"
+	"github.com/vx-labs/mqtt-broker/subscriptions/pb"
+	"github.com/vx-labs/mqtt-broker/subscriptions/topic"
+	"github.com/vx-labs/mqtt-broker/subscriptions/tree"
 
 	"github.com/hashicorp/go-memdb"
 )
 
 const table = "subscriptions"
 
-type Subscription struct {
-	Metadata
-	Sender func(context.Context, packet.Publish) error `json:"-"`
-}
-
-type Channel interface {
-	Broadcast([]byte)
-}
-
-type RemoteSender func(host string, session string, publish packet.Publish) error
-
 type Store interface {
-	ByTopic(tenant string, pattern []byte) (SubscriptionSet, error)
-	ByID(id string) (Subscription, error)
-	All() (SubscriptionSet, error)
-	ByPeer(peer string) (SubscriptionSet, error)
-	BySession(id string) (SubscriptionSet, error)
-	Sessions() ([]string, error)
-	Create(message Subscription, sender func(context.Context, packet.Publish) error) error
+	ByTopic(tenant string, pattern []byte) (*pb.SubscriptionMetadataList, error)
+	ByID(id string) (*pb.Metadata, error)
+	All() (*pb.SubscriptionMetadataList, error)
+	ByPeer(peer string) (*pb.SubscriptionMetadataList, error)
+	BySession(id string) (*pb.SubscriptionMetadataList, error)
+	Create(message *pb.Metadata) error
 	Delete(id string) error
 }
-
-const (
-	SubscriptionCreated string = "subscription_created"
-	SubscriptionDeleted string = "subscription_deleted"
-)
 
 type memDBStore struct {
 	db           *memdb.MemDB
 	patternIndex *topicIndexer
-	channel      Channel
-	sender       RemoteSender
 }
 
-var (
-	ErrSubscriptionNotFound = errors.New("subscription not found")
-)
-var now = func() int64 {
-	return time.Now().UnixNano()
-}
-
-func NewMemDBStore(mesh types.GossipServiceLayer, sender RemoteSender) (Store, error) {
+func NewMemDBStore() Store {
 	db, err := memdb.NewMemDB(&memdb.DBSchema{
 		Tables: map[string]*memdb.TableSchema{
 			table: &memdb.TableSchema{
@@ -94,56 +62,46 @@ func NewMemDBStore(mesh types.GossipServiceLayer, sender RemoteSender) (Store, e
 		},
 	})
 	if err != nil {
-		return nil, err
+		panic(err)
 	}
 
 	s := &memDBStore{
 		db:           db,
 		patternIndex: TenantTopicIndexer(),
 	}
-	s.channel, err = mesh.AddState("mqtt-subscriptions", s)
-	go func() {
-		for range time.Tick(1 * time.Hour) {
-			err := s.runGC()
-			if err != nil {
-				log.Printf("WARN: failed to GC sessions: %v", err)
-			}
-		}
-	}()
-	s.sender = sender
-	return s, err
+	return s
 }
 
 type topicIndexer struct {
-	root *INode
+	root *tree.INode
 }
 
 func TenantTopicIndexer() *topicIndexer {
 	return &topicIndexer{
-		root: NewINode(),
+		root: tree.NewINode(),
 	}
 }
 func (t *topicIndexer) Remove(tenant, id string, pattern []byte) error {
-	return t.root.Remove(tenant, id, Topic(pattern))
+	return t.root.Remove(tenant, id, topic.Topic(pattern))
 }
-func (t *topicIndexer) Lookup(tenant string, pattern []byte) (SubscriptionSet, error) {
-	set := t.root.Select(tenant, nil, Topic(pattern)).Filter(func(s Subscription) bool {
-		return crdt.IsEntryAdded(&s)
-	})
-	return set, nil
+func (t *topicIndexer) Lookup(tenant string, pattern []byte) (*pb.SubscriptionMetadataList, error) {
+	set := t.root.Select(tenant, nil, topic.Topic(pattern))
+	return &pb.SubscriptionMetadataList{
+		Metadatas: set,
+	}, nil
 }
 
-func (s *topicIndexer) Index(subscription Subscription) error {
+func (s *topicIndexer) Index(subscription *pb.Metadata) error {
 	s.root.Insert(
-		Topic(subscription.Pattern),
+		topic.Topic(subscription.Pattern),
 		subscription.Tenant,
 		subscription,
 	)
 	return nil
 }
 
-func (m *memDBStore) All() (SubscriptionSet, error) {
-	var set SubscriptionSet
+func (m *memDBStore) All() (*pb.SubscriptionMetadataList, error) {
+	var set *pb.SubscriptionMetadataList
 	var err error
 	return set, m.read(func(tx *memdb.Txn) error {
 		set, err = m.all(tx, "id")
@@ -154,67 +112,39 @@ func (m *memDBStore) All() (SubscriptionSet, error) {
 	})
 }
 
-func (m *memDBStore) ByID(id string) (Subscription, error) {
-	var res Subscription
+func (m *memDBStore) ByID(id string) (*pb.Metadata, error) {
+	var res *pb.Metadata
 	return res, m.read(func(tx *memdb.Txn) (err error) {
 		res, err = m.first(tx, "id", id)
-		if crdt.IsEntryRemoved(&res) {
-			return ErrSubscriptionNotFound
-		}
 		return
 	})
 }
-func (m *memDBStore) ByTenant(tenant string) (SubscriptionSet, error) {
-	var res SubscriptionSet
+func (m *memDBStore) ByTenant(tenant string) (*pb.SubscriptionMetadataList, error) {
+	var res *pb.SubscriptionMetadataList
 	return res, m.read(func(tx *memdb.Txn) (err error) {
 		res, err = m.all(tx, "tenant", tenant)
 		return
 	})
 }
-func (m *memDBStore) BySession(session string) (SubscriptionSet, error) {
-	var res SubscriptionSet
+func (m *memDBStore) BySession(session string) (*pb.SubscriptionMetadataList, error) {
+	var res *pb.SubscriptionMetadataList
 	return res, m.read(func(tx *memdb.Txn) (err error) {
 		res, err = m.all(tx, "session", session)
 		return
 	})
 }
-func (m *memDBStore) ByPeer(peer string) (SubscriptionSet, error) {
-	var res SubscriptionSet
+func (m *memDBStore) ByPeer(peer string) (*pb.SubscriptionMetadataList, error) {
+	var res *pb.SubscriptionMetadataList
 	return res, m.read(func(tx *memdb.Txn) (err error) {
 		res, err = m.all(tx, "peer", peer)
 		return
 	})
 }
-func (m *memDBStore) ByTopic(tenant string, pattern []byte) (SubscriptionSet, error) {
+func (m *memDBStore) ByTopic(tenant string, pattern []byte) (*pb.SubscriptionMetadataList, error) {
 	return m.patternIndex.Lookup(tenant, pattern)
 }
-func (m *memDBStore) Sessions() ([]string, error) {
-	var res SubscriptionSet
-	err := m.read(func(tx *memdb.Txn) (err error) {
-		res, err = m.all(tx, "session")
-		return
-	})
-	if err != nil {
-		return nil, err
-	}
-	out := make([]string, len(res))
-	for idx := range res {
-		out[idx] = res[idx].SessionID
-	}
-	return out, nil
-}
 
-func (s *memDBStore) emitSubscriptionEvent(sess Subscription) {
-	if crdt.IsEntryAdded(&sess) {
-		s.patternIndex.Index(sess)
-	}
-	if crdt.IsEntryRemoved(&sess) {
-		s.patternIndex.Remove(sess.Tenant, sess.ID, sess.Pattern)
-	}
-}
-
-func (m *memDBStore) insert(message Subscription) error {
-	defer m.emitSubscriptionEvent(message)
+func (m *memDBStore) insert(message *pb.Metadata) error {
 	err := m.write(func(tx *memdb.Txn) error {
 		err := tx.Insert(table, message)
 		if err != nil {
@@ -224,28 +154,25 @@ func (m *memDBStore) insert(message Subscription) error {
 		return nil
 	})
 	if err == nil {
-		buf, err := proto.Marshal(&SubscriptionMetadataList{
-			Metadatas: []*Metadata{
-				&message.Metadata,
-			},
-		})
-		if err != nil {
-			return err
-		}
-		m.channel.Broadcast(buf)
+		return m.patternIndex.Index(message)
 	}
 	return err
 }
 func (s *memDBStore) Delete(id string) error {
-	sess, err := s.ByID(id)
-	if err != nil {
-		return err
+	var oldSub *pb.Metadata
+	err := s.write(func(tx *memdb.Txn) error {
+		sub, err := tx.First(table, "id", id)
+		if err != nil {
+			return err
+		}
+		oldSub = sub.(*pb.Metadata)
+		return tx.Delete(table, oldSub)
+	})
+	if err == nil {
+		return s.patternIndex.Remove(oldSub.Tenant, oldSub.ID, oldSub.Pattern)
 	}
-	sess.LastDeleted = now()
-	return s.insert(sess)
+	return err
 }
-func (s *memDBStore) Create(sess Subscription, closer func(context.Context, packet.Publish) error) error {
-	sess.LastAdded = now()
-	sess.Sender = closer
+func (s *memDBStore) Create(sess *pb.Metadata) error {
 	return s.insert(sess)
 }

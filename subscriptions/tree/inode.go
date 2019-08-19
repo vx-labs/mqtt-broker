@@ -1,8 +1,11 @@
-package subscriptions
+package tree
 
 import (
 	"bytes"
 	"errors"
+
+	"github.com/vx-labs/mqtt-broker/subscriptions/pb"
+	"github.com/vx-labs/mqtt-broker/subscriptions/topic"
 )
 
 type INode struct {
@@ -28,7 +31,7 @@ func findChild(d *INode, tenant string, pattern []byte) *Node {
 	return node
 }
 
-func (d *INode) Insert(topic Topic, tenant string, subscription Subscription) {
+func (d *INode) Insert(topic topic.Topic, tenant string, subscription *pb.Metadata) {
 	inode := d
 	var (
 		token []byte
@@ -52,14 +55,17 @@ func (d *INode) Insert(topic Topic, tenant string, subscription Subscription) {
 		}
 	}
 }
-func (d *INode) Remove(tenant, id string, topic Topic) error {
+func (d *INode) Remove(tenant, id string, topic topic.Topic) error {
 	topic, token, ok := topic.Chop()
 	for idx, node := range d.nodes {
 		if bytes.Equal(token, node.pattern) {
 			if !ok {
-				target := node.data.Filter(func(sub Subscription) bool {
-					return sub.ID == id
-				})
+				target := []*pb.Metadata{}
+				for _, sub := range node.data {
+					if sub.ID == id {
+						target = append(target, sub)
+					}
+				}
 				if len(target) == 0 {
 					return errors.New("subscription not found in index")
 				}
@@ -73,9 +79,9 @@ func (d *INode) Remove(tenant, id string, topic Topic) error {
 	return errors.New("subscription not found in index")
 }
 
-func (d *INode) Select(tenant string, set SubscriptionSet, topic Topic) SubscriptionSet {
+func (d *INode) Select(tenant string, set []*pb.Metadata, topic topic.Topic) []*pb.Metadata {
 	if set == nil {
-		set = SubscriptionSet{}
+		set = []*pb.Metadata{}
 	}
 	topic, token, ok := topic.Chop()
 	for _, node := range d.nodes {

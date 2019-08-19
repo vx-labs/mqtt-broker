@@ -7,8 +7,6 @@ import (
 
 	"github.com/vx-labs/mqtt-broker/transport"
 	"go.uber.org/zap"
-
-	subscriptions "github.com/vx-labs/mqtt-broker/subscriptions"
 )
 
 func newUUID() string {
@@ -42,16 +40,6 @@ func getLowerQoS(a, b int32) int32 {
 		return a
 	}
 	return b
-}
-func (b *Broker) deleteSessionSubscriptions(sess string) error {
-	set, err := b.Subscriptions.BySession(sess)
-	if err != nil {
-		return err
-	}
-	set.Apply(func(sub subscriptions.Subscription) {
-		b.Subscriptions.Delete(sub.ID)
-	})
-	return nil
 }
 
 func (b *Broker) Authenticate(transport transport.Metadata, sessionID []byte, username string, password string) (tenant string, err error) {

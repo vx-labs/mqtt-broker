@@ -1,4 +1,4 @@
-package subscriptions
+package topic
 
 import "bytes"
 

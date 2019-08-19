@@ -5,8 +5,6 @@ import (
 	"io"
 	"net"
 
-	"github.com/vx-labs/mqtt-broker/subscriptions"
-
 	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
 
 	"github.com/vx-labs/mqtt-broker/broker/pb"
@@ -17,7 +15,6 @@ import (
 )
 
 type broker interface {
-	ListSubscriptions() (subscriptions.SubscriptionSet, error)
 	CloseSession(ctx context.Context, id string) error
 	DistributeMessage(*pb.MessagePublished) error
 	Connect(context.Context, transport.Metadata, *packet.Connect) (string, string, *packet.ConnAck, error)
@@ -60,18 +57,7 @@ func (s *server) Close() error {
 func (s *server) CloseSession(ctx context.Context, input *pb.CloseSessionInput) (*pb.CloseSessionOutput, error) {
 	return &pb.CloseSessionOutput{ID: input.ID}, s.broker.CloseSession(ctx, input.ID)
 }
-func (s *server) ListSubscriptions(ctx context.Context, filters *pb.SubscriptionFilter) (*pb.ListSubscriptionsOutput, error) {
-	set, err := s.broker.ListSubscriptions()
-	if err != nil {
-		return nil, err
-	}
-	out := []*subscriptions.Metadata{}
-	for idx := range set {
-		subscription := set[idx]
-		out = append(out, &subscription.Metadata)
-	}
-	return &pb.ListSubscriptionsOutput{Subscriptions: out}, nil
-}
+
 func (s *server) DistributeMessage(ctx context.Context, msg *pb.MessagePublished) (*pb.MessagePublishedOutput, error) {
 	err := s.broker.DistributeMessage(msg)
 	return &pb.MessagePublishedOutput{}, err

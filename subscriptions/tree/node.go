@@ -1,14 +1,16 @@
-package subscriptions
+package tree
 
 import (
 	"sync/atomic"
 	"unsafe"
+
+	"github.com/vx-labs/mqtt-broker/subscriptions/pb"
 )
 
 type Node struct {
 	pattern []byte
 	tenant  string
-	data    SubscriptionSet
+	data    []*pb.Metadata
 	inode   *INode
 }
 
@@ -25,7 +27,7 @@ func (n *Node) casINode(old, cur unsafe.Pointer) bool {
 	return atomic.CompareAndSwapPointer(dest, old, cur)
 }
 
-func (n *Node) AddSubscription(tenant string, subscription Subscription) *Node {
+func (n *Node) AddSubscription(tenant string, subscription *pb.Metadata) *Node {
 	newNode := NewNode(tenant, n.pattern)
 	newNode.data = append(n.data, subscription)
 	newNode.inode = n.inode

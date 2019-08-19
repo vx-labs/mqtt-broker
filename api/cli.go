@@ -29,7 +29,7 @@ func (b *api) acceptLoop(listener net.Listener) {
 			w.WriteHeader(http.StatusMethodNotAllowed)
 			return
 		}
-		sessions, err := b.brokerClient.ListSubscriptions(r.Context())
+		sessions, err := b.subscriptionsClient.All(r.Context())
 		if err != nil {
 			httpFail(w, err)
 			return

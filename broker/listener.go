@@ -14,7 +14,7 @@ import (
 	"google.golang.org/grpc"
 
 	sessions "github.com/vx-labs/mqtt-broker/sessions/pb"
-	"github.com/vx-labs/mqtt-broker/subscriptions"
+	subscriptions "github.com/vx-labs/mqtt-broker/subscriptions/pb"
 	"github.com/vx-labs/mqtt-broker/topics"
 	"github.com/vx-labs/mqtt-broker/transport"
 	"github.com/vx-labs/mqtt-protocol/packet"
@@ -139,22 +139,15 @@ func (b *Broker) Subscribe(ctx context.Context, token string, p *packet.Subscrib
 	}
 	for idx, pattern := range p.Topic {
 		subID := makeSubID(sess.SessionID, pattern)
-		event := subscriptions.Subscription{
-			Metadata: subscriptions.Metadata{
-				ID:        subID,
-				Pattern:   pattern,
-				Qos:       p.Qos[idx],
-				Tenant:    sess.SessionTenant,
-				SessionID: sess.SessionID,
-				Peer:      sess.PeerID,
-			},
+		event := subscriptions.SubscriptionCreateInput{
+			ID:        subID,
+			Pattern:   pattern,
+			Qos:       p.Qos[idx],
+			Tenant:    sess.SessionTenant,
+			SessionID: sess.SessionID,
+			Peer:      sess.PeerID,
 		}
-		err := b.Subscriptions.Create(event, func(ctx context.Context, publish packet.Publish) error {
-			if (publish.Header.Qos) > event.Qos {
-				publish.Header.Qos = event.Qos
-			}
-			return b.sendToSession(ctx, sess.SessionID, sess.PeerID, &publish)
-		})
+		err := b.Subscriptions.Create(b.ctx, event)
 		if err != nil {
 			return nil, err
 		}
@@ -210,16 +203,14 @@ func (b *Broker) Subscribe(ctx context.Context, token string, p *packet.Subscrib
 }
 
 func (b *Broker) routeMessage(tenant string, p *packet.Publish) error {
-	recipients, err := b.Subscriptions.ByTopic(tenant, p.Topic)
+	recipients, err := b.Subscriptions.ByTopic(b.ctx, tenant, p.Topic)
 	if err != nil {
 		return err
 	}
 	message := *p
 	message.Header.Retain = false
-	if len(recipients) > 0 {
-		recipients.Apply(func(sub subscriptions.Subscription) {
-			sub.Sender(b.ctx, message)
-		})
+	for _, recipient := range recipients {
+		b.sendToSession(b.ctx, recipient.SessionID, recipient.Peer, p)
 	}
 	return nil
 }
@@ -253,21 +244,17 @@ func (b *Broker) Unsubscribe(ctx context.Context, token string, p *packet.Unsubs
 		b.logger.Warn("received packet from an unknown session", zap.String("session_id", sess.SessionID), zap.String("packet", "unsubscribe"))
 		return nil, err
 	}
-	set, err := b.Subscriptions.BySession(sess.SessionID)
+	userSubscriptions, err := b.Subscriptions.BySession(b.ctx, sess.SessionID)
 	if err != nil {
 		return nil, err
 	}
-	set = set.Filter(func(sub subscriptions.Subscription) bool {
+	for _, subscription := range userSubscriptions {
 		for _, topic := range p.Topic {
-			if bytes.Compare(topic, sub.Pattern) == 0 {
-				return true
+			if bytes.Compare(topic, subscription.Pattern) == 0 {
+				b.Subscriptions.Delete(b.ctx, subscription.ID)
 			}
 		}
-		return false
-	})
-	set.Apply(func(sub subscriptions.Subscription) {
-		b.Subscriptions.Delete(sub.ID)
-	})
+	}
 	return &packet.UnsubAck{
 		MessageId: p.MessageId,
 		Header:    &packet.Header{},
@@ -282,10 +269,6 @@ func (b *Broker) Disconnect(ctx context.Context, token string, p *packet.Disconn
 	err = b.Sessions.Delete(b.ctx, sess.SessionID)
 	if err != nil {
 		b.logger.Error("failed to delete session when disconnecting", zap.String("session_id", sess.SessionID), zap.Error(err))
-	}
-	err = b.deleteSessionSubscriptions(sess.SessionID)
-	if err != nil {
-		b.logger.Error("failed to delete session subscriptions when disconnecting", zap.String("session_id", sess.SessionID), zap.Error(err))
 	}
 	b.logger.Info("session disconnected", zap.String("session_id", sess.SessionID))
 	return nil
@@ -329,11 +312,6 @@ func (b *Broker) CloseSession(ctx context.Context, token string) error {
 		})
 	}
 	b.Sessions.Delete(b.ctx, decodedToken.SessionID)
-	err = b.deleteSessionSubscriptions(decodedToken.SessionID)
-	if err != nil {
-		b.logger.Error("failed to delete session subscriptions", zap.String("session_id", decodedToken.SessionID), zap.Error(err))
-		return err
-	}
 	b.logger.Info("session lost", zap.String("session_id", decodedToken.SessionID))
 	return nil
 }

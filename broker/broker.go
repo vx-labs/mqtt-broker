@@ -20,7 +20,7 @@ import (
 	"github.com/vx-labs/mqtt-protocol/packet"
 
 	publishQueue "github.com/vx-labs/mqtt-broker/queues/publish"
-	"github.com/vx-labs/mqtt-broker/subscriptions"
+	subscriptions "github.com/vx-labs/mqtt-broker/subscriptions/pb"
 )
 
 const (
@@ -49,14 +49,13 @@ type TopicStore interface {
 	All() (topics.RetainedMessageSet, error)
 }
 type SubscriptionStore interface {
-	ByTopic(tenant string, pattern []byte) (subscriptions.SubscriptionSet, error)
-	ByID(id string) (subscriptions.Subscription, error)
-	All() (subscriptions.SubscriptionSet, error)
-	ByPeer(peer string) (subscriptions.SubscriptionSet, error)
-	BySession(id string) (subscriptions.SubscriptionSet, error)
-	Sessions() ([]string, error)
-	Create(message subscriptions.Subscription, sender func(context.Context, packet.Publish) error) error
-	Delete(id string) error
+	ByTopic(ctx context.Context, tenant string, pattern []byte) ([]*subscriptions.Metadata, error)
+	ByID(ctx context.Context, id string) (*subscriptions.Metadata, error)
+	All(ctx context.Context) ([]*subscriptions.Metadata, error)
+	ByPeer(ctx context.Context, peer string) ([]*subscriptions.Metadata, error)
+	BySession(ctx context.Context, id string) ([]*subscriptions.Metadata, error)
+	Create(ctx context.Context, message subscriptions.SubscriptionCreateInput) error
+	Delete(ctx context.Context, id string) error
 }
 type Queue interface {
 	Enqueue(p *publishQueue.Message)
@@ -84,15 +83,20 @@ func New(id string, logger *zap.Logger, mesh cluster.DiscoveryLayer, config Conf
 	if err != nil {
 		panic(err)
 	}
+	subscriptionsConn, err := mesh.DialService("subscriptions")
+	if err != nil {
+		panic(err)
+	}
 	broker := &Broker{
-		ID:           id,
-		authHelper:   config.AuthHelper,
-		workers:      pool.NewPool(25),
-		ctx:          ctx,
-		mesh:         mesh,
-		publishQueue: publishQueue.New(),
-		logger:       logger,
-		Sessions:     sessions.NewClient(sessionsConn),
+		ID:            id,
+		authHelper:    config.AuthHelper,
+		workers:       pool.NewPool(25),
+		ctx:           ctx,
+		mesh:          mesh,
+		publishQueue:  publishQueue.New(),
+		logger:        logger,
+		Sessions:      sessions.NewClient(sessionsConn),
+		Subscriptions: subscriptions.NewClient(subscriptionsConn),
 	}
 
 	broker.startPublishConsumers()
@@ -100,25 +104,6 @@ func New(id string, logger *zap.Logger, mesh cluster.DiscoveryLayer, config Conf
 }
 
 func (broker *Broker) Start(layer types.GossipServiceLayer) {
-	subscriptionsStore, err := subscriptions.NewMemDBStore(layer, func(host string, id string, publish packet.Publish) error {
-		session, err := broker.Sessions.ByID(broker.ctx, id)
-		if err != nil {
-			broker.logger.Warn("publish subscription toward an unknown session", zap.String("session_id", id), zap.Binary("topic_pattern", publish.Topic))
-			set, err := broker.Subscriptions.BySession(id)
-			if err != nil {
-				broker.logger.Error("failed to fetch session subscriptions", zap.String("session_id", id), zap.Error(err))
-				return err
-			}
-			set.Apply(func(subscription subscriptions.Subscription) {
-				broker.Subscriptions.Delete(subscription.ID)
-			})
-			return nil
-		}
-		return broker.sendToSession(broker.ctx, id, session.Peer, &publish)
-	})
-	if err != nil {
-		log.Fatal(err)
-	}
 	peersStore := broker.mesh.Peers()
 	topicssStore, err := topics.NewMemDBStore(layer)
 	if err != nil {
@@ -126,21 +111,20 @@ func (broker *Broker) Start(layer types.GossipServiceLayer) {
 	}
 	broker.Peers = peersStore
 	broker.Topics = topicssStore
-	broker.Subscriptions = subscriptionsStore
 	layer.OnNodeLeave(func(id string, meta clusterpb.NodeMeta) {
 		broker.onPeerDown(id)
 	})
 }
 func (b *Broker) onPeerDown(name string) {
 	b.logger.Info("peer down", zap.String("peer_id", name))
-	set, err := b.Subscriptions.ByPeer(name)
+	set, err := b.Subscriptions.ByPeer(b.ctx, name)
 	if err != nil {
 		b.logger.Error("failed to remove subscriptions from old peer", zap.String("peer_id", name), zap.Error(err))
 		return
 	}
-	set.Apply(func(sub subscriptions.Subscription) {
-		b.Subscriptions.Delete(sub.ID)
-	})
+	for _, sub := range set {
+		b.Subscriptions.Delete(b.ctx, sub.ID)
+	}
 	b.logger.Info("removed subscriptions from old peer", zap.String("peer_id", name), zap.Int("count", len(set)))
 
 	sessionSet, err := b.Sessions.ByPeer(b.ctx, name)
@@ -161,21 +145,14 @@ func (b *Broker) onPeerDown(name string) {
 			}
 			b.Topics.Create(retainedMessage)
 		}
-		recipients, err := b.Subscriptions.ByTopic(s.Tenant, s.WillTopic)
-		if err != nil {
-			return
-		}
-
-		lwt := packet.Publish{
+		lwt := &packet.Publish{
 			Payload: s.WillPayload,
 			Topic:   s.WillTopic,
 			Header: &packet.Header{
 				Qos: s.WillQoS,
 			},
 		}
-		recipients.Apply(func(sub subscriptions.Subscription) {
-			sub.Sender(b.ctx, lwt)
-		})
+		b.routeMessage(s.Tenant, lwt)
 	}
 }
 

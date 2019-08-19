@@ -1,16 +1,18 @@
-package subscriptions
+package tree
 
 import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"github.com/vx-labs/mqtt-broker/subscriptions/pb"
+	"github.com/vx-labs/mqtt-broker/subscriptions/topic"
 )
 
 var (
-	sub_1 = Subscription{Metadata: Metadata{ID: "1", Pattern: []byte("devices/+/degrees")}}
-	sub_2 = Subscription{Metadata: Metadata{ID: "2"}}
-	sub_3 = Subscription{Metadata: Metadata{ID: "3"}}
-	sub_4 = Subscription{Metadata: Metadata{ID: "4"}}
+	sub_1 = &pb.Metadata{ID: "1", Pattern: []byte("devices/+/degrees")}
+	sub_2 = &pb.Metadata{ID: "2"}
+	sub_3 = &pb.Metadata{ID: "3"}
+	sub_4 = &pb.Metadata{ID: "4"}
 )
 
 func TestNode(t *testing.T) {
@@ -25,7 +27,7 @@ func TestNode(t *testing.T) {
 	})
 	t.Run("del subscription", func(t *testing.T) {
 		a := NewNode(tenant, []byte("test"))
-		a.data = SubscriptionSet{sub_1, sub_2, sub_3}
+		a.data = []*pb.Metadata{sub_1, sub_2, sub_3}
 		a = a.DelSubscription("2")
 		require.Equal(t, 2, len(a.data))
 	})
@@ -36,7 +38,7 @@ func TestNode(t *testing.T) {
 	})
 	t.Run("insert", func(t *testing.T) {
 		root := NewINode()
-		root.Insert(Topic([]byte("devices/a/degrees")), tenant, sub_1)
+		root.Insert(topic.Topic([]byte("devices/a/degrees")), tenant, sub_1)
 		require.Equal(t, 1, len(root.nodes))
 		require.Equal(t, []byte("devices"), root.nodes[0].pattern)
 		require.Equal(t, 1, len(root.nodes[0].inode.nodes))
@@ -44,14 +46,14 @@ func TestNode(t *testing.T) {
 		require.Equal(t, 1, len(root.nodes[0].inode.nodes[0].inode.nodes))
 		require.Equal(t, []byte("degrees"), root.nodes[0].inode.nodes[0].inode.nodes[0].pattern)
 		require.Equal(t, 1, len(root.nodes[0].inode.nodes[0].inode.nodes[0].data))
-		root.Insert(Topic([]byte("devices/a/degrees")), tenant, sub_2)
+		root.Insert(topic.Topic([]byte("devices/a/degrees")), tenant, sub_2)
 		require.Equal(t, 2, len(root.nodes[0].inode.nodes[0].inode.nodes[0].data))
 
 	})
 
 	t.Run("select", func(t *testing.T) {
 		root := NewINode()
-		topic := Topic([]byte("devices/a/degrees"))
+		pattern := topic.Topic([]byte("devices/a/degrees"))
 		a := NewNode(tenant, []byte("devices"))
 		b := NewNode(tenant, []byte("+"))
 		c := NewNode(tenant, []byte("a"))
@@ -72,15 +74,15 @@ func TestNode(t *testing.T) {
 			a (devices) -> b (+)  -> d (degrees)
 			 	        `->  c (a)  -> e (degrees)
 		*/
-		set := root.Select(tenant, nil, topic)
+		set := root.Select(tenant, nil, pattern)
 		require.Equal(t, 2, len(set))
-		require.NoError(t, root.Remove(tenant, sub_1.ID, Topic(sub_1.Pattern)))
-		set = root.Select(tenant, nil, topic)
+		require.NoError(t, root.Remove(tenant, sub_1.ID, topic.Topic(sub_1.Pattern)))
+		set = root.Select(tenant, nil, pattern)
 		require.Equal(t, 1, len(set))
 	})
 	t.Run("select mlw", func(t *testing.T) {
 		root := NewINode()
-		topic := Topic([]byte("devices/heater/state"))
+		topic := topic.Topic([]byte("devices/heater/state"))
 		a := NewNode(tenant, []byte("devices"))
 		b := NewNode(tenant, []byte("#"))
 		b = b.AddSubscription(tenant, sub_1)
@@ -108,7 +110,7 @@ func BenchmarkNode(b *testing.B) {
 
 	b.Run("select", func(bench *testing.B) {
 		root := NewINode()
-		topic := Topic([]byte("devices/a/temperature/degrees"))
+		topic := topic.Topic([]byte("devices/a/temperature/degrees"))
 		a := NewNode(tenant, []byte("devices"))
 		b := NewNode(tenant, []byte("+"))
 		c := NewNode(tenant, []byte("a"))

@@ -1,0 +1,69 @@
+syntax = "proto3";
+package pb;
+
+message Metadata {
+  string ID = 1;
+  string SessionID = 2;
+  string Tenant = 3;
+  bytes Pattern = 4;
+  int32 Qos = 5;
+  string Peer = 6;
+  int64 LastAdded = 7;
+  int64 LastDeleted = 8;
+}
+
+message SubscriptionMetadataList {
+  repeated Metadata Metadatas = 1;
+}
+
+message SubscriptionCreateInput {
+  string ID = 1;
+  string SessionID = 2;
+  string Tenant = 3;
+  bytes Pattern = 4;
+  int32 Qos = 5;
+  string Peer = 6;
+}
+message SubscriptionCreateOutput {}
+message SubscriptionByIDInput {
+  string ID = 1;
+}
+message SubscriptionBySessionInput {
+  string SessionID = 1;
+}
+message SubscriptionByPeerInput {
+  string PeerID = 1;
+}
+message SubscriptionByTopicInput {
+  bytes Topic = 1;
+  string Tenant = 2;
+}
+message SubscriptionFilterInput {}
+message SubscriptionDeleteInput {
+  string ID = 1;
+}
+message SubscriptionDeleteOutput {}
+
+service SubscriptionsService {
+  rpc Create(SubscriptionCreateInput) returns (SubscriptionCreateOutput);
+  rpc Delete(SubscriptionDeleteInput) returns (SubscriptionDeleteOutput);
+  rpc ByID(SubscriptionByIDInput) returns (Metadata);
+  rpc BySession(SubscriptionBySessionInput) returns (SubscriptionMetadataList);
+  rpc ByPeer(SubscriptionByPeerInput) returns (SubscriptionMetadataList);
+  rpc ByTopic(SubscriptionByTopicInput) returns (SubscriptionMetadataList);
+  rpc All(SubscriptionFilterInput) returns (SubscriptionMetadataList);
+}
+
+message SubscriptionStateTransition {
+  string Kind = 1;
+  SubscriptionStateTransitionSubscriptionCreated SubscriptionCreated = 2;
+  SubscriptionStateTransitionSubscriptionDeleted SubscriptionDeleted = 3;
+}
+
+message SubscriptionStateTransitionSubscriptionCreated {
+  SubscriptionCreateInput Input = 1;
+}
+
+message SubscriptionStateTransitionSubscriptionDeleted {
+  string ID = 1;
+}
