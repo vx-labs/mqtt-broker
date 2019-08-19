@@ -26,6 +26,12 @@ func (s *server) SendPublish(ctx context.Context, input *pb.SendPublishInput) (*
 	}
 	return &pb.SendPublishOutput{}, err
 }
+func (s *server) SendBatchPublish(ctx context.Context, input *pb.SendBatchPublishInput) (*pb.SendBatchPublishOutput, error) {
+	for _, recipient := range input.ID {
+		s.endpoint.Publish(ctx, recipient, input.Publish)
+	}
+	return &pb.SendBatchPublishOutput{}, nil
+}
 func (s *server) Shutdown(ctx context.Context, input *pb.ShutdownInput) (*pb.ShutdownOutput, error) {
 	return &pb.ShutdownOutput{}, s.endpoint.CloseSession(ctx, input.ID)
 }

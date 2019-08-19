@@ -7,6 +7,12 @@ message SendPublishInput {
 }
 
 message SendPublishOutput {}
+message SendBatchPublishInput {
+  repeated string ID = 1;
+  packet.Publish Publish = 2;
+}
+
+message SendBatchPublishOutput {}
 
 message ShutdownInput {
   string ID = 1;
@@ -18,5 +24,6 @@ message CloseOutput {}
 
 service ListenerService {
   rpc SendPublish(SendPublishInput) returns (SendPublishOutput);
+  rpc SendBatchPublish(SendBatchPublishInput) returns (SendBatchPublishOutput);
 	rpc Shutdown(ShutdownInput) returns (ShutdownOutput);
 }

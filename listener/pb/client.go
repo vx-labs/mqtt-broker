@@ -29,3 +29,10 @@ func (c *Client) SendPublish(ctx context.Context, id string, publish *packet.Pub
 	})
 	return err
 }
+func (c *Client) SendBatchPublish(ctx context.Context, id []string, publish *packet.Publish) error {
+	_, err := c.api.SendBatchPublish(ctx, &SendBatchPublishInput{
+		ID:      id,
+		Publish: publish,
+	})
+	return err
+}
