@@ -1,4 +1,4 @@
-VERSION = $(shell git describe --abbrev=0 --tags)
+VERSION = $(shell git rev-parse --short HEAD)
 DOCKER_BUILD_ARGS = --network host --build-arg https_proxy=${https_proxy}
 
 build:: build-api build-broker build-listener build-sessions
