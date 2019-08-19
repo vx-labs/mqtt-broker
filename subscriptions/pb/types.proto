@@ -8,8 +8,6 @@ message Metadata {
   bytes Pattern = 4;
   int32 Qos = 5;
   string Peer = 6;
-  int64 LastAdded = 7;
-  int64 LastDeleted = 8;
 }
 
 message SubscriptionMetadataList {

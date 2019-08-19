@@ -10,8 +10,6 @@ message Session {
   bool WillRetain = 7;
   int64 Created = 8;
   string ClientID = 9;
-  int64 LastAdded = 10;
-  int64 LastDeleted = 11;
   string Transport = 12;
   string RemoteAddress = 13;
   string ClosureReason = 14;
