@@ -163,27 +163,25 @@ func (b *Broker) Subscribe(ctx context.Context, token string, p *packet.Subscrib
 			return nil, err
 		}
 		packetQoS := p.Qos[idx]
-		go func() {
-			set.Apply(func(message topics.RetainedMessage) {
-				qos := getLowerQoS(message.Qos, packetQoS)
-				err := b.sendToSession(b.ctx, sess.SessionID, sess.PeerID, &packet.Publish{
-					Header: &packet.Header{
-						Qos:    qos,
-						Retain: true,
-					},
-					MessageId: 1,
-					Payload:   message.Payload,
-					Topic:     message.Topic,
-				})
-				if err != nil {
-					b.logger.Error("failed to publish retained message",
-						zap.Error(err),
-						zap.String("session_id", sess.SessionID),
-						zap.String("subscription_id", subID),
-						zap.Binary("topic_pattern", message.Topic))
-				}
+		set.Apply(func(message topics.RetainedMessage) {
+			qos := getLowerQoS(message.Qos, packetQoS)
+			err := b.sendToSession(b.ctx, sess.SessionID, sess.PeerID, &packet.Publish{
+				Header: &packet.Header{
+					Qos:    qos,
+					Retain: true,
+				},
+				MessageId: 1,
+				Payload:   message.Payload,
+				Topic:     message.Topic,
 			})
-		}()
+			if err != nil {
+				b.logger.Error("failed to publish retained message",
+					zap.Error(err),
+					zap.String("session_id", sess.SessionID),
+					zap.String("subscription_id", subID),
+					zap.Binary("topic_pattern", message.Topic))
+			}
+		})
 	}
 	qos := make([]int32, len(p.Qos))
 
