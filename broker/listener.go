@@ -273,6 +273,7 @@ func (b *Broker) CloseSession(ctx context.Context, token string) error {
 		return err
 	}
 	if len(sess.WillTopic) > 0 {
+		b.logger.Info("sending LWT", zap.String("session_id", sess.ID), zap.Error(err))
 		if sess.WillRetain {
 			retainedMessage := topics.RetainedMessage{
 				Metadata: topics.Metadata{
