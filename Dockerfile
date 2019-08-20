@@ -1,3 +1,4 @@
+
 FROM quay.io/vxlabs/dep as deps
 RUN mkdir -p $GOPATH/src/github.com/vx-labs
 WORKDIR $GOPATH/src/github.com/vx-labs/mqtt-broker
@@ -14,44 +15,49 @@ COPY . ./
 RUN go test ./...
 
 FROM quay.io/vxlabs/dep as subscriptions-builder
+ARG BUILT_VERSION="n/a"
 RUN mkdir -p $GOPATH/src/github.com/vx-labs
 WORKDIR $GOPATH/src/github.com/vx-labs/mqtt-broker
 RUN mkdir release
 COPY --from=deps $GOPATH/src/github.com/vx-labs/mqtt-broker/vendor/ ./vendor/
 COPY . ./
-RUN go build -buildmode=exe -ldflags="-s -w" -a -o /bin/subscriptions ./cli/subscriptions
+RUN go build -buildmode=exe -ldflags="-s -w -X github.com/vx-labs/mqtt-broker/cli.BuiltVersion=${BUILT_VERSION}" -a -o /bin/subscriptions ./cli/subscriptions
 
 FROM quay.io/vxlabs/dep as api-builder
+ARG BUILT_VERSION="n/a"
 RUN mkdir -p $GOPATH/src/github.com/vx-labs
 WORKDIR $GOPATH/src/github.com/vx-labs/mqtt-broker
 RUN mkdir release
 COPY --from=deps $GOPATH/src/github.com/vx-labs/mqtt-broker/vendor/ ./vendor/
 COPY . ./
-RUN go build -buildmode=exe -ldflags="-s -w" -a -o /bin/api ./cli/api
+RUN go build -buildmode=exe -ldflags="-s -w -X github.com/vx-labs/mqtt-broker/cli.BuiltVersion=${BUILT_VERSION}" -a -o /bin/api ./cli/api
 
 FROM quay.io/vxlabs/dep as broker-builder
+ARG BUILT_VERSION="n/a"
 RUN mkdir -p $GOPATH/src/github.com/vx-labs
 WORKDIR $GOPATH/src/github.com/vx-labs/mqtt-broker
 RUN mkdir release
 COPY --from=deps $GOPATH/src/github.com/vx-labs/mqtt-broker/vendor/ ./vendor/
 COPY . ./
-RUN go build -buildmode=exe -ldflags="-s -w" -a -o /bin/broker ./cli/broker
+RUN go build -buildmode=exe -ldflags="-s -w -X github.com/vx-labs/mqtt-broker/cli.BuiltVersion=${BUILT_VERSION}" -a -o /bin/broker ./cli/broker
 
 FROM quay.io/vxlabs/dep as listener-builder
+ARG BUILT_VERSION="n/a"
 RUN mkdir -p $GOPATH/src/github.com/vx-labs
 WORKDIR $GOPATH/src/github.com/vx-labs/mqtt-broker
 RUN mkdir release
 COPY --from=deps $GOPATH/src/github.com/vx-labs/mqtt-broker/vendor/ ./vendor/
 COPY . ./
-RUN go build -buildmode=exe -ldflags="-s -w" -a -o /bin/listener ./cli/listener
+RUN go build -buildmode=exe -ldflags="-s -w -X github.com/vx-labs/mqtt-broker/cli.BuiltVersion=${BUILT_VERSION}" -a -o /bin/listener ./cli/listener
 
 FROM quay.io/vxlabs/dep as sessions-builder
+ARG BUILT_VERSION="n/a"
 RUN mkdir -p $GOPATH/src/github.com/vx-labs
 WORKDIR $GOPATH/src/github.com/vx-labs/mqtt-broker
 RUN mkdir release
 COPY --from=deps $GOPATH/src/github.com/vx-labs/mqtt-broker/vendor/ ./vendor/
 COPY . ./
-RUN go build -buildmode=exe -ldflags="-s -w" -a -o /bin/sessions ./cli/sessions
+RUN go build -buildmode=exe -ldflags="-s -w -X github.com/vx-labs/mqtt-broker/cli.BuiltVersion=${BUILT_VERSION}" -a -o /bin/sessions ./cli/sessions
 
 FROM alpine as broker
 EXPOSE 1883

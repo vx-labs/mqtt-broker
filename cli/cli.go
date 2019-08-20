@@ -113,7 +113,7 @@ func Run(cmd *cobra.Command, name string, serviceFunc func(id string, logger *za
 	var logger *zap.Logger
 	var err error
 	fields := []zap.Field{
-		zap.String("node_id", id), zap.String("service_name", name),
+		zap.String("node_id", id), zap.String("service_name", name), zap.String("version", Version()),
 	}
 	if allocID := os.Getenv("NOMAD_ALLOC_ID"); allocID != "" {
 		fields = append(fields,
