@@ -3,7 +3,6 @@ package listener
 import (
 	"context"
 	"errors"
-	"io"
 	"time"
 
 	"go.uber.org/zap"
@@ -37,7 +36,8 @@ func (local *endpoint) runLocalSession(t transport.Metadata) {
 		zap.String("remote_address", t.RemoteAddress),
 		zap.String("transport", t.Name),
 	}
-	local.logger.Info("accepted new connection", fields...)
+	logger := local.logger.WithOptions(zap.Fields(fields...))
+	logger.Info("accepted new connection")
 	session := &localSession{
 		encoder:   encoder.New(t.Channel),
 		transport: t.Channel,
@@ -54,11 +54,11 @@ func (local *endpoint) runLocalSession(t transport.Metadata) {
 		decoder.OnConnect(func(p *packet.Connect) error {
 			id, token, connack, err := local.broker.Connect(ctx, t, p)
 			if err != nil {
-				local.logger.Error("failed to send CONNECT", append(fields, zap.Error(err))...)
+				logger.Error("failed to send CONNECT", zap.Error(err))
 				return enc.ConnAck(connack)
 			}
 			if id == "" {
-				local.logger.Error("broker returned an empty session id", fields...)
+				logger.Error("broker returned an empty session id")
 				enc.ConnAck(&packet.ConnAck{
 					ReturnCode: packet.CONNACK_REFUSED_SERVER_UNAVAILABLE,
 					Header:     &packet.Header{},
@@ -66,10 +66,10 @@ func (local *endpoint) runLocalSession(t transport.Metadata) {
 				return errors.New("broker returned an empty session id")
 			}
 			if token == "" {
-				local.logger.Warn("broker returned an empty session token", fields...)
+				logger.Warn("broker returned an empty session token")
 				return errors.New("broker returned an empty session token")
 			}
-			fields = append(fields, zap.String("session_id", id), zap.String("client_id", string(p.ClientId)))
+			logger = logger.WithOptions(zap.Fields(zap.String("session_id", id), zap.String("client_id", string(p.ClientId))))
 			session.id = id
 			session.token = token
 			local.mutex.Lock()
@@ -84,7 +84,7 @@ func (local *endpoint) runLocalSession(t transport.Metadata) {
 			})
 			timer = p.KeepaliveTimer
 			renewDeadline(timer, t.Channel)
-			local.logger.Info("started session", fields...)
+			logger.Info("started session")
 			return nil
 		}),
 		decoder.OnPublish(func(p *packet.Publish) error {
@@ -95,7 +95,7 @@ func (local *endpoint) runLocalSession(t transport.Metadata) {
 			return publishWorkers.Call(func() error {
 				puback, err := local.broker.Publish(ctx, session.token, p)
 				if err != nil {
-					local.logger.Error("failed to publish message", append(fields, zap.Error(err))...)
+					logger.Error("failed to publish message", zap.Error(err))
 					return err
 				}
 				if puback != nil {
@@ -164,24 +164,21 @@ func (local *endpoint) runLocalSession(t transport.Metadata) {
 		err = dec.Decode(t.Channel)
 		if err != nil {
 			if err == ErrSessionDisconnected {
-				local.logger.Info("session disconnected", fields...)
+				logger.Info("session disconnected")
 				break
 			}
-			local.logger.Warn("session lost", fields...)
-			if err != io.EOF {
-				local.logger.Error("decoding failed", append(fields, zap.Error(err))...)
-			}
+			logger.Warn("session lost", zap.Error(err))
 			break
 		}
 	}
 	err = t.Channel.Close()
 	if err != nil {
-		local.logger.Warn("failed to close session channel", append(fields, zap.Error(err))...)
+		logger.Warn("failed to close session channel", zap.Error(err))
 	}
 	if session.id != "" {
 		err = local.broker.CloseSession(ctx, session.token)
 		if err != nil {
-			local.logger.Warn("failed to close session on broker", append(fields, zap.Error(err))...)
+			logger.Warn("failed to close session on broker", zap.Error(err))
 		}
 	}
 	local.mutex.Lock()
