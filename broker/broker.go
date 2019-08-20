@@ -116,17 +116,17 @@ func (broker *Broker) Start(layer types.GossipServiceLayer) {
 	})
 }
 func (b *Broker) onPeerDown(name string) {
-	b.logger.Info("peer down", zap.String("peer_id", name))
 	set, err := b.Subscriptions.ByPeer(b.ctx, name)
 	if err != nil {
 		b.logger.Error("failed to remove subscriptions from old peer", zap.String("peer_id", name), zap.Error(err))
 		return
 	}
-	for _, sub := range set {
-		b.Subscriptions.Delete(b.ctx, sub.ID)
+	if len(set) > 0 {
+		for _, sub := range set {
+			b.Subscriptions.Delete(b.ctx, sub.ID)
+		}
+		b.logger.Info("removed subscriptions from old peer", zap.String("peer_id", name), zap.Int("count", len(set)))
 	}
-	b.logger.Info("removed subscriptions from old peer", zap.String("peer_id", name), zap.Int("count", len(set)))
-
 	sessionSet, err := b.Sessions.ByPeer(b.ctx, name)
 	if err != nil {
 		b.logger.Error("failed to remove sessions from old peer", zap.String("peer_id", name), zap.Error(err))
