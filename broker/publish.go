@@ -10,15 +10,27 @@ import (
 )
 
 func (b *Broker) startPublishConsumers() {
+	jobs := make(chan chan *publishQueue.Message)
 	for i := 0; i < 5; i++ {
-		go b.publishQueue.Consume(func(p *publishQueue.Message) {
-			err := b.consumePublish(p)
-			if err != nil {
-				b.logger.Error("failed to publish message", zap.Binary("topic_pattern", p.Publish.Topic), zap.Error(err))
-				b.publishQueue.Enqueue(p)
+		go func() {
+			ch := make(chan *publishQueue.Message)
+			defer close(ch)
+			for {
+				// TODO: implement termination
+				jobs <- ch
+				p := <-ch
+				err := b.consumePublish(p)
+				if err != nil {
+					b.logger.Error("failed to publish message", zap.Binary("topic_pattern", p.Publish.Topic), zap.Error(err))
+					b.publishQueue.Enqueue(p)
+				}
 			}
-		})
+		}()
 	}
+	go b.publishQueue.Consume(func(message *publishQueue.Message) {
+		ch := <-jobs
+		ch <- message
+	})
 }
 func (b *Broker) consumePublish(message *publishQueue.Message) error {
 	p := message.Publish
