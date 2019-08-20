@@ -266,10 +266,10 @@ func (b *Broker) CloseSession(ctx context.Context, token string) error {
 		return err
 	}
 	sess, err := b.Sessions.ByID(b.ctx, decodedToken.SessionID)
-	if err.Error() == sessions.ErrSessionNotFound.Error() {
-		return nil
-	}
 	if err != nil {
+		if err.Error() == sessions.ErrSessionNotFound.Error() {
+			return nil
+		}
 		return err
 	}
 	if len(sess.WillTopic) > 0 {

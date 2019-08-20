@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
-	"log"
 	"net"
 	"net/http"
 
@@ -26,7 +25,6 @@ func NewWSSTransport(ctx context.Context, cn string, port int, logger *zap.Logge
 	mux := http.NewServeMux()
 	server := &websocket.Server{
 		Handshake: func(config *websocket.Config, r *http.Request) error {
-			log.Printf("new secure websocket connection from %s", r.RemoteAddr)
 			return nil
 		},
 		Handler: websocket.Handler(func(conn *websocket.Conn) {
@@ -39,7 +37,7 @@ func NewWSSTransport(ctx context.Context, cn string, port int, logger *zap.Logge
 	mux.Handle("/mqtt", server)
 	ln, err := tls.Listen("tcp", fmt.Sprintf(":%d", port), TLSConfig)
 	if err != nil {
-		log.Fatalf("failed to start WSS listener: %v", err)
+		logger.Fatal("failed to start WSS listener", zap.Error(err))
 	}
 	listener.listener = ln
 	go http.Serve(ln, mux)
