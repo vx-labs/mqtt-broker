@@ -75,7 +75,7 @@ message SessionStateTransition {
 }
 
 message SessionStateTransitionSessionCreated {
-  SessionCreateInput Input = 1;
+  Session Input = 1;
 }
 
 message SessionStateTransitionSessionDeleted {

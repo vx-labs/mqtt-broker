@@ -249,7 +249,7 @@ func (s *raftlayer) Status(ctx context.Context, input *pb.StatusInput) (*pb.Stat
 func (s *raftlayer) SendEvent(ctx context.Context, input *pb.SendEventInput) (*pb.SendEventOutput, error) {
 	return &pb.SendEventOutput{}, s.ApplyEvent(input.Payload)
 }
-func (s *raftlayer) isLeader() bool {
+func (s *raftlayer) IsLeader() bool {
 	return s.raft.State() == raft.Leader
 }
 func (s *raftlayer) isNodeAdopted(id string) bool {
@@ -314,7 +314,7 @@ func (s *raftlayer) syncMembers() {
 }
 func (s *raftlayer) leaderRoutine() {
 	s.discovery.Peers().On(peers.PeerCreated, func(member peers.Peer) {
-		if !s.isLeader() {
+		if !s.IsLeader() {
 			return
 		}
 		if s.isNodeAdopted(member.ID) {
@@ -327,7 +327,7 @@ func (s *raftlayer) leaderRoutine() {
 		}
 	})
 	s.discovery.Peers().On(peers.PeerDeleted, func(member peers.Peer) {
-		if !s.isLeader() {
+		if !s.IsLeader() {
 			return
 		}
 		if !s.isNodeAdopted(member.ID) {
@@ -353,7 +353,7 @@ func (s *raftlayer) leaderRoutine() {
 	}
 }
 func (s *raftlayer) Apply(log *raft.Log) interface{} {
-	return s.state.Apply(log.Data, s.isLeader())
+	return s.state.Apply(log.Data, s.IsLeader())
 }
 
 type snapshot struct {
@@ -382,7 +382,7 @@ func (s *raftlayer) Shutdown() error {
 	return s.raft.Shutdown().Error()
 }
 func (s *raftlayer) ApplyEvent(event []byte) error {
-	if !s.isLeader() {
+	if !s.IsLeader() {
 		s.logger.Debug("forwarding event to leader")
 		leader := string(s.raft.Leader())
 		serviceRPC := fmt.Sprintf("%s_rpc", s.name)

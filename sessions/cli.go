@@ -7,6 +7,7 @@ import (
 	"io"
 	"io/ioutil"
 	"net"
+	"time"
 
 	"github.com/golang/protobuf/proto"
 
@@ -41,6 +42,12 @@ func (b *server) JoinServiceLayer(name string, logger *zap.Logger, config cluste
 	if err != nil {
 		panic(err)
 	}
+	go func() {
+		ticker := time.NewTicker(5 * time.Second)
+		for range ticker.C {
+			b.gcExpiredSessions()
+		}
+	}()
 }
 func (m *server) Restore(r io.Reader) error {
 	payload, err := ioutil.ReadAll(r)
@@ -102,21 +109,7 @@ func (m *server) Apply(payload []byte, leader bool) error {
 			m.logger.Info("created session", zap.String("session_id", event.SessionCreated.Input.ID))
 		}
 		input := event.SessionCreated.Input
-		err := m.store.Create(&pb.Session{
-			ClientID:          input.ClientID,
-			ID:                input.ID,
-			KeepaliveInterval: input.KeepaliveInterval,
-			Peer:              input.Peer,
-			RemoteAddress:     input.RemoteAddress,
-			Tenant:            input.Tenant,
-			Transport:         input.Transport,
-			WillPayload:       input.WillPayload,
-			WillTopic:         input.WillTopic,
-			WillRetain:        input.WillRetain,
-			WillQoS:           input.WillQoS,
-			Created:           input.Timestamp,
-			LastKeepAlive:     input.Timestamp,
-		})
+		err := m.store.Create(input)
 		return err
 	case transitionSessionDeleted:
 		if leader {
