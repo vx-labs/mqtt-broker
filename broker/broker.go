@@ -134,22 +134,12 @@ func (b *Broker) onPeerDown(name string) {
 	}
 	for _, s := range sessionSet {
 		b.Sessions.Delete(b.ctx, s.ID)
-		if s.WillRetain {
-			retainedMessage := topics.RetainedMessage{
-				Metadata: topics.Metadata{
-					Payload: s.WillPayload,
-					Qos:     s.WillQoS,
-					Tenant:  s.Tenant,
-					Topic:   s.WillTopic,
-				},
-			}
-			b.Topics.Create(retainedMessage)
-		}
 		lwt := &packet.Publish{
 			Payload: s.WillPayload,
 			Topic:   s.WillTopic,
 			Header: &packet.Header{
-				Qos: s.WillQoS,
+				Qos:    s.WillQoS,
+				Retain: s.WillRetain,
 			},
 		}
 		b.publishQueue.Enqueue(&publishQueue.Message{

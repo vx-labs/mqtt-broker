@@ -274,26 +274,12 @@ func (b *Broker) CloseSession(ctx context.Context, token string) error {
 	}
 	if len(sess.WillTopic) > 0 {
 		b.logger.Info("sending LWT", zap.String("session_id", sess.ID), zap.Error(err))
-		if sess.WillRetain {
-			retainedMessage := topics.RetainedMessage{
-				Metadata: topics.Metadata{
-					Payload: sess.WillPayload,
-					Qos:     sess.WillQoS,
-					Tenant:  sess.Tenant,
-					Topic:   sess.WillTopic,
-				},
-			}
-			b.Topics.Create(retainedMessage)
-			if err != nil {
-				b.logger.Warn("failed to retain LWT", zap.String("session_id", sess.ID), zap.Error(err))
-			}
-		}
 		b.publishQueue.Enqueue(&publishQueue.Message{
 			Tenant: sess.Tenant,
 			Publish: &packet.Publish{
 				Header: &packet.Header{
 					Dup:    false,
-					Retain: false,
+					Retain: sess.WillRetain,
 					Qos:    sess.WillQoS,
 				},
 				Payload: sess.WillPayload,
