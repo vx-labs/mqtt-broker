@@ -1,6 +1,8 @@
 package sessions
 
 import (
+	"time"
+
 	"github.com/vx-labs/mqtt-broker/sessions/pb"
 	"go.uber.org/zap"
 
@@ -153,6 +155,7 @@ func (s *memDBStore) ByPeer(peer string) (*pb.SessionMetadataList, error) {
 }
 
 func (s *memDBStore) Create(sess *pb.Session) error {
+	sess.Started = time.Now().Unix()
 	return s.insert(sess)
 }
 func (s *memDBStore) insert(sess *pb.Session) error {

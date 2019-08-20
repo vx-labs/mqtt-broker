@@ -14,6 +14,7 @@ message Session {
   string RemoteAddress = 13;
   string ClosureReason = 14;
   int32 KeepaliveInterval = 15;
+  int64 Started = 16;
 }
 
 message SessionMetadataList {
