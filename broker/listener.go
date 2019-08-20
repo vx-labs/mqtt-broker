@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/vx-labs/mqtt-broker/cluster"
 	listenerpb "github.com/vx-labs/mqtt-broker/listener/pb"
@@ -100,6 +101,7 @@ func (b *Broker) Connect(ctx context.Context, metadata transport.Metadata, p *pa
 			Transport:         metadata.Name,
 			RemoteAddress:     metadata.RemoteAddress,
 			KeepaliveInterval: p.KeepaliveTimer,
+			Timestamp:         time.Now().Unix(),
 		}
 		err = b.Sessions.Create(b.ctx, input)
 		if err != nil {
@@ -298,11 +300,12 @@ func (b *Broker) PingReq(ctx context.Context, id string, _ *packet.PingReq) (*pa
 		b.logger.Warn("received packet from an unknown session", zap.String("session_id", token.SessionID), zap.String("packet", "pingreq"))
 		return nil, err
 	}
-	_, err = b.Sessions.ByID(ctx, token.SessionID)
+	err = b.Sessions.RefreshKeepAlive(ctx, token.SessionID, time.Now().Unix())
 	if err != nil {
 		b.logger.Warn("received packet from an unknown session", zap.String("session_id", token.SessionID), zap.String("packet", "pingreq"))
 		return nil, err
 	}
+
 	return &packet.PingResp{
 		Header: &packet.Header{},
 	}, nil

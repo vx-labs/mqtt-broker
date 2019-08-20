@@ -40,6 +40,7 @@ type SessionStore interface {
 	ByPeer(ctx context.Context, peer string) ([]*sessions.Session, error)
 	All(ctx context.Context) ([]*sessions.Session, error)
 	Create(ctx context.Context, sess sessions.SessionCreateInput) error
+	RefreshKeepAlive(ctx context.Context, id string, timestamp int64) error
 	Delete(ctx context.Context, id string) error
 }
 

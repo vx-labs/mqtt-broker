@@ -114,6 +114,8 @@ func (m *server) Apply(payload []byte, leader bool) error {
 			WillTopic:         input.WillTopic,
 			WillRetain:        input.WillRetain,
 			WillQoS:           input.WillQoS,
+			Created:           input.Timestamp,
+			LastKeepAlive:     input.Timestamp,
 		})
 		return err
 	case transitionSessionDeleted:

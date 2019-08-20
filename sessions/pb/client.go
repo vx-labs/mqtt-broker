@@ -55,3 +55,7 @@ func (c *Client) All(ctx context.Context) ([]*Session, error) {
 	}
 	return emptyArrayIfNull(out.Sessions), nil
 }
+func (c *Client) RefreshKeepAlive(ctx context.Context, id string, timestamp int64) error {
+	_, err := c.api.RefreshKeepAlive(ctx, &RefreshKeepAliveInput{ID: id, Timestamp: timestamp})
+	return err
+}

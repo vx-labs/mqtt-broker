@@ -43,6 +43,12 @@ func (m *server) ByPeer(ctx context.Context, input *pb.SessionByPeerInput) (*pb.
 func (m *server) All(ctx context.Context, input *pb.SessionFilterInput) (*pb.SessionMetadataList, error) {
 	return m.store.All()
 }
+func (m *server) RefreshKeepAlive(ctx context.Context, input *pb.RefreshKeepAliveInput) (*pb.RefreshKeepAliveOutput, error) {
+	return &pb.RefreshKeepAliveOutput{}, m.store.Update(input.ID, func(session pb.Session) *pb.Session {
+		session.LastKeepAlive = input.Timestamp
+		return &session
+	})
+}
 func (m *server) Create(ctx context.Context, input *pb.SessionCreateInput) (*pb.SessionCreateOutput, error) {
 	m.logger.Debug("creating session", zap.String("session_id", input.ID))
 	ev := pb.SessionStateTransition{

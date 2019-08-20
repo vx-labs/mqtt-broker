@@ -1,8 +1,6 @@
 package sessions
 
 import (
-	"time"
-
 	"github.com/vx-labs/mqtt-broker/sessions/pb"
 	"go.uber.org/zap"
 
@@ -25,6 +23,7 @@ type SessionStore interface {
 	Exists(id string) bool
 	Delete(id string) error
 	Create(sess *pb.Session) error
+	Update(id string, op func(pb.Session) *pb.Session) error
 }
 
 type memDBStore struct {
@@ -155,8 +154,16 @@ func (s *memDBStore) ByPeer(peer string) (*pb.SessionMetadataList, error) {
 }
 
 func (s *memDBStore) Create(sess *pb.Session) error {
-	sess.Started = time.Now().Unix()
 	return s.insert(sess)
+}
+func (s *memDBStore) Update(id string, op func(pb.Session) *pb.Session) error {
+	return s.write(func(tx *memdb.Txn) error {
+		session, err := s.first(tx, "id", id)
+		if err != nil {
+			return err
+		}
+		return tx.Insert(memdbTable, op(*session))
+	})
 }
 func (s *memDBStore) insert(sess *pb.Session) error {
 	err := s.write(func(tx *memdb.Txn) error {

@@ -15,6 +15,7 @@ message Session {
   string ClosureReason = 14;
   int32 KeepaliveInterval = 15;
   int64 Started = 16;
+  int64 LastKeepAlive = 17;
 }
 
 message SessionMetadataList {
@@ -33,6 +34,7 @@ message SessionCreateInput {
   string Transport = 10;
   string RemoteAddress = 11;
   int32 KeepaliveInterval = 12;
+  int64 Timestamp = 13;
 }
 message SessionCreateOutput {}
 message SessionByIDInput {
@@ -50,6 +52,12 @@ message SessionDeleteInput {
 }
 message SessionDeleteOutput {}
 
+message RefreshKeepAliveInput {
+  string ID = 1;
+  int64 Timestamp = 2;
+}
+message RefreshKeepAliveOutput {}
+
 service SessionsService {
   rpc Create(SessionCreateInput) returns (SessionCreateOutput);
   rpc Delete(SessionDeleteInput) returns (SessionDeleteOutput);
@@ -57,6 +65,7 @@ service SessionsService {
   rpc ByClientID(SessionByClientIDInput) returns (SessionMetadataList);
   rpc ByPeer(SessionByPeerInput) returns (SessionMetadataList);
   rpc All(SessionFilterInput) returns (SessionMetadataList);
+  rpc RefreshKeepAlive(RefreshKeepAliveInput) returns (RefreshKeepAliveOutput);
 }
 
 message SessionStateTransition {
