@@ -5,6 +5,8 @@ import (
 	"io"
 	"net"
 
+	"github.com/vx-labs/mqtt-broker/network"
+
 	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
 
 	"github.com/vx-labs/mqtt-broker/broker/pb"
@@ -37,8 +39,7 @@ func Serve(port int, handler broker) net.Listener {
 		return nil
 	}
 	s := grpc.NewServer(
-		grpc.StreamInterceptor(grpc_prometheus.StreamServerInterceptor),
-		grpc.UnaryInterceptor(grpc_prometheus.UnaryServerInterceptor),
+		network.GRPCServerOptions()...,
 	)
 	server := &server{
 		broker:   handler,

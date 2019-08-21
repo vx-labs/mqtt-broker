@@ -11,6 +11,7 @@ import (
 
 	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
 	"github.com/vx-labs/mqtt-broker/listener/pb"
+	"github.com/vx-labs/mqtt-broker/network"
 
 	"google.golang.org/grpc"
 )
@@ -45,8 +46,7 @@ func Serve(local Endpoint, port int) net.Listener {
 		log.Fatalf("failed to listen: %v", err)
 	}
 	grpcServer := grpc.NewServer(
-		grpc.StreamInterceptor(grpc_prometheus.StreamServerInterceptor),
-		grpc.UnaryInterceptor(grpc_prometheus.UnaryServerInterceptor),
+		network.GRPCServerOptions()...,
 	)
 	pb.RegisterListenerServiceServer(grpcServer, &server{endpoint: local})
 	grpc_prometheus.Register(grpcServer)

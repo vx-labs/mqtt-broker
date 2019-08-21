@@ -7,6 +7,7 @@ import (
 	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
 
 	"github.com/vx-labs/mqtt-broker/cluster/pb"
+	"github.com/vx-labs/mqtt-broker/network"
 	"google.golang.org/grpc"
 )
 
@@ -16,8 +17,7 @@ func ServeRPC(port int, l pb.LayerServer) net.Listener {
 		return nil
 	}
 	s := grpc.NewServer(
-		grpc.StreamInterceptor(grpc_prometheus.StreamServerInterceptor),
-		grpc.UnaryInterceptor(grpc_prometheus.UnaryServerInterceptor),
+		network.GRPCServerOptions()...,
 	)
 	pb.RegisterLayerServer(s, l)
 	grpc_prometheus.Register(s)

@@ -3,10 +3,8 @@ package pool
 import (
 	"fmt"
 
-	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
-
+	"github.com/vx-labs/mqtt-broker/network"
 	grpc "google.golang.org/grpc"
-	"google.golang.org/grpc/balancer/roundrobin"
 )
 
 type RPCJob func(*grpc.ClientConn) error
@@ -31,10 +29,7 @@ func NewPool(addr string) (*Pool, error) {
 		address: addr,
 	}
 	conn, err := grpc.Dial(fmt.Sprintf("meshid:///%s", addr),
-		grpc.WithStreamInterceptor(grpc_prometheus.StreamClientInterceptor),
-		grpc.WithUnaryInterceptor(grpc_prometheus.UnaryClientInterceptor),
-		grpc.WithInsecure(), grpc.WithAuthority(addr),
-		grpc.WithBalancerName(roundrobin.Name),
+		network.GRPCClientOptions()...,
 	)
 	if err != nil {
 		return nil, err

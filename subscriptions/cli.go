@@ -12,6 +12,7 @@ import (
 
 	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
 	"github.com/vx-labs/mqtt-broker/cluster"
+	"github.com/vx-labs/mqtt-broker/network"
 	"github.com/vx-labs/mqtt-broker/subscriptions/pb"
 
 	grpc "google.golang.org/grpc"
@@ -75,8 +76,7 @@ func (m *server) Serve(port int) net.Listener {
 		return nil
 	}
 	s := grpc.NewServer(
-		grpc.StreamInterceptor(grpc_prometheus.StreamServerInterceptor),
-		grpc.UnaryInterceptor(grpc_prometheus.UnaryServerInterceptor),
+		network.GRPCServerOptions()...,
 	)
 	pb.RegisterSubscriptionsServiceServer(s, m)
 	grpc_prometheus.Register(s)
