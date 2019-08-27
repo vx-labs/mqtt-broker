@@ -45,9 +45,9 @@ job "mqtt-sessions" {
         image      = "quay.io/vxlabs/mqtt-sessions:${broker_version}"
         args       = [
           "--cluster-bind-port=3500",
-          "--gossip-bind-port=3100",
-          "--service-bind-port=4000",
-          "--gossip_rpc-bind-port=3200",
+          "--sessions_gossip-bind-port=3100",
+          "--sessions-bind-port=4000",
+          "--sessions_gossip_rpc-bind-port=3200",
         ]
         force_pull = true
 

@@ -15,11 +15,14 @@ func main() {
 	root := &cobra.Command{
 		Use: "sessions",
 		Run: func(cmd *cobra.Command, args []string) {
-			cli.Run(cmd, "sessions", func(id string, logger *zap.Logger, mesh cluster.DiscoveryLayer) cli.Service {
+			ctx := cli.Bootstrap(cmd)
+			ctx.AddService(cmd, "sessions", func(id string, logger *zap.Logger, mesh cluster.DiscoveryLayer) cli.Service {
 				return sessions.New(id, logger)
 			})
+			ctx.Run()
 		},
 	}
 	cli.AddClusterFlags(root)
+	cli.AddServiceFlags(root, "sessions")
 	root.Execute()
 }

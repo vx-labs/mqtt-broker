@@ -45,9 +45,9 @@ job "mqtt-subscriptions" {
         image      = "quay.io/vxlabs/mqtt-subscriptions:${broker_version}"
         args       = [
           "--cluster-bind-port=3500",
-          "--gossip-bind-port=3100",
-          "--service-bind-port=4000",
-          "--gossip_rpc-bind-port=3200",
+          "--subscriptions_gossip-bind-port=3100",
+          "--subscriptions-bind-port=4000",
+          "--subscriptions_gossip_rpc-bind-port=3200",
         ]
         force_pull = true
 

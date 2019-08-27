@@ -43,9 +43,11 @@ func AddClusterFlags(root *cobra.Command) {
 	root.Flags().BoolP("pprof", "", false, "Enable pprof endpoint")
 	viper.BindPFlag("pprof", root.Flags().Lookup("pprof"))
 	network.RegisterFlagsForService(root, FLAG_NAME_CLUSTER, 3500)
-	network.RegisterFlagsForService(root, FLAG_NAME_SERVICE_GOSSIP, 0)
-	network.RegisterFlagsForService(root, FLAG_NAME_SERVICE_GOSSIP_RPC, 0)
-	network.RegisterFlagsForService(root, FLAG_NAME_SERVICE, 0)
+}
+func AddServiceFlags(root *cobra.Command, name string) {
+	network.RegisterFlagsForService(root, fmt.Sprintf("%s_gossip_rpc", name), 0)
+	network.RegisterFlagsForService(root, fmt.Sprintf("%s_gossip", name), 0)
+	network.RegisterFlagsForService(root, name, 0)
 }
 
 func JoinConsulPeers(api *consul.Client, service string, selfAddress string, selfPort int, mesh cluster.Mesh, logger *zap.Logger) error {
@@ -100,51 +102,46 @@ func logService(logger *zap.Logger, id, name string, config network.Configuratio
 	)
 }
 
-func Run(cmd *cobra.Command, name string, serviceFunc func(id string, logger *zap.Logger, mesh cluster.DiscoveryLayer) Service) {
-	id := uuid.New().String()
+type serviceRunConfig struct {
+	Gossip    network.Configuration
+	GossipRPC network.Configuration
+	Network   network.Configuration
+	Service   Service
+	ID        string
+}
 
-	if viper.GetBool("pprof") {
-		go func() {
-			fmt.Println("pprof endpoint is running on port 8080")
-			http.ListenAndServe(":8080", nil)
-		}()
-	}
-	sigc := make(chan os.Signal, 1)
-	var logger *zap.Logger
-	var err error
-	fields := []zap.Field{
-		zap.String("node_id", id), zap.String("service_name", name), zap.String("version", Version()),
-	}
-	if allocID := os.Getenv("NOMAD_ALLOC_ID"); allocID != "" {
-		fields = append(fields,
-			zap.String("nomad_alloc_id", os.Getenv("NOMAD_ALLOC_ID")),
-			zap.String("nomad_alloc_name", os.Getenv("NOMAD_ALLOC_NAME")),
-			zap.String("nomad_alloc_index", os.Getenv("NOMAD_ALLOC_INDEX")),
-		)
-	}
+type Context struct {
+	ID          string
+	Logger      *zap.Logger
+	Discovery   cluster.DiscoveryLayer
+	MeshNetConf *network.Configuration
+	Services    []*serviceRunConfig
+}
 
-	opts := []zap.Option{
-		zap.Fields(fields...),
-	}
-	if os.Getenv("ENABLE_PRETTY_LOG") == "true" {
-		logger, err = zap.NewDevelopment(opts...)
-	} else {
-		logger, err = zap.NewProduction(opts...)
-	}
-	if err != nil {
-		panic(err)
-	}
-	defer logger.Sync()
+func (ctx *Context) AddService(cmd *cobra.Command, name string, f func(id string, logger *zap.Logger, mesh cluster.DiscoveryLayer) Service) {
+	id := ctx.ID
+	logger := ctx.Logger.WithOptions(zap.Fields(zap.String("service_name", name)))
+	serviceNetConf := network.ConfigurationFromFlags(cmd, name)
+	serviceGossipNetConf := network.ConfigurationFromFlags(cmd, fmt.Sprintf("%s_gossip", name))
+	serviceGossipRPCNetConf := network.ConfigurationFromFlags(cmd, fmt.Sprintf("%s_gossip_rpc", name))
+	service := f(id, logger, ctx.Discovery)
 
-	clusterNetConf := network.ConfigurationFromFlags(cmd, FLAG_NAME_CLUSTER)
-	serviceNetConf := network.ConfigurationFromFlags(cmd, FLAG_NAME_SERVICE)
-	serviceGossipNetConf := network.ConfigurationFromFlags(cmd, FLAG_NAME_SERVICE_GOSSIP)
-	serviceGossipRPCNetConf := network.ConfigurationFromFlags(cmd, FLAG_NAME_SERVICE_GOSSIP_RPC)
+	ctx.Services = append(ctx.Services, &serviceRunConfig{
+		Gossip:    serviceGossipNetConf,
+		GossipRPC: serviceGossipRPCNetConf,
+		Network:   serviceNetConf,
+		Service:   service,
+		ID:        name,
+	})
+}
 
-	mesh := joinMesh(id, logger, clusterNetConf)
-	logService(logger, id, FLAG_NAME_CLUSTER, clusterNetConf)
+func (ctx *Context) Run() error {
+	defer ctx.Logger.Sync()
 
-	service := serviceFunc(id, logger, mesh)
+	logger := ctx.Logger
+	clusterNetConf := ctx.MeshNetConf
+	mesh := ctx.Discovery
+
 	var clusterMemberFound chan struct{}
 	if allocID := os.Getenv("NOMAD_ALLOC_ID"); allocID != "" {
 		consulConfig := consul.DefaultConfig()
@@ -160,44 +157,49 @@ func Run(cmd *cobra.Command, name string, serviceFunc func(id string, logger *za
 		}()
 	}
 
-	go serveHTTPHealth(logger, mesh, service)
+	go serveHTTPHealth(logger, mesh, ctx.Services[0].Service)
 	nodes := viper.GetStringSlice("join")
 	mesh.Join(nodes)
 	if clusterMemberFound != nil {
 		<-clusterMemberFound
 	}
-	listener := service.Serve(serviceNetConf.BindPort)
-	if listener != nil {
-		port := listener.Addr().(*net.TCPAddr).Port
-		logService(logger, id, FLAG_NAME_SERVICE, serviceNetConf)
-		logService(logger, id, FLAG_NAME_SERVICE_GOSSIP, serviceGossipNetConf)
-		logService(logger, id, FLAG_NAME_SERVICE_GOSSIP_RPC, serviceGossipRPCNetConf)
+	for _, service := range ctx.Services {
+		logger := ctx.Logger.WithOptions(zap.Fields(zap.String("service_name", service.ID)))
+		serviceNetConf := service.Network
+		serviceGossipNetConf := service.Gossip
+		serviceGossipRPCNetConf := service.GossipRPC
 
-		serviceConfig := cluster.ServiceConfig{
-			AdvertiseAddr: serviceGossipNetConf.AdvertisedAddress,
-			AdvertisePort: serviceGossipNetConf.AdvertisedPort,
-			BindPort:      serviceGossipNetConf.BindPort,
-			ID:            id,
-			ServicePort:   serviceNetConf.AdvertisedPort,
+		listener := service.Service.Serve(serviceNetConf.BindPort)
+		if listener != nil {
+			port := listener.Addr().(*net.TCPAddr).Port
+
+			serviceConfig := cluster.ServiceConfig{
+				AdvertiseAddr: serviceGossipNetConf.AdvertisedAddress,
+				AdvertisePort: serviceGossipNetConf.AdvertisedPort,
+				BindPort:      serviceGossipNetConf.BindPort,
+				ID:            ctx.ID,
+				ServicePort:   serviceNetConf.AdvertisedPort,
+			}
+			if serviceConfig.AdvertisePort == 0 {
+				serviceConfig.AdvertisePort = serviceConfig.BindPort
+				serviceConfig.ServicePort = port
+			}
+			gossipRPCConfig := cluster.ServiceConfig{
+				AdvertiseAddr: serviceGossipRPCNetConf.AdvertisedAddress,
+				AdvertisePort: serviceGossipRPCNetConf.AdvertisedPort,
+				BindPort:      serviceGossipRPCNetConf.BindPort,
+				ID:            ctx.ID,
+				ServicePort:   serviceGossipRPCNetConf.AdvertisedPort,
+			}
+			if gossipRPCConfig.AdvertisePort == 0 {
+				gossipRPCConfig.AdvertisePort = gossipRPCConfig.BindPort
+				gossipRPCConfig.ServicePort = port
+			}
+			service.Service.JoinServiceLayer(service.ID, logger, serviceConfig, gossipRPCConfig, ctx.Discovery)
 		}
-		if serviceConfig.AdvertisePort == 0 {
-			serviceConfig.AdvertisePort = serviceConfig.BindPort
-			serviceConfig.ServicePort = port
-		}
-		gossipRPCConfig := cluster.ServiceConfig{
-			AdvertiseAddr: serviceGossipRPCNetConf.AdvertisedAddress,
-			AdvertisePort: serviceGossipRPCNetConf.AdvertisedPort,
-			BindPort:      serviceGossipRPCNetConf.BindPort,
-			ID:            id,
-			ServicePort:   serviceGossipRPCNetConf.AdvertisedPort,
-		}
-		if gossipRPCConfig.AdvertisePort == 0 {
-			gossipRPCConfig.AdvertisePort = gossipRPCConfig.BindPort
-			gossipRPCConfig.ServicePort = port
-		}
-		service.JoinServiceLayer(name, logger, serviceConfig, gossipRPCConfig, mesh)
 	}
 	quit := make(chan struct{})
+	sigc := make(chan os.Signal, 1)
 	signal.Notify(sigc,
 		syscall.SIGINT,
 		syscall.SIGTERM,
@@ -206,16 +208,57 @@ func Run(cmd *cobra.Command, name string, serviceFunc func(id string, logger *za
 		defer close(quit)
 		<-sigc
 		logger.Info("received termination signal")
-		mesh.Leave()
+		ctx.Discovery.Leave()
 		logger.Info("cluster left")
-		service.Shutdown()
-		logger.Info("stopped service")
-		if listener != nil {
-			listener.Close()
-			logger.Info("stopped rpc listener")
+		for _, service := range ctx.Services {
+			service.Service.Shutdown()
+			logger.Info(fmt.Sprintf("stopped service %s", service.ID))
 		}
 	}()
 	<-quit
+	return nil
+}
+
+func Bootstrap(cmd *cobra.Command) *Context {
+	id := uuid.New().String()
+	ctx := &Context{
+		ID: id,
+	}
+	var logger *zap.Logger
+	var err error
+	fields := []zap.Field{
+		zap.String("node_id", id), zap.String("version", Version()),
+	}
+	if allocID := os.Getenv("NOMAD_ALLOC_ID"); allocID != "" {
+		fields = append(fields,
+			zap.String("nomad_alloc_id", os.Getenv("NOMAD_ALLOC_ID")),
+			zap.String("nomad_alloc_name", os.Getenv("NOMAD_ALLOC_NAME")),
+			zap.String("nomad_alloc_index", os.Getenv("NOMAD_ALLOC_INDEX")),
+		)
+	}
+	opts := []zap.Option{
+		zap.Fields(fields...),
+	}
+	if os.Getenv("ENABLE_PRETTY_LOG") == "true" {
+		logger, err = zap.NewDevelopment(opts...)
+	} else {
+		logger, err = zap.NewProduction(opts...)
+	}
+	if err != nil {
+		panic(err)
+	}
+	ctx.Logger = logger
+	if viper.GetBool("pprof") {
+		go func() {
+			fmt.Println("pprof endpoint is running on port 8080")
+			http.ListenAndServe(":8080", nil)
+		}()
+	}
+	clusterNetConf := network.ConfigurationFromFlags(cmd, FLAG_NAME_CLUSTER)
+
+	mesh := createMesh(id, logger, clusterNetConf)
+	ctx.Discovery = mesh
+	return ctx
 }
 
 type healthChecker interface {
@@ -244,7 +287,7 @@ func serveHTTPHealth(logger *zap.Logger, mesh healthChecker, service healthCheck
 	}
 }
 
-func joinMesh(id string, logger *zap.Logger, clusterNetConf network.Configuration) cluster.DiscoveryLayer {
+func createMesh(id string, logger *zap.Logger, clusterNetConf network.Configuration) cluster.DiscoveryLayer {
 	mesh := cluster.NewDiscoveryLayer(logger, clusterconfig.Config{
 		BindPort:      clusterNetConf.BindPort,
 		AdvertisePort: clusterNetConf.AdvertisedPort,

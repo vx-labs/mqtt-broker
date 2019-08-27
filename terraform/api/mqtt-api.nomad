@@ -66,7 +66,7 @@ no_proxy="10.0.0.0/8,172.16.0.0/12"
         }
 
         image      = "quay.io/vxlabs/mqtt-api:${broker_version}"
-        args       = ["--tls-port", "3000", "--cluster-bind-port=3500", "--gossip-bind-port=3100", "--service-bind-port=4000"]
+        args       = ["--tls-port", "3000", "--cluster-bind-port=3500", "--api_gossip-bind-port=3100", "--api-bind-port=4000"]
         force_pull = true
 
         port_map {

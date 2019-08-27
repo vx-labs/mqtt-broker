@@ -55,16 +55,18 @@ func main() {
 	root := &cobra.Command{
 		Use: "broker",
 		Run: func(cmd *cobra.Command, args []string) {
-
-			cli.Run(cmd, "broker", func(id string, logger *zap.Logger, mesh cluster.DiscoveryLayer) cli.Service {
+			ctx := cli.Bootstrap(cmd)
+			ctx.AddService(cmd, "broker", func(id string, logger *zap.Logger, mesh cluster.DiscoveryLayer) cli.Service {
 				config := broker.DefaultConfig()
 				if os.Getenv("NOMAD_ALLOC_ID") != "" {
 					config.AuthHelper = authHelper(context.Background())
 				}
 				return broker.New(id, logger, mesh, config)
 			})
+			ctx.Run()
 		},
 	}
 	cli.AddClusterFlags(root)
+	cli.AddServiceFlags(root, "broker")
 	root.Execute()
 }

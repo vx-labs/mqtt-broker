@@ -66,7 +66,7 @@ EOH
         }
 
         image      = "quay.io/vxlabs/mqtt-broker:${broker_version}"
-        args       = ["--cluster-bind-port=3500", "--gossip-bind-port=3100", "--service-bind-port=4000"]
+        args       = ["--cluster-bind-port=3500", "--broker_gossip-bind-port=3100", "--broker-bind-port=4000"]
         force_pull = true
 
         port_map {

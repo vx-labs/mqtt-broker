@@ -17,7 +17,8 @@ func main() {
 	root := &cobra.Command{
 		Use: "listener",
 		Run: func(cmd *cobra.Command, args []string) {
-			cli.Run(cmd, "listener", func(id string, logger *zap.Logger, mesh cluster.DiscoveryLayer) cli.Service {
+			ctx := cli.Bootstrap(cmd)
+			ctx.AddService(cmd, "listener", func(id string, logger *zap.Logger, mesh cluster.DiscoveryLayer) cli.Service {
 				tcpPort, _ := cmd.Flags().GetInt("tcp-port")
 				tlsPort, _ := cmd.Flags().GetInt("tls-port")
 				wssPort, _ := cmd.Flags().GetInt("wss-port")
@@ -34,9 +35,11 @@ func main() {
 					TLSCommonName: cn,
 				})
 			})
+			ctx.Run()
 		},
 	}
 	cli.AddClusterFlags(root)
+	cli.AddServiceFlags(root, "listener")
 	root.Flags().IntP("tcp-port", "t", 0, "Start TCP listener on this port. Specify 0 to disable the listener")
 	root.Flags().IntP("tls-port", "s", 0, "Start TLS listener on this port. Specify 0 to disable the listener")
 	root.Flags().IntP("wss-port", "w", 0, "Start Secure WS listener on this port. Specify 0 to disable the listener")
