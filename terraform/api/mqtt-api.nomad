@@ -72,8 +72,8 @@ no_proxy="10.0.0.0/8,172.16.0.0/12"
         port_map {
           health  = 9000
           cluster = 3500
-          service = 4000
-          gossip  = 3100
+          api = 4000
+          api_gossip  = 3100
           https   = 3000
         }
       }
@@ -88,8 +88,8 @@ no_proxy="10.0.0.0/8,172.16.0.0/12"
           port  "broker"{}
           port  "cluster"{}
           port  "health"{}
-          port  "service"{}
-          port  "gossip"{}
+          port  "api"{}
+          port  "api_gossip"{}
           port  "https"{}
         }
       }

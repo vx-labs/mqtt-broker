@@ -54,10 +54,9 @@ job "mqtt-sessions" {
         port_map {
           health  = 9000
           cluster = 3500
-          mqtt    = 1883
-          service = 4000
-          gossip  = 3100
-          gossip_rpc  = 3200
+          sessions = 4000
+          sessions_gossip  = 3100
+          sessions_gossip_rpc  = 3200
         }
       }
 
@@ -67,13 +66,11 @@ job "mqtt-sessions" {
 
         network {
           mbits = 10
-          port  "mqtt"{}
-          port  "broker"{}
           port  "cluster"{}
           port  "health"{}
-          port  "service"{}
-          port  "gossip"{}
-          port  "gossip_rpc"{}
+          port  "sessions"{}
+          port  "sessions_gossip"{}
+          port  "sessions_gossip_rpc"{}
         }
       }
 

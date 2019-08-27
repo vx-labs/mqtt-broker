@@ -72,9 +72,8 @@ EOH
         port_map {
           health  = 9000
           cluster = 3500
-          mqtt    = 1883
-          service = 4000
-          gossip  = 3100
+          broker = 4000
+          broker_gossip  = 3100
         }
       }
 
@@ -84,12 +83,10 @@ EOH
 
         network {
           mbits = 10
-          port  "mqtt"{}
-          port  "broker"{}
           port  "cluster"{}
           port  "health"{}
-          port  "service"{}
-          port  "gossip"{}
+          port  "broker"{}
+          port  "broker_gossip"{}
         }
       }
 

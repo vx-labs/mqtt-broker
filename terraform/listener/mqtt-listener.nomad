@@ -50,8 +50,8 @@ job "mqtt-listener" {
           health  = 9000
           cluster = 3500
           mqtt    = 1883
-          service = 4000
-          gossip  = 3100
+          listener = 4000
+          listener_gossip  = 3100
         }
       }
 
@@ -62,11 +62,10 @@ job "mqtt-listener" {
         network {
           mbits = 10
           port  "mqtt"{}
-          port  "broker"{}
           port  "cluster"{}
           port  "health"{}
-          port  "service"{}
-          port  "gossip"{}
+          port  "listener"{}
+          port  "listener_gossip"{}
         }
       }
 
@@ -159,8 +158,8 @@ no_proxy="10.0.0.0/8,172.16.0.0/12"
         port_map {
           health  = 9000
           cluster = 3500
-          service = 4000
-          gossip  = 3100
+          listener = 4000
+          listener_gossip  = 3100
           mqtts   = 8883
         }
       }
@@ -172,11 +171,10 @@ no_proxy="10.0.0.0/8,172.16.0.0/12"
         network {
           mbits = 10
           port  "mqtts"{}
-          port  "broker"{}
           port  "cluster"{}
           port  "health"{}
-          port  "service"{}
-          port  "gossip"{}
+          port  "listener"{}
+          port  "listener_gossip"{}
         }
       }
 
@@ -282,8 +280,8 @@ no_proxy="10.0.0.0/8,172.16.0.0/12"
         port_map {
           health  = 9000
           cluster = 3500
-          service = 4000
-          gossip  = 3100
+          listener = 4000
+          listener_gossip  = 3100
           wss     = 8008
         }
       }
@@ -295,11 +293,10 @@ no_proxy="10.0.0.0/8,172.16.0.0/12"
         network {
           mbits = 10
           port  "wss" {}
-          port  "broker"{}
           port  "cluster"{}
           port  "health"{}
-          port  "service"{}
-          port  "gossip"{}
+          port  "listener"{}
+          port  "listener_gossip"{}
         }
       }
 

@@ -54,10 +54,9 @@ job "mqtt-subscriptions" {
         port_map {
           health  = 9000
           cluster = 3500
-          mqtt    = 1883
-          service = 4000
-          gossip  = 3100
-          gossip_rpc  = 3200
+          subscriptions = 4000
+          subscriptions_gossip  = 3100
+          subscriptions_gossip_rpc  = 3200
         }
       }
 
@@ -67,13 +66,11 @@ job "mqtt-subscriptions" {
 
         network {
           mbits = 10
-          port  "mqtt"{}
-          port  "broker"{}
           port  "cluster"{}
           port  "health"{}
-          port  "service"{}
-          port  "gossip"{}
-          port  "gossip_rpc"{}
+          port  "subscriptions"{}
+          port  "subscriptions_gossip"{}
+          port  "subscriptions_gossip_rpc"{}
         }
       }
 
