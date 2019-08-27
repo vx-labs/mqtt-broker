@@ -27,17 +27,22 @@ release-sessions:: build-sessions
 release-subscriptions:: build-subscriptions
 	docker push quay.io/vxlabs/mqtt-subscriptions:${VERSION}
 
-deploy-api:: release-api
-	cd terraform/api && terraform init      && terraform apply -auto-approve -var api_version=${VERSION}
-deploy-broker:: release-broker
-	cd terraform/broker && terraform init   && terraform apply -auto-approve -var broker_version=${VERSION}
-deploy-listener:: release-listener
-	cd terraform/listener && terraform init && terraform apply -auto-approve -var listener_version=${VERSION}
-deploy-sessions:: release-sessions
-	cd terraform/sessions && terraform init && terraform apply -auto-approve -var sessions_version=${VERSION}
-deploy-subscriptions:: release-subscriptions
-	cd terraform/subscriptions && terraform init && terraform apply -auto-approve -var subscriptions_version=${VERSION}
+deploy-api:: release-api deploy-api-nodep
+deploy-broker:: release-broker deploy-broker-nodep
+deploy-listener:: release-listener deploy-listener-nodep
+deploy-sessions:: release-sessions deploy-sessions-nodep
+deploy-subscriptions:: release-subscriptions deploy-subscriptions-nodep
 
+deploy-api-nodep::
+	cd terraform/api && terraform init      && terraform apply -auto-approve -var api_version=${VERSION}
+deploy-broker-nodep::
+	cd terraform/broker && terraform init   && terraform apply -auto-approve -var broker_version=${VERSION}
+deploy-listener-nodep::
+	cd terraform/listener && terraform init && terraform apply -auto-approve -var listener_version=${VERSION}
+deploy-sessions-nodep::
+	cd terraform/sessions && terraform init && terraform apply -auto-approve -var sessions_version=${VERSION}
+deploy-subscriptions-nodep::
+	cd terraform/subscriptions && terraform init && terraform apply -auto-approve -var subscriptions_version=${VERSION}
 nuke:
 	cd terraform/api && terraform init && terraform destroy -auto-approve -var api_version=${VERSION}
 	cd terraform/broker && terraform init && terraform destroy -auto-approve -var broker_version=${VERSION}

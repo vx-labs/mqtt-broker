@@ -178,14 +178,9 @@ func (self *layer) DiscoverPeers(discovery peers.PeerStore) {
 		}
 	}
 	if len(addresses) > 0 {
-		ticker := time.NewTicker(3 * time.Second)
-		defer ticker.Stop()
-		for {
-			err := self.Join(addresses)
-			if err == nil {
-				return
-			}
-			<-ticker.C
+		err := self.Join(addresses)
+		if err == nil {
+			return
 		}
 	}
 }
