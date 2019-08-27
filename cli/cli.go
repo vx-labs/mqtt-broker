@@ -136,8 +136,13 @@ func (ctx *Context) AddService(cmd *cobra.Command, name string, f func(id string
 }
 
 func (ctx *Context) Run() error {
-	defer ctx.Logger.Sync()
-
+	defer func() {
+		if r := recover(); r != nil {
+			ctx.Logger.Error("panic", zap.String("panic_log", fmt.Sprint(r)))
+		}
+		ctx.Logger.Sync()
+		os.Exit(9)
+	}()
 	logger := ctx.Logger
 	clusterNetConf := ctx.MeshNetConf
 	mesh := ctx.Discovery
@@ -255,7 +260,7 @@ func Bootstrap(cmd *cobra.Command) *Context {
 		}()
 	}
 	clusterNetConf := network.ConfigurationFromFlags(cmd, FLAG_NAME_CLUSTER)
-
+	ctx.MeshNetConf = &clusterNetConf
 	mesh := createMesh(id, logger, clusterNetConf)
 	ctx.Discovery = mesh
 	return ctx

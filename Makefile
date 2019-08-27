@@ -1,9 +1,9 @@
 VERSION = $(shell git rev-parse --short HEAD)
 DOCKER_BUILD_ARGS = --network host --build-arg https_proxy=${https_proxy} --build-arg BUILT_VERSION=${VERSION}
 
-build:: build-api build-broker build-listener build-sessions
-release:: release-api release-broker release-listener release-sessions
-deploy: deploy-api deploy-broker deploy-listener deploy-sessions
+build:: build-api build-broker build-listener build-sessions build-subscriptions
+release:: release-api release-broker release-listener release-sessions release-subscriptions
+deploy: deploy-api deploy-broker deploy-listener deploy-sessions deploy-subscriptions
 
 build-api:: build-common
 	docker build ${DOCKER_BUILD_ARGS} --target api -t quay.io/vxlabs/mqtt-api:${VERSION} .
