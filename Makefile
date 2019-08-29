@@ -6,15 +6,15 @@ release:: release-api release-broker release-listener release-sessions release-s
 deploy: deploy-api deploy-broker deploy-listener deploy-sessions deploy-subscriptions
 
 build-api:: build-common
-	docker build ${DOCKER_BUILD_ARGS} --target api -t quay.io/vxlabs/mqtt-api:${VERSION} .
+	docker build ${DOCKER_BUILD_ARGS} --build-arg ARTIFACT=api -t quay.io/vxlabs/mqtt-api:${VERSION} .
 build-broker:: build-common
-	docker build ${DOCKER_BUILD_ARGS} --target broker -t quay.io/vxlabs/mqtt-broker:${VERSION} .
+	docker build ${DOCKER_BUILD_ARGS} --build-arg ARTIFACT=broker -t quay.io/vxlabs/mqtt-broker:${VERSION} .
 build-listener:: build-common
-	docker build ${DOCKER_BUILD_ARGS} --target listener -t quay.io/vxlabs/mqtt-listener:${VERSION} .
+	docker build ${DOCKER_BUILD_ARGS} --build-arg ARTIFACT=listener -t quay.io/vxlabs/mqtt-listener:${VERSION} .
 build-sessions:: build-common
-	docker build ${DOCKER_BUILD_ARGS} --target sessions -t quay.io/vxlabs/mqtt-sessions:${VERSION} .
+	docker build ${DOCKER_BUILD_ARGS} --build-arg ARTIFACT=sessions -t quay.io/vxlabs/mqtt-sessions:${VERSION} .
 build-subscriptions:: build-common
-	docker build ${DOCKER_BUILD_ARGS} --target subscriptions -t quay.io/vxlabs/mqtt-subscriptions:${VERSION} .
+	docker build ${DOCKER_BUILD_ARGS} --build-arg ARTIFACT=subscriptions -t quay.io/vxlabs/mqtt-subscriptions:${VERSION} .
 
 release-api:: build-api
 	docker push quay.io/vxlabs/mqtt-api:${VERSION}
