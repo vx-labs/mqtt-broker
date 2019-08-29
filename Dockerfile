@@ -13,12 +13,12 @@ COPY . ./
 RUN go test ./...
 
 FROM builder as binary-builder
-ARG BUILT_VERSION="n/a"
-ARG ARTIFACT=""
-RUN go build -buildmode=exe -ldflags="-s -w -X github.com/vx-labs/mqtt-broker/cli.BuiltVersion=${BUILT_VERSION}" -a -o /bin/${ARTIFACT} ./cli/${ARTIFACT}
+ARG ARTIFACT="###"
+RUN apk -U add git
+RUN BUILD_VERSION=$(git rev-parse --short HEAD) && go build -buildmode=exe -ldflags="-s -w -X github.com/vx-labs/mqtt-broker/cli.BuiltVersion=${BUILT_VERSION}" -a -o /bin/${ARTIFACT} ./cli/${ARTIFACT}
 
 FROM alpine as prod
-ARG ARTIFACT=""
+ARG ARTIFACT="###"
 ENTRYPOINT ["/usr/bin/server"]
 RUN apk -U add ca-certificates && \
     rm -rf /var/cache/apk/*

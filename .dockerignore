@@ -2,7 +2,6 @@ vendor
 Docker*
 .dockerignore
 Makefile
-.git
 release
 .idea/
 .gitlab*

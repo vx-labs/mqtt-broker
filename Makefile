@@ -52,3 +52,6 @@ nuke:
 
 build-common::
 	docker build ${DOCKER_BUILD_ARGS} --target builder .
+
+dockerfiles::
+	for svc in api listener subscriptions sessions broker; do sed "s/###/$$svc/g" Dockerfile > Dockerfile.$$svc; done
