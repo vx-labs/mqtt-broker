@@ -291,7 +291,9 @@ func (s *raftlayer) syncMembers() {
 
 	for _, member := range members {
 		if member.Peer != s.id {
-			s.addMember(member.Peer, member.NetworkAddress)
+			if !s.isNodeAdopted(member.Peer) {
+				s.addMember(member.Peer, member.NetworkAddress)
+			}
 		}
 	}
 	cProm := s.raft.GetConfiguration()
@@ -317,27 +319,7 @@ func (s *raftlayer) leaderRoutine() {
 		if !s.IsLeader() {
 			return
 		}
-		if s.isNodeAdopted(member.ID) {
-			return
-		}
-		for _, service := range member.HostedServices {
-			if service.ID == fmt.Sprintf("%s_cluster", s.name) {
-				s.addMember(service.Peer, service.NetworkAddress)
-			}
-		}
-	})
-	s.discovery.Peers().On(peers.PeerDeleted, func(member peers.Peer) {
-		if !s.IsLeader() {
-			return
-		}
-		if !s.isNodeAdopted(member.ID) {
-			return
-		}
-		for _, service := range member.HostedServices {
-			if service.ID == fmt.Sprintf("%s_cluster", s.name) {
-				s.removeMember(string(service.Peer))
-			}
-		}
+		s.syncMembers()
 	})
 	for leader := range s.raft.LeaderCh() {
 		if s.status != raftStatusBootstrapped {
