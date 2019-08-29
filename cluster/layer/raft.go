@@ -250,7 +250,8 @@ func (s *raftlayer) SendEvent(ctx context.Context, input *pb.SendEventInput) (*p
 	return &pb.SendEventOutput{}, s.ApplyEvent(input.Payload)
 }
 func (s *raftlayer) IsLeader() bool {
-	return s.raft.State() == raft.Leader
+	leader := s.raft.VerifyLeader()
+	return leader.Error() == nil
 }
 func (s *raftlayer) isNodeAdopted(id string) bool {
 	cProm := s.raft.GetConfiguration()
