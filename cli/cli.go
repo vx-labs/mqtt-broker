@@ -51,7 +51,6 @@ func AddServiceFlags(root *cobra.Command, name string) {
 }
 
 func JoinConsulPeers(api *consul.Client, service string, selfAddress string, selfPort int, mesh cluster.Mesh, logger *zap.Logger) error {
-	foundSelf := false
 	var index uint64
 	ticker := time.NewTicker(5 * time.Second)
 	defer ticker.Stop()
@@ -72,22 +71,19 @@ func JoinConsulPeers(api *consul.Client, service string, selfAddress string, sel
 		index = meta.LastIndex
 		peers := []string{}
 		for _, service := range services {
-			logger.Info("discovered node", zap.String("node_address", service.Service.Address), zap.Int("node_port", service.Service.Port), zap.String("node_health", service.Checks.AggregatedStatus()))
 			if service.Checks.AggregatedStatus() == consul.HealthCritical {
 				continue
 			}
 			if service.Service.Address == selfAddress &&
 				service.Service.Port == selfPort {
-				foundSelf = true
 				continue
 			}
 			peer := fmt.Sprintf("%s:%d", service.Service.Address, service.Service.Port)
 			peers = append(peers, peer)
 		}
-		if foundSelf && len(peers) >= 3 {
-			if mesh.Join(peers) == nil {
-				return nil
-			}
+		logger.Info("discovered nodes", zap.Strings("node_addresses", peers))
+		if len(peers) > 0 {
+			mesh.Join(peers)
 		}
 	}
 }
@@ -147,7 +143,6 @@ func (ctx *Context) Run() error {
 	clusterNetConf := ctx.MeshNetConf
 	mesh := ctx.Discovery
 
-	var clusterMemberFound chan struct{}
 	if allocID := os.Getenv("NOMAD_ALLOC_ID"); allocID != "" {
 		consulConfig := consul.DefaultConfig()
 		consulConfig.HttpClient = http.DefaultClient
@@ -155,19 +150,12 @@ func (ctx *Context) Run() error {
 		if err != nil {
 			logger.Fatal("failed to connect to consul")
 		}
-		clusterMemberFound = make(chan struct{})
-		go func() {
-			JoinConsulPeers(consulAPI, "cluster", clusterNetConf.AdvertisedAddress, clusterNetConf.AdvertisedPort, mesh, logger)
-			close(clusterMemberFound)
-		}()
+		go JoinConsulPeers(consulAPI, "cluster", clusterNetConf.AdvertisedAddress, clusterNetConf.AdvertisedPort, mesh, logger)
 	}
 
 	go serveHTTPHealth(logger, mesh, ctx.Services[0].Service)
 	nodes := viper.GetStringSlice("join")
 	mesh.Join(nodes)
-	if clusterMemberFound != nil {
-		<-clusterMemberFound
-	}
 	for _, service := range ctx.Services {
 		logger := ctx.Logger.WithOptions(zap.Fields(zap.String("service_name", service.ID)))
 		serviceNetConf := service.Network
