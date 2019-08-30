@@ -129,7 +129,7 @@ func (s *raftlayer) nodeStatus(node, serviceName string) string {
 }
 
 func (s *raftlayer) waitForToken(token string, expectNodeCount int) error {
-	ticker := time.NewTicker(5 * time.Second)
+	ticker := time.NewTicker(1 * time.Second)
 	timeout := time.NewTimer(60 * time.Second)
 	defer ticker.Stop()
 	defer timeout.Stop()
@@ -141,6 +141,7 @@ func (s *raftlayer) waitForToken(token string, expectNodeCount int) error {
 			return err
 		}
 		bootstrappingMembers := make([]*pb.NodeService, 0)
+		s.logger.Info("waiting for other members to complete step 2", zap.String("sync_token", token))
 		for _, member := range members {
 			status := strings.TrimPrefix(s.nodeStatus(member.Peer, s.name), prefix)
 			if status == raftStatusBootstrapped {
@@ -157,7 +158,6 @@ func (s *raftlayer) waitForToken(token string, expectNodeCount int) error {
 					return nil
 				}
 			}
-			s.logger.Info("waiting for other members to complete step 2")
 			select {
 			case <-ticker.C:
 			case <-timeout.C:
@@ -208,11 +208,11 @@ func (s *raftlayer) joinCluster(name string, expectNodeCount int) error {
 			}
 		}
 		if len(bootstrappingMembers) == expectNodeCount {
-			s.logger.Info("found other members", zap.Int("member_count", len(bootstrappingMembers)))
+			s.logger.Info("found other members", zap.Int("member_count", len(bootstrappingMembers)), zap.Int("expected_count", expectNodeCount))
 			members = bootstrappingMembers
 			break
 		}
-		s.logger.Info("waiting for other members to be discovered")
+		s.logger.Info("waiting for other members to be discovered", zap.Int("member_count", len(bootstrappingMembers)), zap.Int("expected_count", expectNodeCount))
 		<-ticker.C
 	}
 	sortMembers(members)
@@ -299,7 +299,7 @@ func (s *raftlayer) removeMember(id string) {
 		s.logger.Error("failed to remove dead node", zap.Error(err))
 		return
 	}
-	s.logger.Info("removed dead node")
+	s.logger.Info("removed dead node", zap.Strings("raft_members", s.raftMembers()), zap.Strings("discovered_members", s.discoveredMembers()))
 }
 func (s *raftlayer) addMember(id, address string) {
 	err := s.raft.AddVoter(raft.ServerID(id), raft.ServerAddress(address), 0, 100*time.Millisecond).Error()
@@ -307,7 +307,7 @@ func (s *raftlayer) addMember(id, address string) {
 		s.logger.Error("failed to add new node", zap.String("new_node", id), zap.Error(err))
 		return
 	}
-	s.logger.Info("adopted new raft node", zap.String("new_node", id))
+	s.logger.Info("adopted new raft node", zap.String("new_node", id), zap.Strings("raft_members", s.raftMembers()), zap.Strings("discovered_members", s.discoveredMembers()))
 }
 func (s *raftlayer) syncMembers() {
 	members, err := s.discovery.Peers().EndpointsByService(fmt.Sprintf("%s_cluster", s.name))
@@ -342,21 +342,26 @@ func (s *raftlayer) syncMembers() {
 	}
 }
 func (s *raftlayer) leaderRoutine() {
+	ch := make(chan raft.Observation)
+	s.raft.RegisterObserver(raft.NewObserver(ch, true, func(o *raft.Observation) bool {
+		_, ok := o.Data.(raft.LeaderObservation)
+		return ok
+	}))
 	s.discovery.Peers().On(peers.PeerCreated, func(member peers.Peer) {
 		if !s.IsLeader() {
 			return
 		}
 		s.syncMembers()
 	})
-	for leader := range s.raft.LeaderCh() {
+	for range ch {
+		leader := s.IsLeader()
 		if s.status != raftStatusBootstrapped {
-			s.logger.Info("raft cluster joined")
+			s.logger.Info("raft cluster joined", zap.Uint64("raft_index", s.raft.LastIndex()),
+				zap.Strings("raft_members", s.raftMembers()), zap.Strings("discovered_members", s.discoveredMembers()),
+			)
 			s.status = raftStatusBootstrapped
 		}
 		if !leader {
-			s.logger.Info("raft cluster leadership lost",
-				zap.Strings("raft_members", s.raftMembers()), zap.Strings("discovered_members", s.discoveredMembers()),
-			)
 			continue
 		}
 		s.logger.Info("raft cluster leadership acquired",
@@ -366,6 +371,9 @@ func (s *raftlayer) leaderRoutine() {
 	}
 }
 func (s *raftlayer) Apply(log *raft.Log) interface{} {
+	s.logger.Debug("applying raft log",
+		zap.Uint64("raft_last_index", s.raft.LastIndex()), zap.Uint64("raft_current_index", log.Index),
+	)
 	return s.state.Apply(log.Data, s.IsLeader())
 }
 
