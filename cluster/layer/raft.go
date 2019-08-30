@@ -240,6 +240,32 @@ func (s *raftlayer) joinCluster(name string, expectNodeCount int) error {
 	return nil
 }
 
+func (s *raftlayer) discoveredMembers() []string {
+	members := []string{}
+	discovered, err := s.discovery.Peers().EndpointsByService(fmt.Sprintf("%s_cluster", s.name))
+	if err != nil {
+		return members
+	}
+
+	for _, member := range discovered {
+		members = append(members, member.Peer)
+	}
+	return members
+}
+func (s *raftlayer) raftMembers() []string {
+	members := []string{}
+	cProm := s.raft.GetConfiguration()
+	err := cProm.Error()
+	if err != nil {
+		return members
+	}
+	clusterConfig := cProm.Configuration()
+	for _, server := range clusterConfig.Servers {
+		members = append(members, string(server.ID))
+	}
+	return members
+}
+
 func (s *raftlayer) Status(ctx context.Context, input *pb.StatusInput) (*pb.StatusOutput, error) {
 	return &pb.StatusOutput{
 		Layer:  "raft",
@@ -328,10 +354,14 @@ func (s *raftlayer) leaderRoutine() {
 			s.status = raftStatusBootstrapped
 		}
 		if !leader {
-			s.logger.Info("raft cluster leadership lost")
+			s.logger.Info("raft cluster leadership lost",
+				zap.Strings("raft_members", s.raftMembers()), zap.Strings("discovered_members", s.discoveredMembers()),
+			)
 			continue
 		}
-		s.logger.Info("raft cluster leadership acquired")
+		s.logger.Info("raft cluster leadership acquired",
+			zap.Strings("raft_members", s.raftMembers()), zap.Strings("discovered_members", s.discoveredMembers()),
+		)
 		s.syncMembers()
 	}
 }
