@@ -156,7 +156,7 @@ func (ctx *Context) Run() error {
 		if err != nil {
 			logger.Fatal("failed to connect to consul")
 		}
-		JoinConsulPeers(consulAPI, "cluster", clusterNetConf.AdvertisedAddress, clusterNetConf.AdvertisedPort, mesh, logger)
+		go JoinConsulPeers(consulAPI, "cluster", clusterNetConf.AdvertisedAddress, clusterNetConf.AdvertisedPort, mesh, logger)
 	}
 	sensors := make([]healthChecker, 0, len(ctx.Services)+1)
 	sensors = append(sensors, mesh)

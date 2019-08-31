@@ -134,7 +134,7 @@ func (s *raftlayer) Health() string {
 	if (s.raft.Leader()) == "" {
 		return "warning"
 	}
-	s.logger.Info("raft status", zap.Uint64("raft_last_index", s.raft.LastIndex()), zap.Uint64("raft_applied_index", s.raft.AppliedIndex()))
+	s.logger.Debug("raft status", zap.Uint64("raft_last_index", s.raft.LastIndex()), zap.Uint64("raft_applied_index", s.raft.AppliedIndex()))
 	return "ok"
 }
 

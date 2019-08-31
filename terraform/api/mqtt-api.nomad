@@ -36,7 +36,6 @@ job "mqtt-api" {
       driver = "docker"
 
       env {
-        GRPC_ARG_ENABLE_HTTP_PROXY = "0"
         TLS_CN           = "broker-api.iot.cloud.vx-labs.net"
         CONSUL_HTTP_ADDR = "$${NOMAD_IP_health}:8500"
         VAULT_ADDR       = "http://$${NOMAD_IP_health}:8200"
@@ -66,8 +65,12 @@ no_proxy="10.0.0.0/8,172.16.0.0/12"
         }
 
         image      = "quay.io/vxlabs/mqtt-api:${broker_version}"
-        args       = ["--tls-port", "3000", "--cluster-bind-port=3500", "--api_gossip-bind-port=3100", "--api-bind-port=4000"]
-        force_pull = true
+        args       = [
+          "--tls-port=3000",
+          "--cluster-bind-port=3500",
+          "--api_gossip-bind-port=3100",
+          "--api-bind-port=4000",
+        ]
 
         port_map {
           health  = 9000
@@ -84,8 +87,6 @@ no_proxy="10.0.0.0/8,172.16.0.0/12"
 
         network {
           mbits = 10
-          port  "mqtts"{}
-          port  "broker"{}
           port  "cluster"{}
           port  "health"{}
           port  "api"{}
