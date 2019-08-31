@@ -5,18 +5,21 @@ import (
 	"strings"
 
 	"github.com/vx-labs/mqtt-broker/cluster/peers"
+	"go.uber.org/zap"
 	"google.golang.org/grpc/resolver"
 )
 
-func newIDResolver(d Discoverer) resolver.Builder {
+func newIDResolver(d Discoverer, logger *zap.Logger) resolver.Builder {
 	return &meshIDResolver{
 		peers:         d,
+		logger:        logger.With(zap.String("emitter", "grpc_mesh_id_resolver")),
 		subscriptions: []func(){},
 	}
 }
 
 type meshIDResolver struct {
 	peers         Discoverer
+	logger        *zap.Logger
 	subscriptions []func()
 }
 

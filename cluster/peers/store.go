@@ -178,14 +178,29 @@ func (s *memDBStore) Upsert(sess Peer) error {
 	return s.insert(sess)
 }
 func (s *memDBStore) Update(id string, mutation func(peer Peer) Peer) error {
-	return s.write(func(tx *memdb.Txn) error {
+	var updatedPeer Peer
+	err := s.write(func(tx *memdb.Txn) error {
 		peer, err := s.first(tx, "id", id)
 		if err != nil {
 			return err
 		}
-		updatedPeer := mutation(peer)
-		return tx.Insert(peerTable, updatedPeer)
+		updatedPeer = mutation(peer)
+		updatedPeer.LastAdded = now()
+		err = tx.Insert(peerTable, updatedPeer)
+		if err == nil {
+			buf, err := proto.Marshal(&pb.PeerMetadataList{
+				Metadatas: []*pb.Metadata{
+					&updatedPeer.Metadata,
+				},
+			})
+			if err != nil {
+				return err
+			}
+			s.channel.Broadcast(buf)
+		}
+		return err
 	})
+	return err
 }
 
 func (s *memDBStore) emitPeerEvent(sess Peer) {

@@ -9,7 +9,7 @@ import (
 
 func NewDiscoveryLayer(logger *zap.Logger, userConfig config.Config) DiscoveryLayer {
 	layer := discovery.NewDiscoveryLayer(logger, userConfig)
-	resolver.Register(newResolver(layer.Peers()))
-	resolver.Register(newIDResolver(layer.Peers()))
+	resolver.Register(newResolver(layer.Peers(), logger))
+	resolver.Register(newIDResolver(layer.Peers(), logger))
 	return layer
 }
