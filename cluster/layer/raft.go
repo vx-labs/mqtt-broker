@@ -6,6 +6,7 @@ import (
 	"errors"
 	fmt "fmt"
 	"io"
+	"io/ioutil"
 	"net"
 	"os"
 	"sort"
@@ -63,9 +64,9 @@ func (s *raftlayer) Start(name string, state types.RaftState) error {
 	s.name = name
 	raftConfig := raft.DefaultConfig()
 	s.state = state
-	/*if os.Getenv("ENABLE_RAFT_LOG") != "true" {
+	if os.Getenv("ENABLE_RAFT_LOG") != "true" {
 		raftConfig.LogOutput = ioutil.Discard
-	}*/
+	}
 	raftConfig.LocalID = raft.ServerID(s.config.ID)
 	raftBind := fmt.Sprintf("0.0.0.0:%d", s.config.BindPort)
 	raftAdv := fmt.Sprintf("%s:%d", s.config.AdvertiseAddr, s.config.AdvertisePort)
@@ -73,7 +74,7 @@ func (s *raftlayer) Start(name string, state types.RaftState) error {
 	if err != nil {
 		return err
 	}
-	transport, err := raft.NewTCPTransport(raftBind, addr, 5, 30*time.Second, os.Stdout)
+	transport, err := raft.NewTCPTransport(raftBind, addr, 5, 30*time.Second, ioutil.Discard)
 	if err != nil {
 		return err
 	}
@@ -132,6 +133,9 @@ func (s *raftlayer) nodeStatus(node, serviceName string) string {
 
 func (s *raftlayer) Health() string {
 	if (s.raft.Leader()) == "" {
+		return "warning"
+	}
+	if s.raft.AppliedIndex() == 0 {
 		return "warning"
 	}
 	s.logger.Debug("raft status", zap.Uint64("raft_last_index", s.raft.LastIndex()), zap.Uint64("raft_applied_index", s.raft.AppliedIndex()))
@@ -448,5 +452,5 @@ func (s *raftlayer) ApplyEvent(event []byte) error {
 		s.logger.Error("failed to apply raft event", zap.Error(resp.(error)))
 		return resp.(error)
 	}
-	return nil
+	return s.raft.Barrier(500 * time.Millisecond).Error()
 }

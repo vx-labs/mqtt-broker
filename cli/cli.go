@@ -42,7 +42,9 @@ func AddClusterFlags(root *cobra.Command) {
 	viper.BindPFlag("join", root.Flags().Lookup("join"))
 
 	root.Flags().BoolP("pprof", "", false, "Enable pprof endpoint")
+	root.Flags().BoolP("debug", "", false, "Enable debug logs and fancy log printing")
 	viper.BindPFlag("pprof", root.Flags().Lookup("pprof"))
+	viper.BindPFlag("debug", root.Flags().Lookup("debug"))
 	network.RegisterFlagsForService(root, FLAG_NAME_CLUSTER, 3500)
 }
 func AddServiceFlags(root *cobra.Command, name string) {
@@ -243,7 +245,7 @@ func Bootstrap(cmd *cobra.Command) *Context {
 	opts := []zap.Option{
 		zap.Fields(fields...),
 	}
-	if os.Getenv("ENABLE_PRETTY_LOG") == "true" {
+	if viper.GetBool("debug") {
 		logger, err = zap.NewDevelopment(opts...)
 	} else {
 		logger, err = zap.NewProduction(opts...)
