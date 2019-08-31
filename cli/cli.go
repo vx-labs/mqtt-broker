@@ -81,7 +81,6 @@ func JoinConsulPeers(api *consul.Client, service string, selfAddress string, sel
 			peer := fmt.Sprintf("%s:%d", service.Service.Address, service.Service.Port)
 			peers = append(peers, peer)
 		}
-		logger.Info("discovered nodes", zap.Strings("node_addresses", peers))
 		if len(peers) > 0 {
 			mesh.Join(peers)
 		}
