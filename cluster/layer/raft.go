@@ -354,6 +354,7 @@ func (s *raftlayer) leaderRoutine() {
 		s.syncMembers()
 	})
 	for range ch {
+		s.logger.Info("leader changed", zap.String("raft_leader", string(s.raft.Leader())))
 		leader := s.IsLeader()
 		if s.status != raftStatusBootstrapped {
 			s.logger.Info("raft cluster joined", zap.Uint64("raft_index", s.raft.LastIndex()),
