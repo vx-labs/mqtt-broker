@@ -42,6 +42,7 @@ type PeerStore interface {
 	All() (SubscriptionSet, error)
 	Exists(id string) bool
 	Upsert(p Peer) error
+	Update(id string, mutation func(peer Peer) Peer) error
 	Delete(id string) error
 	On(event string, handler func(Peer)) func()
 }
@@ -175,6 +176,16 @@ func (m *memDBStore) EndpointsByService(name string) ([]*pb.NodeService, error) 
 func (s *memDBStore) Upsert(sess Peer) error {
 	sess.LastAdded = now()
 	return s.insert(sess)
+}
+func (s *memDBStore) Update(id string, mutation func(peer Peer) Peer) error {
+	return s.write(func(tx *memdb.Txn) error {
+		peer, err := s.first(tx, "id", id)
+		if err != nil {
+			return err
+		}
+		updatedPeer := mutation(peer)
+		return tx.Insert(peerTable, updatedPeer)
+	})
 }
 
 func (s *memDBStore) emitPeerEvent(sess Peer) {

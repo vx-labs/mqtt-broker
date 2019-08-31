@@ -85,7 +85,7 @@ func (m *server) Snapshot() io.Reader {
 	return bytes.NewReader(payload)
 }
 func (m *server) Health() string {
-	return "ok"
+	return m.state.Health()
 }
 func (m *server) Serve(port int) net.Listener {
 	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", port))

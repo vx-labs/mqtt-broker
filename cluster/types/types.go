@@ -15,6 +15,7 @@ type GossipState interface {
 
 type ServiceLayer interface {
 	pb.LayerServer
+	Health() string
 }
 
 type RaftState interface {

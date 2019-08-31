@@ -85,6 +85,12 @@ func (m *layer) NotifyMsg(b []byte) {
 		return
 	}
 }
+func (s *layer) Health() string {
+	if s.mlist.NumMembers() == 0 {
+		return "warning"
+	}
+	return "ok"
+}
 func (m *layer) GetBroadcasts(overhead, limit int) [][]byte {
 	return m.bcastQueue.GetBroadcasts(overhead, limit)
 }

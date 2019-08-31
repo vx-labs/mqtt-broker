@@ -86,18 +86,19 @@ func (m *discoveryLayer) Join(peers []string) error {
 	return m.layer.Join(peers)
 }
 
+func (m *discoveryLayer) ServiceName() string {
+	return "cluster"
+}
 func (m *discoveryLayer) RegisterService(name, address string) error {
-	self, err := m.peers.ByID(m.id)
-	if err != nil {
-		return err
-	}
-	self.HostedServices = append(self.HostedServices, &pb.NodeService{
-		ID:             name,
-		NetworkAddress: address,
-		Peer:           m.id,
+	return m.peers.Update(m.id, func(self peers.Peer) peers.Peer {
+		self.HostedServices = append(self.HostedServices, &pb.NodeService{
+			ID:             name,
+			NetworkAddress: address,
+			Peer:           m.id,
+		})
+		self.Services = append(self.Services, name)
+		return self
 	})
-	self.Services = append(self.Services, name)
-	return m.peers.Upsert(self)
 }
 func (m *discoveryLayer) Health() string {
 	if len(m.layer.Members()) > 1 {

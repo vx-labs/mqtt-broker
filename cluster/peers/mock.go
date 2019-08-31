@@ -32,6 +32,9 @@ func (m *mockedMesh) MemberRPCAddress(string) (string, error) {
 func (m *mockedMesh) ID() string {
 	return "id"
 }
+func (m *mockedMesh) Health() string {
+	return "ok"
+}
 func (m *mockedMesh) Status(context.Context, *pb.StatusInput) (*pb.StatusOutput, error) {
 	return nil, nil
 }

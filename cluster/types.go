@@ -26,6 +26,7 @@ type DiscoveryLayer interface {
 	Leave()
 	Join(hosts []string) error
 	Health() string
+	ServiceName() string
 }
 
 // Mesh represents the mesh state network, being able to broadcast state across the nodes.

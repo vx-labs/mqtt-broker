@@ -94,19 +94,23 @@ func (s *raftlayer) Start(name string, state types.RaftState) error {
 		return nil
 	}
 	go s.leaderRoutine()
-	// hardcoded for now
-	for {
-		err := s.joinCluster(name, 3)
-		if err != nil {
-			if err == ErrBootstrappedNodeFound {
-				s.logger.Info("found an existing cluster, waiting for adoption")
-				return nil
+	go func() {
+		s.logger.Info("attempting to bootstrap raft cluster", zap.String("cluster_name", name))
+		for {
+			// hardcoded for now
+			err := s.joinCluster(name, 3)
+			if err != nil {
+				if err == ErrBootstrappedNodeFound {
+					s.logger.Info("found an existing cluster, waiting for adoption")
+					return
+				}
+				s.logger.Error("failed to join cluster, retrying", zap.Error(err))
+			} else {
+				return
 			}
-			s.logger.Error("failed to join cluster, retrying", zap.Error(err))
-		} else {
-			return nil
 		}
-	}
+	}()
+	return nil
 }
 
 func (s *raftlayer) nodeStatus(node, serviceName string) string {
@@ -126,6 +130,13 @@ func (s *raftlayer) nodeStatus(node, serviceName string) string {
 		return ""
 	}
 	return status
+}
+
+func (s *raftlayer) Health() string {
+	if (s.raft.Leader()) == "" {
+		return "warning"
+	}
+	return "ok"
 }
 
 func (s *raftlayer) waitForToken(token string, expectNodeCount int) error {

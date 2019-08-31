@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"encoding/json"
 	"fmt"
 	"net"
 	"net/http"
@@ -105,6 +106,13 @@ type serviceRunConfig struct {
 	ID        string
 }
 
+func (s *serviceRunConfig) Health() string {
+	return s.Service.Health()
+}
+func (s *serviceRunConfig) ServiceName() string {
+	return s.ID
+}
+
 type Context struct {
 	ID          string
 	Logger      *zap.Logger
@@ -149,10 +157,14 @@ func (ctx *Context) Run() error {
 		if err != nil {
 			logger.Fatal("failed to connect to consul")
 		}
-		go JoinConsulPeers(consulAPI, "cluster", clusterNetConf.AdvertisedAddress, clusterNetConf.AdvertisedPort, mesh, logger)
+		JoinConsulPeers(consulAPI, "cluster", clusterNetConf.AdvertisedAddress, clusterNetConf.AdvertisedPort, mesh, logger)
 	}
-
-	go serveHTTPHealth(logger, mesh, ctx.Services[0].Service)
+	sensors := make([]healthChecker, 0, len(ctx.Services)+1)
+	sensors = append(sensors, mesh)
+	for _, service := range ctx.Services {
+		sensors = append(sensors, service)
+	}
+	go serveHTTPHealth(logger, sensors)
 	nodes := viper.GetStringSlice("join")
 	mesh.Join(nodes)
 	for _, service := range ctx.Services {
@@ -187,7 +199,7 @@ func (ctx *Context) Run() error {
 				gossipRPCConfig.AdvertisePort = gossipRPCConfig.BindPort
 				gossipRPCConfig.ServicePort = port
 			}
-			service.Service.JoinServiceLayer(service.ID, logger, serviceConfig, gossipRPCConfig, ctx.Discovery)
+			go service.Service.JoinServiceLayer(service.ID, logger, serviceConfig, gossipRPCConfig, ctx.Discovery)
 		}
 	}
 	quit := make(chan struct{})
@@ -255,23 +267,52 @@ func Bootstrap(cmd *cobra.Command) *Context {
 
 type healthChecker interface {
 	Health() string
+	ServiceName() string
+}
+type ServiceHealthReport struct {
+	ServiceName string `json:"service_name"`
+	Health      string `json:"health"`
+}
+type HealthReport struct {
+	Timestamp    time.Time             `json:"timestamp"`
+	GlobalHealth string                `json:"global_health"`
+	Services     []ServiceHealthReport `json:"services"`
 }
 
-func serveHTTPHealth(logger *zap.Logger, mesh healthChecker, service healthChecker) {
+var serviceHealthMap = map[string]int{
+	"ok":       0,
+	"warning":  1,
+	"critical": 2,
+}
+
+func serveHTTPHealth(logger *zap.Logger, sensors []healthChecker) {
 	mux := http.NewServeMux()
 	mux.Handle("/metrics", promhttp.Handler())
 	mux.HandleFunc("/health", func(w http.ResponseWriter, _ *http.Request) {
-		for _, status := range []string{mesh.Health(), service.Health()} {
-			switch status {
-			case "warning":
-				w.WriteHeader(http.StatusTooManyRequests)
-				return
-			case "critical":
-				w.WriteHeader(http.StatusInternalServerError)
-				return
+		report := HealthReport{
+			Timestamp: time.Now(),
+		}
+		worst := "ok"
+		for _, sensor := range sensors {
+			status := sensor.Health()
+			report.Services = append(report.Services, ServiceHealthReport{
+				Health:      status,
+				ServiceName: sensor.ServiceName(),
+			})
+			if serviceHealthMap[status] > serviceHealthMap[worst] {
+				worst = status
 			}
 		}
-		w.WriteHeader(http.StatusOK)
+		report.GlobalHealth = worst
+		switch worst {
+		case "warning":
+			w.WriteHeader(http.StatusTooManyRequests)
+		case "critical":
+			w.WriteHeader(http.StatusInternalServerError)
+		default:
+			w.WriteHeader(http.StatusOK)
+		}
+		json.NewEncoder(w).Encode(report)
 	})
 	err := http.ListenAndServe("[::]:9000", mux)
 	if err != nil {

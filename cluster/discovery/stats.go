@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/vx-labs/mqtt-broker/cluster/pb"
+	"github.com/vx-labs/mqtt-broker/cluster/peers"
 )
 
 func memUsage() runtime.MemStats {
@@ -18,21 +19,22 @@ func (b *discoveryLayer) oSStatsReporter() {
 		m := memUsage()
 		nbRoutines := runtime.NumGoroutine()
 		nbCores := runtime.NumCPU()
-		self, err := b.peers.ByID(b.id)
+		err := b.Peers().Update(b.id, func(self peers.Peer) peers.Peer {
+			self.ComputeUsage = &pb.ComputeUsage{
+				Cores:      int64(nbCores),
+				Goroutines: int64(nbRoutines),
+			}
+			self.MemoryUsage = &pb.MemoryUsage{
+				Alloc:      m.Alloc,
+				TotalAlloc: m.TotalAlloc,
+				NumGC:      m.NumGC,
+				Sys:        m.Sys,
+			}
+			return self
+		})
 		if err != nil {
 			return
 		}
-		self.ComputeUsage = &pb.ComputeUsage{
-			Cores:      int64(nbCores),
-			Goroutines: int64(nbRoutines),
-		}
-		self.MemoryUsage = &pb.MemoryUsage{
-			Alloc:      m.Alloc,
-			TotalAlloc: m.TotalAlloc,
-			NumGC:      m.NumGC,
-			Sys:        m.Sys,
-		}
-		b.peers.Upsert(self)
 		<-ticker.C
 	}
 }

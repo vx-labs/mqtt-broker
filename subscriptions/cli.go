@@ -36,10 +36,12 @@ func (b *server) Shutdown() {
 }
 func (b *server) JoinServiceLayer(name string, logger *zap.Logger, config cluster.ServiceConfig, rpcConfig cluster.ServiceConfig, mesh cluster.DiscoveryLayer) {
 	b.state = cluster.NewRaftServiceLayer(name, logger, config, rpcConfig, mesh)
-	err := b.state.Start(name, b)
-	if err != nil {
-		panic(err)
-	}
+	go func() {
+		err := b.state.Start(name, b)
+		if err != nil {
+			panic(err)
+		}
+	}()
 }
 func (m *server) Restore(r io.Reader) error {
 	payload, err := ioutil.ReadAll(r)
@@ -72,7 +74,7 @@ func (m *server) Snapshot() io.Reader {
 	return bytes.NewReader(payload)
 }
 func (m *server) Health() string {
-	return "ok"
+	return m.state.Health()
 }
 func (m *server) Serve(port int) net.Listener {
 	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
