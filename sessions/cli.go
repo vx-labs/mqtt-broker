@@ -37,10 +37,12 @@ func (b *server) Shutdown() {
 }
 func (b *server) JoinServiceLayer(name string, logger *zap.Logger, config cluster.ServiceConfig, rpcConfig cluster.ServiceConfig, mesh cluster.DiscoveryLayer) {
 	b.state = cluster.NewRaftServiceLayer(name, logger, config, rpcConfig, mesh)
-	err := b.state.Start(name, b)
-	if err != nil {
-		panic(err)
-	}
+	go func() {
+		err := b.state.Start(name, b)
+		if err != nil {
+			panic(err)
+		}
+	}()
 	go func() {
 		ticker := time.NewTicker(5 * time.Second)
 		for range ticker.C {

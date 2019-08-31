@@ -7,6 +7,7 @@ import (
 	"io"
 	"io/ioutil"
 	"net"
+	"time"
 
 	"github.com/golang/protobuf/proto"
 	sessions "github.com/vx-labs/mqtt-broker/sessions/pb"
@@ -42,6 +43,13 @@ func (b *server) JoinServiceLayer(name string, logger *zap.Logger, config cluste
 	}
 	b.sessions = sessions.NewClient(sessionsConn)
 	b.state = cluster.NewRaftServiceLayer(name, logger, config, rpcConfig, mesh)
+	go func() {
+		ticker := time.NewTicker(5 * time.Second)
+		for range ticker.C {
+			b.gcExpiredSubscriptions()
+		}
+	}()
+
 	go func() {
 		err := b.state.Start(name, b)
 		if err != nil {
