@@ -9,6 +9,7 @@ import (
 	"net"
 
 	"github.com/golang/protobuf/proto"
+	sessions "github.com/vx-labs/mqtt-broker/sessions/pb"
 
 	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
 	"github.com/vx-labs/mqtt-broker/cluster"
@@ -35,6 +36,11 @@ func (b *server) Shutdown() {
 	}
 }
 func (b *server) JoinServiceLayer(name string, logger *zap.Logger, config cluster.ServiceConfig, rpcConfig cluster.ServiceConfig, mesh cluster.DiscoveryLayer) {
+	sessionsConn, err := mesh.DialService("sessions")
+	if err != nil {
+		panic(err)
+	}
+	b.sessions = sessions.NewClient(sessionsConn)
 	b.state = cluster.NewRaftServiceLayer(name, logger, config, rpcConfig, mesh)
 	go func() {
 		err := b.state.Start(name, b)

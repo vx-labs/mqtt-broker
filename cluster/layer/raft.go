@@ -6,7 +6,6 @@ import (
 	"errors"
 	fmt "fmt"
 	"io"
-	"io/ioutil"
 	"net"
 	"os"
 	"sort"
@@ -64,9 +63,9 @@ func (s *raftlayer) Start(name string, state types.RaftState) error {
 	s.name = name
 	raftConfig := raft.DefaultConfig()
 	s.state = state
-	if os.Getenv("ENABLE_RAFT_LOG") != "true" {
+	/*if os.Getenv("ENABLE_RAFT_LOG") != "true" {
 		raftConfig.LogOutput = ioutil.Discard
-	}
+	}*/
 	raftConfig.LocalID = raft.ServerID(s.config.ID)
 	raftBind := fmt.Sprintf("0.0.0.0:%d", s.config.BindPort)
 	raftAdv := fmt.Sprintf("%s:%d", s.config.AdvertiseAddr, s.config.AdvertisePort)
@@ -74,7 +73,7 @@ func (s *raftlayer) Start(name string, state types.RaftState) error {
 	if err != nil {
 		return err
 	}
-	transport, err := raft.NewTCPTransport(raftBind, addr, 3, 10*time.Second, ioutil.Discard)
+	transport, err := raft.NewTCPTransport(raftBind, addr, 5, 30*time.Second, os.Stdout)
 	if err != nil {
 		return err
 	}
@@ -89,13 +88,12 @@ func (s *raftlayer) Start(name string, state types.RaftState) error {
 		return fmt.Errorf("new raft: %s", err)
 	}
 	s.raft = ra
+	go s.leaderRoutine()
 	index := s.raft.LastIndex()
 	if index != 0 {
 		return nil
 	}
-	go s.leaderRoutine()
 	go func() {
-		s.logger.Info("attempting to bootstrap raft cluster", zap.String("cluster_name", name))
 		for {
 			// hardcoded for now
 			err := s.joinCluster(name, 3)
@@ -136,6 +134,7 @@ func (s *raftlayer) Health() string {
 	if (s.raft.Leader()) == "" {
 		return "warning"
 	}
+	s.logger.Info("raft status", zap.Uint64("raft_last_index", s.raft.LastIndex()), zap.Uint64("raft_applied_index", s.raft.AppliedIndex()))
 	return "ok"
 }
 
@@ -203,6 +202,7 @@ func (s *raftlayer) joinCluster(name string, expectNodeCount int) error {
 	defer ticker.Stop()
 	var members []*pb.NodeService
 	var err error
+	s.logger.Info("waiting for other cluster members to be discovered", zap.Int("expected_count", expectNodeCount))
 	for {
 		members, err = s.discovery.Peers().EndpointsByService(fmt.Sprintf("%s_cluster", name))
 		if err != nil {
@@ -223,7 +223,6 @@ func (s *raftlayer) joinCluster(name string, expectNodeCount int) error {
 			members = bootstrappingMembers
 			break
 		}
-		s.logger.Info("waiting for other members to be discovered", zap.Int("member_count", len(bootstrappingMembers)), zap.Int("expected_count", expectNodeCount))
 		<-ticker.C
 	}
 	sortMembers(members)
@@ -305,7 +304,7 @@ func (s *raftlayer) isNodeAdopted(id string) bool {
 	return false
 }
 func (s *raftlayer) removeMember(id string) {
-	err := s.raft.RemoveServer(raft.ServerID(id), 0, 100*time.Millisecond).Error()
+	err := s.raft.RemoveServer(raft.ServerID(id), 0, 500*time.Millisecond).Error()
 	if err != nil {
 		s.logger.Error("failed to remove dead node", zap.Error(err))
 		return
@@ -313,7 +312,7 @@ func (s *raftlayer) removeMember(id string) {
 	s.logger.Info("removed dead node", zap.Strings("raft_members", s.raftMembers()), zap.Strings("discovered_members", s.discoveredMembers()))
 }
 func (s *raftlayer) addMember(id, address string) {
-	err := s.raft.AddVoter(raft.ServerID(id), raft.ServerAddress(address), 0, 100*time.Millisecond).Error()
+	err := s.raft.AddVoter(raft.ServerID(id), raft.ServerAddress(address), 0, 500*time.Millisecond).Error()
 	if err != nil {
 		s.logger.Error("failed to add new node", zap.String("new_node", id), zap.Error(err))
 		return
@@ -369,7 +368,7 @@ func (s *raftlayer) leaderRoutine() {
 		leader := s.IsLeader()
 		if s.status != raftStatusBootstrapped {
 			s.logger.Info("raft cluster joined", zap.Uint64("raft_index", s.raft.LastIndex()),
-				zap.Strings("raft_members", s.raftMembers()), zap.Strings("discovered_members", s.discoveredMembers()),
+				zap.Strings("discovered_members", s.discoveredMembers()),
 			)
 			s.status = raftStatusBootstrapped
 		}
@@ -383,9 +382,6 @@ func (s *raftlayer) leaderRoutine() {
 	}
 }
 func (s *raftlayer) Apply(log *raft.Log) interface{} {
-	s.logger.Debug("applying raft log",
-		zap.Uint64("raft_last_index", s.raft.LastIndex()), zap.Uint64("raft_current_index", log.Index),
-	)
 	return s.state.Apply(log.Data, s.IsLeader())
 }
 
@@ -412,7 +408,8 @@ func (s *raftlayer) Restore(snap io.ReadCloser) error {
 }
 
 func (s *raftlayer) Shutdown() error {
-	return s.raft.Shutdown().Error()
+	s.raft.Shutdown()
+	return nil
 }
 func (s *raftlayer) ApplyEvent(event []byte) error {
 	if !s.IsLeader() {
@@ -424,31 +421,32 @@ func (s *raftlayer) ApplyEvent(event []byte) error {
 			s.logger.Error("failed to discover nodes", zap.Error(err))
 			return err
 		}
-		memberAddresses := make([]string, len(members))
-		for idx, member := range members {
+		for _, member := range members {
 			if member.NetworkAddress == leader {
-				memberAddresses[idx] = member.NetworkAddress
 				return s.discovery.DialAddress(serviceRPC, member.Peer, func(c *grpc.ClientConn) error {
 					client := pb.NewLayerClient(c)
 					_, err := client.SendEvent(context.TODO(), &pb.SendEventInput{Payload: event})
 					if err != nil {
+						s.logger.Error("failed to forward event to leader", zap.Error(err), zap.String("leader_address", leader))
 						return err
 					}
 					return nil
 				})
 			}
 		}
-		s.logger.Error("failed to find leader addess", zap.String("leader_address", leader), zap.Strings("members_addresses", memberAddresses))
+		s.logger.Error("failed to find leader addess", zap.String("leader_address", leader))
 		return errors.New("failed to find leader address")
 	}
-	promise := s.raft.Apply(event, 0)
+	promise := s.raft.Apply(event, 500*time.Millisecond)
 	err := promise.Error()
 	if err != nil {
+		s.logger.Error("failed to apply raft event", zap.Error(err))
 		return err
 	}
 	resp := promise.Response()
 	if resp != nil {
+		s.logger.Error("failed to apply raft event", zap.Error(resp.(error)))
 		return resp.(error)
 	}
-	return s.raft.Barrier(0).Error()
+	return nil
 }

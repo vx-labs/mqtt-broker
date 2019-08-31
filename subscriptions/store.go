@@ -1,6 +1,8 @@
 package subscriptions
 
 import (
+	"errors"
+
 	"github.com/vx-labs/mqtt-broker/subscriptions/pb"
 	"github.com/vx-labs/mqtt-broker/subscriptions/topic"
 	"github.com/vx-labs/mqtt-broker/subscriptions/tree"
@@ -9,6 +11,10 @@ import (
 )
 
 const table = "subscriptions"
+
+var (
+	ErrSubscriptionNotFound = errors.New("subscription not found")
+)
 
 type Store interface {
 	ByTopic(tenant string, pattern []byte) (*pb.SubscriptionMetadataList, error)
@@ -164,6 +170,9 @@ func (s *memDBStore) Delete(id string) error {
 		sub, err := tx.First(table, "id", id)
 		if err != nil {
 			return err
+		}
+		if sub == nil {
+			return ErrSubscriptionNotFound
 		}
 		oldSub = sub.(*pb.Metadata)
 		return tx.Delete(table, oldSub)

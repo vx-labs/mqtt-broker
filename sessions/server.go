@@ -8,18 +8,16 @@ import (
 	"github.com/gogo/protobuf/proto"
 	"github.com/vx-labs/mqtt-broker/cluster/types"
 	"github.com/vx-labs/mqtt-broker/sessions/pb"
-	subscriptions "github.com/vx-labs/mqtt-broker/subscriptions/pb"
 	"go.uber.org/zap"
 )
 
 type server struct {
-	id            string
-	store         SessionStore
-	state         types.RaftServiceLayer
-	ctx           context.Context
-	listeners     []net.Listener
-	logger        *zap.Logger
-	Subscriptions *subscriptions.Client
+	id        string
+	store     SessionStore
+	state     types.RaftServiceLayer
+	ctx       context.Context
+	listeners []net.Listener
+	logger    *zap.Logger
 }
 
 func New(id string, logger *zap.Logger) *server {

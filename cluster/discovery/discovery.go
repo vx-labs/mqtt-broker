@@ -45,7 +45,15 @@ func NewDiscoveryLayer(logger *zap.Logger, userConfig config.Config) *discoveryL
 		id:        userConfig.ID,
 		rpcCaller: pool.NewCaller(),
 	}
+	userConfig.OnNodeJoin = func(id string, meta pb.NodeMeta) {
+		if userConfig.ID != id {
+			logger.Info("node joined the mesh", zap.String("peer_id", id))
+		}
+	}
 	userConfig.OnNodeLeave = func(id string, meta pb.NodeMeta) {
+		if userConfig.ID != id {
+			logger.Info("node left the mesh", zap.String("peer_id", id))
+		}
 		for _, service := range meta.Services {
 			self.rpcCaller.Cancel(service.NetworkAddress)
 		}

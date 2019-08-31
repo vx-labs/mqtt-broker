@@ -86,7 +86,7 @@ func (m *layer) NotifyMsg(b []byte) {
 	}
 }
 func (s *layer) Health() string {
-	if s.mlist.NumMembers() == 0 {
+	if s.mlist.NumMembers() == 1 {
 		return "warning"
 	}
 	return "ok"
@@ -164,7 +164,9 @@ func (m *layer) Join(newHosts []string) error {
 	if len(hosts) == 0 {
 		return nil
 	}
-	m.logger.Info("joining cluster", zap.Strings("nodes", hosts), zap.Strings("provided_nodes", newHosts))
+	if m.mlist.NumMembers() == 1 {
+		m.logger.Info("joining cluster", zap.Strings("nodes", hosts), zap.Strings("provided_nodes", newHosts))
+	}
 	count, err := m.mlist.Join(hosts)
 	if err != nil {
 		if count == 0 {

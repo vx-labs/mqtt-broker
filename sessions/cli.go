@@ -15,7 +15,6 @@ import (
 	"github.com/vx-labs/mqtt-broker/cluster"
 	"github.com/vx-labs/mqtt-broker/network"
 	"github.com/vx-labs/mqtt-broker/sessions/pb"
-	subscriptions "github.com/vx-labs/mqtt-broker/subscriptions/pb"
 
 	grpc "google.golang.org/grpc"
 
@@ -37,13 +36,8 @@ func (b *server) Shutdown() {
 	}
 }
 func (b *server) JoinServiceLayer(name string, logger *zap.Logger, config cluster.ServiceConfig, rpcConfig cluster.ServiceConfig, mesh cluster.DiscoveryLayer) {
-	subscriptionsConn, err := mesh.DialService("subscriptions")
-	if err != nil {
-		panic(err)
-	}
-	b.Subscriptions = subscriptions.NewClient(subscriptionsConn)
 	b.state = cluster.NewRaftServiceLayer(name, logger, config, rpcConfig, mesh)
-	err = b.state.Start(name, b)
+	err := b.state.Start(name, b)
 	if err != nil {
 		panic(err)
 	}
@@ -110,23 +104,12 @@ func (m *server) Apply(payload []byte, leader bool) error {
 	switch event.Kind {
 	case transitionSessionCreated:
 		input := event.SessionCreated.Input
+		m.logger.Info("creating session", zap.String("session_id", event.SessionCreated.Input.ID))
 		err := m.store.Create(input)
+		m.logger.Info("created session", zap.String("session_id", event.SessionCreated.Input.ID))
 		return err
 	case transitionSessionDeleted:
 		err := m.store.Delete(event.SessionDeleted.ID)
-		if leader {
-			set, err := m.Subscriptions.BySession(m.ctx, event.SessionDeleted.ID)
-			if err != nil {
-				m.logger.Error("failed to fetch session subscriptions", zap.String("session_id", event.SessionDeleted.ID), zap.Error(err))
-			}
-			for _, subscription := range set {
-				err = m.Subscriptions.Delete(m.ctx, subscription.ID)
-				if err != nil {
-					m.logger.Error("failed to delete session subscription", zap.String("session_id", event.SessionDeleted.ID), zap.Error(err))
-					break
-				}
-			}
-		}
 		return err
 	default:
 		return errors.New("invalid event type received")

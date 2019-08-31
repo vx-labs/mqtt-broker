@@ -88,9 +88,8 @@ func JoinConsulPeers(api *consul.Client, service string, selfAddress string, sel
 	}
 }
 
-func logService(logger *zap.Logger, id, name string, config network.Configuration) {
+func logService(logger *zap.Logger, name string, config network.Configuration) {
 	logger.Info("loaded service config",
-		zap.String("service_kind", name),
 		zap.String("bind_address", config.BindAddress),
 		zap.Int("bind_port", config.BindPort),
 		zap.String("advertised_address", config.AdvertisedAddress),
@@ -199,6 +198,7 @@ func (ctx *Context) Run() error {
 				gossipRPCConfig.AdvertisePort = gossipRPCConfig.BindPort
 				gossipRPCConfig.ServicePort = port
 			}
+			logService(logger, service.ID, service.Network)
 			go service.Service.JoinServiceLayer(service.ID, logger, serviceConfig, gossipRPCConfig, ctx.Discovery)
 		}
 	}
@@ -212,12 +212,12 @@ func (ctx *Context) Run() error {
 		defer close(quit)
 		<-sigc
 		logger.Info("received termination signal")
-		ctx.Discovery.Leave()
-		logger.Info("cluster left")
 		for _, service := range ctx.Services {
 			service.Service.Shutdown()
 			logger.Info(fmt.Sprintf("stopped service %s", service.ID))
 		}
+		ctx.Discovery.Leave()
+		logger.Info("cluster left")
 	}()
 	<-quit
 	return nil
