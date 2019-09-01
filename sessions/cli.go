@@ -97,7 +97,7 @@ func (m *server) Serve(port int) net.Listener {
 	return lis
 }
 
-func (m *server) Apply(payload []byte, leader bool) error {
+func (m *server) Apply(payload []byte) error {
 	event := pb.SessionStateTransition{}
 	err := proto.Unmarshal(payload, &event)
 	if err != nil {
@@ -106,9 +106,7 @@ func (m *server) Apply(payload []byte, leader bool) error {
 	switch event.Kind {
 	case transitionSessionCreated:
 		input := event.SessionCreated.Input
-		m.logger.Info("creating session", zap.String("session_id", event.SessionCreated.Input.ID))
 		err := m.store.Create(input)
-		m.logger.Info("created session", zap.String("session_id", event.SessionCreated.Input.ID))
 		return err
 	case transitionSessionDeleted:
 		err := m.store.Delete(event.SessionDeleted.ID)

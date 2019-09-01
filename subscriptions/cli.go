@@ -104,7 +104,7 @@ func (m *server) Serve(port int) net.Listener {
 	return lis
 }
 
-func (m *server) Apply(payload []byte, leader bool) error {
+func (m *server) Apply(payload []byte) error {
 	event := pb.SubscriptionStateTransition{}
 	err := proto.Unmarshal(payload, &event)
 	if err != nil {
@@ -112,9 +112,6 @@ func (m *server) Apply(payload []byte, leader bool) error {
 	}
 	switch event.Kind {
 	case transitionSessionCreated:
-		if leader {
-			m.logger.Info("created subscription", zap.String("subscription_id", event.SubscriptionCreated.Input.ID))
-		}
 		input := event.SubscriptionCreated.Input
 		err := m.store.Create(&pb.Metadata{
 			ID:        input.ID,
@@ -126,9 +123,6 @@ func (m *server) Apply(payload []byte, leader bool) error {
 		})
 		return err
 	case transitionSessionDeleted:
-		if leader {
-			m.logger.Info("deleted subscription", zap.String("subscription_id", event.SubscriptionDeleted.ID))
-		}
 		err := m.store.Delete(event.SubscriptionDeleted.ID)
 		return err
 	default:

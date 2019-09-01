@@ -74,11 +74,15 @@ func (s *raftlayer) Start(name string, state types.RaftState) error {
 	if err != nil {
 		return err
 	}
-	transport, err := raft.NewTCPTransport(raftBind, addr, 5, 30*time.Second, ioutil.Discard)
+	var transport *raft.NetworkTransport
+	if os.Getenv("ENABLE_RAFT_LOG") != "true" {
+		transport, err = raft.NewTCPTransport(raftBind, addr, 5, 5*time.Second, ioutil.Discard)
+	} else {
+		transport, err = raft.NewTCPTransport(raftBind, addr, 5, 5*time.Second, os.Stderr)
+	}
 	if err != nil {
 		return err
 	}
-
 	// Create the snapshot store. This allows the Raft to truncate the log.
 	snapshots := raft.NewInmemSnapshotStore()
 	logStore := raft.NewInmemStore()
@@ -131,6 +135,9 @@ func (s *raftlayer) nodeStatus(node, serviceName string) string {
 	return status
 }
 
+func (s *raftlayer) logRaftStatus(log *raft.Log) {
+	s.logger.Debug("raft status", zap.Uint64("raft_last_index", s.raft.LastIndex()), zap.Uint64("raft_applied_index", s.raft.AppliedIndex()), zap.Uint64("raft_current_index", log.Index))
+}
 func (s *raftlayer) Health() string {
 	if (s.raft.Leader()) == "" {
 		return "warning"
@@ -138,7 +145,6 @@ func (s *raftlayer) Health() string {
 	if s.raft.AppliedIndex() == 0 {
 		return "warning"
 	}
-	s.logger.Debug("raft status", zap.Uint64("raft_last_index", s.raft.LastIndex()), zap.Uint64("raft_applied_index", s.raft.AppliedIndex()))
 	return "ok"
 }
 
@@ -308,7 +314,7 @@ func (s *raftlayer) isNodeAdopted(id string) bool {
 	return false
 }
 func (s *raftlayer) removeMember(id string) {
-	err := s.raft.RemoveServer(raft.ServerID(id), 0, 500*time.Millisecond).Error()
+	err := s.raft.RemoveServer(raft.ServerID(id), 0, 2*time.Second).Error()
 	if err != nil {
 		s.logger.Error("failed to remove dead node", zap.Error(err))
 		return
@@ -316,12 +322,12 @@ func (s *raftlayer) removeMember(id string) {
 	s.logger.Info("removed dead node", zap.Strings("raft_members", s.raftMembers()), zap.Strings("discovered_members", s.discoveredMembers()))
 }
 func (s *raftlayer) addMember(id, address string) {
-	err := s.raft.AddVoter(raft.ServerID(id), raft.ServerAddress(address), 0, 500*time.Millisecond).Error()
+	err := s.raft.AddVoter(raft.ServerID(id), raft.ServerAddress(address), 0, 2*time.Second).Error()
 	if err != nil {
 		s.logger.Error("failed to add new node", zap.String("new_node", id), zap.Error(err))
 		return
 	}
-	s.logger.Info("adopted new raft node", zap.String("new_node", id), zap.Strings("raft_members", s.raftMembers()), zap.Strings("discovered_members", s.discoveredMembers()))
+	s.logger.Info("adopted new raft node", zap.String("new_node", id), zap.Strings("raft_members", s.raftMembers()), zap.Strings("discovered_members", s.discoveredMembers()), zap.Uint64("raft_last_index", s.raft.LastIndex()))
 }
 func (s *raftlayer) syncMembers() {
 	members, err := s.discovery.Peers().EndpointsByService(fmt.Sprintf("%s_cluster", s.name))
@@ -386,7 +392,14 @@ func (s *raftlayer) leaderRoutine() {
 	}
 }
 func (s *raftlayer) Apply(log *raft.Log) interface{} {
-	return s.state.Apply(log.Data, s.IsLeader())
+	s.logRaftStatus(log)
+	if log.Type == raft.LogCommand {
+		err := s.state.Apply(log.Data)
+		if err != nil {
+			s.logger.Error("failed to apply raft event in FSM", zap.Error(err), zap.Uint64("raft_current_index", log.Index))
+		}
+	}
+	return nil
 }
 
 type snapshot struct {
@@ -412,8 +425,7 @@ func (s *raftlayer) Restore(snap io.ReadCloser) error {
 }
 
 func (s *raftlayer) Shutdown() error {
-	s.raft.Shutdown()
-	return nil
+	return s.raft.Shutdown().Error()
 }
 func (s *raftlayer) ApplyEvent(event []byte) error {
 	if !s.IsLeader() {
@@ -452,5 +464,5 @@ func (s *raftlayer) ApplyEvent(event []byte) error {
 		s.logger.Error("failed to apply raft event", zap.Error(resp.(error)))
 		return resp.(error)
 	}
-	return s.raft.Barrier(500 * time.Millisecond).Error()
+	return nil
 }

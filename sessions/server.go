@@ -62,7 +62,6 @@ func (m *server) RefreshKeepAlive(ctx context.Context, input *pb.RefreshKeepAliv
 	return &pb.RefreshKeepAliveOutput{}, m.state.ApplyEvent(payload)
 }
 func (m *server) Create(ctx context.Context, input *pb.SessionCreateInput) (*pb.SessionCreateOutput, error) {
-	m.logger.Debug("creating session", zap.String("session_id", input.ID))
 	ev := pb.SessionStateTransition{
 		Kind: transitionSessionCreated,
 		SessionCreated: &pb.SessionStateTransitionSessionCreated{
@@ -99,7 +98,6 @@ func isSessionExpired(session *pb.Session, now int64) bool {
 		now-session.LastKeepAlive > 2*int64(session.KeepaliveInterval)
 }
 func (m *server) deleteSession(id string) error {
-	m.logger.Debug("deleting session", zap.String("session_id", id))
 	ev := pb.SessionStateTransition{
 		Kind: transitionSessionDeleted,
 		SessionDeleted: &pb.SessionStateTransitionSessionDeleted{

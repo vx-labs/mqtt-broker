@@ -19,7 +19,7 @@ type ServiceLayer interface {
 }
 
 type RaftState interface {
-	Apply(event []byte, leader bool) error
+	Apply(event []byte) error
 	Snapshot() io.Reader
 	Restore(io.Reader) error
 }
