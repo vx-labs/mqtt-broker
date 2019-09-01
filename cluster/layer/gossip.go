@@ -68,6 +68,9 @@ func (s *layer) SendEvent(ctx context.Context, input *pb.SendEventInput) (*pb.Se
 	s.NotifyMsg(input.Payload)
 	return &pb.SendEventOutput{}, nil
 }
+func (s *layer) PrepareShutdown(ctx context.Context, input *pb.PrepareShutdownInput) (*pb.PrepareShutdownOutput, error) {
+	return &pb.PrepareShutdownOutput{}, nil
+}
 func (m *layer) NotifyMsg(b []byte) {
 	var p pb.Part
 	if err := proto.Unmarshal(b, &p); err != nil {

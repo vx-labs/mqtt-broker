@@ -215,6 +215,7 @@ func (ctx *Context) Run() error {
 		<-sigc
 		logger.Info("received termination signal")
 		for _, service := range ctx.Services {
+			logger.Info(fmt.Sprintf("stopping service %s", service.ID))
 			service.Service.Shutdown()
 			logger.Info(fmt.Sprintf("stopped service %s", service.ID))
 		}

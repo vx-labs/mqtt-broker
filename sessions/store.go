@@ -175,7 +175,7 @@ func (s *memDBStore) Delete(id string) error {
 	err := s.write(func(tx *memdb.Txn) error {
 		sess, err := s.first(tx, "id", id)
 		if err != nil {
-			return err
+			return nil
 		}
 		return tx.Delete(memdbTable, sess)
 	})

@@ -172,7 +172,7 @@ func (s *memDBStore) Delete(id string) error {
 			return err
 		}
 		if sub == nil {
-			return ErrSubscriptionNotFound
+			return nil
 		}
 		oldSub = sub.(*pb.Metadata)
 		return tx.Delete(table, oldSub)

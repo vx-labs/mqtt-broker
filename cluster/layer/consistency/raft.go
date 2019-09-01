@@ -139,11 +139,11 @@ func (s *raftlayer) logRaftStatus(log *raft.Log) {
 	s.logger.Debug("raft status", zap.Uint64("raft_last_index", s.raft.LastIndex()), zap.Uint64("raft_applied_index", s.raft.AppliedIndex()), zap.Uint64("raft_current_index", log.Index))
 }
 func (s *raftlayer) Health() string {
-	if (s.raft.Leader()) == "" {
-		return "warning"
-	}
 	if s.raft.AppliedIndex() == 0 {
 		return "warning"
+	}
+	if (s.raft.Leader()) == "" {
+		return "critical"
 	}
 	return "ok"
 }
@@ -295,9 +295,11 @@ func (s *raftlayer) Status(ctx context.Context, input *pb.StatusInput) (*pb.Stat
 func (s *raftlayer) SendEvent(ctx context.Context, input *pb.SendEventInput) (*pb.SendEventOutput, error) {
 	return &pb.SendEventOutput{}, s.ApplyEvent(input.Payload)
 }
+func (s *raftlayer) PrepareShutdown(ctx context.Context, input *pb.PrepareShutdownInput) (*pb.PrepareShutdownOutput, error) {
+	return &pb.PrepareShutdownOutput{}, s.raft.RemoveServer(raft.ServerID(input.ID), input.Index, 500*time.Millisecond).Error()
+}
 func (s *raftlayer) IsLeader() bool {
-	leader := s.raft.VerifyLeader()
-	return leader.Error() == nil
+	return s.raft.State() == raft.Leader
 }
 func (s *raftlayer) isNodeAdopted(id string) bool {
 	cProm := s.raft.GetConfiguration()
@@ -425,33 +427,46 @@ func (s *raftlayer) Restore(snap io.ReadCloser) error {
 }
 
 func (s *raftlayer) Shutdown() error {
+	ctx := context.Background()
+	ticker := time.NewTicker(3 * time.Second)
+	s.logger.Info("shuting down raft layer")
+	for {
+		index := s.raft.LastIndex()
+		if s.raft.VerifyLeader().Error() == nil {
+			err := s.raft.LeadershipTransfer().Error()
+			if err == nil {
+				break
+			}
+			s.logger.Error("failed to transfert raft leadership", zap.Error(err))
+		} else {
+			err := s.DialLeader(func(client pb.LayerClient) error {
+				_, err := client.PrepareShutdown(ctx, &pb.PrepareShutdownInput{
+					ID:    s.id,
+					Index: index,
+				})
+				return err
+			})
+			if err == nil {
+				break
+			}
+			s.logger.Error("failed to leave raft cluster", zap.Error(err))
+		}
+		<-ticker.C
+	}
+	ticker.Stop()
 	return s.raft.Shutdown().Error()
 }
 func (s *raftlayer) ApplyEvent(event []byte) error {
 	if !s.IsLeader() {
 		s.logger.Debug("forwarding event to leader")
-		leader := string(s.raft.Leader())
-		serviceRPC := fmt.Sprintf("%s_rpc", s.name)
-		members, err := s.discovery.Peers().EndpointsByService(fmt.Sprintf("%s_cluster", s.name))
-		if err != nil {
-			s.logger.Error("failed to discover nodes", zap.Error(err))
-			return err
-		}
-		for _, member := range members {
-			if member.NetworkAddress == leader {
-				return s.discovery.DialAddress(serviceRPC, member.Peer, func(c *grpc.ClientConn) error {
-					client := pb.NewLayerClient(c)
-					_, err := client.SendEvent(context.TODO(), &pb.SendEventInput{Payload: event})
-					if err != nil {
-						s.logger.Error("failed to forward event to leader", zap.Error(err), zap.String("leader_address", leader))
-						return err
-					}
-					return nil
-				})
+		return s.DialLeader(func(client pb.LayerClient) error {
+			_, err := client.SendEvent(context.TODO(), &pb.SendEventInput{Payload: event})
+			if err != nil {
+				s.logger.Error("failed to forward event to leader", zap.Error(err))
+				return err
 			}
-		}
-		s.logger.Error("failed to find leader addess", zap.String("leader_address", leader))
-		return errors.New("failed to find leader address")
+			return nil
+		})
 	}
 	promise := s.raft.Apply(event, 500*time.Millisecond)
 	err := promise.Error()
