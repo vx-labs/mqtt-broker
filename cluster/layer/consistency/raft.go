@@ -43,6 +43,7 @@ type raftlayer struct {
 	discovery       DiscoveryProvider
 }
 type DiscoveryProvider interface {
+	UnregisterService(id string) error
 	RegisterService(id string, address string) error
 	DialAddress(service, id string, f func(*grpc.ClientConn) error) error
 	Peers() peers.PeerStore

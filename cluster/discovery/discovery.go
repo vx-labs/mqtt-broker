@@ -108,6 +108,25 @@ func (m *discoveryLayer) RegisterService(name, address string) error {
 		return self
 	})
 }
+func (m *discoveryLayer) UnregisterService(name string) error {
+	return m.peers.Update(m.id, func(self peers.Peer) peers.Peer {
+		newServices := []*pb.NodeService{}
+		newServiceNames := []string{}
+		for _, service := range self.HostedServices {
+			if service.ID != name {
+				newServices = append(newServices, service)
+			}
+		}
+		for _, service := range self.Services {
+			if service != name {
+				newServiceNames = append(newServiceNames, service)
+			}
+		}
+		self.HostedServices = newServices
+		self.Services = newServiceNames
+		return self
+	})
+}
 func (m *discoveryLayer) Health() string {
 	if len(m.layer.Members()) > 1 {
 		return "ok"

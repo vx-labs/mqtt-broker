@@ -3,6 +3,7 @@ package consistency
 import (
 	"context"
 	"errors"
+	fmt "fmt"
 	"time"
 
 	"github.com/hashicorp/raft"
@@ -31,34 +32,31 @@ func (s *raftlayer) Shutdown() error {
 		return err
 	}
 	if s.raftNetwork != nil {
-		return s.raftNetwork.Close()
+		err := s.raftNetwork.Close()
+		if err != nil {
+			return err
+		}
 	}
-	return s.raft.Shutdown().Error()
+	return nil
 }
 func (s *raftlayer) Leave() error {
-	ctx := context.Background()
+	err := s.discovery.UnregisterService(fmt.Sprintf("%s_cluster", s.name))
+	if err != nil {
+		s.logger.Error("failed to unregister raft service from discovery", zap.Error(err))
+	}
+	s.logger.Info("unregistered service from discovery")
 	numPeers := len(s.raftMembers())
-
-	if s.IsLeader() {
-		if numPeers > 1 {
-			s.logger.Info("transfering raft leadership")
-			err := s.raft.RemoveServer(raft.ServerID(s.id), 0, 0).Error()
-			if err != nil {
-				s.logger.Error("failed to leave raft cluster", zap.Error(err))
-			}
-		}
-	} else {
-		s.logger.Info("leaving raft cluster")
-		err := s.DialLeader(func(client pb.LayerClient) error {
-			_, err := client.PrepareShutdown(ctx, &pb.PrepareShutdownInput{
-				ID:    s.id,
-				Index: 0,
-			})
-			return err
-		})
+	isLeader := s.IsLeader()
+	if isLeader && numPeers > 1 {
+		err := s.raft.RemoveServer(raft.ServerID(s.id), 0, 0).Error()
 		if err != nil {
-			s.logger.Error("failed to ask leader to remove use from cluster", zap.Error(err))
+			s.logger.Error("failed to leave raft cluster", zap.Error(err))
+			return err
 		}
+		s.logger.Info("raft leadership transfered")
+	}
+
+	if !isLeader {
 		left := false
 		deadline := time.Now().Add(15 * time.Second)
 		ticker := time.NewTicker(50 * time.Millisecond)
@@ -80,6 +78,8 @@ func (s *raftlayer) Leave() error {
 		}
 		if !left {
 			s.logger.Warn("failed to leave raft configuration gracefully, timeout")
+		} else {
+			s.logger.Info("raft cluster left")
 		}
 	}
 	return nil
