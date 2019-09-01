@@ -64,6 +64,9 @@ func (m *mockedMesh) DiscoverPeers(peers.PeerStore) {}
 func (m *mockedMesh) Members() []*memberlist.Node {
 	return nil
 }
+func (m *mockedMesh) PrepareShutdown(context.Context, *pb.PrepareShutdownInput) (*pb.PrepareShutdownOutput, error) {
+	return nil, nil
+}
 
 func MockedMesh() *mockedMesh {
 	return &mockedMesh{}

@@ -2,15 +2,12 @@ package consistency
 
 import (
 	"context"
-	"crypto/sha1"
 	"errors"
 	fmt "fmt"
 	"io"
 	"io/ioutil"
 	"net"
 	"os"
-	"sort"
-	"strings"
 	"time"
 
 	"github.com/vx-labs/mqtt-broker/cluster/peers"
@@ -38,6 +35,7 @@ type raftlayer struct {
 	name            string
 	status          string
 	raft            *raft.Raft
+	raftNetwork     *raft.NetworkTransport
 	selfRaftAddress raft.ServerAddress
 	state           types.RaftState
 	config          config.Config
@@ -83,6 +81,7 @@ func (s *raftlayer) Start(name string, state types.RaftState) error {
 	if err != nil {
 		return err
 	}
+	s.raftNetwork = transport
 	// Create the snapshot store. This allows the Raft to truncate the log.
 	snapshots := raft.NewInmemSnapshotStore()
 	logStore := raft.NewInmemStore()
@@ -148,118 +147,6 @@ func (s *raftlayer) Health() string {
 	return "ok"
 }
 
-func (s *raftlayer) waitForToken(token string, expectNodeCount int) error {
-	ticker := time.NewTicker(1 * time.Second)
-	timeout := time.NewTimer(60 * time.Second)
-	defer ticker.Stop()
-	defer timeout.Stop()
-	s.status = fmt.Sprintf("%s-%s", raftStatusBootstrapping, token)
-	prefix := fmt.Sprintf("%s-", raftStatusBootstrapping)
-	for {
-		members, err := s.discovery.Peers().EndpointsByService(fmt.Sprintf("%s_cluster", s.name))
-		if err != nil {
-			return err
-		}
-		bootstrappingMembers := make([]*pb.NodeService, 0)
-		s.logger.Info("waiting for other members to complete step 2", zap.String("sync_token", token))
-		for _, member := range members {
-			status := strings.TrimPrefix(s.nodeStatus(member.Peer, s.name), prefix)
-			if status == raftStatusBootstrapped {
-				return ErrBootstrappedNodeFound
-			}
-			if status == token {
-				bootstrappingMembers = append(bootstrappingMembers, member)
-			}
-
-			if len(bootstrappingMembers) == expectNodeCount {
-				sortMembers(bootstrappingMembers)
-				if token == SyncToken(bootstrappingMembers) {
-					s.logger.Info("members synchronization done", zap.String("sync_token", token), zap.Int("member_count", len(bootstrappingMembers)))
-					return nil
-				}
-			}
-			select {
-			case <-ticker.C:
-			case <-timeout.C:
-				return errors.New("step 2 timed out")
-			}
-		}
-	}
-}
-
-func SyncToken(members []*pb.NodeService) string {
-	if !sort.SliceIsSorted(members, func(i, j int) bool {
-		return strings.Compare(members[i].Peer, members[j].Peer) == -1
-	}) {
-		panic("members are not sorted")
-	}
-	bootstrapToken := sha1.New()
-	for _, member := range members {
-		bootstrapToken.Write([]byte(member.Peer))
-	}
-	return fmt.Sprintf("%x", (bootstrapToken.Sum(nil)))
-}
-
-func sortMembers(members []*pb.NodeService) {
-	sort.SliceStable(members, func(i, j int) bool {
-		return strings.Compare(members[i].Peer, members[j].Peer) == -1
-	})
-}
-
-func (s *raftlayer) joinCluster(name string, expectNodeCount int) error {
-	s.status = raftStatusBootstrapping
-	ticker := time.NewTicker(5 * time.Second)
-	defer ticker.Stop()
-	var members []*pb.NodeService
-	var err error
-	s.logger.Info("waiting for other cluster members to be discovered", zap.Int("expected_count", expectNodeCount))
-	for {
-		members, err = s.discovery.Peers().EndpointsByService(fmt.Sprintf("%s_cluster", name))
-		if err != nil {
-			return err
-		}
-		bootstrappingMembers := make([]*pb.NodeService, 0)
-		for _, member := range members {
-			status := s.nodeStatus(member.Peer, name)
-			if strings.HasPrefix(status, raftStatusBootstrapping) {
-				bootstrappingMembers = append(bootstrappingMembers, member)
-			}
-			if status == raftStatusBootstrapped {
-				return ErrBootstrappedNodeFound
-			}
-		}
-		if len(bootstrappingMembers) == expectNodeCount {
-			s.logger.Info("found other members", zap.Int("member_count", len(bootstrappingMembers)), zap.Int("expected_count", expectNodeCount))
-			members = bootstrappingMembers
-			break
-		}
-		<-ticker.C
-	}
-	sortMembers(members)
-	err = s.waitForToken(SyncToken(members), expectNodeCount)
-	if err != nil {
-		return err
-	}
-	if members[0].Peer != s.id {
-		return nil
-	}
-	configuration := raft.Configuration{
-		Servers: []raft.Server{
-			{
-				ID:      raft.ServerID(s.id),
-				Address: raft.ServerAddress(fmt.Sprintf("127.0.0.1:%d", s.config.BindPort)),
-			},
-		},
-	}
-	err = s.raft.BootstrapCluster(configuration).Error()
-	if err != nil {
-		return err
-	}
-	s.logger.Info("raft cluster bootstrapped")
-	s.status = raftStatusBootstrapped
-	return nil
-}
-
 func (s *raftlayer) discoveredMembers() []string {
 	members := []string{}
 	discovered, err := s.discovery.Peers().EndpointsByService(fmt.Sprintf("%s_cluster", s.name))
@@ -294,9 +181,6 @@ func (s *raftlayer) Status(ctx context.Context, input *pb.StatusInput) (*pb.Stat
 }
 func (s *raftlayer) SendEvent(ctx context.Context, input *pb.SendEventInput) (*pb.SendEventOutput, error) {
 	return &pb.SendEventOutput{}, s.ApplyEvent(input.Payload)
-}
-func (s *raftlayer) PrepareShutdown(ctx context.Context, input *pb.PrepareShutdownInput) (*pb.PrepareShutdownOutput, error) {
-	return &pb.PrepareShutdownOutput{}, s.raft.RemoveServer(raft.ServerID(input.ID), input.Index, 500*time.Millisecond).Error()
 }
 func (s *raftlayer) IsLeader() bool {
 	return s.raft.State() == raft.Leader
@@ -426,36 +310,6 @@ func (s *raftlayer) Restore(snap io.ReadCloser) error {
 	return s.state.Restore(snap)
 }
 
-func (s *raftlayer) Shutdown() error {
-	ctx := context.Background()
-	ticker := time.NewTicker(3 * time.Second)
-	s.logger.Info("shuting down raft layer")
-	for {
-		index := s.raft.LastIndex()
-		if s.raft.VerifyLeader().Error() == nil {
-			err := s.raft.LeadershipTransfer().Error()
-			if err == nil {
-				break
-			}
-			s.logger.Error("failed to transfert raft leadership", zap.Error(err))
-		} else {
-			err := s.DialLeader(func(client pb.LayerClient) error {
-				_, err := client.PrepareShutdown(ctx, &pb.PrepareShutdownInput{
-					ID:    s.id,
-					Index: index,
-				})
-				return err
-			})
-			if err == nil {
-				break
-			}
-			s.logger.Error("failed to leave raft cluster", zap.Error(err))
-		}
-		<-ticker.C
-	}
-	ticker.Stop()
-	return s.raft.Shutdown().Error()
-}
 func (s *raftlayer) ApplyEvent(event []byte) error {
 	if !s.IsLeader() {
 		s.logger.Debug("forwarding event to leader")

@@ -54,6 +54,9 @@ func (m *mockedMesh) RegisterService(name, addr string) error {
 }
 func (m *mockedMesh) Leave()                  {}
 func (m *mockedMesh) DiscoverPeers(PeerStore) {}
+func (m *mockedMesh) PrepareShutdown(context.Context, *pb.PrepareShutdownInput) (*pb.PrepareShutdownOutput, error) {
+	return nil, nil
+}
 func (m *mockedMesh) Members() []*memberlist.Node {
 	return nil
 }
