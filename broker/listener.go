@@ -23,7 +23,7 @@ import (
 
 var enforceClientIDUniqueness = true
 
-func validateClientID(clientID []byte) bool {
+func isClientIDValid(clientID []byte) bool {
 	return len(clientID) > 0 && len(clientID) < 128
 }
 
@@ -64,66 +64,60 @@ func (b *Broker) Connect(ctx context.Context, metadata transport.Metadata, p *pa
 			ReturnCode: packet.CONNACK_REFUSED_SERVER_UNAVAILABLE,
 		},
 	}
-	done := make(chan struct{})
-	err := b.workers.Call(func() error {
-		defer close(done)
-		clientID := p.ClientId
-		clientIDstr := string(clientID)
-		if !validateClientID(clientID) {
-			out.connack.ReturnCode = packet.CONNACK_REFUSED_IDENTIFIER_REJECTED
-			return fmt.Errorf("invalid client ID")
-		}
-		tenant, err := b.Authenticate(metadata, clientID, string(p.Username), string(p.Password))
+	clientID := p.ClientId
+	clientIDstr := string(clientID)
+	if !isClientIDValid(clientID) {
+		out.connack.ReturnCode = packet.CONNACK_REFUSED_IDENTIFIER_REJECTED
+		return "", "", out.connack, fmt.Errorf("invalid client ID")
+	}
+	tenant, err := b.Authenticate(metadata, clientID, string(p.Username), string(p.Password))
+	if err != nil {
+		out.connack.ReturnCode = packet.CONNACK_REFUSED_BAD_USERNAME_OR_PASSWORD
+		return "", "", out.connack, fmt.Errorf("WARN: authentication failed for client ID %q: %v", p.ClientId, err)
+	}
+	if enforceClientIDUniqueness {
+		set, err := b.Sessions.ByClientID(b.ctx, clientIDstr)
 		if err != nil {
-			out.connack.ReturnCode = packet.CONNACK_REFUSED_BAD_USERNAME_OR_PASSWORD
-			return fmt.Errorf("WARN: authentication failed for client ID %q: %v", p.ClientId, err)
+			return "", "", nil, fmt.Errorf("WARN: authentication failed for client ID %q: %v", clientIDstr, err)
 		}
-		if enforceClientIDUniqueness {
-			set, err := b.Sessions.ByClientID(b.ctx, clientIDstr)
-			if err != nil {
-				return fmt.Errorf("WARN: authentication failed for client ID %q: %v", clientIDstr, err)
-			}
-			if len(set) > 0 {
-				for _, session := range set {
-					b.Sessions.Delete(b.ctx, session.ID)
-				}
+		if len(set) > 0 {
+			for _, session := range set {
+				b.Sessions.Delete(b.ctx, session.ID)
 			}
 		}
-		input := sessions.SessionCreateInput{
-			ID:                sessionID,
-			ClientID:          clientIDstr,
-			Tenant:            tenant,
-			Peer:              metadata.Endpoint,
-			WillPayload:       p.WillPayload,
-			WillQoS:           p.WillQos,
-			WillRetain:        p.WillRetain,
-			WillTopic:         p.WillTopic,
-			Transport:         metadata.Name,
-			RemoteAddress:     metadata.RemoteAddress,
-			KeepaliveInterval: p.KeepaliveTimer,
-			Timestamp:         time.Now().Unix(),
-		}
-		err = b.Sessions.Create(b.ctx, input)
-		if err != nil {
-			b.logger.Error("failed to create session", zap.Error(err), zap.String("session_id", sessionID), zap.String("client_id", string(p.ClientId)), zap.String("username", string(p.Username)), zap.String("remote_address", metadata.RemoteAddress), zap.String("transport", metadata.Name))
-			return err
-		}
-		sess, err := b.Sessions.ByID(b.ctx, input.ID)
-		if err != nil {
-			b.logger.Error("failed to read session", zap.Error(err), zap.String("session_id", sessionID), zap.String("client_id", string(p.ClientId)), zap.String("username", string(p.Username)), zap.String("remote_address", metadata.RemoteAddress), zap.String("transport", metadata.Name))
-			return err
-		}
-		token, err := EncodeSessionToken(b.SigningKey(), sess)
-		if err != nil {
-			b.logger.Error("failed to encode session JWT", zap.Error(err), zap.String("session_id", sessionID), zap.String("client_id", string(p.ClientId)), zap.String("username", string(p.Username)), zap.String("remote_address", metadata.RemoteAddress), zap.String("transport", metadata.Name))
-			return err
-		}
-		out.token = token
-		b.logger.Info("session connected", zap.String("session_id", sessionID), zap.String("client_id", string(p.ClientId)), zap.String("username", string(p.Username)), zap.String("remote_address", metadata.RemoteAddress), zap.String("transport", metadata.Name))
-		out.connack.ReturnCode = packet.CONNACK_CONNECTION_ACCEPTED
-		return nil
-	})
-	<-done
+	}
+	input := sessions.SessionCreateInput{
+		ID:                sessionID,
+		ClientID:          clientIDstr,
+		Tenant:            tenant,
+		Peer:              metadata.Endpoint,
+		WillPayload:       p.WillPayload,
+		WillQoS:           p.WillQos,
+		WillRetain:        p.WillRetain,
+		WillTopic:         p.WillTopic,
+		Transport:         metadata.Name,
+		RemoteAddress:     metadata.RemoteAddress,
+		KeepaliveInterval: p.KeepaliveTimer,
+		Timestamp:         time.Now().Unix(),
+	}
+	err = b.Sessions.Create(b.ctx, input)
+	if err != nil {
+		b.logger.Error("failed to create session", zap.Error(err), zap.String("session_id", sessionID), zap.String("client_id", string(p.ClientId)), zap.String("username", string(p.Username)), zap.String("remote_address", metadata.RemoteAddress), zap.String("transport", metadata.Name))
+		return "", "", nil, err
+	}
+	sess, err := b.Sessions.ByID(b.ctx, input.ID)
+	if err != nil {
+		b.logger.Error("failed to read session", zap.Error(err), zap.String("session_id", sessionID), zap.String("client_id", string(p.ClientId)), zap.String("username", string(p.Username)), zap.String("remote_address", metadata.RemoteAddress), zap.String("transport", metadata.Name))
+		return "", "", nil, err
+	}
+	token, err := EncodeSessionToken(b.SigningKey(), sess)
+	if err != nil {
+		b.logger.Error("failed to encode session JWT", zap.Error(err), zap.String("session_id", sessionID), zap.String("client_id", string(p.ClientId)), zap.String("username", string(p.Username)), zap.String("remote_address", metadata.RemoteAddress), zap.String("transport", metadata.Name))
+		return "", "", nil, err
+	}
+	out.token = token
+	b.logger.Info("session connected", zap.String("session_id", sessionID), zap.String("client_id", string(p.ClientId)), zap.String("username", string(p.Username)), zap.String("remote_address", metadata.RemoteAddress), zap.String("transport", metadata.Name))
+	out.connack.ReturnCode = packet.CONNACK_CONNECTION_ACCEPTED
 	return sessionID, out.token, out.connack, err
 }
 func (b *Broker) sendToSession(ctx context.Context, id string, peer string, p *packet.Publish) error {
