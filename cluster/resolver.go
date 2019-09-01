@@ -2,6 +2,8 @@ package cluster
 
 import (
 	"log"
+	"net/url"
+	"strings"
 
 	"github.com/vx-labs/mqtt-broker/cluster/pb"
 	"github.com/vx-labs/mqtt-broker/cluster/peers"
@@ -38,24 +40,43 @@ func (r *meshResolver) Scheme() string {
 	return "mesh"
 }
 
-func (r *meshResolver) updateConn(target resolver.Target, cc resolver.ClientConn) {
-	peers, err := r.peers.EndpointsByService(target.Endpoint)
-	if err != nil {
-		log.Printf("ERR: failed to search peers for service %s", target.Endpoint)
-		return
-	}
-	addresses := make([]resolver.Address, len(peers))
-	loggableAddresses := make([]string, len(peers))
-	for idx, peer := range peers {
-		loggableAddresses[idx] = peer.Peer
-		addresses[idx] = resolver.Address{
-			Addr:       peer.NetworkAddress,
-			ServerName: peer.Peer,
-			Type:       resolver.Backend,
-			Metadata:   nil,
+func contains(needle string, slice []string) bool {
+	for _, s := range slice {
+		if s == needle {
+			return true
 		}
 	}
-	r.logger.Debug("updated mesh resolver targets", zap.Strings("targets", loggableAddresses), zap.String("grpc_endpoint", target.Endpoint))
+	return false
+}
+func tagsFilter(endpoint string) (string, string) {
+	targetURL, err := url.Parse("mesh:///" + endpoint)
+	if err != nil {
+		return endpoint, ""
+	}
+	tagFilter := targetURL.Query().Get("tags")
+	return strings.TrimPrefix(targetURL.Path, "/"), tagFilter
+}
+func (r *meshResolver) updateConn(target resolver.Target, cc resolver.ClientConn) {
+	service, tagFilter := tagsFilter(target.Endpoint)
+	peers, err := r.peers.EndpointsByService(service)
+	if err != nil {
+		log.Printf("ERR: failed to search peers for service %s", service)
+		return
+	}
+	addresses := make([]resolver.Address, 0)
+	loggableAddresses := make([]string, 0)
+	for _, peer := range peers {
+		if tagFilter == "" || contains(tagFilter, peer.Tags) {
+			loggableAddresses = append(loggableAddresses, peer.Peer)
+			addresses = append(addresses, resolver.Address{
+				Addr:       peer.NetworkAddress,
+				ServerName: peer.Peer,
+				Type:       resolver.Backend,
+				Metadata:   nil,
+			})
+		}
+	}
+	r.logger.Debug("updated mesh resolver targets", zap.Strings("targets", loggableAddresses), zap.String("grpc_endpoint", service))
 	cc.UpdateState(resolver.State{
 		Addresses:     addresses,
 		ServiceConfig: nil,

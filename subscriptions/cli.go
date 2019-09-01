@@ -37,7 +37,7 @@ func (b *server) Shutdown() {
 	}
 }
 func (b *server) JoinServiceLayer(name string, logger *zap.Logger, config cluster.ServiceConfig, rpcConfig cluster.ServiceConfig, mesh cluster.DiscoveryLayer) {
-	sessionsConn, err := mesh.DialService("sessions")
+	sessionsConn, err := mesh.DialService("sessions?tags=leader")
 	if err != nil {
 		panic(err)
 	}

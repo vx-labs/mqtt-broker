@@ -45,6 +45,7 @@ type raftlayer struct {
 type DiscoveryProvider interface {
 	UnregisterService(id string) error
 	RegisterService(id string, address string) error
+	SetServiceTags(name string, tags []string) error
 	DialAddress(service, id string, f func(*grpc.ClientConn) error) error
 	Peers() peers.PeerStore
 }
@@ -271,11 +272,13 @@ func (s *raftlayer) leaderRoutine() {
 			s.status = raftStatusBootstrapped
 		}
 		if !leader {
+			s.discovery.SetServiceTags(s.name, []string{})
 			continue
 		}
 		s.logger.Info("raft cluster leadership acquired",
 			zap.Strings("raft_members", s.raftMembers()), zap.Strings("discovered_members", s.discoveredMembers()),
 		)
+		s.discovery.SetServiceTags(s.name, []string{"leader"})
 		s.syncMembers()
 	}
 }
