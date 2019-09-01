@@ -72,6 +72,7 @@ func sortMembers(members []*pb.NodeService) {
 }
 
 func (s *raftlayer) joinCluster(name string, expectNodeCount int) error {
+	s.discovery.RegisterService(fmt.Sprintf("%s_cluster", name), fmt.Sprintf("%s:%d", s.config.AdvertiseAddr, s.config.AdvertisePort))
 	s.status = raftStatusBootstrapping
 	ticker := time.NewTicker(5 * time.Second)
 	defer ticker.Stop()

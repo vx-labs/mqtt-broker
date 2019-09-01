@@ -26,7 +26,6 @@ func NewRaftServiceLayer(name string, logger *zap.Logger, serviceConfig ServiceC
 	}
 
 	discovery.RegisterService(name, fmt.Sprintf("%s:%d", userConfig.AdvertiseAddr, serviceConfig.ServicePort))
-	discovery.RegisterService(fmt.Sprintf("%s_cluster", name), fmt.Sprintf("%s:%d", userConfig.AdvertiseAddr, userConfig.AdvertisePort))
 	discovery.RegisterService(fmt.Sprintf("%s_rpc", name), fmt.Sprintf("%s:%d", rpcConfig.AdvertiseAddr, rpcConfig.AdvertisePort))
 	ServeRPC(rpcConfig.BindPort, l)
 	return l
