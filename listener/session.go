@@ -54,8 +54,9 @@ func (local *endpoint) runLocalSession(t transport.Metadata) {
 		decoder.OnConnect(func(p *packet.Connect) error {
 			id, token, connack, err := local.broker.Connect(ctx, t, p)
 			if err != nil {
-				logger.Error("failed to send CONNECT", zap.Error(err))
-				return enc.ConnAck(connack)
+				logger.Error("CONNECT failed", zap.Error(err))
+				enc.ConnAck(connack)
+				return ErrConnectNotDone
 			}
 			if id == "" {
 				logger.Error("broker returned an empty session id")
@@ -63,15 +64,15 @@ func (local *endpoint) runLocalSession(t transport.Metadata) {
 					ReturnCode: packet.CONNACK_REFUSED_SERVER_UNAVAILABLE,
 					Header:     &packet.Header{},
 				})
-				return errors.New("broker returned an empty session id")
+				return ErrConnectNotDone
 			}
 			if token == "" {
-				logger.Warn("broker returned an empty session token")
+				logger.Error("broker returned an empty session token")
 				enc.ConnAck(&packet.ConnAck{
 					ReturnCode: packet.CONNACK_REFUSED_SERVER_UNAVAILABLE,
 					Header:     &packet.Header{},
 				})
-				return errors.New("broker returned an empty session token")
+				return ErrConnectNotDone
 			}
 			logger = logger.WithOptions(zap.Fields(zap.String("session_id", id), zap.String("client_id", string(p.ClientId))))
 			session.id = id
@@ -167,6 +168,9 @@ func (local *endpoint) runLocalSession(t transport.Metadata) {
 	for {
 		err = dec.Decode(t.Channel)
 		if err != nil {
+			if err == ErrConnectNotDone {
+				break
+			}
 			if err == ErrSessionDisconnected {
 				logger.Info("session disconnected")
 				break
@@ -175,10 +179,7 @@ func (local *endpoint) runLocalSession(t transport.Metadata) {
 			break
 		}
 	}
-	err = t.Channel.Close()
-	if err != nil {
-		logger.Warn("failed to close session channel", zap.Error(err))
-	}
+	t.Channel.Close()
 	if session.id != "" {
 		err = local.broker.CloseSession(ctx, session.token)
 		if err != nil {
