@@ -23,6 +23,10 @@ import (
 
 var enforceClientIDUniqueness = true
 
+var (
+	ErrAuthenticationFailed = errors.New("authentication failed")
+)
+
 func isClientIDValid(clientID []byte) bool {
 	return len(clientID) > 0 && len(clientID) < 128
 }
@@ -56,29 +60,32 @@ type connectReturn struct {
 func (b *Broker) SigningKey() string {
 	return os.Getenv("JWT_SIGN_KEY")
 }
+func connack(code int32) *packet.ConnAck {
+	return &packet.ConnAck{
+		Header:     &packet.Header{},
+		ReturnCode: code,
+	}
+}
+
 func (b *Broker) Connect(ctx context.Context, metadata transport.Metadata, p *packet.Connect) (string, string, *packet.ConnAck, error) {
 	sessionID := newUUID()
-	out := &connectReturn{
-		connack: &packet.ConnAck{
-			Header:     p.Header,
-			ReturnCode: packet.CONNACK_REFUSED_SERVER_UNAVAILABLE,
-		},
-	}
 	clientID := p.ClientId
 	clientIDstr := string(clientID)
+	logger := b.logger.With(zap.String("session_id", sessionID), zap.String("client_id", string(clientIDstr)), zap.String("username", string(p.Username)), zap.String("remote_address", metadata.RemoteAddress), zap.String("transport", metadata.Name))
 	if !isClientIDValid(clientID) {
-		out.connack.ReturnCode = packet.CONNACK_REFUSED_IDENTIFIER_REJECTED
-		return "", "", out.connack, fmt.Errorf("invalid client ID")
+		logger.Info("connection refused: invalid client id")
+		return "", "", connack(packet.CONNACK_REFUSED_IDENTIFIER_REJECTED), fmt.Errorf("invalid client ID")
 	}
 	tenant, err := b.Authenticate(metadata, clientID, string(p.Username), string(p.Password))
 	if err != nil {
-		out.connack.ReturnCode = packet.CONNACK_REFUSED_BAD_USERNAME_OR_PASSWORD
-		return "", "", out.connack, fmt.Errorf("WARN: authentication failed for client ID %q: %v", p.ClientId, err)
+		logger.Info("authentication failed", zap.Error(err))
+		return "", "", connack(packet.CONNACK_REFUSED_BAD_USERNAME_OR_PASSWORD), ErrAuthenticationFailed
 	}
 	if enforceClientIDUniqueness {
 		set, err := b.Sessions.ByClientID(b.ctx, clientIDstr)
 		if err != nil {
-			return "", "", nil, fmt.Errorf("WARN: authentication failed for client ID %q: %v", clientIDstr, err)
+			logger.Error("failed to lookup for other sessions using same client id", zap.Error(err))
+			return "", "", connack(packet.CONNACK_REFUSED_SERVER_UNAVAILABLE), fmt.Errorf("failed to lookup for other sessions using same client id")
 		}
 		if len(set) > 0 {
 			for _, session := range set {
@@ -102,23 +109,21 @@ func (b *Broker) Connect(ctx context.Context, metadata transport.Metadata, p *pa
 	}
 	err = b.Sessions.Create(b.ctx, input)
 	if err != nil {
-		b.logger.Error("failed to create session", zap.Error(err), zap.String("session_id", sessionID), zap.String("client_id", string(p.ClientId)), zap.String("username", string(p.Username)), zap.String("remote_address", metadata.RemoteAddress), zap.String("transport", metadata.Name))
-		return "", "", nil, err
+		logger.Error("failed to create session", zap.Error(err))
+		return "", "", connack(packet.CONNACK_REFUSED_SERVER_UNAVAILABLE), err
 	}
 	sess, err := b.Sessions.ByID(b.ctx, input.ID)
 	if err != nil {
-		b.logger.Error("failed to read session", zap.Error(err), zap.String("session_id", sessionID), zap.String("client_id", string(p.ClientId)), zap.String("username", string(p.Username)), zap.String("remote_address", metadata.RemoteAddress), zap.String("transport", metadata.Name))
-		return "", "", nil, err
+		logger.Error("failed to read session", zap.Error(err))
+		return "", "", connack(packet.CONNACK_REFUSED_SERVER_UNAVAILABLE), err
 	}
 	token, err := EncodeSessionToken(b.SigningKey(), sess)
 	if err != nil {
-		b.logger.Error("failed to encode session JWT", zap.Error(err), zap.String("session_id", sessionID), zap.String("client_id", string(p.ClientId)), zap.String("username", string(p.Username)), zap.String("remote_address", metadata.RemoteAddress), zap.String("transport", metadata.Name))
-		return "", "", nil, err
+		logger.Error("failed to encode session JWT", zap.Error(err))
+		return "", "", connack(packet.CONNACK_REFUSED_SERVER_UNAVAILABLE), err
 	}
-	out.token = token
-	b.logger.Info("session connected", zap.String("session_id", sessionID), zap.String("client_id", string(p.ClientId)), zap.String("username", string(p.Username)), zap.String("remote_address", metadata.RemoteAddress), zap.String("transport", metadata.Name))
-	out.connack.ReturnCode = packet.CONNACK_CONNECTION_ACCEPTED
-	return sessionID, out.token, out.connack, err
+	logger.Info("session connected")
+	return sessionID, token, connack(packet.CONNACK_CONNECTION_ACCEPTED), err
 }
 func (b *Broker) sendToSession(ctx context.Context, id string, peer string, p *packet.Publish) error {
 	return b.mesh.DialAddress("listener", peer, func(conn *grpc.ClientConn) error {
