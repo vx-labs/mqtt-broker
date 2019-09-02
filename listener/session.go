@@ -67,6 +67,10 @@ func (local *endpoint) runLocalSession(t transport.Metadata) {
 			}
 			if token == "" {
 				logger.Warn("broker returned an empty session token")
+				enc.ConnAck(&packet.ConnAck{
+					ReturnCode: packet.CONNACK_REFUSED_SERVER_UNAVAILABLE,
+					Header:     &packet.Header{},
+				})
 				return errors.New("broker returned an empty session token")
 			}
 			logger = logger.WithOptions(zap.Fields(zap.String("session_id", id), zap.String("client_id", string(p.ClientId))))
