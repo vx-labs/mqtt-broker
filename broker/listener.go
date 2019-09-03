@@ -267,10 +267,7 @@ func (b *Broker) CloseSession(ctx context.Context, token string) error {
 	}
 	sess, err := b.Sessions.ByID(b.ctx, decodedToken.SessionID)
 	if err != nil {
-		if err.Error() == sessions.ErrSessionNotFound.Error() {
-			return nil
-		}
-		return err
+		return nil
 	}
 	if len(sess.WillTopic) > 0 {
 		b.logger.Info("sending LWT", zap.String("session_id", sess.ID), zap.Error(err))
