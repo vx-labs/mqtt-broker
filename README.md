@@ -5,31 +5,22 @@ Inspired (a lot) by https://emitter.io/.
 
 ## Running
 
-The system is composed of two services: a "broker" and a "listener".
-The listener is listening on the network (tcp, tls, ws or wss), and forward MQTT packets
-to the broker using a GRPC connection.
-
-The broker is responsible of routing MQTT messages.
+The system is composed of multiple services, discovering themselves using a gossip-based service mesh.
+Inter-service communication is based on GRPC.
 
 ### Single node
 
-You can run the two services by running:
+You can run 3 instances of the broker with the following command.
 ```
-docker run --net=host --rm quay.io/vxlabs/mqtt-listener:<tag> -t 1883
-docker run --net=host --rm quay.io/vxlabs/mqtt-broker:<tag> -j localhost:3500 --cluster-bind-port=3501
+go run ./cli/allinone/main.go -j localhost:3302 -j localhost:3303 --cluster-bind-port 3301 -t 1883
+go run ./cli/allinone/main.go -j localhost:3301 -j localhost:3303 --cluster-bind-port 3302 -t 1884
+go run ./cli/allinone/main.go -j localhost:3302 -j localhost:3301 --cluster-bind-port 3303 -t 1885
 ```
 
-(`docker run` can be replaced by the appropriate `go run` command, each entrypint is located
-in the ./cmd/ folder)
-
-The broker should start and listen on 0.0.0.0:1883 (tcp).
+The broker should start and listen on 0.0.0.0:1883 (tcp), 0.0.0.0:1884 (tcp) and 0.0.0.0:1885 (tcp).
 You can connect to it using an MQTT client:
 
 ```
 mosquitto_sub -t 'test' -d -q 1 &
-mosquitto_pub -t 'test' -d -q 1 -m 'hello'
+mosquitto_pub --port 1884 -t 'test' -d -q 1 -m 'hello'
 ```
-
-### Multiple nodes
-
-You can start any number of listener or broker, they will discover themselves using a gossip-based mesh network.
