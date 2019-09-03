@@ -58,6 +58,10 @@ func (local *endpoint) runLocalSession(t transport.Metadata) {
 				enc.ConnAck(connack)
 				return ErrConnectNotDone
 			}
+			if connack.ReturnCode != packet.CONNACK_CONNECTION_ACCEPTED {
+				enc.ConnAck(connack)
+				return ErrConnectNotDone
+			}
 			if id == "" {
 				logger.Error("broker returned an empty session id")
 				enc.ConnAck(&packet.ConnAck{
