@@ -13,6 +13,9 @@ job "mqtt-subscriptions" {
 
   group "subscription-store" {
     count = 3
+    constraint {
+        distinct_hosts = true
+    }
 
     restart {
       attempts = 10

@@ -13,7 +13,9 @@ job "mqtt-sessions" {
 
   group "session-store" {
     count = 3
-
+    constraint {
+        distinct_hosts = true
+    }
     restart {
       attempts = 10
       interval = "5m"
