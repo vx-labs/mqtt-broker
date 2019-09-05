@@ -110,7 +110,7 @@ func GetConfig(ctx context.Context, cn string, logger *zap.Logger) (*tls.Config,
 		return nil, err
 	}
 
-	logger.Info("using vault as ACME storage", zap.String("vault_address", config.Address))
+	logger.Debug("using vault as ACME storage", zap.String("vault_address", config.Address))
 
 	manager := &autocert.Manager{
 		Email:  os.Getenv("LE_EMAIL"),
@@ -126,6 +126,6 @@ func GetConfig(ctx context.Context, cn string, logger *zap.Logger) (*tls.Config,
 		},
 		Client: &acme.Client{},
 	}
-	logger.Info("loaded ACME client", zap.Strings("acme_common_names", []string{cn}))
+	logger.Debug("loaded ACME client", zap.Strings("acme_common_names", []string{cn}))
 	return manager.TLSConfig(), nil
 }

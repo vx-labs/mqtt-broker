@@ -168,15 +168,15 @@ func (m *layer) Join(newHosts []string) error {
 		return nil
 	}
 	if m.mlist.NumMembers() == 1 {
-		m.logger.Info("joining cluster", zap.Strings("nodes", hosts), zap.Strings("provided_nodes", newHosts))
+		m.logger.Debug("joining cluster", zap.Strings("nodes", hosts), zap.Strings("provided_nodes", newHosts))
 	}
 	count, err := m.mlist.Join(hosts)
 	if err != nil {
 		if count == 0 {
 			if m.mlist.NumMembers() == 1 {
 				m.logger.Error("failed to join cluster", zap.Error(err))
+				return err
 			}
-			return err
 		}
 		m.logger.Warn("failed to join some member of cluster", zap.Error(err))
 	}

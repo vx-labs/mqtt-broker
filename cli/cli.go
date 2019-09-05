@@ -91,7 +91,7 @@ func JoinConsulPeers(api *consul.Client, service string, selfAddress string, sel
 }
 
 func logService(logger *zap.Logger, name string, config network.Configuration) {
-	logger.Info("loaded service config",
+	logger.Debug("loaded service config",
 		zap.String("bind_address", config.BindAddress),
 		zap.Int("bind_port", config.BindPort),
 		zap.String("advertised_address", config.AdvertisedAddress),
@@ -215,9 +215,9 @@ func (ctx *Context) Run() error {
 		<-sigc
 		logger.Info("received termination signal")
 		for _, service := range ctx.Services {
-			logger.Info(fmt.Sprintf("stopping service %s", service.ID))
+			logger.Debug(fmt.Sprintf("stopping service %s", service.ID))
 			service.Service.Shutdown()
-			logger.Info(fmt.Sprintf("stopped service %s", service.ID))
+			logger.Debug(fmt.Sprintf("stopped service %s", service.ID))
 		}
 		ctx.Discovery.Leave()
 		logger.Info("cluster left")
