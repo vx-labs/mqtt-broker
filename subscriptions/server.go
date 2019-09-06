@@ -99,6 +99,8 @@ func (m *server) gcExpiredSubscriptions() {
 			err := m.deleteSubscription(subscription.ID)
 			if err != nil {
 				m.logger.Error("failed to gc subscription", zap.String("subscription_id", subscription.ID), zap.Error(err))
+			} else {
+				m.logger.Info("deleted expired subscription", zap.String("subscription_id", subscription.ID))
 			}
 		}
 	}
