@@ -124,6 +124,8 @@ func (m *server) gcExpiredSessions() {
 			err := m.deleteSession(session.ID)
 			if err != nil {
 				m.logger.Error("failed to gc session", zap.String("session_id", session.ID), zap.Error(err))
+			} else {
+				m.logger.Info("deleted expired session", zap.String("session_id", session.ID))
 			}
 		}
 	}
