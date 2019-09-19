@@ -104,12 +104,12 @@
   version = "v1.2.0"
 
 [[projects]]
-  digest = "1:8f9bc7d0f0cb6bd3930d6d235f3b3cfb2eb53dc8ec9d0202d18d2bd4df6d9565"
+  digest = "1:e517a4fb63e7467e44600a420863fba5c4c9769d486759fb3c6e04fd071854d9"
   name = "github.com/hashicorp/consul"
   packages = ["api"]
   pruneopts = ""
-  revision = "2c7715154d8d4568524b76d2d4deb7ca6fd1b285"
-  version = "v0.8.5"
+  revision = "9be6dfc310ddd54627d698537a98827245185290"
+  version = "v1.6.1"
 
 [[projects]]
   digest = "1:8e3bd93036b4a925fe2250d3e4f38f21cadb8ef623561cd80c3c50c114b13201"
