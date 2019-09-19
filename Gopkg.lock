@@ -243,20 +243,20 @@
   version = "v0.8.3"
 
 [[projects]]
-  digest = "1:1f8b1d2919d8e40644e06eb1cf4f07e46c0cdfb292ae5a95518967d457375e70"
+  digest = "1:da59a2fe2ebf791b35238bf69a7126b6d0e52498ff0e0fab36f7080603373b13"
   name = "github.com/hashicorp/vault"
   packages = [
     "api",
-    "helper/compressutil",
-    "helper/consts",
-    "helper/hclutil",
-    "helper/jsonutil",
-    "helper/parseutil",
-    "helper/strutil",
+    "sdk/helper/compressutil",
+    "sdk/helper/consts",
+    "sdk/helper/hclutil",
+    "sdk/helper/jsonutil",
+    "sdk/helper/parseutil",
+    "sdk/helper/strutil",
   ]
   pruneopts = ""
-  revision = "dad2b6048153fea5efbc0c06a5f35c06c767b308"
-  version = "v0.11.6"
+  revision = "c14bd9a2b1d2c20f15b9f93f5c2d487507bb8a2f"
+  version = "v1.2.3"
 
 [[projects]]
   digest = "1:870d441fe217b8e689d7949fef6e43efbc787e50f200cb1e70dbca9204a1d6be"
@@ -526,6 +526,7 @@
     "acme/autocert",
     "ed25519",
     "ed25519/internal/edwards25519",
+    "pbkdf2",
   ]
   pruneopts = ""
   revision = "9756ffdc24725223350eb3266ffb92590d28f278"
@@ -645,6 +646,19 @@
   pruneopts = ""
   revision = "6eaf6f47437a6b4e2153a190160ef39a92c7eceb"
   version = "v1.23.0"
+
+[[projects]]
+  digest = "1:40cf02345bfa29fb217cfe0767a9416d99569d4ff21dbb1fd3378ef10682549c"
+  name = "gopkg.in/square/go-jose.v2"
+  packages = [
+    ".",
+    "cipher",
+    "json",
+    "jwt",
+  ]
+  pruneopts = ""
+  revision = "730df5f748271903322feb182be83b43ebbbe27d"
+  version = "v2.3.1"
 
 [[projects]]
   digest = "1:cedccf16b71e86db87a24f8d4c70b0a855872eb967cb906a66b95de56aefbd0d"
