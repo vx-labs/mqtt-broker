@@ -13,9 +13,11 @@ job "mqtt-sessions" {
 
   group "session-store" {
     count = 3
+
     constraint {
-        distinct_hosts = true
+      distinct_hosts = true
     }
+
     restart {
       attempts = 10
       interval = "5m"
@@ -31,7 +33,7 @@ job "mqtt-sessions" {
       driver = "docker"
 
       env {
-        CONSUL_HTTP_ADDR          = "172.17.0.1:8500"
+        CONSUL_HTTP_ADDR = "172.17.0.1:8500"
       }
 
       config {
@@ -44,27 +46,29 @@ job "mqtt-sessions" {
           }
         }
 
-        image      = "quay.io/vxlabs/mqtt-sessions:${broker_version}"
-        args       = [
+        image = "quay.io/vxlabs/mqtt-sessions:${broker_version}"
+
+        args = [
           "--cluster-bind-port=3500",
           "--sessions_gossip-bind-port=3100",
           "--sessions-bind-port=4000",
           "--sessions_gossip_rpc-bind-port=3200",
         ]
+
         force_pull = true
 
         port_map {
-          health  = 9000
-          cluster = 3500
-          sessions = 4000
-          sessions_gossip  = 3100
-          sessions_gossip_rpc  = 3200
+          health              = 9000
+          cluster             = 3500
+          sessions            = 4000
+          sessions_gossip     = 3100
+          sessions_gossip_rpc = 3200
         }
       }
 
       resources {
         cpu    = 200
-        memory = 32
+        memory = 64
 
         network {
           mbits = 10
