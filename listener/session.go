@@ -9,8 +9,8 @@ import (
 	"go.uber.org/zap/zapcore"
 
 	"github.com/vx-labs/mqtt-broker/pool"
-	"github.com/vx-labs/mqtt-broker/queues/inflight"
-	publishQueue "github.com/vx-labs/mqtt-broker/queues/publish"
+	"github.com/vx-labs/mqtt-broker/struct/queues/inflight"
+	publishQueue "github.com/vx-labs/mqtt-broker/struct/queues/publish"
 	"github.com/vx-labs/mqtt-broker/transport"
 	"github.com/vx-labs/mqtt-protocol/decoder"
 	"github.com/vx-labs/mqtt-protocol/encoder"

@@ -19,7 +19,7 @@ import (
 
 	"github.com/vx-labs/mqtt-protocol/packet"
 
-	publishQueue "github.com/vx-labs/mqtt-broker/queues/publish"
+	publishQueue "github.com/vx-labs/mqtt-broker/struct/queues/publish"
 	subscriptions "github.com/vx-labs/mqtt-broker/subscriptions/pb"
 )
 

@@ -10,7 +10,7 @@ import (
 
 	"github.com/google/btree"
 	brokerpb "github.com/vx-labs/mqtt-broker/broker/pb"
-	publishQueue "github.com/vx-labs/mqtt-broker/queues/publish"
+	publishQueue "github.com/vx-labs/mqtt-broker/struct/queues/publish"
 
 	"github.com/vx-labs/mqtt-broker/cluster"
 	"github.com/vx-labs/mqtt-broker/transport"

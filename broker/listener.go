@@ -9,7 +9,7 @@ import (
 
 	"github.com/vx-labs/mqtt-broker/cluster"
 	listenerpb "github.com/vx-labs/mqtt-broker/listener/pb"
-	publishQueue "github.com/vx-labs/mqtt-broker/queues/publish"
+	publishQueue "github.com/vx-labs/mqtt-broker/struct/queues/publish"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 

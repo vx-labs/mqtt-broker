@@ -2,7 +2,7 @@ package broker
 
 import (
 	listenerpb "github.com/vx-labs/mqtt-broker/listener/pb"
-	publishQueue "github.com/vx-labs/mqtt-broker/queues/publish"
+	publishQueue "github.com/vx-labs/mqtt-broker/struct/queues/publish"
 	"github.com/vx-labs/mqtt-broker/topics"
 	"github.com/vx-labs/mqtt-protocol/packet"
 	"go.uber.org/zap"
