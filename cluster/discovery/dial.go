@@ -1,7 +1,7 @@
 package discovery
 
 import (
-	fmt "fmt"
+	"fmt"
 
 	"github.com/vx-labs/mqtt-broker/network"
 
