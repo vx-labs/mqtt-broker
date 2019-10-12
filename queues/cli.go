@@ -6,6 +6,7 @@ import (
 
 	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
 	"github.com/vx-labs/mqtt-broker/cluster"
+	sessions "github.com/vx-labs/mqtt-broker/sessions/pb"
 	"github.com/vx-labs/mqtt-broker/network"
 	"github.com/vx-labs/mqtt-broker/queues/pb"
 
@@ -24,6 +25,11 @@ func (b *server) JoinServiceLayer(name string, logger *zap.Logger, config cluste
 	if err != nil {
 		panic(err)
 	}
+	sessionsConn, err := mesh.DialService("sessions?tags=leader")
+	if err != nil {
+		panic(err)
+	}
+	b.sessions = sessions.NewClient(sessionsConn)
 }
 func (m *server) Health() string {
 	return "ok"

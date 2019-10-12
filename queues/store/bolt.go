@@ -106,6 +106,23 @@ func (b *BoltStore) Put(id string, index uint64, payload []byte) error {
 	}
 	return tx.Commit()
 }
+func (b *BoltStore) All() []string {
+	tx, err := b.conn.Begin(false)
+	if err != nil {
+		return nil
+	}
+	defer tx.Rollback()
+	out := []string{}
+	err = tx.ForEach(func(bucketName []byte, _ *bolt.Bucket) error {
+		out = append(out, string(bucketName))
+		return nil
+	})
+	if err != nil {
+		return nil
+	}
+	return out
+}
+
 func (b *BoltStore) GetRange(id string, from uint64, buff [][]byte) (uint64, int, error) {
 	idx := 0
 	bucketName := []byte(id)

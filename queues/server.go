@@ -8,6 +8,7 @@ import (
 	"github.com/gogo/protobuf/proto"
 	"github.com/vx-labs/mqtt-broker/queues/pb"
 	"github.com/vx-labs/mqtt-broker/queues/store"
+	sessions "github.com/vx-labs/mqtt-broker/sessions/pb"
 	"github.com/vx-labs/mqtt-protocol/packet"
 	"go.uber.org/zap"
 )
@@ -16,12 +17,17 @@ const (
 	dbPath = "/var/tmp/mqtt-broker-queues"
 )
 
+type SessionStore interface {
+	ByID(ctx context.Context, id string) (*sessions.Session, error)
+}
+
 type server struct {
 	id        string
 	store     *store.BoltStore
 	ctx       context.Context
 	listeners []net.Listener
 	logger    *zap.Logger
+	sessions  SessionStore
 }
 
 func New(id string, logger *zap.Logger) *server {
@@ -32,12 +38,19 @@ func New(id string, logger *zap.Logger) *server {
 	if err != nil {
 		logger.Fatal("failed to open queues durable store", zap.Error(err))
 	}
-	return &server{
+	b := &server{
 		id:     id,
 		ctx:    context.Background(),
 		store:  boltstore,
 		logger: logger,
 	}
+	go func() {
+		ticker := time.NewTicker(5 * time.Second)
+		for range ticker.C {
+			b.gcExpiredQueues()
+		}
+	}()
+	return b
 }
 
 func (s *server) Create(ctx context.Context, input *pb.QueueCreateInput) (*pb.QueueCreateOutput, error) {
@@ -90,4 +103,24 @@ func (s *server) GetMessages(ctx context.Context, input *pb.QueueGetMessagesInpu
 		Offset:    offset,
 		Publishes: out,
 	}, nil
+}
+
+func (m *server) isQueueExpired(id string) bool {
+	_, err := m.sessions.ByID(m.ctx, id)
+	return err != nil
+}
+
+func (m *server) gcExpiredQueues() {
+
+	queues := m.store.All()
+	for _, queue := range queues {
+		if m.isQueueExpired(queue) {
+			err := m.store.DeleteQueue(queue)
+			if err != nil {
+				m.logger.Error("failed to gc queue", zap.String("queue_id", queue), zap.Error(err))
+			} else {
+				m.logger.Info("deleted expired queue", zap.String("queue_id", queue))
+			}
+		}
+	}
 }
