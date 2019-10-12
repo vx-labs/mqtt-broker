@@ -111,6 +111,11 @@ func (b *Broker) Connect(ctx context.Context, metadata transport.Metadata, p *pa
 		logger.Error("failed to create session", zap.Error(err))
 		return "", "", nil, err
 	}
+	err = b.Queues.Create(b.ctx, sessionID)
+	if err != nil {
+		logger.Error("failed to create queue", zap.Error(err))
+		return "", "", nil, err
+	}
 	sess, err := b.Sessions.ByID(b.ctx, input.ID)
 	if err != nil {
 		logger.Error("failed to read session", zap.Error(err))

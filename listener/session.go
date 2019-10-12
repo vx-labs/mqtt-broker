@@ -10,7 +10,6 @@ import (
 
 	"github.com/vx-labs/mqtt-broker/pool"
 	"github.com/vx-labs/mqtt-broker/struct/queues/inflight"
-	publishQueue "github.com/vx-labs/mqtt-broker/struct/queues/publish"
 	"github.com/vx-labs/mqtt-broker/transport"
 	"github.com/vx-labs/mqtt-protocol/decoder"
 	"github.com/vx-labs/mqtt-protocol/encoder"
@@ -46,9 +45,7 @@ func (local *endpoint) runLocalSession(t transport.Metadata) {
 	timer := CONNECT_DEADLINE
 	enc := encoder.New(t.Channel)
 	inflight := inflight.New(enc.Publish)
-	queue := publishQueue.New()
 	defer close(session.quit)
-	session.queue = queue
 	publishWorkers := pool.NewPool(5)
 	dec := decoder.New(
 		decoder.OnConnect(func(p *packet.Connect) error {
@@ -94,6 +91,28 @@ func (local *endpoint) runLocalSession(t transport.Metadata) {
 			timer = p.KeepaliveTimer
 			renewDeadline(timer, t.Channel)
 			logger.Info("started session")
+			go func() {
+				ticker := time.NewTicker(100 * time.Millisecond)
+				defer ticker.Stop()
+				var offset uint64 = 0
+				var messages []*packet.Publish
+				var err error
+				for {
+					select {
+					case <-ctx.Done():
+						return
+					case <-ticker.C:
+						offset, messages, err = local.queues.GetMessages(ctx, session.id, offset)
+						if err != nil {
+							logger.Warn("failed to poll for messages", zap.Error(err))
+							continue
+						}
+						for _, message := range messages {
+							inflight.Put(message)
+						}
+					}
+				}
+			}()
 			return nil
 		}),
 		decoder.OnPublish(func(p *packet.Publish) error {
@@ -164,10 +183,6 @@ func (local *endpoint) runLocalSession(t transport.Metadata) {
 		}),
 	)
 	renewDeadline(CONNECT_DEADLINE, t.Channel)
-	go queue.Consume(func(p *publishQueue.Message) {
-		inflight.Put(p.Publish)
-	})
-
 	var err error
 	for {
 		err = dec.Decode(t.Channel)
@@ -193,6 +208,5 @@ func (local *endpoint) runLocalSession(t transport.Metadata) {
 	local.mutex.Lock()
 	local.sessions.Delete(session)
 	local.mutex.Unlock()
-	queue.Close()
 	inflight.Close()
 }

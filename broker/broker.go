@@ -19,6 +19,7 @@ import (
 
 	"github.com/vx-labs/mqtt-protocol/packet"
 
+	queues "github.com/vx-labs/mqtt-broker/queues/pb"
 	publishQueue "github.com/vx-labs/mqtt-broker/struct/queues/publish"
 	subscriptions "github.com/vx-labs/mqtt-broker/subscriptions/pb"
 )
@@ -33,6 +34,11 @@ type PeerStore interface {
 	All() (peers.SubscriptionSet, error)
 	Delete(id string) error
 	On(event string, handler func(peers.Peer)) func()
+}
+type QueuesStore interface {
+	Create(ctx context.Context, id string) error
+	Delete(ctx context.Context, id string) error
+	PutMessage(ctx context.Context, id string, publish *packet.Publish) error
 }
 type SessionStore interface {
 	ByID(ctx context.Context, id string) (*sessions.Session, error)
@@ -72,6 +78,7 @@ type Broker struct {
 	Subscriptions SubscriptionStore
 	Sessions      SessionStore
 	Topics        TopicStore
+	Queues        QueuesStore
 	Peers         PeerStore
 	workers       *pool.Pool
 	ctx           context.Context
@@ -88,12 +95,17 @@ func New(id string, logger *zap.Logger, mesh cluster.DiscoveryLayer, config Conf
 	if err != nil {
 		panic(err)
 	}
+	queuesConn, err := mesh.DialService("queues")
+	if err != nil {
+		panic(err)
+	}
 	broker := &Broker{
 		ID:            id,
 		authHelper:    config.AuthHelper,
 		workers:       pool.NewPool(25),
 		ctx:           ctx,
 		mesh:          mesh,
+		Queues:        queues.NewClient(queuesConn),
 		publishQueue:  publishQueue.New(),
 		logger:        logger,
 		Sessions:      sessions.NewClient(sessionsConn),

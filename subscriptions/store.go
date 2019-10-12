@@ -177,7 +177,7 @@ func (s *memDBStore) Delete(id string) error {
 		oldSub = sub.(*pb.Metadata)
 		return tx.Delete(table, oldSub)
 	})
-	if err == nil {
+	if err == nil && oldSub != nil {
 		return s.patternIndex.Remove(oldSub.Tenant, oldSub.ID, oldSub.Pattern)
 	}
 	return err

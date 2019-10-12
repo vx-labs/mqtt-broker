@@ -10,6 +10,7 @@ import (
 
 	"github.com/google/btree"
 	brokerpb "github.com/vx-labs/mqtt-broker/broker/pb"
+	queues "github.com/vx-labs/mqtt-broker/queues/pb"
 	publishQueue "github.com/vx-labs/mqtt-broker/struct/queues/publish"
 
 	"github.com/vx-labs/mqtt-broker/cluster"
@@ -39,10 +40,15 @@ type Endpoint interface {
 	Close() error
 }
 
+type QueuesStore interface {
+	GetMessages(ctx context.Context, id string, offset uint64) (uint64, []*packet.Publish, error)
+}
+
 type endpoint struct {
 	id         string
 	mutex      sync.Mutex
 	sessions   *btree.BTree
+	queues     QueuesStore
 	transports []net.Listener
 	broker     Broker
 	mesh       cluster.Mesh
@@ -110,10 +116,14 @@ func New(id string, logger *zap.Logger, mesh cluster.Mesh, config Config) *endpo
 	if err != nil {
 		panic(err)
 	}
-	brokerClient := brokerpb.NewClient(brokerConn)
+	queuesConn, err := mesh.DialService("queues")
+	if err != nil {
+		panic(err)
+	}
 	local := &endpoint{
-		broker:   brokerClient,
+		broker:   brokerpb.NewClient(brokerConn),
 		sessions: btree.New(2),
+		queues:   queues.NewClient(queuesConn),
 		id:       id,
 		mesh:     mesh,
 		logger:   logger,
