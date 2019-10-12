@@ -92,7 +92,7 @@ func (local *endpoint) runLocalSession(t transport.Metadata) {
 			renewDeadline(timer, t.Channel)
 			logger.Info("started session")
 			go func() {
-				ticker := time.NewTicker(100 * time.Millisecond)
+				ticker := time.NewTicker(500 * time.Millisecond)
 				defer ticker.Stop()
 				var offset uint64 = 0
 				var messages []*packet.Publish
