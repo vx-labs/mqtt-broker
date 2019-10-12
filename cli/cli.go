@@ -91,7 +91,7 @@ func JoinConsulPeers(api *consul.Client, service string, selfAddress string, sel
 }
 
 func logService(logger *zap.Logger, name string, config network.Configuration) {
-	logger.Debug("loaded service config",
+	logger.Info("loaded service config",
 		zap.String("bind_address", config.BindAddress),
 		zap.Int("bind_port", config.BindPort),
 		zap.String("advertised_address", config.AdvertisedAddress),
