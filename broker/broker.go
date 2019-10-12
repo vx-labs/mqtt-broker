@@ -179,7 +179,7 @@ func (b *Broker) dispatch(message *pb.MessagePublished) error {
 		Topic:     message.Topic,
 		MessageId: 1,
 	}
-	return b.sendToSession(b.ctx, session.ID, session.Peer, &packet)
+	return b.sendToSession(b.ctx, session.ID, &packet)
 }
 
 func (b *Broker) Stop() {

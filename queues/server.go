@@ -42,10 +42,20 @@ func New(id string, logger *zap.Logger) *server {
 
 func (s *server) Create(ctx context.Context, input *pb.QueueCreateInput) (*pb.QueueCreateOutput, error) {
 	err := s.store.CreateQueue(input.Id)
+	if err != nil {
+		s.logger.Error("failed to create queue", zap.Error(err))
+	} else {
+		s.logger.Info("queue created", zap.String("queue_id", input.Id))
+	}
 	return &pb.QueueCreateOutput{}, err
 }
 func (s *server) Delete(ctx context.Context, input *pb.QueueDeleteInput) (*pb.QueueDeleteOutput, error) {
 	err := s.store.DeleteQueue(input.Id)
+	if err != nil {
+		s.logger.Error("failed to delete queue", zap.Error(err))
+	} else {
+		s.logger.Info("queue deleted", zap.String("queue_id", input.Id))
+	}
 	return &pb.QueueDeleteOutput{}, err
 }
 func (s *server) PutMessage(ctx context.Context, input *pb.QueuePutMessageInput) (*pb.QueuePutMessageOutput, error) {

@@ -8,10 +8,8 @@ import (
 	"time"
 
 	"github.com/vx-labs/mqtt-broker/cluster"
-	listenerpb "github.com/vx-labs/mqtt-broker/listener/pb"
 	publishQueue "github.com/vx-labs/mqtt-broker/struct/queues/publish"
 	"go.uber.org/zap"
-	"google.golang.org/grpc"
 
 	sessions "github.com/vx-labs/mqtt-broker/sessions/pb"
 	subscriptions "github.com/vx-labs/mqtt-broker/subscriptions/pb"
@@ -35,20 +33,6 @@ type localTransport struct {
 	id   string
 	mesh cluster.Mesh
 	peer string
-}
-
-func (local *localTransport) Close() error {
-	return local.mesh.DialAddress("listener", local.peer, func(conn *grpc.ClientConn) error {
-		c := listenerpb.NewClient(conn)
-		return c.Shutdown(local.ctx, local.id)
-	})
-}
-
-func (local *localTransport) Publish(ctx context.Context, p *packet.Publish) error {
-	return local.mesh.DialAddress("listener", local.peer, func(conn *grpc.ClientConn) error {
-		c := listenerpb.NewClient(conn)
-		return c.SendPublish(ctx, local.id, p)
-	})
 }
 
 type connectReturn struct {
@@ -129,11 +113,8 @@ func (b *Broker) Connect(ctx context.Context, metadata transport.Metadata, p *pa
 	logger.Info("session connected")
 	return sessionID, token, connack(packet.CONNACK_CONNECTION_ACCEPTED), nil
 }
-func (b *Broker) sendToSession(ctx context.Context, id string, peer string, p *packet.Publish) error {
-	return b.mesh.DialAddress("listener", peer, func(conn *grpc.ClientConn) error {
-		c := listenerpb.NewClient(conn)
-		return c.SendPublish(ctx, id, p)
-	})
+func (b *Broker) sendToSession(ctx context.Context, id string, p *packet.Publish) error {
+	return b.Queues.PutMessage(ctx, id, p)
 }
 
 func (b *Broker) Subscribe(ctx context.Context, token string, p *packet.Subscribe) (*packet.SubAck, error) {
@@ -162,31 +143,32 @@ func (b *Broker) Subscribe(ctx context.Context, token string, p *packet.Subscrib
 			zap.Int32("qos", p.Qos[idx]),
 			zap.Binary("topic_pattern", event.Pattern))
 
-		// Look for retained messages
-		set, err := b.Topics.ByTopicPattern(sess.SessionTenant, pattern)
-		if err != nil {
-			return nil, err
-		}
-		packetQoS := p.Qos[idx]
-		set.Apply(func(message topics.RetainedMessage) {
-			qos := getLowerQoS(message.Qos, packetQoS)
-			err := b.sendToSession(b.ctx, sess.SessionID, sess.PeerID, &packet.Publish{
-				Header: &packet.Header{
-					Qos:    qos,
-					Retain: true,
-				},
-				MessageId: 1,
-				Payload:   message.Payload,
-				Topic:     message.Topic,
-			})
+		go func(packetQoS int32, pattern []byte) {
+			// Look for retained messages
+			set, err := b.Topics.ByTopicPattern(sess.SessionTenant, pattern)
 			if err != nil {
-				b.logger.Error("failed to publish retained message",
-					zap.Error(err),
-					zap.String("session_id", sess.SessionID),
-					zap.String("subscription_id", subID),
-					zap.Binary("topic_pattern", message.Topic))
+				return
 			}
-		})
+			set.Apply(func(message topics.RetainedMessage) {
+				qos := getLowerQoS(message.Qos, packetQoS)
+				err := b.sendToSession(b.ctx, sess.SessionID, &packet.Publish{
+					Header: &packet.Header{
+						Qos:    qos,
+						Retain: true,
+					},
+					MessageId: 1,
+					Payload:   message.Payload,
+					Topic:     message.Topic,
+				})
+				if err != nil {
+					b.logger.Error("failed to publish retained message",
+						zap.Error(err),
+						zap.String("session_id", sess.SessionID),
+						zap.String("subscription_id", subID),
+						zap.Binary("topic_pattern", message.Topic))
+				}
+			})
+		}(p.Qos[idx], pattern)
 	}
 	qos := make([]int32, len(p.Qos))
 
