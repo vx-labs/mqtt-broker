@@ -15,6 +15,8 @@ build-sessions:: build-common
 	docker build ${DOCKER_BUILD_ARGS} --build-arg ARTIFACT=sessions -t quay.io/vxlabs/mqtt-sessions:${VERSION} .
 build-subscriptions:: build-common
 	docker build ${DOCKER_BUILD_ARGS} --build-arg ARTIFACT=subscriptions -t quay.io/vxlabs/mqtt-subscriptions:${VERSION} .
+build-queues:: build-common
+	docker build ${DOCKER_BUILD_ARGS} --build-arg ARTIFACT=queues -t quay.io/vxlabs/mqtt-queues:${VERSION} .
 
 release-api:: build-api
 	docker push quay.io/vxlabs/mqtt-api:${VERSION}
@@ -26,12 +28,15 @@ release-sessions:: build-sessions
 	docker push quay.io/vxlabs/mqtt-sessions:${VERSION}
 release-subscriptions:: build-subscriptions
 	docker push quay.io/vxlabs/mqtt-subscriptions:${VERSION}
+release-queues:: build-queues
+	docker push quay.io/vxlabs/mqtt-queues:${VERSION}
 
 deploy-api:: release-api deploy-api-nodep
 deploy-broker:: release-broker deploy-broker-nodep
 deploy-listener:: release-listener deploy-listener-nodep
 deploy-sessions:: release-sessions deploy-sessions-nodep
 deploy-subscriptions:: release-subscriptions deploy-subscriptions-nodep
+deploy-queues:: release-queues deploy-queues-nodep
 
 deploy-api-nodep::
 	cd terraform/api && terraform init      && terraform apply -auto-approve -var api_version=${VERSION}
@@ -43,15 +48,18 @@ deploy-sessions-nodep::
 	cd terraform/sessions && terraform init && terraform apply -auto-approve -var sessions_version=${VERSION}
 deploy-subscriptions-nodep::
 	cd terraform/subscriptions && terraform init && terraform apply -auto-approve -var subscriptions_version=${VERSION}
+deploy-queues-nodep::
+	cd terraform/queues && terraform init && terraform apply -auto-approve -var queues_version=${VERSION}
 nuke:
 	cd terraform/api && terraform init && terraform destroy -auto-approve -var api_version=${VERSION}
 	cd terraform/broker && terraform init && terraform destroy -auto-approve -var broker_version=${VERSION}
 	cd terraform/listener && terraform init && terraform destroy -auto-approve -var listener_version=${VERSION}
 	cd terraform/sessions && terraform init && terraform destroy -auto-approve -var sessions_version=${VERSION}
 	cd terraform/subscriptions && terraform init && terraform destroy -auto-approve -var subscriptions_version=${VERSION}
+	cd terraform/queues && terraform init && terraform destroy -auto-approve -var queues_version=${VERSION}
 
 build-common::
 	docker build ${DOCKER_BUILD_ARGS} --target builder .
 
 dockerfiles::
-	for svc in api listener subscriptions sessions broker; do sed "s/###/$$svc/g" Dockerfile > Dockerfile.$$svc; done
+	for svc in api listener subscriptions sessions broker queues; do sed "s/###/$$svc/g" Dockerfile > Dockerfile.$$svc; done

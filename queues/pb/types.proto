@@ -1,0 +1,37 @@
+syntax = "proto3";
+package pb;
+import "github.com/vx-labs/mqtt-protocol/packet/pb.proto";
+
+message QueueCreateInput {
+  string id = 1;
+}
+
+message QueueCreateOutput {}
+
+message QueueDeleteInput {
+  string id = 1;
+}
+
+message QueueDeleteOutput {}
+
+message QueuePutMessageInput {
+  string id = 1;
+  packet.Publish publish = 2;
+}
+message QueuePutMessageOutput {}
+
+message QueueGetMessagesInput {
+  string id = 1;
+  uint64 offset = 2;
+}
+message QueueGetMessagesOutput {
+  uint64 offset = 1;
+  repeated packet.Publish publishes = 2;
+}
+
+service QueuesService {
+  rpc Create(QueueCreateInput) returns (QueueCreateOutput);
+  rpc Delete(QueueDeleteInput) returns (QueueDeleteOutput);
+  rpc PutMessage(QueuePutMessageInput) returns (QueuePutMessageOutput);
+  rpc GetMessages(QueueGetMessagesInput) returns (QueueGetMessagesOutput);
+}

@@ -1,12 +1,10 @@
 package broker
 
 import (
-	listenerpb "github.com/vx-labs/mqtt-broker/listener/pb"
-	publishQueue "github.com/vx-labs/mqtt-broker/queues/publish"
+	publishQueue "github.com/vx-labs/mqtt-broker/struct/queues/publish"
 	"github.com/vx-labs/mqtt-broker/topics"
 	"github.com/vx-labs/mqtt-protocol/packet"
 	"go.uber.org/zap"
-	"google.golang.org/grpc"
 )
 
 func (b *Broker) startPublishConsumers() {
@@ -22,7 +20,7 @@ func (b *Broker) startPublishConsumers() {
 				err := b.consumePublish(p)
 				if err != nil {
 					b.logger.Error("failed to publish message", zap.Binary("topic_pattern", p.Publish.Topic), zap.Error(err))
-					b.publishQueue.Enqueue(p)
+					//	b.publishQueue.Enqueue(p)
 				}
 			}
 		}()
@@ -68,20 +66,11 @@ func (b *Broker) routeMessage(tenant string, p *packet.Publish) error {
 	}
 	message := *p
 	message.Header.Retain = false
-	routemap := map[string]*batchedMessage{}
 	for _, recipient := range recipients {
-		if _, ok := routemap[recipient.Peer]; !ok {
-			routemap[recipient.Peer] = &batchedMessage{
-				Peer: recipient.Peer,
-			}
+		err := b.Queues.PutMessage(b.ctx, recipient.SessionID, &message)
+		if err != nil {
+			b.logger.Warn("failed to enqueue message", zap.Error(err))
 		}
-		routemap[recipient.Peer].Recipients = append(routemap[recipient.Peer].Recipients, recipient.SessionID)
-	}
-	for peer, batch := range routemap {
-		b.mesh.DialAddress("listener", peer, func(conn *grpc.ClientConn) error {
-			c := listenerpb.NewClient(conn)
-			return c.SendBatchPublish(b.ctx, batch.Recipients, p)
-		})
 	}
 	return nil
 }

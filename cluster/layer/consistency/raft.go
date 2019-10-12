@@ -138,7 +138,7 @@ func (s *raftlayer) nodeStatus(node, serviceName string) string {
 }
 
 func (s *raftlayer) logRaftStatus(log *raft.Log) {
-	s.logger.Debug("raft status", zap.Uint64("raft_last_index", s.raft.LastIndex()), zap.Uint64("raft_applied_index", s.raft.AppliedIndex()), zap.Uint64("raft_current_index", log.Index))
+	//s.logger.Debug("raft status", zap.Uint64("raft_last_index", s.raft.LastIndex()), zap.Uint64("raft_applied_index", s.raft.AppliedIndex()), zap.Uint64("raft_current_index", log.Index))
 }
 func (s *raftlayer) Health() string {
 	if s.raft.AppliedIndex() == 0 {
@@ -264,7 +264,7 @@ func (s *raftlayer) leaderRoutine() {
 	})
 	for range ch {
 		if string(s.raft.Leader()) == "" {
-			s.logger.Warn("leader lost")
+			s.logger.Info("leader lost")
 		}
 		leader := s.IsLeader()
 		if s.status != raftStatusBootstrapped {
