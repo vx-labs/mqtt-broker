@@ -25,8 +25,15 @@ message QueueGetMessagesInput {
   uint64 offset = 2;
 }
 message QueueGetMessagesOutput {
-  uint64 offset = 1;
-  repeated packet.Publish publishes = 2;
+  string id = 1;
+  uint64 offset = 2;
+  repeated packet.Publish publishes = 3;
+}
+message QueueGetMessagesBatchInput {
+  repeated QueueGetMessagesInput batches = 1;
+}
+message QueueGetMessagesBatchOutput {
+  repeated QueueGetMessagesOutput batches = 1;
 }
 
 service QueuesService {
@@ -34,4 +41,5 @@ service QueuesService {
   rpc Delete(QueueDeleteInput) returns (QueueDeleteOutput);
   rpc PutMessage(QueuePutMessageInput) returns (QueuePutMessageOutput);
   rpc GetMessages(QueueGetMessagesInput) returns (QueueGetMessagesOutput);
+  rpc GetMessagesBatch(QueueGetMessagesBatchInput) returns (QueueGetMessagesBatchOutput);
 }

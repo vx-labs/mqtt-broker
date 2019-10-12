@@ -43,3 +43,12 @@ func (c *Client) GetMessages(ctx context.Context, id string, offset uint64) (uin
 	}
 	return resp.Offset, resp.Publishes, nil
 }
+func (c *Client) GetMessagesBatch(ctx context.Context, input []*QueueGetMessagesInput) ([]*QueueGetMessagesOutput, error) {
+	resp, err := c.api.GetMessagesBatch(ctx, &QueueGetMessagesBatchInput{
+		Batches: input,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return resp.Batches, nil
+}

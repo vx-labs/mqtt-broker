@@ -100,9 +100,34 @@ func (s *server) GetMessages(ctx context.Context, input *pb.QueueGetMessagesInpu
 		}
 	}
 	return &pb.QueueGetMessagesOutput{
+		Id:        input.Id,
 		Offset:    offset,
 		Publishes: out,
 	}, nil
+}
+func (s *server) GetMessagesBatch(ctx context.Context, batchInput *pb.QueueGetMessagesBatchInput) (*pb.QueueGetMessagesBatchOutput, error) {
+	resp := &pb.QueueGetMessagesBatchOutput{}
+	for _, input := range batchInput.Batches {
+		buff := make([][]byte, 10)
+		offset, count, err := s.store.GetRange(input.Id, input.Offset, buff)
+		if err != nil {
+			return nil, err
+		}
+		out := make([]*packet.Publish, count)
+		for idx := range out {
+			out[idx] = &packet.Publish{}
+			err = proto.Unmarshal(buff[idx], out[idx])
+			if err != nil {
+				return nil, err
+			}
+		}
+		resp.Batches = append(resp.Batches, &pb.QueueGetMessagesOutput{
+			Id:        input.Id,
+			Offset:    offset,
+			Publishes: out,
+		})
+	}
+	return resp, nil
 }
 
 func (m *server) isQueueExpired(id string) bool {
