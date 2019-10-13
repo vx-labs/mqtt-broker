@@ -1,22 +1,7 @@
 package store
 
 import (
-	"errors"
-
 	"github.com/boltdb/bolt"
-)
-
-const (
-	// Permissions to use on the db file. This is only used if the
-	// database file does not exist and needs to be created.
-	dbFileMode = 0600
-)
-
-var (
-	// ErrKeyNotFound is an error indicating a given key does not exist
-	ErrKeyNotFound = errors.New("not found")
-	// ErrQueueNotFound is an error indicating a given queue does not exist
-	ErrQueueNotFound = errors.New("queue not found")
 )
 
 type Options struct {
@@ -46,6 +31,19 @@ func (b *BoltStore) Close() error {
 	return b.conn.Close()
 }
 
+type BatchInput struct {
+	ID     string
+	Offset uint64
+	Data   [][]byte
+}
+
+type BatchOutput struct {
+	ID     string
+	Offset uint64
+	Count  int
+	Err    error
+}
+
 func New(options Options) (*BoltStore, error) {
 	// Try to connect
 	handle, err := bolt.Open(options.Path, dbFileMode, options.BoltOptions)
@@ -69,7 +67,6 @@ func (b *BoltStore) DeleteQueue(id string) error {
 		return err
 	}
 	defer tx.Rollback()
-
 	if err := tx.DeleteBucket(bucketName); err != nil {
 		return err
 	}
@@ -100,7 +97,7 @@ func (b *BoltStore) Put(id string, index uint64, payload []byte) error {
 	if bucket == nil {
 		return ErrQueueNotFound
 	}
-	err = bucket.Put(uint64ToBytes(index), payload)
+	err = b.put(bucket, index, payload)
 	if err != nil {
 		return err
 	}
@@ -122,7 +119,6 @@ func (b *BoltStore) All() []string {
 	}
 	return out
 }
-
 func (b *BoltStore) GetRange(id string, from uint64, buff [][]byte) (uint64, int, error) {
 	idx := 0
 	bucketName := []byte(id)
@@ -136,20 +132,25 @@ func (b *BoltStore) GetRange(id string, from uint64, buff [][]byte) (uint64, int
 	if bucket == nil {
 		return 0, idx, ErrQueueNotFound
 	}
-	cursor := bucket.Cursor()
-	offset := from
-	firstLoop := func() ([]byte, []byte) {
-		if from == 0 {
-			return cursor.First()
-		}
-		cursor.Seek(uint64ToBytes(from))
-		return cursor.Next()
-	}
+	return b.getRange(bucket, from, buff)
+}
 
-	for itemKey, itemValue := firstLoop(); itemKey != nil && idx < len(buff); itemKey, itemValue = cursor.Next() {
-		buff[idx] = itemValue
-		offset = bytesToUint64(itemKey)
-		idx++
+func (b *BoltStore) GetRangeBatch(input []BatchInput) ([]BatchOutput, error) {
+	tx, err := b.conn.Begin(false)
+	if err != nil {
+		return nil, err
 	}
-	return offset, idx, nil
+	defer tx.Rollback()
+
+	out := make([]BatchOutput, len(input))
+	for idx := range input {
+		out[idx] = BatchOutput{ID: input[idx].ID}
+		bucket := tx.Bucket([]byte(input[idx].ID))
+		if bucket == nil {
+			out[idx].Err = ErrQueueNotFound
+			continue
+		}
+		out[idx].Offset, out[idx].Count, out[idx].Err = b.getRange(bucket, input[idx].Offset, input[idx].Data)
+	}
+	return out, nil
 }
