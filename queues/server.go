@@ -106,24 +106,34 @@ func (s *server) GetMessages(ctx context.Context, input *pb.QueueGetMessagesInpu
 	}, nil
 }
 func (s *server) GetMessagesBatch(ctx context.Context, batchInput *pb.QueueGetMessagesBatchInput) (*pb.QueueGetMessagesBatchOutput, error) {
-	resp := &pb.QueueGetMessagesBatchOutput{}
-	for _, input := range batchInput.Batches {
+	in := make([]store.BatchInput, len(batchInput.Batches))
+	for idx := range in {
 		buff := make([][]byte, 10)
-		offset, count, err := s.store.GetRange(input.Id, input.Offset, buff)
-		if err != nil {
-			return nil, err
+		in[idx].Data = buff
+		in[idx].ID = batchInput.Batches[idx].Id
+		in[idx].Offset = batchInput.Batches[idx].Offset
+	}
+	batchOut, err := s.store.GetRangeBatch(in)
+	if err != nil {
+		return nil, err
+	}
+	resp := &pb.QueueGetMessagesBatchOutput{}
+
+	for idx, input := range batchOut {
+		if input.Err != nil {
+			continue
 		}
-		out := make([]*packet.Publish, count)
-		for idx := range out {
-			out[idx] = &packet.Publish{}
-			err = proto.Unmarshal(buff[idx], out[idx])
+		out := make([]*packet.Publish, input.Count)
+		for innerIdx := range out {
+			out[innerIdx] = &packet.Publish{}
+			err = proto.Unmarshal(in[idx].Data[innerIdx], out[innerIdx])
 			if err != nil {
-				return nil, err
+				continue
 			}
 		}
 		resp.Batches = append(resp.Batches, &pb.QueueGetMessagesOutput{
-			Id:        input.Id,
-			Offset:    offset,
+			Id:        input.ID,
+			Offset:    input.Offset,
 			Publishes: out,
 		})
 	}
