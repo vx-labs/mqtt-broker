@@ -152,12 +152,12 @@
   version = "v1.1.0"
 
 [[projects]]
-  digest = "1:2609b600f5ab42254d4c5ce358076a0755b7a5e207bd4eded0d0eaca867c0e17"
+  digest = "1:d85ae9e0f450daad27e7ef5c69546a008f5b67a291dae31af5b8aad5a349196d"
   name = "github.com/hashicorp/go-memdb"
   packages = ["."]
   pruneopts = ""
-  revision = "dd4dbb7cbc982b021ac8d7db55d9553dee3eeeda"
-  version = "v1.0.3"
+  revision = "e3965aaa499eb83f14b147b83866658476828b3f"
+  version = "v1.0.4"
 
 [[projects]]
   digest = "1:2c758fb475e2a3d141c779dfa694baf252e255031666a8c1ad28b147223a2b28"
