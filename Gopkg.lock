@@ -3,6 +3,14 @@
 
 [[projects]]
   branch = "master"
+  digest = "1:6e0f2b2d0408e1c4242a63bcc508f48ba24d9aa364283fcd66a8cb429767e0cb"
+  name = "github.com/adrg/xdg"
+  packages = ["."]
+  pruneopts = ""
+  revision = "5e0e8ae1af11a6bd997fc11fa4be125ee4049f41"
+
+[[projects]]
+  branch = "master"
   digest = "1:a6a3ce6ff165f9a640e57773c90eb594d68974edc877500649707daddae7fd39"
   name = "github.com/armon/go-metrics"
   packages = ["."]
@@ -58,12 +66,12 @@
   version = "v1.4.7"
 
 [[projects]]
-  digest = "1:8a7fe65e9ac2612c4df602cc9f014a92406776d993ff0f28335e5a8831d87c53"
+  digest = "1:d69d2ba23955582a64e367ff2b0808cdbd048458c178cea48f11ab8c40bd7aea"
   name = "github.com/gogo/protobuf"
   packages = ["proto"]
   pruneopts = ""
-  revision = "0ca988a254f991240804bf9821f3450d87ccbb1b"
-  version = "v1.3.0"
+  revision = "5628607bb4c51c3157aacc3a50f0ab707582b805"
+  version = "v1.3.1"
 
 [[projects]]
   digest = "1:b852d2b62be24e445fcdbad9ce3015b44c207815d631230dfce3f14e7803f5bf"
@@ -152,12 +160,12 @@
   version = "v1.1.0"
 
 [[projects]]
-  digest = "1:2609b600f5ab42254d4c5ce358076a0755b7a5e207bd4eded0d0eaca867c0e17"
+  digest = "1:d85ae9e0f450daad27e7ef5c69546a008f5b67a291dae31af5b8aad5a349196d"
   name = "github.com/hashicorp/go-memdb"
   packages = ["."]
   pruneopts = ""
-  revision = "dd4dbb7cbc982b021ac8d7db55d9553dee3eeeda"
-  version = "v1.0.3"
+  revision = "e3965aaa499eb83f14b147b83866658476828b3f"
+  version = "v1.0.4"
 
 [[projects]]
   digest = "1:2c758fb475e2a3d141c779dfa694baf252e255031666a8c1ad28b147223a2b28"
@@ -243,6 +251,14 @@
   version = "v1.1.1"
 
 [[projects]]
+  branch = "master"
+  digest = "1:705d7e6c716f33efd5e89f6b1d219e5720f974b0bd488aa1e44b3f52038e7b1b"
+  name = "github.com/hashicorp/raft-boltdb"
+  packages = ["."]
+  pruneopts = ""
+  revision = "4207f1bf061751378aee6cdfe697965a13ab49d7"
+
+[[projects]]
   digest = "1:a21c6e5b96e6f2d029550613fe8f524f2b60784c5ab91a2b6752c10174bf02ad"
   name = "github.com/hashicorp/serf"
   packages = ["coordinate"]
@@ -315,12 +331,12 @@
   version = "v1.1.2"
 
 [[projects]]
-  digest = "1:67d84c0ff107908e53fb2c9f42f1181a1b8b33f0c230d47281cc20ab21824c0e"
+  digest = "1:5f347ea0b4656f17f0ddffae1419dafaac4bc6ed57c92d58cadc7452f8a9ac3f"
   name = "github.com/pelletier/go-toml"
   packages = ["."]
   pruneopts = ""
-  revision = "8fe62057ea2d46ce44254c98e84e810044dbe197"
-  version = "v1.5.0"
+  revision = "903d9455db9ff1d7ac1ab199062eca7266dd11a3"
+  version = "v1.6.0"
 
 [[projects]]
   branch = "master"
@@ -511,7 +527,7 @@
   version = "v1.2.0"
 
 [[projects]]
-  digest = "1:984e93aca9088b440b894df41f2043b6a3db8f9cf30767032770bfc4796993b0"
+  digest = "1:a8e642dd0e6629a94854a2fe446a743a51f44b7360a1910cab5276ca4d668995"
   name = "go.uber.org/zap"
   packages = [
     ".",
@@ -522,8 +538,8 @@
     "zapcore",
   ]
   pruneopts = ""
-  revision = "27376062155ad36be76b0f12cf1572a221d3a48c"
-  version = "v1.10.0"
+  revision = "0065243e7bbd958fab35324e41201f5eb682c527"
+  version = "v1.11.0"
 
 [[projects]]
   branch = "master"
@@ -540,7 +556,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:9775f16f1557e5a16a0c2d6a130488ca4e595916e2d55dd7fe819e60e2fcc1a5"
+  digest = "1:acd465770451fe2dd4c15565afc8244859dbcf490bde15cc3447741181e10f29"
   name = "golang.org/x/net"
   packages = [
     "bpf",
@@ -558,18 +574,18 @@
     "websocket",
   ]
   pruneopts = ""
-  revision = "491137f692577e390404f177a0515c9f86f79754"
+  revision = "ec77196f6094c3492a8b61f2c11cf937f78992ae"
 
 [[projects]]
   branch = "master"
-  digest = "1:055771f25c4d6493a840af5cbdb8da461be2ec1192049dbaebd6ae1a8cbcdea0"
+  digest = "1:96aac5be6eec5ccbed57977a7c9622190de4ee93806090e5fa60de4386065260"
   name = "golang.org/x/sys"
   packages = [
     "unix",
     "windows",
   ]
   pruneopts = ""
-  revision = "b09406accb4736d857a32bf9444cd7edae2ffa79"
+  revision = "33540a1f603772f9d4b761f416f5c10dade23e96"
 
 [[projects]]
   digest = "1:740b51a55815493a8d0f2b1e0d0ae48fe48953bf7eaf3fcc4198823bf67768c0"
@@ -598,11 +614,11 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:1290297b5048f051e77948812e93c4f09a914d02c8fb02cf2dfdaf23d73a5805"
+  digest = "1:c43c206d0f8927031df6fc877cf58502af5ff875b76b4ceb6b617b676f7731f7"
   name = "golang.org/x/time"
   packages = ["rate"]
   pruneopts = ""
-  revision = "c4c64cad1fd0a1a8dab2523e04e61d35308e131e"
+  revision = "555d28b269f0569763d25dbe1a237ae74c6bcc82"
 
 [[projects]]
   branch = "master"
@@ -666,6 +682,7 @@
   analyzer-name = "dep"
   analyzer-version = 1
   input-imports = [
+    "github.com/adrg/xdg",
     "github.com/armon/go-proxyproto",
     "github.com/boltdb/bolt",
     "github.com/dgrijalva/jwt-go",
@@ -679,6 +696,7 @@
     "github.com/hashicorp/go-memdb",
     "github.com/hashicorp/memberlist",
     "github.com/hashicorp/raft",
+    "github.com/hashicorp/raft-boltdb",
     "github.com/hashicorp/vault/api",
     "github.com/prometheus/client_golang/prometheus/promhttp",
     "github.com/spf13/cobra",

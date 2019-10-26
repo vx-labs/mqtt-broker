@@ -10,6 +10,7 @@ import (
 	"os"
 	"time"
 
+	raftboltdb "github.com/hashicorp/raft-boltdb"
 	"github.com/vx-labs/mqtt-broker/cluster/peers"
 
 	"github.com/hashicorp/raft"
@@ -50,6 +51,26 @@ type DiscoveryProvider interface {
 	Peers() peers.PeerStore
 }
 
+func dataDir() string {
+	if os.Geteuid() == 0 {
+		return "/var/lib/mqtt-broker"
+	}
+	home, err := os.UserHomeDir()
+	if err != nil {
+		panic("failed to find user data dir: " + err.Error())
+	}
+	return fmt.Sprintf("%s/.local/share/mqtt-broker", home)
+}
+
+func buildDataDir(id string) string {
+	path := fmt.Sprintf("%s/raft-%s", dataDir(), id)
+	err := os.MkdirAll(path, 0750)
+	if err != nil {
+		panic("failed to build data dir: " + err.Error())
+	}
+	return path
+}
+
 func New(logger *zap.Logger, userConfig config.Config, discovery DiscoveryProvider) (*raftlayer, error) {
 	self := &raftlayer{
 		id:              userConfig.ID,
@@ -86,10 +107,17 @@ func (s *raftlayer) Start(name string, state types.RaftState) error {
 	}
 	s.raftNetwork = transport
 	// Create the snapshot store. This allows the Raft to truncate the log.
-	snapshots := raft.NewInmemSnapshotStore()
-	logStore := raft.NewInmemStore()
-	stableStore := raft.NewInmemStore()
-
+	snapshots, err := raft.NewFileSnapshotStore(buildDataDir(s.config.ID), 5, os.Stderr)
+	if err != nil {
+		return fmt.Errorf("failed to create snapshot store: %s", err)
+	}
+	filename := fmt.Sprintf("%s/raft.db", buildDataDir(s.config.ID))
+	boltDB, err := raftboltdb.NewBoltStore(filename)
+	if err != nil {
+		return fmt.Errorf("failed to create boltdb store: %s", err)
+	}
+	logStore := boltDB
+	stableStore := boltDB
 	ra, err := raft.NewRaft(raftConfig, s, logStore, stableStore, snapshots, transport)
 	if err != nil {
 		return fmt.Errorf("new raft: %s", err)
@@ -186,7 +214,7 @@ func (s *raftlayer) SendEvent(ctx context.Context, input *pb.SendEventInput) (*p
 	return &pb.SendEventOutput{}, s.ApplyEvent(input.Payload)
 }
 func (s *raftlayer) IsLeader() bool {
-	return s.raft.State() == raft.Leader
+	return s.raft != nil && s.raft.State() == raft.Leader
 }
 func (s *raftlayer) isNodeAdopted(id string) bool {
 	cProm := s.raft.GetConfiguration()

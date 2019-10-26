@@ -2,6 +2,13 @@ syntax = "proto3";
 package pb;
 import "github.com/vx-labs/mqtt-protocol/packet/pb.proto";
 
+
+message QueueMetadata {
+  string ID = 1;
+  string PeerID = 2;
+  uint64 LastIndex = 3;
+}
+
 message QueueCreateInput {
   string id = 1;
 }
