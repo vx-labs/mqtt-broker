@@ -83,6 +83,11 @@ func (s *server) PutMessage(ctx context.Context, input *pb.QueuePutMessageInput)
 	if err != nil {
 		s.logger.Error("failed to enqueue message", zap.Error(err))
 	}
+	if err == nil {
+		s.logger.Info("message put into queue", zap.String("queue_id", input.Id))
+	} else {
+		s.logger.Error("failed to put message into queue", zap.Error(err))
+	}
 	return &pb.QueuePutMessageOutput{}, err
 }
 func (s *server) GetMessages(ctx context.Context, input *pb.QueueGetMessagesInput) (*pb.QueueGetMessagesOutput, error) {

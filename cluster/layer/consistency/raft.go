@@ -111,7 +111,7 @@ func (s *raftlayer) Start(name string, state types.RaftState) error {
 	if err != nil {
 		return fmt.Errorf("failed to create snapshot store: %s", err)
 	}
-	filename := fmt.Sprintf("%s/raft.db", buildDataDir(s.config.ID))
+	filename := fmt.Sprintf("%s/raft-%s.db", buildDataDir(s.config.ID), s.name)
 	boltDB, err := raftboltdb.NewBoltStore(filename)
 	if err != nil {
 		return fmt.Errorf("failed to create boltdb store: %s", err)

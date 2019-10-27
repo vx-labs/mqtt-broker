@@ -11,9 +11,6 @@ func (b *BoltStore) put(backend *bolt.Bucket, index uint64, payload []byte) erro
 }
 func (b *BoltStore) getRange(backend *bolt.Bucket, offset uint64, buff [][]byte) (uint64, int, error) {
 	idx := 0
-	if offset == backend.Sequence() {
-		return offset, idx, nil
-	}
 	cursor := backend.Cursor()
 
 	firstLoop := func() ([]byte, []byte) {

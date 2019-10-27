@@ -84,19 +84,14 @@ func (local *endpoint) runLocalSession(t transport.Metadata) {
 			if old != nil {
 				old.(*localSession).transport.Close()
 			}
-			enc.ConnAck(&packet.ConnAck{
-				ReturnCode: packet.CONNACK_CONNECTION_ACCEPTED,
-				Header:     &packet.Header{},
-			})
-			timer = p.KeepaliveTimer
-			renewDeadline(timer, t.Channel)
-			logger.Info("started session")
+
 			go func() {
 				ticker := time.NewTicker(200 * time.Millisecond)
 				defer ticker.Stop()
 				var offset uint64 = 0
 				var messages []*packet.Publish
 				var err error
+				logger.Debug("started queue poller")
 				for {
 					select {
 					case <-ctx.Done():
@@ -104,15 +99,22 @@ func (local *endpoint) runLocalSession(t transport.Metadata) {
 					case <-ticker.C:
 						offset, messages, err = local.queues.GetMessages(ctx, session.id, offset)
 						if err != nil {
-							logger.Warn("failed to poll for messages", zap.Error(err))
-							continue
-						}
-						for _, message := range messages {
-							inflight.Put(message)
+							logger.Error("failed to poll for messages", zap.Error(err))
+						} else {
+							for _, message := range messages {
+								inflight.Put(message)
+							}
 						}
 					}
 				}
 			}()
+			enc.ConnAck(&packet.ConnAck{
+				ReturnCode: packet.CONNACK_CONNECTION_ACCEPTED,
+				Header:     &packet.Header{},
+			})
+			timer = p.KeepaliveTimer
+			renewDeadline(timer, t.Channel)
+			logger.Info("started session")
 			return nil
 		}),
 		decoder.OnPublish(func(p *packet.Publish) error {
