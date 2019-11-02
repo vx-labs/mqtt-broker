@@ -100,6 +100,7 @@ func (local *endpoint) runLocalSession(t transport.Metadata) {
 						offset, messages, err = local.queues.GetMessages(ctx, session.id, offset)
 						if err != nil {
 							logger.Error("failed to poll for messages", zap.Error(err))
+							t.Channel.Close()
 						} else {
 							for _, message := range messages {
 								inflight.Put(message)
