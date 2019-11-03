@@ -3,12 +3,13 @@ package queues
 import (
 	fmt "fmt"
 	"net"
+	"time"
 
 	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
 	"github.com/vx-labs/mqtt-broker/cluster"
-	sessions "github.com/vx-labs/mqtt-broker/sessions/pb"
 	"github.com/vx-labs/mqtt-broker/network"
 	"github.com/vx-labs/mqtt-broker/queues/pb"
+	sessions "github.com/vx-labs/mqtt-broker/sessions/pb"
 
 	grpc "google.golang.org/grpc"
 
@@ -21,18 +22,28 @@ func (b *server) Shutdown() {
 	}
 }
 func (b *server) JoinServiceLayer(name string, logger *zap.Logger, config cluster.ServiceConfig, rpcConfig cluster.ServiceConfig, mesh cluster.DiscoveryLayer) {
-	err := mesh.RegisterService("queues", fmt.Sprintf("%s:%d", config.AdvertiseAddr, config.ServicePort))
+	var err error
+	sessionConn, err := mesh.DialService("sessions?tags=leader")
 	if err != nil {
-		panic(err)
+		logger.Fatal("failed to dial session service")
 	}
-	sessionsConn, err := mesh.DialService("sessions?tags=leader")
-	if err != nil {
-		panic(err)
-	}
-	b.sessions = sessions.NewClient(sessionsConn)
+	b.sessions = sessions.NewClient(sessionConn)
+	b.state = cluster.NewRaftServiceLayer(name, logger, config, rpcConfig, mesh)
+	go func() {
+		err := b.state.Start(name, b)
+		if err != nil {
+			panic(err)
+		}
+	}()
+	go func() {
+		ticker := time.NewTicker(30 * time.Second)
+		for range ticker.C {
+			b.gcExpiredQueues()
+		}
+	}()
 }
 func (m *server) Health() string {
-	return "ok"
+	return m.state.Health()
 }
 func (m *server) Serve(port int) net.Listener {
 	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", port))

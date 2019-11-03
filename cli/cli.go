@@ -125,6 +125,7 @@ type Context struct {
 func (ctx *Context) AddService(cmd *cobra.Command, name string, f func(id string, logger *zap.Logger, mesh cluster.DiscoveryLayer) Service) {
 	id := ctx.ID
 	logger := ctx.Logger.WithOptions(zap.Fields(zap.String("service_name", name)))
+	logger.Debug("adding service to local node")
 	serviceNetConf := network.ConfigurationFromFlags(cmd, name)
 	serviceGossipNetConf := network.ConfigurationFromFlags(cmd, fmt.Sprintf("%s_gossip", name))
 	serviceGossipRPCNetConf := network.ConfigurationFromFlags(cmd, fmt.Sprintf("%s_gossip_rpc", name))
@@ -137,6 +138,7 @@ func (ctx *Context) AddService(cmd *cobra.Command, name string, f func(id string
 		Service:   service,
 		ID:        name,
 	})
+	logger.Debug("service added to local node")
 }
 
 func (ctx *Context) Run() error {
@@ -152,6 +154,7 @@ func (ctx *Context) Run() error {
 	mesh := ctx.Discovery
 
 	if allocID := os.Getenv("NOMAD_ALLOC_ID"); allocID != "" {
+		logger.Debug("nomad environment detected, attempting to find peers using Consul discovery API")
 		consulConfig := consul.DefaultConfig()
 		consulConfig.HttpClient = http.DefaultClient
 		consulAPI, err := consul.NewClient(consulConfig)
@@ -166,8 +169,12 @@ func (ctx *Context) Run() error {
 		sensors = append(sensors, service)
 	}
 	go serveHTTPHealth(logger, sensors)
+	logger.Debug("started healthcheck endpoint")
 	nodes := viper.GetStringSlice("join")
-	mesh.Join(nodes)
+	if len(nodes) > 0 {
+		logger.Debug("joining cluster")
+		mesh.Join(nodes)
+	}
 	for _, service := range ctx.Services {
 		logger := ctx.Logger.WithOptions(zap.Fields(zap.String("service_name", service.ID)))
 		serviceNetConf := service.Network
@@ -248,6 +255,7 @@ func Bootstrap(cmd *cobra.Command) *Context {
 	}
 	if viper.GetBool("debug") {
 		logger, err = zap.NewDevelopment(opts...)
+		logger.Debug("started debug logger")
 	} else {
 		logger, err = zap.NewProduction(opts...)
 	}

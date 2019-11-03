@@ -55,3 +55,7 @@
 [[constraint]]
   branch = "master"
   name = "github.com/adrg/xdg"
+
+[[constraint]]
+  name = "github.com/cenkalti/backoff"
+  version = "3.0.0"

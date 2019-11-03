@@ -25,6 +25,84 @@ var _ = math.Inf
 // proto package needs to be updated.
 const _ = proto.ProtoPackageIsVersion3 // please upgrade the proto package
 
+type QueueMetadata struct {
+	ID                   string   `protobuf:"bytes,1,opt,name=ID,proto3" json:"ID,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *QueueMetadata) Reset()         { *m = QueueMetadata{} }
+func (m *QueueMetadata) String() string { return proto.CompactTextString(m) }
+func (*QueueMetadata) ProtoMessage()    {}
+func (*QueueMetadata) Descriptor() ([]byte, []int) {
+	return fileDescriptor_d938547f84707355, []int{0}
+}
+
+func (m *QueueMetadata) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_QueueMetadata.Unmarshal(m, b)
+}
+func (m *QueueMetadata) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_QueueMetadata.Marshal(b, m, deterministic)
+}
+func (m *QueueMetadata) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_QueueMetadata.Merge(m, src)
+}
+func (m *QueueMetadata) XXX_Size() int {
+	return xxx_messageInfo_QueueMetadata.Size(m)
+}
+func (m *QueueMetadata) XXX_DiscardUnknown() {
+	xxx_messageInfo_QueueMetadata.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_QueueMetadata proto.InternalMessageInfo
+
+func (m *QueueMetadata) GetID() string {
+	if m != nil {
+		return m.ID
+	}
+	return ""
+}
+
+type QueueMetadataList struct {
+	Queues               []*QueueMetadata `protobuf:"bytes,1,rep,name=Queues,proto3" json:"Queues,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}         `json:"-"`
+	XXX_unrecognized     []byte           `json:"-"`
+	XXX_sizecache        int32            `json:"-"`
+}
+
+func (m *QueueMetadataList) Reset()         { *m = QueueMetadataList{} }
+func (m *QueueMetadataList) String() string { return proto.CompactTextString(m) }
+func (*QueueMetadataList) ProtoMessage()    {}
+func (*QueueMetadataList) Descriptor() ([]byte, []int) {
+	return fileDescriptor_d938547f84707355, []int{1}
+}
+
+func (m *QueueMetadataList) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_QueueMetadataList.Unmarshal(m, b)
+}
+func (m *QueueMetadataList) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_QueueMetadataList.Marshal(b, m, deterministic)
+}
+func (m *QueueMetadataList) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_QueueMetadataList.Merge(m, src)
+}
+func (m *QueueMetadataList) XXX_Size() int {
+	return xxx_messageInfo_QueueMetadataList.Size(m)
+}
+func (m *QueueMetadataList) XXX_DiscardUnknown() {
+	xxx_messageInfo_QueueMetadataList.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_QueueMetadataList proto.InternalMessageInfo
+
+func (m *QueueMetadataList) GetQueues() []*QueueMetadata {
+	if m != nil {
+		return m.Queues
+	}
+	return nil
+}
+
 type QueueCreateInput struct {
 	Id                   string   `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
@@ -36,7 +114,7 @@ func (m *QueueCreateInput) Reset()         { *m = QueueCreateInput{} }
 func (m *QueueCreateInput) String() string { return proto.CompactTextString(m) }
 func (*QueueCreateInput) ProtoMessage()    {}
 func (*QueueCreateInput) Descriptor() ([]byte, []int) {
-	return fileDescriptor_d938547f84707355, []int{0}
+	return fileDescriptor_d938547f84707355, []int{2}
 }
 
 func (m *QueueCreateInput) XXX_Unmarshal(b []byte) error {
@@ -74,7 +152,7 @@ func (m *QueueCreateOutput) Reset()         { *m = QueueCreateOutput{} }
 func (m *QueueCreateOutput) String() string { return proto.CompactTextString(m) }
 func (*QueueCreateOutput) ProtoMessage()    {}
 func (*QueueCreateOutput) Descriptor() ([]byte, []int) {
-	return fileDescriptor_d938547f84707355, []int{1}
+	return fileDescriptor_d938547f84707355, []int{3}
 }
 
 func (m *QueueCreateOutput) XXX_Unmarshal(b []byte) error {
@@ -106,7 +184,7 @@ func (m *QueueDeleteInput) Reset()         { *m = QueueDeleteInput{} }
 func (m *QueueDeleteInput) String() string { return proto.CompactTextString(m) }
 func (*QueueDeleteInput) ProtoMessage()    {}
 func (*QueueDeleteInput) Descriptor() ([]byte, []int) {
-	return fileDescriptor_d938547f84707355, []int{2}
+	return fileDescriptor_d938547f84707355, []int{4}
 }
 
 func (m *QueueDeleteInput) XXX_Unmarshal(b []byte) error {
@@ -144,7 +222,7 @@ func (m *QueueDeleteOutput) Reset()         { *m = QueueDeleteOutput{} }
 func (m *QueueDeleteOutput) String() string { return proto.CompactTextString(m) }
 func (*QueueDeleteOutput) ProtoMessage()    {}
 func (*QueueDeleteOutput) Descriptor() ([]byte, []int) {
-	return fileDescriptor_d938547f84707355, []int{3}
+	return fileDescriptor_d938547f84707355, []int{5}
 }
 
 func (m *QueueDeleteOutput) XXX_Unmarshal(b []byte) error {
@@ -177,7 +255,7 @@ func (m *QueuePutMessageInput) Reset()         { *m = QueuePutMessageInput{} }
 func (m *QueuePutMessageInput) String() string { return proto.CompactTextString(m) }
 func (*QueuePutMessageInput) ProtoMessage()    {}
 func (*QueuePutMessageInput) Descriptor() ([]byte, []int) {
-	return fileDescriptor_d938547f84707355, []int{4}
+	return fileDescriptor_d938547f84707355, []int{6}
 }
 
 func (m *QueuePutMessageInput) XXX_Unmarshal(b []byte) error {
@@ -222,7 +300,7 @@ func (m *QueuePutMessageOutput) Reset()         { *m = QueuePutMessageOutput{} }
 func (m *QueuePutMessageOutput) String() string { return proto.CompactTextString(m) }
 func (*QueuePutMessageOutput) ProtoMessage()    {}
 func (*QueuePutMessageOutput) Descriptor() ([]byte, []int) {
-	return fileDescriptor_d938547f84707355, []int{5}
+	return fileDescriptor_d938547f84707355, []int{7}
 }
 
 func (m *QueuePutMessageOutput) XXX_Unmarshal(b []byte) error {
@@ -255,7 +333,7 @@ func (m *QueueGetMessagesInput) Reset()         { *m = QueueGetMessagesInput{} }
 func (m *QueueGetMessagesInput) String() string { return proto.CompactTextString(m) }
 func (*QueueGetMessagesInput) ProtoMessage()    {}
 func (*QueueGetMessagesInput) Descriptor() ([]byte, []int) {
-	return fileDescriptor_d938547f84707355, []int{6}
+	return fileDescriptor_d938547f84707355, []int{8}
 }
 
 func (m *QueueGetMessagesInput) XXX_Unmarshal(b []byte) error {
@@ -303,7 +381,7 @@ func (m *QueueGetMessagesOutput) Reset()         { *m = QueueGetMessagesOutput{}
 func (m *QueueGetMessagesOutput) String() string { return proto.CompactTextString(m) }
 func (*QueueGetMessagesOutput) ProtoMessage()    {}
 func (*QueueGetMessagesOutput) Descriptor() ([]byte, []int) {
-	return fileDescriptor_d938547f84707355, []int{7}
+	return fileDescriptor_d938547f84707355, []int{9}
 }
 
 func (m *QueueGetMessagesOutput) XXX_Unmarshal(b []byte) error {
@@ -356,7 +434,7 @@ func (m *QueueGetMessagesBatchInput) Reset()         { *m = QueueGetMessagesBatc
 func (m *QueueGetMessagesBatchInput) String() string { return proto.CompactTextString(m) }
 func (*QueueGetMessagesBatchInput) ProtoMessage()    {}
 func (*QueueGetMessagesBatchInput) Descriptor() ([]byte, []int) {
-	return fileDescriptor_d938547f84707355, []int{8}
+	return fileDescriptor_d938547f84707355, []int{10}
 }
 
 func (m *QueueGetMessagesBatchInput) XXX_Unmarshal(b []byte) error {
@@ -395,7 +473,7 @@ func (m *QueueGetMessagesBatchOutput) Reset()         { *m = QueueGetMessagesBat
 func (m *QueueGetMessagesBatchOutput) String() string { return proto.CompactTextString(m) }
 func (*QueueGetMessagesBatchOutput) ProtoMessage()    {}
 func (*QueueGetMessagesBatchOutput) Descriptor() ([]byte, []int) {
-	return fileDescriptor_d938547f84707355, []int{9}
+	return fileDescriptor_d938547f84707355, []int{11}
 }
 
 func (m *QueueGetMessagesBatchOutput) XXX_Unmarshal(b []byte) error {
@@ -423,7 +501,205 @@ func (m *QueueGetMessagesBatchOutput) GetBatches() []*QueueGetMessagesOutput {
 	return nil
 }
 
+type QueuesStateTransition struct {
+	Kind                 string                            `protobuf:"bytes,1,opt,name=Kind,proto3" json:"Kind,omitempty"`
+	QueueCreated         *QueueStateTransitionQueueCreated `protobuf:"bytes,2,opt,name=QueueCreated,proto3" json:"QueueCreated,omitempty"`
+	QueueDeleted         *QueueStateTransitionQueueDeleted `protobuf:"bytes,3,opt,name=QueueDeleted,proto3" json:"QueueDeleted,omitempty"`
+	QueueMessagePut      *QueueStateTransitionMessagePut   `protobuf:"bytes,4,opt,name=QueueMessagePut,proto3" json:"QueueMessagePut,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}                          `json:"-"`
+	XXX_unrecognized     []byte                            `json:"-"`
+	XXX_sizecache        int32                             `json:"-"`
+}
+
+func (m *QueuesStateTransition) Reset()         { *m = QueuesStateTransition{} }
+func (m *QueuesStateTransition) String() string { return proto.CompactTextString(m) }
+func (*QueuesStateTransition) ProtoMessage()    {}
+func (*QueuesStateTransition) Descriptor() ([]byte, []int) {
+	return fileDescriptor_d938547f84707355, []int{12}
+}
+
+func (m *QueuesStateTransition) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_QueuesStateTransition.Unmarshal(m, b)
+}
+func (m *QueuesStateTransition) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_QueuesStateTransition.Marshal(b, m, deterministic)
+}
+func (m *QueuesStateTransition) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_QueuesStateTransition.Merge(m, src)
+}
+func (m *QueuesStateTransition) XXX_Size() int {
+	return xxx_messageInfo_QueuesStateTransition.Size(m)
+}
+func (m *QueuesStateTransition) XXX_DiscardUnknown() {
+	xxx_messageInfo_QueuesStateTransition.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_QueuesStateTransition proto.InternalMessageInfo
+
+func (m *QueuesStateTransition) GetKind() string {
+	if m != nil {
+		return m.Kind
+	}
+	return ""
+}
+
+func (m *QueuesStateTransition) GetQueueCreated() *QueueStateTransitionQueueCreated {
+	if m != nil {
+		return m.QueueCreated
+	}
+	return nil
+}
+
+func (m *QueuesStateTransition) GetQueueDeleted() *QueueStateTransitionQueueDeleted {
+	if m != nil {
+		return m.QueueDeleted
+	}
+	return nil
+}
+
+func (m *QueuesStateTransition) GetQueueMessagePut() *QueueStateTransitionMessagePut {
+	if m != nil {
+		return m.QueueMessagePut
+	}
+	return nil
+}
+
+type QueueStateTransitionQueueCreated struct {
+	Input                *QueueMetadata `protobuf:"bytes,1,opt,name=Input,proto3" json:"Input,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}       `json:"-"`
+	XXX_unrecognized     []byte         `json:"-"`
+	XXX_sizecache        int32          `json:"-"`
+}
+
+func (m *QueueStateTransitionQueueCreated) Reset()         { *m = QueueStateTransitionQueueCreated{} }
+func (m *QueueStateTransitionQueueCreated) String() string { return proto.CompactTextString(m) }
+func (*QueueStateTransitionQueueCreated) ProtoMessage()    {}
+func (*QueueStateTransitionQueueCreated) Descriptor() ([]byte, []int) {
+	return fileDescriptor_d938547f84707355, []int{13}
+}
+
+func (m *QueueStateTransitionQueueCreated) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_QueueStateTransitionQueueCreated.Unmarshal(m, b)
+}
+func (m *QueueStateTransitionQueueCreated) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_QueueStateTransitionQueueCreated.Marshal(b, m, deterministic)
+}
+func (m *QueueStateTransitionQueueCreated) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_QueueStateTransitionQueueCreated.Merge(m, src)
+}
+func (m *QueueStateTransitionQueueCreated) XXX_Size() int {
+	return xxx_messageInfo_QueueStateTransitionQueueCreated.Size(m)
+}
+func (m *QueueStateTransitionQueueCreated) XXX_DiscardUnknown() {
+	xxx_messageInfo_QueueStateTransitionQueueCreated.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_QueueStateTransitionQueueCreated proto.InternalMessageInfo
+
+func (m *QueueStateTransitionQueueCreated) GetInput() *QueueMetadata {
+	if m != nil {
+		return m.Input
+	}
+	return nil
+}
+
+type QueueStateTransitionQueueDeleted struct {
+	ID                   string   `protobuf:"bytes,1,opt,name=ID,proto3" json:"ID,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *QueueStateTransitionQueueDeleted) Reset()         { *m = QueueStateTransitionQueueDeleted{} }
+func (m *QueueStateTransitionQueueDeleted) String() string { return proto.CompactTextString(m) }
+func (*QueueStateTransitionQueueDeleted) ProtoMessage()    {}
+func (*QueueStateTransitionQueueDeleted) Descriptor() ([]byte, []int) {
+	return fileDescriptor_d938547f84707355, []int{14}
+}
+
+func (m *QueueStateTransitionQueueDeleted) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_QueueStateTransitionQueueDeleted.Unmarshal(m, b)
+}
+func (m *QueueStateTransitionQueueDeleted) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_QueueStateTransitionQueueDeleted.Marshal(b, m, deterministic)
+}
+func (m *QueueStateTransitionQueueDeleted) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_QueueStateTransitionQueueDeleted.Merge(m, src)
+}
+func (m *QueueStateTransitionQueueDeleted) XXX_Size() int {
+	return xxx_messageInfo_QueueStateTransitionQueueDeleted.Size(m)
+}
+func (m *QueueStateTransitionQueueDeleted) XXX_DiscardUnknown() {
+	xxx_messageInfo_QueueStateTransitionQueueDeleted.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_QueueStateTransitionQueueDeleted proto.InternalMessageInfo
+
+func (m *QueueStateTransitionQueueDeleted) GetID() string {
+	if m != nil {
+		return m.ID
+	}
+	return ""
+}
+
+type QueueStateTransitionMessagePut struct {
+	QueueID              string   `protobuf:"bytes,1,opt,name=QueueID,proto3" json:"QueueID,omitempty"`
+	Offset               uint64   `protobuf:"varint,2,opt,name=Offset,proto3" json:"Offset,omitempty"`
+	Payload              []byte   `protobuf:"bytes,3,opt,name=Payload,proto3" json:"Payload,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *QueueStateTransitionMessagePut) Reset()         { *m = QueueStateTransitionMessagePut{} }
+func (m *QueueStateTransitionMessagePut) String() string { return proto.CompactTextString(m) }
+func (*QueueStateTransitionMessagePut) ProtoMessage()    {}
+func (*QueueStateTransitionMessagePut) Descriptor() ([]byte, []int) {
+	return fileDescriptor_d938547f84707355, []int{15}
+}
+
+func (m *QueueStateTransitionMessagePut) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_QueueStateTransitionMessagePut.Unmarshal(m, b)
+}
+func (m *QueueStateTransitionMessagePut) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_QueueStateTransitionMessagePut.Marshal(b, m, deterministic)
+}
+func (m *QueueStateTransitionMessagePut) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_QueueStateTransitionMessagePut.Merge(m, src)
+}
+func (m *QueueStateTransitionMessagePut) XXX_Size() int {
+	return xxx_messageInfo_QueueStateTransitionMessagePut.Size(m)
+}
+func (m *QueueStateTransitionMessagePut) XXX_DiscardUnknown() {
+	xxx_messageInfo_QueueStateTransitionMessagePut.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_QueueStateTransitionMessagePut proto.InternalMessageInfo
+
+func (m *QueueStateTransitionMessagePut) GetQueueID() string {
+	if m != nil {
+		return m.QueueID
+	}
+	return ""
+}
+
+func (m *QueueStateTransitionMessagePut) GetOffset() uint64 {
+	if m != nil {
+		return m.Offset
+	}
+	return 0
+}
+
+func (m *QueueStateTransitionMessagePut) GetPayload() []byte {
+	if m != nil {
+		return m.Payload
+	}
+	return nil
+}
+
 func init() {
+	proto.RegisterType((*QueueMetadata)(nil), "pb.QueueMetadata")
+	proto.RegisterType((*QueueMetadataList)(nil), "pb.QueueMetadataList")
 	proto.RegisterType((*QueueCreateInput)(nil), "pb.QueueCreateInput")
 	proto.RegisterType((*QueueCreateOutput)(nil), "pb.QueueCreateOutput")
 	proto.RegisterType((*QueueDeleteInput)(nil), "pb.QueueDeleteInput")
@@ -434,37 +710,52 @@ func init() {
 	proto.RegisterType((*QueueGetMessagesOutput)(nil), "pb.QueueGetMessagesOutput")
 	proto.RegisterType((*QueueGetMessagesBatchInput)(nil), "pb.QueueGetMessagesBatchInput")
 	proto.RegisterType((*QueueGetMessagesBatchOutput)(nil), "pb.QueueGetMessagesBatchOutput")
+	proto.RegisterType((*QueuesStateTransition)(nil), "pb.QueuesStateTransition")
+	proto.RegisterType((*QueueStateTransitionQueueCreated)(nil), "pb.QueueStateTransitionQueueCreated")
+	proto.RegisterType((*QueueStateTransitionQueueDeleted)(nil), "pb.QueueStateTransitionQueueDeleted")
+	proto.RegisterType((*QueueStateTransitionMessagePut)(nil), "pb.QueueStateTransitionMessagePut")
 }
 
 func init() { proto.RegisterFile("types.proto", fileDescriptor_d938547f84707355) }
 
 var fileDescriptor_d938547f84707355 = []byte{
-	// 389 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x8c, 0x93, 0x51, 0x4f, 0xea, 0x30,
-	0x14, 0xc7, 0xb3, 0x71, 0x33, 0xc2, 0x21, 0xf7, 0x5e, 0xac, 0x80, 0x63, 0x26, 0x4a, 0xf6, 0x84,
-	0x0f, 0x6c, 0x06, 0xe4, 0xd9, 0xa8, 0x24, 0xc6, 0x07, 0x23, 0x8c, 0x4f, 0xb0, 0x8e, 0x02, 0x8b,
-	0xc3, 0x55, 0xda, 0x12, 0xfd, 0xac, 0x7e, 0x19, 0xe3, 0x5a, 0xc6, 0xb2, 0x14, 0xf5, 0x71, 0x3d,
-	0xff, 0xff, 0xef, 0xf4, 0x9c, 0xfe, 0x07, 0x75, 0xfe, 0x4e, 0x09, 0xf3, 0xe8, 0x26, 0xe5, 0x29,
-	0x32, 0x29, 0x76, 0x2e, 0x97, 0x31, 0x5f, 0x09, 0xec, 0x45, 0xe9, 0xda, 0xdf, 0xbe, 0xf5, 0x93,
-	0x10, 0x33, 0x7f, 0xfd, 0xca, 0x79, 0x3f, 0x93, 0x44, 0x69, 0xe2, 0xd3, 0x30, 0x7a, 0x26, 0xdc,
-	0xa7, 0x58, 0xba, 0x5c, 0x17, 0x1a, 0x53, 0x41, 0x04, 0xb9, 0xdb, 0x90, 0x90, 0x93, 0x87, 0x17,
-	0x2a, 0x38, 0xfa, 0x07, 0x66, 0x3c, 0xb7, 0x8d, 0xae, 0xd1, 0xab, 0x05, 0x66, 0x3c, 0x77, 0x8f,
-	0xe1, 0xa8, 0xa0, 0x79, 0x12, 0x9c, 0x0a, 0x9e, 0x1b, 0xc7, 0x24, 0x21, 0x3f, 0x19, 0xa5, 0x46,
-	0x19, 0xa7, 0xd0, 0xcc, 0x0e, 0x27, 0x82, 0x3f, 0x12, 0xc6, 0xc2, 0xa5, 0xde, 0x8c, 0x2e, 0xa0,
-	0x4a, 0x05, 0x4e, 0x62, 0xb6, 0xb2, 0xcd, 0xae, 0xd1, 0xab, 0x0f, 0xfe, 0x7b, 0xf2, 0xf2, 0xde,
-	0x44, 0x1e, 0x07, 0xbb, 0xba, 0x7b, 0x02, 0xad, 0x12, 0x52, 0xf5, 0xba, 0x56, 0x85, 0x7b, 0xb2,
-	0x2b, 0x30, 0x7d, 0xb3, 0x36, 0x58, 0xe9, 0x62, 0xc1, 0x08, 0xcf, 0x7a, 0xfd, 0x09, 0xd4, 0x97,
-	0x9b, 0x42, 0xbb, 0x0c, 0x90, 0xe8, 0xdf, 0x12, 0x50, 0x1f, 0x6a, 0xea, 0x9a, 0x84, 0xd9, 0x95,
-	0x6e, 0x45, 0x37, 0xc8, 0x5e, 0xe1, 0x4e, 0xc1, 0x29, 0x37, 0xbc, 0x0d, 0x79, 0xb4, 0x92, 0xd7,
-	0x1e, 0x42, 0x15, 0x7f, 0x7d, 0x11, 0x66, 0x1b, 0x19, 0xaa, 0xe3, 0x51, 0xec, 0x69, 0x47, 0x0c,
-	0x76, 0x4a, 0x77, 0x06, 0xa7, 0x5a, 0xa4, 0x1a, 0xe4, 0xaa, 0xcc, 0x74, 0x74, 0x4c, 0x29, 0xce,
-	0xa1, 0x83, 0x0f, 0x13, 0xfe, 0x66, 0x1a, 0x36, 0x23, 0x9b, 0x6d, 0x1c, 0x11, 0x34, 0x02, 0x4b,
-	0x06, 0x04, 0x35, 0x73, 0x40, 0x21, 0x55, 0x4e, 0xab, 0x74, 0xaa, 0xda, 0x8f, 0xc0, 0x92, 0xf1,
-	0x28, 0xd8, 0x0a, 0x99, 0x2a, 0xd8, 0x8a, 0x29, 0x42, 0x37, 0x00, 0xfb, 0xd7, 0x46, 0x76, 0x2e,
-	0x2a, 0xa5, 0xca, 0xe9, 0x68, 0x2a, 0x0a, 0x31, 0x86, 0x7a, 0x61, 0x40, 0x74, 0x78, 0x95, 0xce,
-	0x37, 0x1b, 0x41, 0x33, 0x68, 0x94, 0x17, 0x8b, 0xce, 0x74, 0xfa, 0xfd, 0x33, 0x3a, 0xe7, 0x07,
-	0xeb, 0x12, 0x8a, 0xad, 0xec, 0xe7, 0x1c, 0x7e, 0x06, 0x00, 0x00, 0xff, 0xff, 0x11, 0xa4, 0xa4,
-	0xc1, 0xe1, 0x03, 0x00, 0x00,
+	// 573 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x8c, 0x54, 0xdd, 0x4e, 0xdb, 0x30,
+	0x14, 0x56, 0xd3, 0xae, 0x15, 0xa7, 0x6c, 0x80, 0x07, 0x2c, 0x64, 0x12, 0x54, 0xd6, 0xa4, 0x95,
+	0x8b, 0xa6, 0x53, 0x19, 0xb7, 0x9b, 0xb6, 0x55, 0xda, 0x2a, 0x40, 0xb4, 0xe9, 0x5e, 0xc0, 0x69,
+	0x0d, 0x8d, 0x16, 0x9a, 0xac, 0x3e, 0x41, 0xe3, 0x21, 0xf6, 0x84, 0x7b, 0x99, 0xa9, 0xb6, 0x93,
+	0x26, 0x26, 0x2d, 0xdc, 0xd9, 0x3e, 0xdf, 0xf7, 0x1d, 0x9f, 0x5f, 0x68, 0xe2, 0x43, 0xcc, 0x85,
+	0x1b, 0x2f, 0x22, 0x8c, 0x88, 0x15, 0xfb, 0xce, 0x87, 0xdb, 0x00, 0x67, 0x89, 0xef, 0x4e, 0xa2,
+	0xbb, 0xee, 0xfd, 0x9f, 0x4e, 0xc8, 0x7c, 0xd1, 0xbd, 0xfb, 0x8d, 0xd8, 0x91, 0x90, 0x49, 0x14,
+	0x76, 0x63, 0x36, 0xf9, 0xc5, 0xb1, 0x1b, 0xfb, 0x8a, 0x45, 0x4f, 0xe0, 0xe5, 0x28, 0xe1, 0x09,
+	0xbf, 0xe2, 0xc8, 0xa6, 0x0c, 0x19, 0x79, 0x05, 0xd6, 0xa0, 0x6f, 0x57, 0x5a, 0x95, 0xf6, 0x96,
+	0x67, 0x0d, 0xfa, 0xf4, 0x13, 0xec, 0x15, 0x00, 0x97, 0x81, 0x40, 0x72, 0x0a, 0x75, 0xf9, 0x28,
+	0xec, 0x4a, 0xab, 0xda, 0x6e, 0xf6, 0xf6, 0xdc, 0xd8, 0x77, 0x0b, 0x30, 0x4f, 0x03, 0x28, 0x85,
+	0x5d, 0x79, 0xfa, 0xb6, 0xe0, 0x0c, 0xf9, 0x60, 0x1e, 0x27, 0xb8, 0xf4, 0x11, 0x4c, 0x53, 0x1f,
+	0xc1, 0x94, 0xbe, 0xd6, 0x3e, 0x14, 0xe6, 0x3a, 0xc1, 0x38, 0xc1, 0x8c, 0xd8, 0xe7, 0x21, 0x7f,
+	0x8a, 0xa8, 0x30, 0x9a, 0x38, 0x82, 0x7d, 0xf9, 0x38, 0x4c, 0xf0, 0x8a, 0x0b, 0xc1, 0x6e, 0xcb,
+	0xc9, 0xe4, 0x14, 0x1a, 0x71, 0xe2, 0x87, 0x81, 0x98, 0xd9, 0x56, 0xab, 0xd2, 0x6e, 0xf6, 0x76,
+	0x5c, 0x95, 0x1d, 0x77, 0xa8, 0x9e, 0xbd, 0xd4, 0x4e, 0xdf, 0xc0, 0x81, 0x21, 0xa9, 0x7d, 0x7d,
+	0xd6, 0x86, 0xef, 0x3c, 0x35, 0x88, 0x72, 0x67, 0x87, 0x50, 0x8f, 0x6e, 0x6e, 0x04, 0x47, 0xe9,
+	0xab, 0xe6, 0xe9, 0x1b, 0x8d, 0xe0, 0xd0, 0x14, 0x50, 0xd2, 0xcf, 0x55, 0x20, 0x1d, 0xd8, 0xd2,
+	0xdf, 0xe4, 0xc2, 0xae, 0xca, 0x72, 0x3c, 0x0a, 0x64, 0x85, 0xa0, 0x23, 0x70, 0x4c, 0x87, 0x5f,
+	0x19, 0x4e, 0x66, 0xea, 0xdb, 0x67, 0xd0, 0xf0, 0x97, 0xb7, 0xac, 0xb2, 0x47, 0x59, 0x65, 0xcd,
+	0x10, 0xbd, 0x14, 0x49, 0xc7, 0xf0, 0xb6, 0x54, 0x52, 0x07, 0xf2, 0xd1, 0xd4, 0x74, 0xca, 0x34,
+	0x15, 0x78, 0x25, 0xfa, 0xd7, 0xd2, 0xa9, 0x15, 0x63, 0x64, 0xc8, 0x7f, 0x2e, 0xd8, 0x5c, 0x04,
+	0x18, 0x44, 0x73, 0x42, 0xa0, 0x76, 0x11, 0xcc, 0xd3, 0xd4, 0xc8, 0x33, 0xf9, 0x01, 0xdb, 0xb9,
+	0x0e, 0x9a, 0xea, 0x82, 0xbe, 0xcb, 0x1c, 0x19, 0x1a, 0x79, 0xac, 0x57, 0x60, 0x66, 0x4a, 0xaa,
+	0xa5, 0xa6, 0x76, 0xf5, 0x19, 0x4a, 0x1a, 0xeb, 0x15, 0x98, 0xe4, 0x12, 0x76, 0xf4, 0x48, 0xc8,
+	0x08, 0x87, 0x09, 0xda, 0x35, 0x29, 0x46, 0xd7, 0x89, 0xad, 0x90, 0x9e, 0x49, 0xa5, 0x17, 0xd0,
+	0x7a, 0x2a, 0x12, 0xf2, 0x1e, 0x5e, 0xc8, 0xd2, 0xc8, 0xd4, 0x94, 0x4e, 0xa5, 0xb2, 0xd3, 0xde,
+	0x06, 0xb1, 0xf4, 0xfb, 0xe6, 0x22, 0x08, 0xe1, 0x78, 0xf3, 0x9f, 0x89, 0x0d, 0x0d, 0x89, 0xc8,
+	0x68, 0xe9, 0x75, 0xd9, 0xbb, 0xd7, 0x85, 0xde, 0x55, 0xb7, 0x25, 0x63, 0xc8, 0x1e, 0xc2, 0x88,
+	0xa9, 0x3c, 0x6f, 0x7b, 0xe9, 0xb5, 0xf7, 0xcf, 0xd2, 0x8b, 0x49, 0x8c, 0xf9, 0xe2, 0x3e, 0x98,
+	0x70, 0x72, 0x0e, 0x75, 0x15, 0x27, 0xd9, 0xcf, 0xe2, 0xca, 0x2d, 0x15, 0xe7, 0xc0, 0x78, 0xd5,
+	0xdd, 0x77, 0x0e, 0x75, 0x15, 0x51, 0x8e, 0x96, 0x5b, 0x29, 0x39, 0x5a, 0x7e, 0x89, 0x90, 0x2f,
+	0x00, 0xab, 0x61, 0x27, 0x76, 0x06, 0x32, 0x96, 0x8a, 0x73, 0x54, 0x62, 0xd1, 0x12, 0x7d, 0x68,
+	0xe6, 0xfa, 0x9b, 0xac, 0x9f, 0x24, 0x67, 0xc3, 0x40, 0x90, 0x31, 0xec, 0x9a, 0x73, 0x45, 0x8e,
+	0xcb, 0xf0, 0xab, 0x29, 0x76, 0x4e, 0xd6, 0xda, 0x95, 0xa8, 0x5f, 0x97, 0xcb, 0xff, 0xec, 0x7f,
+	0x00, 0x00, 0x00, 0xff, 0xff, 0x4e, 0x11, 0xc7, 0xa5, 0x41, 0x06, 0x00, 0x00,
 }
 
 // Reference imports to suppress errors if they are not otherwise used.

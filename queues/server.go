@@ -2,10 +2,12 @@ package queues
 
 import (
 	"context"
+	fmt "fmt"
 	"net"
 	"time"
 
 	"github.com/gogo/protobuf/proto"
+	"github.com/vx-labs/mqtt-broker/cluster/types"
 	"github.com/vx-labs/mqtt-broker/queues/pb"
 	"github.com/vx-labs/mqtt-broker/queues/store"
 	sessions "github.com/vx-labs/mqtt-broker/sessions/pb"
@@ -24,6 +26,7 @@ type SessionStore interface {
 type server struct {
 	id        string
 	store     *store.BoltStore
+	state     types.RaftServiceLayer
 	ctx       context.Context
 	listeners []net.Listener
 	logger    *zap.Logger
@@ -31,9 +34,10 @@ type server struct {
 }
 
 func New(id string, logger *zap.Logger) *server {
+	logger.Debug("opening queues durable store")
 	boltstore, err := store.New(store.Options{
 		NoSync: false,
-		Path:   dbPath,
+		Path:   fmt.Sprintf("%s-%s-queues.bolt", dbPath, id),
 	})
 	if err != nil {
 		logger.Fatal("failed to open queues durable store", zap.Error(err))
@@ -44,32 +48,43 @@ func New(id string, logger *zap.Logger) *server {
 		store:  boltstore,
 		logger: logger,
 	}
-	go func() {
-		ticker := time.NewTicker(5 * time.Second)
-		for range ticker.C {
-			b.gcExpiredQueues()
-		}
-	}()
 	return b
 }
 
 func (s *server) Create(ctx context.Context, input *pb.QueueCreateInput) (*pb.QueueCreateOutput, error) {
-	err := s.store.CreateQueue(input.Id)
-	if err != nil {
-		s.logger.Error("failed to create queue", zap.Error(err))
-	} else {
-		s.logger.Info("queue created", zap.String("queue_id", input.Id))
-	}
-	return &pb.QueueCreateOutput{}, err
+	return &pb.QueueCreateOutput{}, s.clusterCreateQueue(input.Id)
 }
 func (s *server) Delete(ctx context.Context, input *pb.QueueDeleteInput) (*pb.QueueDeleteOutput, error) {
-	err := s.store.DeleteQueue(input.Id)
+	return &pb.QueueDeleteOutput{}, s.clusterDeleteQueue(input.Id)
+}
+
+func (s *server) clusterCreateQueue(id string) error {
+	return s.applyTransition(&pb.QueuesStateTransition{
+		Kind: QueueCreated,
+		QueueCreated: &pb.QueueStateTransitionQueueCreated{
+			Input: &pb.QueueMetadata{ID: id},
+		},
+	})
+}
+func (s *server) clusterDeleteQueue(id string) error {
+	return s.applyTransition(&pb.QueuesStateTransition{
+		Kind: QueueDeleted,
+		QueueDeleted: &pb.QueueStateTransitionQueueDeleted{
+			ID: id,
+		},
+	})
+}
+func (s *server) applyTransition(event *pb.QueuesStateTransition) error {
+	payload, err := proto.Marshal(event)
 	if err != nil {
-		s.logger.Error("failed to delete queue", zap.Error(err))
-	} else {
-		s.logger.Info("queue deleted", zap.String("queue_id", input.Id))
+		s.logger.Error("failed to encode event", zap.Error(err), zap.String("event_kind", event.Kind))
+		return err
 	}
-	return &pb.QueueDeleteOutput{}, err
+	err = s.state.ApplyEvent(payload)
+	if err != nil {
+		s.logger.Error("failed to commit event", zap.Error(err), zap.String("event_kind", event.Kind))
+	}
+	return err
 }
 func (s *server) PutMessage(ctx context.Context, input *pb.QueuePutMessageInput) (*pb.QueuePutMessageOutput, error) {
 	// FIXME: do not use time as a key generator
@@ -79,14 +94,21 @@ func (s *server) PutMessage(ctx context.Context, input *pb.QueuePutMessageInput)
 		s.logger.Error("failed to encode message", zap.Error(err))
 		return nil, err
 	}
-	err = s.store.Put(input.Id, uint64(idx), payload)
+	event, err := proto.Marshal(&pb.QueuesStateTransition{
+		Kind: QueueMessagePut,
+		QueueMessagePut: &pb.QueueStateTransitionMessagePut{
+			Offset:  uint64(idx),
+			Payload: payload,
+			QueueID: input.Id,
+		},
+	})
 	if err != nil {
-		s.logger.Error("failed to enqueue message", zap.Error(err))
+		s.logger.Error("failed to encode event", zap.Error(err))
+		return nil, err
 	}
-	if err == nil {
-		s.logger.Info("message put into queue", zap.String("queue_id", input.Id))
-	} else {
-		s.logger.Error("failed to put message into queue", zap.Error(err))
+	err = s.state.ApplyEvent(event)
+	if err != nil {
+		s.logger.Error("failed to commit queue put event", zap.Error(err))
 	}
 	return &pb.QueuePutMessageOutput{}, err
 }
@@ -151,11 +173,13 @@ func (m *server) isQueueExpired(id string) bool {
 }
 
 func (m *server) gcExpiredQueues() {
-
+	if m.Health() != "ok" {
+		return
+	}
 	queues := m.store.All()
 	for _, queue := range queues {
 		if m.isQueueExpired(queue) {
-			err := m.store.DeleteQueue(queue)
+			err := m.clusterDeleteQueue(queue)
 			if err != nil {
 				m.logger.Error("failed to gc queue", zap.String("queue_id", queue), zap.Error(err))
 			} else {

@@ -26,7 +26,7 @@ func (s *raftlayer) waitForToken(token string, expectNodeCount int) error {
 			return err
 		}
 		bootstrappingMembers := make([]*pb.NodeService, 0)
-		s.logger.Info("waiting for other members to complete step 2", zap.String("sync_token", token))
+		s.logger.Debug("waiting for other members to complete step 2", zap.String("sync_token", token))
 		for _, member := range members {
 			status := strings.TrimPrefix(s.nodeStatus(member.Peer, s.name), prefix)
 			if status == raftStatusBootstrapped {
@@ -39,7 +39,7 @@ func (s *raftlayer) waitForToken(token string, expectNodeCount int) error {
 			if len(bootstrappingMembers) == expectNodeCount {
 				sortMembers(bootstrappingMembers)
 				if token == SyncToken(bootstrappingMembers) {
-					s.logger.Info("members synchronization done", zap.String("sync_token", token), zap.Int("member_count", len(bootstrappingMembers)))
+					s.logger.Debug("members synchronization done", zap.String("sync_token", token), zap.Int("member_count", len(bootstrappingMembers)))
 					return nil
 				}
 			}
@@ -78,7 +78,7 @@ func (s *raftlayer) joinCluster(name string, expectNodeCount int) error {
 	defer ticker.Stop()
 	var members []*pb.NodeService
 	var err error
-	s.logger.Info("waiting for other cluster members to be discovered", zap.Int("expected_count", expectNodeCount))
+	s.logger.Debug("waiting for other cluster members to be discovered", zap.Int("expected_count", expectNodeCount))
 	for {
 		members, err = s.discovery.Peers().EndpointsByService(fmt.Sprintf("%s_cluster", name))
 		if err != nil {
@@ -95,7 +95,7 @@ func (s *raftlayer) joinCluster(name string, expectNodeCount int) error {
 			}
 		}
 		if len(bootstrappingMembers) == expectNodeCount {
-			s.logger.Info("found other members", zap.Int("member_count", len(bootstrappingMembers)), zap.Int("expected_count", expectNodeCount))
+			s.logger.Debug("found other members", zap.Int("member_count", len(bootstrappingMembers)), zap.Int("expected_count", expectNodeCount))
 			members = bootstrappingMembers
 			break
 		}

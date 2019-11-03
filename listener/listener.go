@@ -116,7 +116,7 @@ func New(id string, logger *zap.Logger, mesh cluster.Mesh, config Config) *endpo
 	if err != nil {
 		panic(err)
 	}
-	queuesConn, err := mesh.DialService("queues")
+	queuesConn, err := mesh.DialService("queues?tags=leader")
 	if err != nil {
 		panic(err)
 	}

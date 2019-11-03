@@ -5,8 +5,10 @@ import "github.com/vx-labs/mqtt-protocol/packet/pb.proto";
 
 message QueueMetadata {
   string ID = 1;
-  string PeerID = 2;
-  uint64 LastIndex = 3;
+}
+
+message QueueMetadataList {
+  repeated QueueMetadata Queues = 1;
 }
 
 message QueueCreateInput {
@@ -49,4 +51,23 @@ service QueuesService {
   rpc PutMessage(QueuePutMessageInput) returns (QueuePutMessageOutput);
   rpc GetMessages(QueueGetMessagesInput) returns (QueueGetMessagesOutput);
   rpc GetMessagesBatch(QueueGetMessagesBatchInput) returns (QueueGetMessagesBatchOutput);
+}
+message QueuesStateTransition {
+  string Kind = 1;
+  QueueStateTransitionQueueCreated QueueCreated = 2;
+  QueueStateTransitionQueueDeleted QueueDeleted = 3;
+  QueueStateTransitionMessagePut QueueMessagePut = 4;
+}
+
+message QueueStateTransitionQueueCreated {
+  QueueMetadata Input = 1;
+}
+
+message QueueStateTransitionQueueDeleted {
+  string ID = 1;
+}
+message QueueStateTransitionMessagePut {
+  string QueueID = 1;
+  uint64 Offset = 2;
+  bytes Payload = 3;
 }

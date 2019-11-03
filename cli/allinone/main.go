@@ -98,11 +98,9 @@ func main() {
 			ctx.AddService(cmd, "sessions", func(id string, logger *zap.Logger, mesh cluster.DiscoveryLayer) cli.Service {
 				return sessions.New(id, logger)
 			})
-			if v, _ := cmd.Flags().GetBool("with-queues"); v {
-				ctx.AddService(cmd, "queues", func(id string, logger *zap.Logger, mesh cluster.DiscoveryLayer) cli.Service {
-					return queues.New(id, logger)
-				})
-			}
+			ctx.AddService(cmd, "queues", func(id string, logger *zap.Logger, mesh cluster.DiscoveryLayer) cli.Service {
+				return queues.New(id, logger)
+			})
 			ctx.AddService(cmd, "subscriptions", func(id string, logger *zap.Logger, mesh cluster.DiscoveryLayer) cli.Service {
 				return subscriptions.New(id, logger)
 			})
@@ -123,6 +121,5 @@ func main() {
 	root.Flags().IntP("wss-port", "w", 0, "Start Secure WS listener on this port. Specify 0 to disable the listener")
 	root.Flags().IntP("ws-port", "", 0, "Start WS listener on this port. Specify 0 to disable the listener")
 	root.Flags().StringP("tls-cn", "", "localhost", "Get ACME certificat for this CN")
-	root.Flags().BoolP("with-queues", "", false, "Start queues service on this node")
 	root.Execute()
 }

@@ -12,7 +12,7 @@ job "mqtt-queues" {
   }
 
   group "queues" {
-    count = 1
+    count = 3
     constraint {
         distinct_hosts = true
     }
@@ -65,7 +65,7 @@ job "mqtt-queues" {
 
       resources {
         cpu    = 200
-        memory = 32
+        memory = 64
 
         network {
           mbits = 10

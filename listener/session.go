@@ -5,6 +5,8 @@ import (
 	"errors"
 	"time"
 
+	"github.com/cenkalti/backoff"
+
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 
@@ -97,15 +99,22 @@ func (local *endpoint) runLocalSession(t transport.Metadata) {
 					case <-ctx.Done():
 						return
 					case <-ticker.C:
-						offset, messages, err = local.queues.GetMessages(ctx, session.id, offset)
-						if err != nil {
-							logger.Error("failed to poll for messages", zap.Error(err))
-							t.Channel.Close()
-						} else {
+						backoff.Retry(func() error {
+							select {
+							case <-ctx.Done():
+								return nil
+							default:
+							}
+							offset, messages, err = local.queues.GetMessages(ctx, session.id, offset)
+							if err != nil {
+								logger.Error("failed to poll for messages", zap.Error(err))
+								return err
+							}
 							for _, message := range messages {
 								inflight.Put(message)
 							}
-						}
+							return nil
+						}, backoff.NewExponentialBackOff())
 					}
 				}
 			}()
@@ -197,7 +206,7 @@ func (local *endpoint) runLocalSession(t transport.Metadata) {
 				logger.Info("session disconnected")
 				break
 			}
-			logger.Warn("session lost", zap.Error(err))
+			logger.Info("session lost", zap.Error(err))
 			break
 		}
 	}

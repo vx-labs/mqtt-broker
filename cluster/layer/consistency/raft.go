@@ -107,9 +107,17 @@ func (s *raftlayer) Start(name string, state types.RaftState) error {
 	}
 	s.raftNetwork = transport
 	// Create the snapshot store. This allows the Raft to truncate the log.
-	snapshots, err := raft.NewFileSnapshotStore(buildDataDir(s.config.ID), 5, os.Stderr)
-	if err != nil {
-		return fmt.Errorf("failed to create snapshot store: %s", err)
+	retries := 3
+	var snapshots raft.SnapshotStore
+	for {
+		snapshots, err = raft.NewFileSnapshotStore(buildDataDir(s.config.ID), 5, os.Stderr)
+		retries--
+		if err == nil {
+			break
+		}
+		if retries == 0 {
+			return fmt.Errorf("failed to create snapshot store: %s", err)
+		}
 	}
 	filename := fmt.Sprintf("%s/raft-%s.db", buildDataDir(s.config.ID), s.name)
 	boltDB, err := raftboltdb.NewBoltStore(filename)
@@ -169,6 +177,9 @@ func (s *raftlayer) logRaftStatus(log *raft.Log) {
 	//s.logger.Debug("raft status", zap.Uint64("raft_last_index", s.raft.LastIndex()), zap.Uint64("raft_applied_index", s.raft.AppliedIndex()), zap.Uint64("raft_current_index", log.Index))
 }
 func (s *raftlayer) Health() string {
+	if s.raft == nil {
+		return "critical"
+	}
 	if s.raft.AppliedIndex() == 0 {
 		return "warning"
 	}

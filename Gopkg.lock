@@ -3,14 +3,6 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:6e0f2b2d0408e1c4242a63bcc508f48ba24d9aa364283fcd66a8cb429767e0cb"
-  name = "github.com/adrg/xdg"
-  packages = ["."]
-  pruneopts = ""
-  revision = "5e0e8ae1af11a6bd997fc11fa4be125ee4049f41"
-
-[[projects]]
-  branch = "master"
   digest = "1:a6a3ce6ff165f9a640e57773c90eb594d68974edc877500649707daddae7fd39"
   name = "github.com/armon/go-metrics"
   packages = ["."]
@@ -40,6 +32,14 @@
   pruneopts = ""
   revision = "2f1ce7a837dcb8da3ec595b1dac9d0632f0f99e8"
   version = "v1.3.1"
+
+[[projects]]
+  digest = "1:8561fc011218ed9821f6d73057154e692cdfd0f37e929ef6c4a574b6299136cb"
+  name = "github.com/cenkalti/backoff"
+  packages = ["."]
+  pruneopts = ""
+  revision = "4b4cebaf850ec58f1bb1fec5bdebdf8501c2bc3f"
+  version = "v3.0.0"
 
 [[projects]]
   digest = "1:0deddd908b6b4b768cfc272c16ee61e7088a60f7fe2f06c547bd3d8e1f8b8e77"
@@ -682,9 +682,9 @@
   analyzer-name = "dep"
   analyzer-version = 1
   input-imports = [
-    "github.com/adrg/xdg",
     "github.com/armon/go-proxyproto",
     "github.com/boltdb/bolt",
+    "github.com/cenkalti/backoff",
     "github.com/dgrijalva/jwt-go",
     "github.com/gogo/protobuf/proto",
     "github.com/golang/protobuf/proto",

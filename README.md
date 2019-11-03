@@ -12,8 +12,8 @@ Inter-service communication is based on GRPC.
 
 You can run 3 instances of the broker with the following command.
 ```
-go run ./cli/allinone/main.go -j localhost:3302 -j localhost:3303 --cluster-bind-port 3301 -t 1883
-go run ./cli/allinone/main.go -j localhost:3301 -j localhost:3303 --cluster-bind-port 3302 -t 1884
+go run ./cli/allinone/main.go -j localhost:3302 -j localhost:3303 --cluster-bind-port 3301 -t 1883 &
+go run ./cli/allinone/main.go -j localhost:3301 -j localhost:3303 --cluster-bind-port 3302 -t 1884 &
 go run ./cli/allinone/main.go -j localhost:3302 -j localhost:3301 --cluster-bind-port 3303 -t 1885
 ```
 
