@@ -3,6 +3,7 @@ package queues
 import (
 	"context"
 	fmt "fmt"
+	"io"
 	"net"
 	"time"
 
@@ -144,6 +145,37 @@ func (s *server) PutMessageBatch(ctx context.Context, ev *pb.QueuePutMessageBatc
 		s.logger.Error("failed to commit queue put batch event", zap.Error(err))
 	}
 	return &pb.QueuePutMessageBatchOutput{}, err
+}
+func (s *server) StreamMessages(input *pb.QueueGetMessagesInput, stream pb.QueuesService_StreamMessagesServer) error {
+	offset := input.Offset
+	buff := make([][]byte, 10)
+	count := 0
+	var err error
+	for {
+		offset, count, err = s.store.GetRange(input.Id, offset, buff)
+		if err != nil {
+			return err
+		}
+		out := make([]*packet.Publish, count)
+		for idx := range out {
+			out[idx] = &packet.Publish{}
+			err = proto.Unmarshal(buff[idx], out[idx])
+			if err != nil {
+				return err
+			}
+		}
+		err = stream.Send(&pb.QueueGetMessagesOutput{
+			Id:        input.Id,
+			Offset:    offset,
+			Publishes: out,
+		})
+		if err != nil {
+			if err == io.EOF {
+				return nil
+			}
+			return err
+		}
+	}
 }
 func (s *server) GetMessages(ctx context.Context, input *pb.QueueGetMessagesInput) (*pb.QueueGetMessagesOutput, error) {
 	buff := make([][]byte, 10)

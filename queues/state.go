@@ -57,16 +57,23 @@ func (m *server) Apply(payload []byte) error {
 	event := pb.QueuesStateTransition{}
 	err := proto.Unmarshal(payload, &event)
 	if err != nil {
+		m.logger.Error("failed to unmarshal raft event", zap.Error(err))
 		return err
 	}
 	switch event.Kind {
 	case QueueCreated:
 		input := event.QueueCreated.Input
 		err := m.store.CreateQueue(input.ID)
+		if err != nil {
+			m.logger.Error("failed to create queue in store", zap.Error(err))
+		}
 		return err
 	case QueueDeleted:
 		input := event.QueueDeleted
-		m.store.DeleteQueue(input.ID)
+		err := m.store.DeleteQueue(input.ID)
+		if err != nil {
+			m.logger.Error("failed to delete queue in store", zap.Error(err))
+		}
 		return nil
 	case QueueMessagePut:
 		input := event.QueueMessagePut
@@ -74,10 +81,16 @@ func (m *server) Apply(payload []byte) error {
 		if err == store.ErrQueueNotFound {
 			return nil
 		}
+		if err != nil {
+			m.logger.Error("failed to put message in queue", zap.Error(err))
+		}
 		return err
 	case QueueMessagePutBatch:
 		for _, input := range event.QueueMessagePutBatch.Batches {
-			m.store.Put(input.QueueID, input.Offset, input.Payload)
+			err := m.store.Put(input.QueueID, input.Offset, input.Payload)
+			if err != nil {
+				m.logger.Error("failed to put message in queue", zap.Error(err))
+			}
 		}
 		return nil
 	default:

@@ -65,7 +65,7 @@ job "mqtt-queues" {
 
       resources {
         cpu    = 200
-        memory = 64
+        memory = 128
 
         network {
           mbits = 10

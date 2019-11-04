@@ -71,3 +71,22 @@ func (c *Client) GetMessagesBatch(ctx context.Context, input []*QueueGetMessages
 	}
 	return resp.Batches, nil
 }
+func (c *Client) StreamMessages(ctx context.Context, id string, offset uint64, f func(uint64, []*packet.Publish) error) error {
+	stream, err := c.api.StreamMessages(ctx, &QueueGetMessagesInput{
+		Id:     id,
+		Offset: offset,
+	})
+	if err != nil {
+		return err
+	}
+	for {
+		message, err := stream.Recv()
+		if err != nil {
+			return err
+		}
+		err = f(message.Offset, message.Publishes)
+		if err != nil {
+			return err
+		}
+	}
+}
