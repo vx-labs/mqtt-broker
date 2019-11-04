@@ -120,6 +120,7 @@ func (local *endpoint) handleSessionPackets(ctx context.Context, session *localS
 					case <-ctx.Done():
 						return
 					case <-ticker.C:
+						count := 0
 						backoff.Retry(func() error {
 							select {
 							case <-ctx.Done():
@@ -129,6 +130,10 @@ func (local *endpoint) handleSessionPackets(ctx context.Context, session *localS
 							offset, messages, err = local.queues.GetMessages(ctx, session.id, offset)
 							if err != nil {
 								session.logger.Error("failed to poll for messages", zap.Error(err))
+								count++
+								if count >= 5 {
+									return backoff.Permanent(err)
+								}
 								return err
 							}
 							for _, message := range messages {
