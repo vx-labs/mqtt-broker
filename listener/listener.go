@@ -94,8 +94,8 @@ type localSession struct {
 	token     string
 	encoder   *encoder.Encoder
 	queue     publishQueue.Queue
+	logger    *zap.Logger
 	transport io.Closer
-	quit      chan struct{}
 }
 
 func (local *localSession) Less(remote btree.Item) bool {

@@ -4,6 +4,7 @@ DOCKER_BUILD_ARGS = --network host --build-arg https_proxy=${https_proxy} --buil
 build:: build-api build-broker build-listener build-sessions build-subscriptions build-queues
 release:: release-api release-broker release-listener release-sessions release-subscriptions release-queues
 deploy: deploy-api deploy-broker deploy-listener deploy-sessions deploy-subscriptions deploy-queues
+deploy-nodep: deploy-api-nodep deploy-broker-nodep deploy-listener-nodep deploy-sessions-nodep deploy-subscriptions-nodep deploy-queues-nodep
 
 build-api:: build-common
 	docker build ${DOCKER_BUILD_ARGS} --build-arg ARTIFACT=api -t quay.io/vxlabs/mqtt-api:${VERSION} .

@@ -38,22 +38,43 @@ func (local *endpoint) runLocalSession(t transport.Metadata) {
 		zap.String("transport", t.Name),
 	}
 	logger := local.logger.WithOptions(zap.Fields(fields...))
-	logger.Info("accepted new connection")
 	session := &localSession{
 		encoder:   encoder.New(t.Channel),
 		transport: t.Channel,
-		quit:      make(chan struct{}),
+		logger:    logger,
 	}
+	defer func() {
+		t.Channel.Close()
+		local.mutex.Lock()
+		local.sessions.Delete(session)
+		local.mutex.Unlock()
+		cancel()
+	}()
+	err := local.handleSessionPackets(ctx, session, t)
+	if err != nil {
+		if session.id != "" {
+			local.broker.CloseSession(ctx, session.token)
+		}
+	}
+}
+func (local *endpoint) handleSessionPackets(ctx context.Context, session *localSession, t transport.Metadata) error {
+	session.logger.Info("accepted new connection")
 	timer := CONNECT_DEADLINE
 	enc := encoder.New(t.Channel)
 	inflight := inflight.New(enc.Publish)
-	defer close(session.quit)
 	publishWorkers := pool.NewPool(5)
-	dec := decoder.New(
-		decoder.OnConnect(func(p *packet.Connect) error {
+	dec := decoder.Async(t.Channel)
+	renewDeadline(CONNECT_DEADLINE, t.Channel)
+	defer func() {
+		inflight.Close()
+		dec.Cancel()
+	}()
+	for data := range dec.Packet() {
+		switch p := data.(type) {
+		case *packet.Connect:
 			id, token, connack, err := local.broker.Connect(ctx, t, p)
 			if err != nil {
-				logger.Error("CONNECT failed", zap.Error(err))
+				session.logger.Error("CONNECT failed", zap.Error(err))
 				enc.ConnAck(connack)
 				return ErrConnectNotDone
 			}
@@ -62,7 +83,7 @@ func (local *endpoint) runLocalSession(t transport.Metadata) {
 				return ErrConnectNotDone
 			}
 			if id == "" {
-				logger.Error("broker returned an empty session id")
+				session.logger.Error("broker returned an empty session id")
 				enc.ConnAck(&packet.ConnAck{
 					ReturnCode: packet.CONNACK_REFUSED_SERVER_UNAVAILABLE,
 					Header:     &packet.Header{},
@@ -70,14 +91,14 @@ func (local *endpoint) runLocalSession(t transport.Metadata) {
 				return ErrConnectNotDone
 			}
 			if token == "" {
-				logger.Error("broker returned an empty session token")
+				session.logger.Error("broker returned an empty session token")
 				enc.ConnAck(&packet.ConnAck{
 					ReturnCode: packet.CONNACK_REFUSED_SERVER_UNAVAILABLE,
 					Header:     &packet.Header{},
 				})
 				return ErrConnectNotDone
 			}
-			logger = logger.WithOptions(zap.Fields(zap.String("session_id", id), zap.String("client_id", string(p.ClientId))))
+			session.logger = session.logger.WithOptions(zap.Fields(zap.String("session_id", id), zap.String("client_id", string(p.ClientId))))
 			session.id = id
 			session.token = token
 			local.mutex.Lock()
@@ -93,7 +114,7 @@ func (local *endpoint) runLocalSession(t transport.Metadata) {
 				var offset uint64 = 0
 				var messages []*packet.Publish
 				var err error
-				logger.Debug("started queue poller")
+				session.logger.Debug("started queue poller")
 				for {
 					select {
 					case <-ctx.Done():
@@ -107,7 +128,7 @@ func (local *endpoint) runLocalSession(t transport.Metadata) {
 							}
 							offset, messages, err = local.queues.GetMessages(ctx, session.id, offset)
 							if err != nil {
-								logger.Error("failed to poll for messages", zap.Error(err))
+								session.logger.Error("failed to poll for messages", zap.Error(err))
 								return err
 							}
 							for _, message := range messages {
@@ -124,18 +145,16 @@ func (local *endpoint) runLocalSession(t transport.Metadata) {
 			})
 			timer = p.KeepaliveTimer
 			renewDeadline(timer, t.Channel)
-			logger.Info("started session")
-			return nil
-		}),
-		decoder.OnPublish(func(p *packet.Publish) error {
+			session.logger.Info("started session")
+		case *packet.Publish:
 			if session.token == "" {
 				return ErrConnectNotDone
 			}
 			renewDeadline(timer, t.Channel)
-			return publishWorkers.Call(func() error {
+			err := publishWorkers.Call(func() error {
 				puback, err := local.broker.Publish(ctx, session.token, p)
 				if err != nil {
-					logger.Error("failed to publish message", zap.Error(err))
+					session.logger.Error("failed to publish message", zap.Error(err))
 					return err
 				}
 				if puback != nil {
@@ -143,8 +162,10 @@ func (local *endpoint) runLocalSession(t transport.Metadata) {
 				}
 				return nil
 			})
-		}),
-		decoder.OnSubscribe(func(p *packet.Subscribe) error {
+			if err != nil {
+				return err
+			}
+		case *packet.Subscribe:
 			if session.token == "" {
 				return ErrConnectNotDone
 			}
@@ -153,9 +174,11 @@ func (local *endpoint) runLocalSession(t transport.Metadata) {
 			if err != nil {
 				return err
 			}
-			return enc.SubAck(suback)
-		}),
-		decoder.OnUnsubscribe(func(p *packet.Unsubscribe) error {
+			err = enc.SubAck(suback)
+			if err != nil {
+				return err
+			}
+		case *packet.Unsubscribe:
 			if session.token == "" {
 				return ErrConnectNotDone
 			}
@@ -164,17 +187,17 @@ func (local *endpoint) runLocalSession(t transport.Metadata) {
 			if err != nil {
 				return err
 			}
-			return enc.UnsubAck(unsuback)
-		}),
-		decoder.OnPubAck(func(p *packet.PubAck) error {
+			err = enc.UnsubAck(unsuback)
+			if err != nil {
+				return err
+			}
+		case *packet.PubAck:
 			if session.token == "" {
 				return ErrConnectNotDone
 			}
 			renewDeadline(timer, t.Channel)
 			inflight.Ack(p)
-			return nil
-		}),
-		decoder.OnPingReq(func(p *packet.PingReq) error {
+		case *packet.PingReq:
 			if session.token == "" {
 				return ErrConnectNotDone
 			}
@@ -183,42 +206,18 @@ func (local *endpoint) runLocalSession(t transport.Metadata) {
 			if err != nil {
 				return err
 			}
-			return session.encoder.PingResp(pingresp)
-		}),
-		decoder.OnDisconnect(func(p *packet.Disconnect) error {
+			err = session.encoder.PingResp(pingresp)
+			if err != nil {
+				return err
+			}
+		case *packet.Disconnect:
 			if session.token == "" {
 				return ErrConnectNotDone
 			}
 			renewDeadline(timer, t.Channel)
 			local.broker.Disconnect(ctx, session.token, p)
-			return ErrSessionDisconnected
-		}),
-	)
-	renewDeadline(CONNECT_DEADLINE, t.Channel)
-	var err error
-	for {
-		err = dec.Decode(t.Channel)
-		if err != nil {
-			if err == ErrConnectNotDone {
-				break
-			}
-			if err == ErrSessionDisconnected {
-				logger.Info("session disconnected")
-				break
-			}
-			logger.Info("session lost", zap.Error(err))
-			break
+			return nil
 		}
 	}
-	t.Channel.Close()
-	if session.id != "" {
-		err = local.broker.CloseSession(ctx, session.token)
-		if err != nil {
-			logger.Warn("failed to close session on broker", zap.Error(err))
-		}
-	}
-	local.mutex.Lock()
-	local.sessions.Delete(session)
-	local.mutex.Unlock()
-	inflight.Close()
+	return dec.Err()
 }
