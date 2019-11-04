@@ -33,6 +33,25 @@ func (c *Client) PutMessage(ctx context.Context, id string, publish *packet.Publ
 	})
 	return err
 }
+
+type MessageBatch struct {
+	ID      string
+	Publish *packet.Publish
+}
+
+func (c *Client) PutMessageBatch(ctx context.Context, payload []MessageBatch) error {
+	batches := make([]*QueuePutMessageInput, len(payload))
+	for idx := range payload {
+		batches[idx] = &QueuePutMessageInput{
+			Id:      payload[idx].ID,
+			Publish: payload[idx].Publish,
+		}
+	}
+	_, err := c.api.PutMessageBatch(ctx, &QueuePutMessageBatchInput{
+		Batches: batches,
+	})
+	return err
+}
 func (c *Client) GetMessages(ctx context.Context, id string, offset uint64) (uint64, []*packet.Publish, error) {
 	resp, err := c.api.GetMessages(ctx, &QueueGetMessagesInput{
 		Id:     id,

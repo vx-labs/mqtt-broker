@@ -321,6 +321,76 @@ func (m *QueuePutMessageOutput) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_QueuePutMessageOutput proto.InternalMessageInfo
 
+type QueuePutMessageBatchInput struct {
+	Batches              []*QueuePutMessageInput `protobuf:"bytes,1,rep,name=Batches,proto3" json:"Batches,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}                `json:"-"`
+	XXX_unrecognized     []byte                  `json:"-"`
+	XXX_sizecache        int32                   `json:"-"`
+}
+
+func (m *QueuePutMessageBatchInput) Reset()         { *m = QueuePutMessageBatchInput{} }
+func (m *QueuePutMessageBatchInput) String() string { return proto.CompactTextString(m) }
+func (*QueuePutMessageBatchInput) ProtoMessage()    {}
+func (*QueuePutMessageBatchInput) Descriptor() ([]byte, []int) {
+	return fileDescriptor_d938547f84707355, []int{8}
+}
+
+func (m *QueuePutMessageBatchInput) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_QueuePutMessageBatchInput.Unmarshal(m, b)
+}
+func (m *QueuePutMessageBatchInput) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_QueuePutMessageBatchInput.Marshal(b, m, deterministic)
+}
+func (m *QueuePutMessageBatchInput) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_QueuePutMessageBatchInput.Merge(m, src)
+}
+func (m *QueuePutMessageBatchInput) XXX_Size() int {
+	return xxx_messageInfo_QueuePutMessageBatchInput.Size(m)
+}
+func (m *QueuePutMessageBatchInput) XXX_DiscardUnknown() {
+	xxx_messageInfo_QueuePutMessageBatchInput.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_QueuePutMessageBatchInput proto.InternalMessageInfo
+
+func (m *QueuePutMessageBatchInput) GetBatches() []*QueuePutMessageInput {
+	if m != nil {
+		return m.Batches
+	}
+	return nil
+}
+
+type QueuePutMessageBatchOutput struct {
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *QueuePutMessageBatchOutput) Reset()         { *m = QueuePutMessageBatchOutput{} }
+func (m *QueuePutMessageBatchOutput) String() string { return proto.CompactTextString(m) }
+func (*QueuePutMessageBatchOutput) ProtoMessage()    {}
+func (*QueuePutMessageBatchOutput) Descriptor() ([]byte, []int) {
+	return fileDescriptor_d938547f84707355, []int{9}
+}
+
+func (m *QueuePutMessageBatchOutput) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_QueuePutMessageBatchOutput.Unmarshal(m, b)
+}
+func (m *QueuePutMessageBatchOutput) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_QueuePutMessageBatchOutput.Marshal(b, m, deterministic)
+}
+func (m *QueuePutMessageBatchOutput) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_QueuePutMessageBatchOutput.Merge(m, src)
+}
+func (m *QueuePutMessageBatchOutput) XXX_Size() int {
+	return xxx_messageInfo_QueuePutMessageBatchOutput.Size(m)
+}
+func (m *QueuePutMessageBatchOutput) XXX_DiscardUnknown() {
+	xxx_messageInfo_QueuePutMessageBatchOutput.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_QueuePutMessageBatchOutput proto.InternalMessageInfo
+
 type QueueGetMessagesInput struct {
 	Id                   string   `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
 	Offset               uint64   `protobuf:"varint,2,opt,name=offset,proto3" json:"offset,omitempty"`
@@ -333,7 +403,7 @@ func (m *QueueGetMessagesInput) Reset()         { *m = QueueGetMessagesInput{} }
 func (m *QueueGetMessagesInput) String() string { return proto.CompactTextString(m) }
 func (*QueueGetMessagesInput) ProtoMessage()    {}
 func (*QueueGetMessagesInput) Descriptor() ([]byte, []int) {
-	return fileDescriptor_d938547f84707355, []int{8}
+	return fileDescriptor_d938547f84707355, []int{10}
 }
 
 func (m *QueueGetMessagesInput) XXX_Unmarshal(b []byte) error {
@@ -381,7 +451,7 @@ func (m *QueueGetMessagesOutput) Reset()         { *m = QueueGetMessagesOutput{}
 func (m *QueueGetMessagesOutput) String() string { return proto.CompactTextString(m) }
 func (*QueueGetMessagesOutput) ProtoMessage()    {}
 func (*QueueGetMessagesOutput) Descriptor() ([]byte, []int) {
-	return fileDescriptor_d938547f84707355, []int{9}
+	return fileDescriptor_d938547f84707355, []int{11}
 }
 
 func (m *QueueGetMessagesOutput) XXX_Unmarshal(b []byte) error {
@@ -434,7 +504,7 @@ func (m *QueueGetMessagesBatchInput) Reset()         { *m = QueueGetMessagesBatc
 func (m *QueueGetMessagesBatchInput) String() string { return proto.CompactTextString(m) }
 func (*QueueGetMessagesBatchInput) ProtoMessage()    {}
 func (*QueueGetMessagesBatchInput) Descriptor() ([]byte, []int) {
-	return fileDescriptor_d938547f84707355, []int{10}
+	return fileDescriptor_d938547f84707355, []int{12}
 }
 
 func (m *QueueGetMessagesBatchInput) XXX_Unmarshal(b []byte) error {
@@ -473,7 +543,7 @@ func (m *QueueGetMessagesBatchOutput) Reset()         { *m = QueueGetMessagesBat
 func (m *QueueGetMessagesBatchOutput) String() string { return proto.CompactTextString(m) }
 func (*QueueGetMessagesBatchOutput) ProtoMessage()    {}
 func (*QueueGetMessagesBatchOutput) Descriptor() ([]byte, []int) {
-	return fileDescriptor_d938547f84707355, []int{11}
+	return fileDescriptor_d938547f84707355, []int{13}
 }
 
 func (m *QueueGetMessagesBatchOutput) XXX_Unmarshal(b []byte) error {
@@ -502,20 +572,21 @@ func (m *QueueGetMessagesBatchOutput) GetBatches() []*QueueGetMessagesOutput {
 }
 
 type QueuesStateTransition struct {
-	Kind                 string                            `protobuf:"bytes,1,opt,name=Kind,proto3" json:"Kind,omitempty"`
-	QueueCreated         *QueueStateTransitionQueueCreated `protobuf:"bytes,2,opt,name=QueueCreated,proto3" json:"QueueCreated,omitempty"`
-	QueueDeleted         *QueueStateTransitionQueueDeleted `protobuf:"bytes,3,opt,name=QueueDeleted,proto3" json:"QueueDeleted,omitempty"`
-	QueueMessagePut      *QueueStateTransitionMessagePut   `protobuf:"bytes,4,opt,name=QueueMessagePut,proto3" json:"QueueMessagePut,omitempty"`
-	XXX_NoUnkeyedLiteral struct{}                          `json:"-"`
-	XXX_unrecognized     []byte                            `json:"-"`
-	XXX_sizecache        int32                             `json:"-"`
+	Kind                 string                               `protobuf:"bytes,1,opt,name=Kind,proto3" json:"Kind,omitempty"`
+	QueueCreated         *QueueStateTransitionQueueCreated    `protobuf:"bytes,2,opt,name=QueueCreated,proto3" json:"QueueCreated,omitempty"`
+	QueueDeleted         *QueueStateTransitionQueueDeleted    `protobuf:"bytes,3,opt,name=QueueDeleted,proto3" json:"QueueDeleted,omitempty"`
+	QueueMessagePut      *QueueStateTransitionMessagePut      `protobuf:"bytes,4,opt,name=QueueMessagePut,proto3" json:"QueueMessagePut,omitempty"`
+	QueueMessagePutBatch *QueueStateTransitionMessagePutBatch `protobuf:"bytes,5,opt,name=QueueMessagePutBatch,proto3" json:"QueueMessagePutBatch,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}                             `json:"-"`
+	XXX_unrecognized     []byte                               `json:"-"`
+	XXX_sizecache        int32                                `json:"-"`
 }
 
 func (m *QueuesStateTransition) Reset()         { *m = QueuesStateTransition{} }
 func (m *QueuesStateTransition) String() string { return proto.CompactTextString(m) }
 func (*QueuesStateTransition) ProtoMessage()    {}
 func (*QueuesStateTransition) Descriptor() ([]byte, []int) {
-	return fileDescriptor_d938547f84707355, []int{12}
+	return fileDescriptor_d938547f84707355, []int{14}
 }
 
 func (m *QueuesStateTransition) XXX_Unmarshal(b []byte) error {
@@ -564,6 +635,13 @@ func (m *QueuesStateTransition) GetQueueMessagePut() *QueueStateTransitionMessag
 	return nil
 }
 
+func (m *QueuesStateTransition) GetQueueMessagePutBatch() *QueueStateTransitionMessagePutBatch {
+	if m != nil {
+		return m.QueueMessagePutBatch
+	}
+	return nil
+}
+
 type QueueStateTransitionQueueCreated struct {
 	Input                *QueueMetadata `protobuf:"bytes,1,opt,name=Input,proto3" json:"Input,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}       `json:"-"`
@@ -575,7 +653,7 @@ func (m *QueueStateTransitionQueueCreated) Reset()         { *m = QueueStateTran
 func (m *QueueStateTransitionQueueCreated) String() string { return proto.CompactTextString(m) }
 func (*QueueStateTransitionQueueCreated) ProtoMessage()    {}
 func (*QueueStateTransitionQueueCreated) Descriptor() ([]byte, []int) {
-	return fileDescriptor_d938547f84707355, []int{13}
+	return fileDescriptor_d938547f84707355, []int{15}
 }
 
 func (m *QueueStateTransitionQueueCreated) XXX_Unmarshal(b []byte) error {
@@ -614,7 +692,7 @@ func (m *QueueStateTransitionQueueDeleted) Reset()         { *m = QueueStateTran
 func (m *QueueStateTransitionQueueDeleted) String() string { return proto.CompactTextString(m) }
 func (*QueueStateTransitionQueueDeleted) ProtoMessage()    {}
 func (*QueueStateTransitionQueueDeleted) Descriptor() ([]byte, []int) {
-	return fileDescriptor_d938547f84707355, []int{14}
+	return fileDescriptor_d938547f84707355, []int{16}
 }
 
 func (m *QueueStateTransitionQueueDeleted) XXX_Unmarshal(b []byte) error {
@@ -655,7 +733,7 @@ func (m *QueueStateTransitionMessagePut) Reset()         { *m = QueueStateTransi
 func (m *QueueStateTransitionMessagePut) String() string { return proto.CompactTextString(m) }
 func (*QueueStateTransitionMessagePut) ProtoMessage()    {}
 func (*QueueStateTransitionMessagePut) Descriptor() ([]byte, []int) {
-	return fileDescriptor_d938547f84707355, []int{15}
+	return fileDescriptor_d938547f84707355, []int{17}
 }
 
 func (m *QueueStateTransitionMessagePut) XXX_Unmarshal(b []byte) error {
@@ -697,6 +775,45 @@ func (m *QueueStateTransitionMessagePut) GetPayload() []byte {
 	return nil
 }
 
+type QueueStateTransitionMessagePutBatch struct {
+	Batches              []*QueueStateTransitionMessagePut `protobuf:"bytes,1,rep,name=batches,proto3" json:"batches,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}                          `json:"-"`
+	XXX_unrecognized     []byte                            `json:"-"`
+	XXX_sizecache        int32                             `json:"-"`
+}
+
+func (m *QueueStateTransitionMessagePutBatch) Reset()         { *m = QueueStateTransitionMessagePutBatch{} }
+func (m *QueueStateTransitionMessagePutBatch) String() string { return proto.CompactTextString(m) }
+func (*QueueStateTransitionMessagePutBatch) ProtoMessage()    {}
+func (*QueueStateTransitionMessagePutBatch) Descriptor() ([]byte, []int) {
+	return fileDescriptor_d938547f84707355, []int{18}
+}
+
+func (m *QueueStateTransitionMessagePutBatch) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_QueueStateTransitionMessagePutBatch.Unmarshal(m, b)
+}
+func (m *QueueStateTransitionMessagePutBatch) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_QueueStateTransitionMessagePutBatch.Marshal(b, m, deterministic)
+}
+func (m *QueueStateTransitionMessagePutBatch) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_QueueStateTransitionMessagePutBatch.Merge(m, src)
+}
+func (m *QueueStateTransitionMessagePutBatch) XXX_Size() int {
+	return xxx_messageInfo_QueueStateTransitionMessagePutBatch.Size(m)
+}
+func (m *QueueStateTransitionMessagePutBatch) XXX_DiscardUnknown() {
+	xxx_messageInfo_QueueStateTransitionMessagePutBatch.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_QueueStateTransitionMessagePutBatch proto.InternalMessageInfo
+
+func (m *QueueStateTransitionMessagePutBatch) GetBatches() []*QueueStateTransitionMessagePut {
+	if m != nil {
+		return m.Batches
+	}
+	return nil
+}
+
 func init() {
 	proto.RegisterType((*QueueMetadata)(nil), "pb.QueueMetadata")
 	proto.RegisterType((*QueueMetadataList)(nil), "pb.QueueMetadataList")
@@ -706,6 +823,8 @@ func init() {
 	proto.RegisterType((*QueueDeleteOutput)(nil), "pb.QueueDeleteOutput")
 	proto.RegisterType((*QueuePutMessageInput)(nil), "pb.QueuePutMessageInput")
 	proto.RegisterType((*QueuePutMessageOutput)(nil), "pb.QueuePutMessageOutput")
+	proto.RegisterType((*QueuePutMessageBatchInput)(nil), "pb.QueuePutMessageBatchInput")
+	proto.RegisterType((*QueuePutMessageBatchOutput)(nil), "pb.QueuePutMessageBatchOutput")
 	proto.RegisterType((*QueueGetMessagesInput)(nil), "pb.QueueGetMessagesInput")
 	proto.RegisterType((*QueueGetMessagesOutput)(nil), "pb.QueueGetMessagesOutput")
 	proto.RegisterType((*QueueGetMessagesBatchInput)(nil), "pb.QueueGetMessagesBatchInput")
@@ -714,48 +833,54 @@ func init() {
 	proto.RegisterType((*QueueStateTransitionQueueCreated)(nil), "pb.QueueStateTransitionQueueCreated")
 	proto.RegisterType((*QueueStateTransitionQueueDeleted)(nil), "pb.QueueStateTransitionQueueDeleted")
 	proto.RegisterType((*QueueStateTransitionMessagePut)(nil), "pb.QueueStateTransitionMessagePut")
+	proto.RegisterType((*QueueStateTransitionMessagePutBatch)(nil), "pb.QueueStateTransitionMessagePutBatch")
 }
 
 func init() { proto.RegisterFile("types.proto", fileDescriptor_d938547f84707355) }
 
 var fileDescriptor_d938547f84707355 = []byte{
-	// 573 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x8c, 0x54, 0xdd, 0x4e, 0xdb, 0x30,
-	0x14, 0x56, 0xd3, 0xae, 0x15, 0xa7, 0x6c, 0x80, 0x07, 0x2c, 0x64, 0x12, 0x54, 0xd6, 0xa4, 0x95,
-	0x8b, 0xa6, 0x53, 0x19, 0xb7, 0x9b, 0xb6, 0x55, 0xda, 0x2a, 0x40, 0xb4, 0xe9, 0x5e, 0xc0, 0x69,
-	0x0d, 0x8d, 0x16, 0x9a, 0xac, 0x3e, 0x41, 0xe3, 0x21, 0xf6, 0x84, 0x7b, 0x99, 0xa9, 0xb6, 0x93,
-	0x26, 0x26, 0x2d, 0xdc, 0xd9, 0x3e, 0xdf, 0xf7, 0x1d, 0x9f, 0x5f, 0x68, 0xe2, 0x43, 0xcc, 0x85,
-	0x1b, 0x2f, 0x22, 0x8c, 0x88, 0x15, 0xfb, 0xce, 0x87, 0xdb, 0x00, 0x67, 0x89, 0xef, 0x4e, 0xa2,
-	0xbb, 0xee, 0xfd, 0x9f, 0x4e, 0xc8, 0x7c, 0xd1, 0xbd, 0xfb, 0x8d, 0xd8, 0x91, 0x90, 0x49, 0x14,
-	0x76, 0x63, 0x36, 0xf9, 0xc5, 0xb1, 0x1b, 0xfb, 0x8a, 0x45, 0x4f, 0xe0, 0xe5, 0x28, 0xe1, 0x09,
-	0xbf, 0xe2, 0xc8, 0xa6, 0x0c, 0x19, 0x79, 0x05, 0xd6, 0xa0, 0x6f, 0x57, 0x5a, 0x95, 0xf6, 0x96,
-	0x67, 0x0d, 0xfa, 0xf4, 0x13, 0xec, 0x15, 0x00, 0x97, 0x81, 0x40, 0x72, 0x0a, 0x75, 0xf9, 0x28,
-	0xec, 0x4a, 0xab, 0xda, 0x6e, 0xf6, 0xf6, 0xdc, 0xd8, 0x77, 0x0b, 0x30, 0x4f, 0x03, 0x28, 0x85,
-	0x5d, 0x79, 0xfa, 0xb6, 0xe0, 0x0c, 0xf9, 0x60, 0x1e, 0x27, 0xb8, 0xf4, 0x11, 0x4c, 0x53, 0x1f,
-	0xc1, 0x94, 0xbe, 0xd6, 0x3e, 0x14, 0xe6, 0x3a, 0xc1, 0x38, 0xc1, 0x8c, 0xd8, 0xe7, 0x21, 0x7f,
-	0x8a, 0xa8, 0x30, 0x9a, 0x38, 0x82, 0x7d, 0xf9, 0x38, 0x4c, 0xf0, 0x8a, 0x0b, 0xc1, 0x6e, 0xcb,
-	0xc9, 0xe4, 0x14, 0x1a, 0x71, 0xe2, 0x87, 0x81, 0x98, 0xd9, 0x56, 0xab, 0xd2, 0x6e, 0xf6, 0x76,
-	0x5c, 0x95, 0x1d, 0x77, 0xa8, 0x9e, 0xbd, 0xd4, 0x4e, 0xdf, 0xc0, 0x81, 0x21, 0xa9, 0x7d, 0x7d,
-	0xd6, 0x86, 0xef, 0x3c, 0x35, 0x88, 0x72, 0x67, 0x87, 0x50, 0x8f, 0x6e, 0x6e, 0x04, 0x47, 0xe9,
-	0xab, 0xe6, 0xe9, 0x1b, 0x8d, 0xe0, 0xd0, 0x14, 0x50, 0xd2, 0xcf, 0x55, 0x20, 0x1d, 0xd8, 0xd2,
-	0xdf, 0xe4, 0xc2, 0xae, 0xca, 0x72, 0x3c, 0x0a, 0x64, 0x85, 0xa0, 0x23, 0x70, 0x4c, 0x87, 0x5f,
-	0x19, 0x4e, 0x66, 0xea, 0xdb, 0x67, 0xd0, 0xf0, 0x97, 0xb7, 0xac, 0xb2, 0x47, 0x59, 0x65, 0xcd,
-	0x10, 0xbd, 0x14, 0x49, 0xc7, 0xf0, 0xb6, 0x54, 0x52, 0x07, 0xf2, 0xd1, 0xd4, 0x74, 0xca, 0x34,
-	0x15, 0x78, 0x25, 0xfa, 0xd7, 0xd2, 0xa9, 0x15, 0x63, 0x64, 0xc8, 0x7f, 0x2e, 0xd8, 0x5c, 0x04,
-	0x18, 0x44, 0x73, 0x42, 0xa0, 0x76, 0x11, 0xcc, 0xd3, 0xd4, 0xc8, 0x33, 0xf9, 0x01, 0xdb, 0xb9,
-	0x0e, 0x9a, 0xea, 0x82, 0xbe, 0xcb, 0x1c, 0x19, 0x1a, 0x79, 0xac, 0x57, 0x60, 0x66, 0x4a, 0xaa,
-	0xa5, 0xa6, 0x76, 0xf5, 0x19, 0x4a, 0x1a, 0xeb, 0x15, 0x98, 0xe4, 0x12, 0x76, 0xf4, 0x48, 0xc8,
-	0x08, 0x87, 0x09, 0xda, 0x35, 0x29, 0x46, 0xd7, 0x89, 0xad, 0x90, 0x9e, 0x49, 0xa5, 0x17, 0xd0,
-	0x7a, 0x2a, 0x12, 0xf2, 0x1e, 0x5e, 0xc8, 0xd2, 0xc8, 0xd4, 0x94, 0x4e, 0xa5, 0xb2, 0xd3, 0xde,
-	0x06, 0xb1, 0xf4, 0xfb, 0xe6, 0x22, 0x08, 0xe1, 0x78, 0xf3, 0x9f, 0x89, 0x0d, 0x0d, 0x89, 0xc8,
-	0x68, 0xe9, 0x75, 0xd9, 0xbb, 0xd7, 0x85, 0xde, 0x55, 0xb7, 0x25, 0x63, 0xc8, 0x1e, 0xc2, 0x88,
-	0xa9, 0x3c, 0x6f, 0x7b, 0xe9, 0xb5, 0xf7, 0xcf, 0xd2, 0x8b, 0x49, 0x8c, 0xf9, 0xe2, 0x3e, 0x98,
-	0x70, 0x72, 0x0e, 0x75, 0x15, 0x27, 0xd9, 0xcf, 0xe2, 0xca, 0x2d, 0x15, 0xe7, 0xc0, 0x78, 0xd5,
-	0xdd, 0x77, 0x0e, 0x75, 0x15, 0x51, 0x8e, 0x96, 0x5b, 0x29, 0x39, 0x5a, 0x7e, 0x89, 0x90, 0x2f,
-	0x00, 0xab, 0x61, 0x27, 0x76, 0x06, 0x32, 0x96, 0x8a, 0x73, 0x54, 0x62, 0xd1, 0x12, 0x7d, 0x68,
-	0xe6, 0xfa, 0x9b, 0xac, 0x9f, 0x24, 0x67, 0xc3, 0x40, 0x90, 0x31, 0xec, 0x9a, 0x73, 0x45, 0x8e,
-	0xcb, 0xf0, 0xab, 0x29, 0x76, 0x4e, 0xd6, 0xda, 0x95, 0xa8, 0x5f, 0x97, 0xcb, 0xff, 0xec, 0x7f,
-	0x00, 0x00, 0x00, 0xff, 0xff, 0x4e, 0x11, 0xc7, 0xa5, 0x41, 0x06, 0x00, 0x00,
+	// 647 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x8c, 0x55, 0x5d, 0x6f, 0xd3, 0x30,
+	0x14, 0x55, 0xdb, 0xad, 0xd5, 0x6e, 0x07, 0xdb, 0xcc, 0x36, 0xb2, 0x00, 0x5d, 0x65, 0x90, 0xd6,
+	0x3d, 0x34, 0x45, 0x1d, 0x7b, 0x43, 0x20, 0xa0, 0x12, 0x54, 0xdb, 0xd4, 0x36, 0xe5, 0x8d, 0x27,
+	0x27, 0xf5, 0xd6, 0x88, 0xac, 0x09, 0xb5, 0x33, 0xb1, 0x1f, 0xc5, 0x1f, 0xe3, 0x57, 0xa0, 0xda,
+	0xce, 0x97, 0x49, 0x3f, 0xde, 0x6a, 0xdf, 0x73, 0xce, 0xf5, 0x3d, 0xb1, 0x4f, 0xa1, 0xce, 0x1f,
+	0x43, 0xca, 0xac, 0x70, 0x1e, 0xf0, 0x00, 0x95, 0x43, 0xc7, 0x7c, 0x7b, 0xe7, 0xf1, 0x69, 0xe4,
+	0x58, 0x6e, 0x70, 0xdf, 0x79, 0xf8, 0xdd, 0xf6, 0x89, 0xc3, 0x3a, 0xf7, 0xbf, 0x38, 0x6f, 0x0b,
+	0x88, 0x1b, 0xf8, 0x9d, 0x90, 0xb8, 0x3f, 0x29, 0xef, 0x84, 0x8e, 0x64, 0xe1, 0x53, 0x78, 0x32,
+	0x8a, 0x68, 0x44, 0x6f, 0x28, 0x27, 0x13, 0xc2, 0x09, 0x7a, 0x0a, 0xe5, 0x7e, 0xcf, 0x28, 0x35,
+	0x4b, 0xad, 0x1d, 0xbb, 0xdc, 0xef, 0xe1, 0x0f, 0x70, 0x90, 0x03, 0x5c, 0x7b, 0x8c, 0xa3, 0x73,
+	0xa8, 0x8a, 0x4d, 0x66, 0x94, 0x9a, 0x95, 0x56, 0xbd, 0x7b, 0x60, 0x85, 0x8e, 0x95, 0x83, 0xd9,
+	0x0a, 0x80, 0x31, 0xec, 0x8b, 0x5f, 0x5f, 0xe6, 0x94, 0x70, 0xda, 0x9f, 0x85, 0x11, 0x5f, 0xf4,
+	0xf0, 0x26, 0x71, 0x0f, 0x6f, 0x82, 0x9f, 0xa9, 0x1e, 0x12, 0x33, 0x88, 0x78, 0x18, 0xf1, 0x84,
+	0xd8, 0xa3, 0x3e, 0x5d, 0x47, 0x94, 0x18, 0x45, 0x1c, 0xc1, 0xa1, 0xd8, 0x1c, 0x46, 0xfc, 0x86,
+	0x32, 0x46, 0xee, 0x8a, 0xc9, 0xe8, 0x1c, 0x6a, 0x61, 0xe4, 0xf8, 0x1e, 0x9b, 0x1a, 0xe5, 0x66,
+	0xa9, 0x55, 0xef, 0xee, 0x59, 0xd2, 0x1d, 0x6b, 0x28, 0xb7, 0xed, 0xb8, 0x8e, 0x9f, 0xc3, 0x91,
+	0x26, 0xa9, 0x7a, 0x0d, 0xe0, 0x44, 0x2b, 0x7c, 0x26, 0xdc, 0x9d, 0xca, 0x86, 0x5d, 0xa8, 0x89,
+	0x55, 0x62, 0x93, 0x91, 0xd8, 0xa4, 0x9d, 0xcd, 0x8e, 0x81, 0xf8, 0x25, 0x98, 0x45, 0x82, 0xaa,
+	0xdd, 0x47, 0x75, 0x8e, 0xaf, 0x34, 0xae, 0xb2, 0xe2, 0xd9, 0x8e, 0xa1, 0x1a, 0xdc, 0xde, 0x32,
+	0xca, 0xc5, 0x68, 0x5b, 0xb6, 0x5a, 0xe1, 0x00, 0x8e, 0x75, 0x01, 0x29, 0xbd, 0xa9, 0x02, 0x6a,
+	0xc3, 0x8e, 0x72, 0x85, 0x32, 0xa3, 0x22, 0xc6, 0xfa, 0xcf, 0xb7, 0x14, 0x81, 0x47, 0x6a, 0x9e,
+	0x4c, 0xc3, 0x8c, 0x43, 0x17, 0x50, 0x73, 0x72, 0x0e, 0x9d, 0x24, 0x0e, 0xe9, 0x23, 0xda, 0x31,
+	0x12, 0x8f, 0xe1, 0x45, 0xa1, 0xa4, 0x1a, 0xe4, 0x9d, 0xae, 0x69, 0x16, 0x69, 0x4a, 0x70, 0x2a,
+	0xfa, 0xb7, 0xac, 0xac, 0x65, 0x63, 0x4e, 0x38, 0xfd, 0x3e, 0x27, 0x33, 0xe6, 0x71, 0x2f, 0x98,
+	0x21, 0x04, 0x5b, 0x57, 0xde, 0x2c, 0xb6, 0x46, 0xfc, 0x46, 0xdf, 0x60, 0x37, 0x73, 0x61, 0x27,
+	0xea, 0xfe, 0xbc, 0x49, 0x1a, 0x69, 0x1a, 0x59, 0xac, 0x9d, 0x63, 0x26, 0x4a, 0xf2, 0x06, 0x4f,
+	0x8c, 0xca, 0x06, 0x4a, 0x0a, 0x6b, 0xe7, 0x98, 0xe8, 0x1a, 0xf6, 0xd4, 0x0b, 0x14, 0x13, 0x0e,
+	0x23, 0x6e, 0x6c, 0x09, 0x31, 0xbc, 0x4c, 0x2c, 0x45, 0xda, 0x3a, 0x15, 0xfd, 0x50, 0x8f, 0x28,
+	0xdd, 0x12, 0x1e, 0x1b, 0xdb, 0x42, 0xf2, 0x6c, 0xbd, 0xa4, 0x80, 0xdb, 0x85, 0x22, 0xf8, 0x0a,
+	0x9a, 0xeb, 0x6c, 0x42, 0x67, 0xb0, 0x2d, 0xbe, 0xbb, 0xf0, 0xbd, 0x30, 0x61, 0x64, 0x1d, 0x77,
+	0x57, 0x88, 0xc5, 0xde, 0xe8, 0xa1, 0xe6, 0x43, 0x63, 0xf5, 0xe9, 0x91, 0x01, 0x35, 0x81, 0x48,
+	0x68, 0xf1, 0x72, 0xf1, 0x30, 0x06, 0xb9, 0x87, 0x21, 0x57, 0x0b, 0xc6, 0x90, 0x3c, 0xfa, 0x01,
+	0x91, 0x1f, 0x71, 0xd7, 0x8e, 0x97, 0xd8, 0x85, 0xd7, 0x1b, 0x78, 0x85, 0xde, 0xeb, 0x17, 0x77,
+	0x93, 0x0f, 0x17, 0x53, 0xba, 0x7f, 0x2a, 0x2a, 0xc9, 0xd9, 0x98, 0xce, 0x1f, 0x3c, 0x97, 0xa2,
+	0x4b, 0xa8, 0x4a, 0x33, 0xd1, 0x61, 0x22, 0x94, 0x49, 0x61, 0xf3, 0x48, 0xdb, 0x55, 0xef, 0xe7,
+	0x12, 0xaa, 0xd2, 0xb6, 0x0c, 0x2d, 0x93, 0xc1, 0x19, 0x5a, 0x36, 0x75, 0xd1, 0x27, 0x80, 0x34,
+	0xb3, 0xd0, 0xd2, 0xa4, 0x33, 0x4f, 0x0a, 0x2a, 0x4a, 0x62, 0x08, 0x7b, 0x5a, 0xec, 0xa1, 0x57,
+	0x05, 0xe8, 0x34, 0x3f, 0xcc, 0xc6, 0xb2, 0xb2, 0x52, 0xec, 0x41, 0x3d, 0xf3, 0xe6, 0xd1, 0xf2,
+	0x74, 0x31, 0x57, 0x84, 0x04, 0x1a, 0xc3, 0xbe, 0x9e, 0x35, 0xa8, 0x51, 0x84, 0xcf, 0x9c, 0xec,
+	0x74, 0x69, 0x5d, 0x8a, 0x3a, 0x55, 0xf1, 0xff, 0x7b, 0xf1, 0x2f, 0x00, 0x00, 0xff, 0xff, 0xa8,
+	0xe6, 0xc9, 0xf5, 0xc4, 0x07, 0x00, 0x00,
 }
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -773,6 +898,7 @@ type QueuesServiceClient interface {
 	Create(ctx context.Context, in *QueueCreateInput, opts ...grpc.CallOption) (*QueueCreateOutput, error)
 	Delete(ctx context.Context, in *QueueDeleteInput, opts ...grpc.CallOption) (*QueueDeleteOutput, error)
 	PutMessage(ctx context.Context, in *QueuePutMessageInput, opts ...grpc.CallOption) (*QueuePutMessageOutput, error)
+	PutMessageBatch(ctx context.Context, in *QueuePutMessageBatchInput, opts ...grpc.CallOption) (*QueuePutMessageBatchOutput, error)
 	GetMessages(ctx context.Context, in *QueueGetMessagesInput, opts ...grpc.CallOption) (*QueueGetMessagesOutput, error)
 	GetMessagesBatch(ctx context.Context, in *QueueGetMessagesBatchInput, opts ...grpc.CallOption) (*QueueGetMessagesBatchOutput, error)
 }
@@ -812,6 +938,15 @@ func (c *queuesServiceClient) PutMessage(ctx context.Context, in *QueuePutMessag
 	return out, nil
 }
 
+func (c *queuesServiceClient) PutMessageBatch(ctx context.Context, in *QueuePutMessageBatchInput, opts ...grpc.CallOption) (*QueuePutMessageBatchOutput, error) {
+	out := new(QueuePutMessageBatchOutput)
+	err := c.cc.Invoke(ctx, "/pb.QueuesService/PutMessageBatch", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *queuesServiceClient) GetMessages(ctx context.Context, in *QueueGetMessagesInput, opts ...grpc.CallOption) (*QueueGetMessagesOutput, error) {
 	out := new(QueueGetMessagesOutput)
 	err := c.cc.Invoke(ctx, "/pb.QueuesService/GetMessages", in, out, opts...)
@@ -835,6 +970,7 @@ type QueuesServiceServer interface {
 	Create(context.Context, *QueueCreateInput) (*QueueCreateOutput, error)
 	Delete(context.Context, *QueueDeleteInput) (*QueueDeleteOutput, error)
 	PutMessage(context.Context, *QueuePutMessageInput) (*QueuePutMessageOutput, error)
+	PutMessageBatch(context.Context, *QueuePutMessageBatchInput) (*QueuePutMessageBatchOutput, error)
 	GetMessages(context.Context, *QueueGetMessagesInput) (*QueueGetMessagesOutput, error)
 	GetMessagesBatch(context.Context, *QueueGetMessagesBatchInput) (*QueueGetMessagesBatchOutput, error)
 }
@@ -851,6 +987,9 @@ func (*UnimplementedQueuesServiceServer) Delete(ctx context.Context, req *QueueD
 }
 func (*UnimplementedQueuesServiceServer) PutMessage(ctx context.Context, req *QueuePutMessageInput) (*QueuePutMessageOutput, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method PutMessage not implemented")
+}
+func (*UnimplementedQueuesServiceServer) PutMessageBatch(ctx context.Context, req *QueuePutMessageBatchInput) (*QueuePutMessageBatchOutput, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method PutMessageBatch not implemented")
 }
 func (*UnimplementedQueuesServiceServer) GetMessages(ctx context.Context, req *QueueGetMessagesInput) (*QueueGetMessagesOutput, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetMessages not implemented")
@@ -917,6 +1056,24 @@ func _QueuesService_PutMessage_Handler(srv interface{}, ctx context.Context, dec
 	return interceptor(ctx, in, info, handler)
 }
 
+func _QueuesService_PutMessageBatch_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(QueuePutMessageBatchInput)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(QueuesServiceServer).PutMessageBatch(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/pb.QueuesService/PutMessageBatch",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(QueuesServiceServer).PutMessageBatch(ctx, req.(*QueuePutMessageBatchInput))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _QueuesService_GetMessages_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(QueueGetMessagesInput)
 	if err := dec(in); err != nil {
@@ -968,6 +1125,10 @@ var _QueuesService_serviceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "PutMessage",
 			Handler:    _QueuesService_PutMessage_Handler,
+		},
+		{
+			MethodName: "PutMessageBatch",
+			Handler:    _QueuesService_PutMessageBatch_Handler,
 		},
 		{
 			MethodName: "GetMessages",

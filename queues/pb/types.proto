@@ -29,6 +29,11 @@ message QueuePutMessageInput {
 }
 message QueuePutMessageOutput {}
 
+message QueuePutMessageBatchInput {
+  repeated QueuePutMessageInput Batches = 1;
+}
+message QueuePutMessageBatchOutput {}
+
 message QueueGetMessagesInput {
   string id = 1;
   uint64 offset = 2;
@@ -49,6 +54,7 @@ service QueuesService {
   rpc Create(QueueCreateInput) returns (QueueCreateOutput);
   rpc Delete(QueueDeleteInput) returns (QueueDeleteOutput);
   rpc PutMessage(QueuePutMessageInput) returns (QueuePutMessageOutput);
+  rpc PutMessageBatch(QueuePutMessageBatchInput) returns (QueuePutMessageBatchOutput);
   rpc GetMessages(QueueGetMessagesInput) returns (QueueGetMessagesOutput);
   rpc GetMessagesBatch(QueueGetMessagesBatchInput) returns (QueueGetMessagesBatchOutput);
 }
@@ -57,6 +63,7 @@ message QueuesStateTransition {
   QueueStateTransitionQueueCreated QueueCreated = 2;
   QueueStateTransitionQueueDeleted QueueDeleted = 3;
   QueueStateTransitionMessagePut QueueMessagePut = 4;
+  QueueStateTransitionMessagePutBatch QueueMessagePutBatch = 5;
 }
 
 message QueueStateTransitionQueueCreated {
@@ -70,4 +77,7 @@ message QueueStateTransitionMessagePut {
   string QueueID = 1;
   uint64 Offset = 2;
   bytes Payload = 3;
+}
+message QueueStateTransitionMessagePutBatch {
+  repeated QueueStateTransitionMessagePut batches = 1;
 }

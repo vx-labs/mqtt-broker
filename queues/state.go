@@ -14,9 +14,10 @@ import (
 )
 
 const (
-	QueueCreated    string = "queue_created"
-	QueueDeleted    string = "queue_delete"
-	QueueMessagePut string = "queue_message_put"
+	QueueCreated         string = "queue_created"
+	QueueDeleted         string = "queue_delete"
+	QueueMessagePut      string = "queue_message_put"
+	QueueMessagePutBatch string = "queue_message_put_batch"
 )
 
 func (m *server) Restore(r io.Reader) error {
@@ -74,6 +75,11 @@ func (m *server) Apply(payload []byte) error {
 			return nil
 		}
 		return err
+	case QueueMessagePutBatch:
+		for _, input := range event.QueueMessagePutBatch.Batches {
+			m.store.Put(input.QueueID, input.Offset, input.Payload)
+		}
+		return nil
 	default:
 		return errors.New("invalid event type received")
 	}

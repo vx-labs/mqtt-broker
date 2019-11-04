@@ -112,6 +112,39 @@ func (s *server) PutMessage(ctx context.Context, input *pb.QueuePutMessageInput)
 	}
 	return &pb.QueuePutMessageOutput{}, err
 }
+func (s *server) PutMessageBatch(ctx context.Context, ev *pb.QueuePutMessageBatchInput) (*pb.QueuePutMessageBatchOutput, error) {
+	// FIXME: do not use time as a key generator
+	now := time.Now().UnixNano()
+	event := &pb.QueuesStateTransition{
+		Kind: QueueMessagePutBatch,
+		QueueMessagePutBatch: &pb.QueueStateTransitionMessagePutBatch{
+			Batches: []*pb.QueueStateTransitionMessagePut{},
+		},
+	}
+	for _, input := range ev.Batches {
+		idx := now
+		payload, err := proto.Marshal(input.Publish)
+		if err != nil {
+			s.logger.Error("failed to encode message", zap.Error(err))
+			return nil, err
+		}
+		event.QueueMessagePutBatch.Batches = append(event.QueueMessagePutBatch.Batches, &pb.QueueStateTransitionMessagePut{
+			Offset:  uint64(idx),
+			Payload: payload,
+			QueueID: input.Id,
+		})
+	}
+	payload, err := proto.Marshal(event)
+	if err != nil {
+		s.logger.Error("failed to encode event", zap.Error(err))
+		return nil, err
+	}
+	err = s.state.ApplyEvent(payload)
+	if err != nil {
+		s.logger.Error("failed to commit queue put batch event", zap.Error(err))
+	}
+	return &pb.QueuePutMessageBatchOutput{}, err
+}
 func (s *server) GetMessages(ctx context.Context, input *pb.QueueGetMessagesInput) (*pb.QueueGetMessagesOutput, error) {
 	buff := make([][]byte, 10)
 	offset, count, err := s.store.GetRange(input.Id, input.Offset, buff)
