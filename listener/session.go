@@ -53,8 +53,11 @@ func (local *endpoint) runLocalSession(t transport.Metadata) {
 	err := local.handleSessionPackets(ctx, session, t)
 	if err != nil {
 		if session.id != "" {
+			logger.Info("session lost", zap.String("reason", err.Error()))
 			local.broker.CloseSession(ctx, session.token)
 		}
+	} else {
+		logger.Info("session disconnected", zap.String("reason", err.Error()))
 	}
 }
 func (local *endpoint) handleSessionPackets(ctx context.Context, session *localSession, t transport.Metadata) error {
