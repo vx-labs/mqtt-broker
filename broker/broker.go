@@ -39,6 +39,7 @@ type QueuesStore interface {
 	Create(ctx context.Context, id string) error
 	Delete(ctx context.Context, id string) error
 	PutMessage(ctx context.Context, id string, publish *packet.Publish) error
+	PutMessageBatch(ctx context.Context, batch []queues.MessageBatch) error
 }
 type SessionStore interface {
 	ByID(ctx context.Context, id string) (*sessions.Session, error)

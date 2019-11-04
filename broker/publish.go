@@ -1,6 +1,7 @@
 package broker
 
 import (
+	queues "github.com/vx-labs/mqtt-broker/queues/pb"
 	publishQueue "github.com/vx-labs/mqtt-broker/struct/queues/publish"
 	"github.com/vx-labs/mqtt-broker/topics"
 	"github.com/vx-labs/mqtt-protocol/packet"
@@ -66,11 +67,13 @@ func (b *Broker) routeMessage(tenant string, p *packet.Publish) error {
 	}
 	message := *p
 	message.Header.Retain = false
-	for _, recipient := range recipients {
-		err := b.Queues.PutMessage(b.ctx, recipient.SessionID, &message)
-		if err != nil {
-			b.logger.Warn("failed to enqueue message", zap.Error(err))
-		}
+	payload := make([]queues.MessageBatch, len(recipients))
+	for idx := range recipients {
+		payload[idx] = queues.MessageBatch{ID: recipients[idx].SessionID, Publish: &message}
+	}
+	err = b.Queues.PutMessageBatch(b.ctx, payload)
+	if err != nil {
+		b.logger.Warn("failed to enqueue message", zap.Error(err))
 	}
 	return nil
 }
