@@ -3,6 +3,7 @@ package listener
 import (
 	"context"
 	"errors"
+	"net"
 	"time"
 
 	"github.com/cenkalti/backoff"
@@ -53,7 +54,11 @@ func (local *endpoint) runLocalSession(t transport.Metadata) {
 	err := local.handleSessionPackets(ctx, session, t)
 	if err != nil {
 		if session.id != "" {
-			logger.Info("session lost", zap.String("reason", err.Error()))
+			if nerr, ok := err.(net.Error); ok && nerr.Timeout() {
+				logger.Info("session lost", zap.String("reason", "io timeout"))
+			} else {
+				logger.Info("session lost", zap.String("reason", err.Error()))
+			}
 			local.broker.CloseSession(ctx, session.token)
 		}
 	} else {
