@@ -6,11 +6,10 @@ import (
 	"net"
 	"time"
 
-	"github.com/cenkalti/backoff"
-
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 
+	"github.com/cenkalti/backoff"
 	"github.com/vx-labs/mqtt-broker/pool"
 	"github.com/vx-labs/mqtt-broker/struct/queues/inflight"
 	"github.com/vx-labs/mqtt-broker/transport"
@@ -72,6 +71,7 @@ func (local *endpoint) handleSessionPackets(ctx context.Context, session *localS
 	inflight := inflight.New(enc.Publish)
 	publishWorkers := pool.NewPool(5)
 	dec := decoder.Async(t.Channel)
+	var poller chan error
 	renewDeadline(CONNECT_DEADLINE, t.Channel)
 	defer func() {
 		inflight.Close()
@@ -115,43 +115,6 @@ func (local *endpoint) handleSessionPackets(ctx context.Context, session *localS
 			if old != nil {
 				old.(*localSession).transport.Close()
 			}
-
-			go func() {
-				ticker := time.NewTicker(200 * time.Millisecond)
-				defer ticker.Stop()
-				var offset uint64 = 0
-				var messages []*packet.Publish
-				var err error
-				session.logger.Debug("started queue poller")
-				for {
-					select {
-					case <-ctx.Done():
-						return
-					case <-ticker.C:
-						count := 0
-						backoff.Retry(func() error {
-							select {
-							case <-ctx.Done():
-								return nil
-							default:
-							}
-							offset, messages, err = local.queues.GetMessages(ctx, session.id, offset)
-							if err != nil {
-								session.logger.Error("failed to poll for messages", zap.Error(err))
-								count++
-								if count >= 5 {
-									return backoff.Permanent(err)
-								}
-								return err
-							}
-							for _, message := range messages {
-								inflight.Put(message)
-							}
-							return nil
-						}, backoff.NewExponentialBackOff())
-					}
-				}
-			}()
 			enc.ConnAck(&packet.ConnAck{
 				ReturnCode: packet.CONNACK_CONNECTION_ACCEPTED,
 				Header:     &packet.Header{},
@@ -183,6 +146,37 @@ func (local *endpoint) handleSessionPackets(ctx context.Context, session *localS
 			suback, err := local.broker.Subscribe(ctx, session.token, p)
 			if err != nil {
 				return err
+			}
+			if poller == nil {
+				poller = make(chan error)
+				go func() {
+					defer close(poller)
+					session.logger.Debug("starting queue poller")
+					var offset uint64 = 0
+					count := 0
+					err := backoff.Retry(func() error {
+						err := local.queues.StreamMessages(ctx, session.id, offset, func(offset uint64, messages []*packet.Publish) error {
+							for _, message := range messages {
+								inflight.Put(message)
+							}
+							return nil
+						})
+						select {
+						case <-ctx.Done():
+							return nil
+						default:
+						}
+						if count >= 5 {
+							return backoff.Permanent(err)
+						}
+						count++
+						return err
+					}, backoff.NewExponentialBackOff())
+					if err != nil {
+						session.logger.Error("failed to poll queues for messages", zap.Error(err))
+					}
+					poller <- err
+				}()
 			}
 			err = enc.SubAck(suback)
 			if err != nil {
@@ -223,6 +217,12 @@ func (local *endpoint) handleSessionPackets(ctx context.Context, session *localS
 			}
 			local.broker.Disconnect(ctx, session.token, p)
 			return nil
+		}
+		select {
+		case err := <-poller:
+			session.logger.Error("failed to poll messages", zap.Error(err))
+			return err
+		default:
 		}
 		renewDeadline(timer, t.Channel)
 	}

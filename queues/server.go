@@ -60,6 +60,9 @@ func (s *server) Delete(ctx context.Context, input *pb.QueueDeleteInput) (*pb.Qu
 }
 
 func (s *server) clusterCreateQueue(id string) error {
+	if s.store.Exists(id) {
+		return nil
+	}
 	return s.applyTransition(&pb.QueuesStateTransition{
 		Kind: QueueCreated,
 		QueueCreated: &pb.QueueStateTransitionQueueCreated{
@@ -68,6 +71,9 @@ func (s *server) clusterCreateQueue(id string) error {
 	})
 }
 func (s *server) clusterDeleteQueue(id string) error {
+	if !s.store.Exists(id) {
+		return nil
+	}
 	return s.applyTransition(&pb.QueuesStateTransition{
 		Kind: QueueDeleted,
 		QueueDeleted: &pb.QueueStateTransitionQueueDeleted{
@@ -151,6 +157,21 @@ func (s *server) StreamMessages(input *pb.QueueGetMessagesInput, stream pb.Queue
 	buff := make([][]byte, 10)
 	count := 0
 	var err error
+	tick := make(chan struct{}, 1)
+	closed := make(chan struct{})
+	defer close(tick)
+
+	cancelTicker := s.store.On(input.Id, "message_put", func(_ interface{}) {
+		select {
+		case tick <- struct{}{}:
+		default:
+		}
+	})
+	defer cancelTicker()
+	queueDeletedTicker := s.store.On(input.Id, "queue_deleted", func(_ interface{}) {
+		close(closed)
+	})
+	defer queueDeletedTicker()
 	for {
 		offset, count, err = s.store.GetRange(input.Id, offset, buff)
 		if err != nil {
@@ -174,6 +195,11 @@ func (s *server) StreamMessages(input *pb.QueueGetMessagesInput, stream pb.Queue
 				return nil
 			}
 			return err
+		}
+		select {
+		case <-tick:
+		case <-closed:
+			return nil
 		}
 	}
 }

@@ -1,7 +1,10 @@
 package store
 
 import (
+	"fmt"
+
 	"github.com/boltdb/bolt"
+	"github.com/vx-labs/mqtt-broker/events"
 )
 
 type Options struct {
@@ -23,7 +26,8 @@ type BoltStore struct {
 	conn *bolt.DB
 
 	// The path to the Bolt database file
-	path string
+	path     string
+	eventBus *events.Bus
 }
 
 // Close is used to gracefully close the DB connection.
@@ -54,12 +58,28 @@ func New(options Options) (*BoltStore, error) {
 
 	// Create the new store
 	store := &BoltStore{
-		conn: handle,
-		path: options.Path,
+		conn:     handle,
+		path:     options.Path,
+		eventBus: events.NewEventBus(),
 	}
 	return store, nil
 }
 
+func (b *BoltStore) On(queue string, event string, f func(payload interface{})) (cancel func()) {
+	return b.eventBus.Subscribe(fmt.Sprintf("%s/%s", queue, event), func(e events.Event) {
+		f(e.Entry)
+	})
+}
+
+func (b *BoltStore) Exists(id string) bool {
+	bucketName := []byte(id)
+	tx, err := b.conn.Begin(false)
+	if err != nil {
+		return false
+	}
+	defer tx.Rollback()
+	return tx.Bucket(bucketName) != nil
+}
 func (b *BoltStore) DeleteQueue(id string) error {
 	bucketName := []byte(id)
 	tx, err := b.conn.Begin(true)
@@ -70,7 +90,13 @@ func (b *BoltStore) DeleteQueue(id string) error {
 	if err := tx.DeleteBucket(bucketName); err != nil {
 		return err
 	}
-	return tx.Commit()
+	err = tx.Commit()
+	if err == nil {
+		b.eventBus.Emit(events.Event{
+			Key: fmt.Sprintf("%s/queue_deleted", id),
+		})
+	}
+	return err
 }
 func (b *BoltStore) CreateQueue(id string) error {
 	bucketName := []byte(id)
@@ -101,7 +127,13 @@ func (b *BoltStore) Put(id string, index uint64, payload []byte) error {
 	if err != nil {
 		return err
 	}
-	return tx.Commit()
+	err = tx.Commit()
+	if err == nil {
+		b.eventBus.Emit(events.Event{
+			Key: fmt.Sprintf("%s/message_put", id),
+		})
+	}
+	return err
 }
 func (b *BoltStore) All() []string {
 	tx, err := b.conn.Begin(false)
