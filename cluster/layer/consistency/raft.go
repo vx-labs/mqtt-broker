@@ -42,6 +42,7 @@ type raftlayer struct {
 	config          config.Config
 	logger          *zap.Logger
 	discovery       DiscoveryProvider
+	cancelJoin      context.CancelFunc
 }
 type DiscoveryProvider interface {
 	UnregisterService(id string) error
@@ -49,26 +50,6 @@ type DiscoveryProvider interface {
 	SetServiceTags(name string, tags []string) error
 	DialAddress(service, id string, f func(*grpc.ClientConn) error) error
 	Peers() peers.PeerStore
-}
-
-func dataDir() string {
-	if os.Geteuid() == 0 {
-		return "/var/lib/mqtt-broker"
-	}
-	home, err := os.UserHomeDir()
-	if err != nil {
-		panic("failed to find user data dir: " + err.Error())
-	}
-	return fmt.Sprintf("%s/.local/share/mqtt-broker", home)
-}
-
-func buildDataDir(id string) string {
-	path := fmt.Sprintf("%s/raft-%s", dataDir(), id)
-	err := os.MkdirAll(path, 0750)
-	if err != nil {
-		panic("failed to build data dir: " + err.Error())
-	}
-	return path
 }
 
 func New(logger *zap.Logger, userConfig config.Config, discovery DiscoveryProvider) (*raftlayer, error) {
@@ -131,23 +112,30 @@ func (s *raftlayer) Start(name string, state types.RaftState) error {
 		return fmt.Errorf("new raft: %s", err)
 	}
 	s.raft = ra
+	ctx, cancel := context.WithCancel(context.Background())
+	s.cancelJoin = cancel
 	go s.leaderRoutine()
 	index := s.raft.LastIndex()
 	if index != 0 {
 		return nil
 	}
 	go func() {
+		defer cancel()
 		for {
 			// hardcoded for now
-			err := s.joinCluster(name, 3)
-			if err != nil {
-				if err == ErrBootstrappedNodeFound {
-					s.logger.Info("found an existing cluster, waiting for adoption")
+			select {
+			case <-ctx.Done():
+				return
+			case err := <-s.startClusterJoin(ctx, name, 3):
+				if err != nil {
+					if err == ErrBootstrappedNodeFound {
+						s.logger.Info("found an existing cluster, waiting for adoption")
+						return
+					}
+					s.logger.Error("failed to join cluster, retrying", zap.Error(err))
+				} else {
 					return
 				}
-				s.logger.Error("failed to join cluster, retrying", zap.Error(err))
-			} else {
-				return
 			}
 		}
 	}()
@@ -307,6 +295,7 @@ func (s *raftlayer) leaderRoutine() {
 		}
 		leader := s.IsLeader()
 		if s.status != raftStatusBootstrapped {
+			s.cancelJoin()
 			s.logger.Info("raft cluster joined", zap.Uint64("raft_index", s.raft.LastIndex()),
 				zap.Strings("discovered_members", s.discoveredMembers()),
 			)
@@ -380,4 +369,14 @@ func (s *raftlayer) ApplyEvent(event []byte) error {
 		return resp.(error)
 	}
 	return nil
+}
+
+func (s *raftlayer) setStatus(status string) {
+	s.status = status
+}
+func (s *raftlayer) getMembers() ([]*pb.NodeService, error) {
+	return s.discovery.Peers().EndpointsByService(fmt.Sprintf("%s_cluster", s.name))
+}
+func (s *raftlayer) getNodeStatus(peer string) string {
+	return s.nodeStatus(peer, s.name)
 }

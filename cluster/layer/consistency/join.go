@@ -1,6 +1,7 @@
 package consistency
 
 import (
+	"context"
 	"crypto/sha1"
 	"errors"
 	fmt "fmt"
@@ -13,22 +14,28 @@ import (
 	"go.uber.org/zap"
 )
 
-func (s *raftlayer) waitForToken(token string, expectNodeCount int) error {
+type statusChecker interface {
+	getNodeStatus(peer string) string
+	setStatus(string)
+	getMembers() ([]*pb.NodeService, error)
+}
+
+func waitForToken(ctx context.Context, token string, expectNodeCount int, s statusChecker, logger *zap.Logger) error {
 	ticker := time.NewTicker(1 * time.Second)
 	timeout := time.NewTimer(60 * time.Second)
 	defer ticker.Stop()
 	defer timeout.Stop()
-	s.status = fmt.Sprintf("%s-%s", raftStatusBootstrapping, token)
+	s.setStatus(fmt.Sprintf("%s-%s", raftStatusBootstrapping, token))
 	prefix := fmt.Sprintf("%s-", raftStatusBootstrapping)
 	for {
-		members, err := s.discovery.Peers().EndpointsByService(fmt.Sprintf("%s_cluster", s.name))
+		members, err := s.getMembers()
 		if err != nil {
 			return err
 		}
 		bootstrappingMembers := make([]*pb.NodeService, 0)
-		s.logger.Debug("waiting for other members to complete step 2", zap.String("sync_token", token))
+		logger.Debug("waiting for other members to complete step 2", zap.String("sync_token", token))
 		for _, member := range members {
-			status := strings.TrimPrefix(s.nodeStatus(member.Peer, s.name), prefix)
+			status := strings.TrimPrefix(s.getNodeStatus(member.Peer), prefix)
 			if status == raftStatusBootstrapped {
 				return ErrBootstrappedNodeFound
 			}
@@ -39,11 +46,13 @@ func (s *raftlayer) waitForToken(token string, expectNodeCount int) error {
 			if len(bootstrappingMembers) == expectNodeCount {
 				sortMembers(bootstrappingMembers)
 				if token == SyncToken(bootstrappingMembers) {
-					s.logger.Debug("members synchronization done", zap.String("sync_token", token), zap.Int("member_count", len(bootstrappingMembers)))
+					logger.Debug("members synchronization done", zap.String("sync_token", token), zap.Int("member_count", len(bootstrappingMembers)))
 					return nil
 				}
 			}
 			select {
+			case <-ctx.Done():
+				return ctx.Err()
 			case <-ticker.C:
 			case <-timeout.C:
 				return errors.New("step 2 timed out")
@@ -71,7 +80,33 @@ func sortMembers(members []*pb.NodeService) {
 	})
 }
 
-func (s *raftlayer) joinCluster(name string, expectNodeCount int) error {
+func (s *raftlayer) startClusterJoin(ctx context.Context, name string, expectNodeCount int) chan error {
+	ch := make(chan error)
+	go func() {
+		defer close(ch)
+		ctx, cancel := context.WithCancel(ctx)
+		defer cancel()
+		ch <- s.joinCluster(ctx, name, expectNodeCount, s.logger, func(members []*pb.NodeService) error {
+			configuration := raft.Configuration{
+				Servers: []raft.Server{
+					{
+						ID:      raft.ServerID(s.id),
+						Address: raft.ServerAddress(fmt.Sprintf("127.0.0.1:%d", s.config.BindPort)),
+					},
+				},
+			}
+			err := s.raft.BootstrapCluster(configuration).Error()
+			if err != nil {
+				return err
+			}
+			s.logger.Info("raft cluster bootstrapped")
+			s.status = raftStatusBootstrapped
+			return nil
+		})
+	}()
+	return ch
+}
+func (s *raftlayer) joinCluster(ctx context.Context, name string, expectNodeCount int, logger *zap.Logger, done func(members []*pb.NodeService) error) error {
 	s.discovery.RegisterService(fmt.Sprintf("%s_cluster", name), fmt.Sprintf("%s:%d", s.config.AdvertiseAddr, s.config.AdvertisePort))
 	s.status = raftStatusBootstrapping
 	ticker := time.NewTicker(5 * time.Second)
@@ -99,29 +134,19 @@ func (s *raftlayer) joinCluster(name string, expectNodeCount int) error {
 			members = bootstrappingMembers
 			break
 		}
-		<-ticker.C
+		select {
+		case <-ticker.C:
+		case <-ctx.Done():
+			return ctx.Err()
+		}
 	}
 	sortMembers(members)
-	err = s.waitForToken(SyncToken(members), expectNodeCount)
+	err = waitForToken(ctx, SyncToken(members), expectNodeCount, s, logger)
 	if err != nil {
 		return err
 	}
 	if members[0].Peer != s.id {
 		return nil
 	}
-	configuration := raft.Configuration{
-		Servers: []raft.Server{
-			{
-				ID:      raft.ServerID(s.id),
-				Address: raft.ServerAddress(fmt.Sprintf("127.0.0.1:%d", s.config.BindPort)),
-			},
-		},
-	}
-	err = s.raft.BootstrapCluster(configuration).Error()
-	if err != nil {
-		return err
-	}
-	s.logger.Info("raft cluster bootstrapped")
-	s.status = raftStatusBootstrapped
-	return nil
+	return done(members)
 }
