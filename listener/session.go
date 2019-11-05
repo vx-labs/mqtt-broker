@@ -152,13 +152,11 @@ func (local *endpoint) handleSessionPackets(ctx context.Context, session *localS
 				Header:     &packet.Header{},
 			})
 			timer = p.KeepaliveTimer
-			renewDeadline(timer, t.Channel)
 			session.logger.Info("started session")
 		case *packet.Publish:
 			if session.token == "" {
 				return ErrConnectNotDone
 			}
-			renewDeadline(timer, t.Channel)
 			err := publishWorkers.Call(func() error {
 				puback, err := local.broker.Publish(ctx, session.token, p)
 				if err != nil {
@@ -177,7 +175,6 @@ func (local *endpoint) handleSessionPackets(ctx context.Context, session *localS
 			if session.token == "" {
 				return ErrConnectNotDone
 			}
-			renewDeadline(timer, t.Channel)
 			suback, err := local.broker.Subscribe(ctx, session.token, p)
 			if err != nil {
 				return err
@@ -190,7 +187,6 @@ func (local *endpoint) handleSessionPackets(ctx context.Context, session *localS
 			if session.token == "" {
 				return ErrConnectNotDone
 			}
-			renewDeadline(timer, t.Channel)
 			unsuback, err := local.broker.Unsubscribe(ctx, session.token, p)
 			if err != nil {
 				return err
@@ -203,13 +199,11 @@ func (local *endpoint) handleSessionPackets(ctx context.Context, session *localS
 			if session.token == "" {
 				return ErrConnectNotDone
 			}
-			renewDeadline(timer, t.Channel)
 			inflight.Ack(p)
 		case *packet.PingReq:
 			if session.token == "" {
 				return ErrConnectNotDone
 			}
-			renewDeadline(timer, t.Channel)
 			pingresp, err := local.broker.PingReq(ctx, session.token, p)
 			if err != nil {
 				return err
@@ -222,10 +216,10 @@ func (local *endpoint) handleSessionPackets(ctx context.Context, session *localS
 			if session.token == "" {
 				return ErrConnectNotDone
 			}
-			renewDeadline(timer, t.Channel)
 			local.broker.Disconnect(ctx, session.token, p)
 			return nil
 		}
+		renewDeadline(timer, t.Channel)
 	}
 	return dec.Err()
 }
