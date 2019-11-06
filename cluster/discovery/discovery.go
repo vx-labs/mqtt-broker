@@ -79,6 +79,7 @@ func NewDiscoveryLayer(logger *zap.Logger, userConfig config.Config) *discoveryL
 		},
 	})
 	go self.oSStatsReporter()
+	go self.deadNodeDeleter()
 	return self
 }
 func (m *discoveryLayer) Leave() {
