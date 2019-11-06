@@ -199,6 +199,7 @@ func (self *layer) DiscoverPeers(discovery peers.PeerStore) {
 }
 func (self *layer) Leave() {
 	self.mlist.Leave(5 * time.Second)
+	self.mlist.Shutdown()
 }
 func (self *layer) isNodeKnown(id string) bool {
 	members := self.mlist.Members()
