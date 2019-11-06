@@ -3,6 +3,7 @@ package network
 import (
 	"time"
 
+	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/balancer/roundrobin"
 	"google.golang.org/grpc/keepalive"
@@ -25,19 +26,10 @@ var kacp = keepalive.ClientParameters{
 	PermitWithoutStream: true,             // send pings even without active streams
 }
 
-/*
-func unaryInterceptor(ctx context.Context, method string, req, reply interface{}, cc *grpc.ClientConn, invoker grpc.UnaryInvoker, opts ...grpc.CallOption) error {
-	start := time.Now()
-	err := invoker(ctx, method, req, reply, cc, opts...)
-	fmt.Printf("RPC: %s, elapsed: %s, err: %v\n", method, time.Since(start), err)
-	return err
-}
-*/
-
 func GRPCServerOptions() []grpc.ServerOption {
 	return []grpc.ServerOption{
-		//grpc.StreamInterceptor(grpc_prometheus.StreamServerInterceptor),
-		//grpc.UnaryInterceptor(grpc_prometheus.UnaryServerInterceptor),
+		grpc.StreamInterceptor(grpc_prometheus.StreamServerInterceptor),
+		grpc.UnaryInterceptor(grpc_prometheus.UnaryServerInterceptor),
 		/*		grpc.KeepaliveEnforcementPolicy(kaep),
 				grpc.KeepaliveParams(kasp),*/
 	}
@@ -46,8 +38,8 @@ func GRPCClientOptions() []grpc.DialOption {
 	return []grpc.DialOption{
 		grpc.WithInsecure(),
 		//	grpc.WithKeepaliveParams(kacp),
-		//	grpc.WithStreamInterceptor(grpc_prometheus.StreamClientInterceptor),
-		//	grpc.WithUnaryInterceptor(unaryInterceptor),
+		grpc.WithStreamInterceptor(grpc_prometheus.StreamClientInterceptor),
+		grpc.WithUnaryInterceptor(grpc_prometheus.UnaryClientInterceptor),
 		grpc.WithBalancerName(roundrobin.Name),
 	}
 }
