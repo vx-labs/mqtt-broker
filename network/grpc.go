@@ -9,6 +9,10 @@ import (
 	"google.golang.org/grpc/keepalive"
 )
 
+func init() {
+	grpc_prometheus.EnableHandlingTimeHistogram()
+}
+
 // From: https://github.com/grpc/grpc-go/blob/master/examples/features/keepalive/server/main.go
 var kaep = keepalive.EnforcementPolicy{
 	MinTime:             5 * time.Second, // If a client pings more than once every 5 seconds, terminate the connection
