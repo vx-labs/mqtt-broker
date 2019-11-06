@@ -32,6 +32,7 @@ message Metadata {
   repeated NodeService HostedServices = 10;
   repeated string  Services = 11;
   int64 Started = 12;
+  int64 LastContact = 13;
 }
 
 message ComputeUsage {

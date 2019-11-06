@@ -13,14 +13,27 @@ func memUsage() runtime.MemStats {
 	runtime.ReadMemStats(&m)
 	return m
 }
+func (b *discoveryLayer) keepaliveSender() {
+	ticker := time.NewTicker(15 * time.Second)
+	for {
+		now := time.Now().UnixNano()
+		b.peers.Update(b.id, func(self peers.Peer) peers.Peer {
+			if self.LastContact < now {
+				self.LastContact = now
+			}
+			return self
+		})
+		<-ticker.C
+	}
+}
 func (b *discoveryLayer) deadNodeDeleter() {
 	ticker := time.NewTicker(10 * time.Second)
 	for {
-		deadline := time.Now().Truncate(15 * time.Minute).UnixNano()
+		deadline := time.Now().AddDate(0, 0, -1).UnixNano()
 		peers, err := b.peers.All()
 		if err == nil {
 			for _, peer := range peers {
-				if peer.LastAdded < deadline || peer.LastDeleted < deadline {
+				if peer.LastContact < deadline {
 					b.peers.Delete(peer.ID)
 				}
 			}

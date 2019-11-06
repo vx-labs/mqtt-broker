@@ -78,6 +78,7 @@ func NewDiscoveryLayer(logger *zap.Logger, userConfig config.Config) *discoveryL
 			Started:  time.Now().Unix(),
 		},
 	})
+	go self.keepaliveSender()
 	go self.oSStatsReporter()
 	go self.deadNodeDeleter()
 	return self
