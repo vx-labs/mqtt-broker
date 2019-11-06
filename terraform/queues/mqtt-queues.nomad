@@ -89,6 +89,17 @@ job "mqtt-queues" {
           timeout  = "2s"
         }
       }
+      service {
+        name = "mqtt-metrics"
+        port = "health"
+        check {
+          type     = "http"
+          path     = "/health"
+          port     = "health"
+          interval = "5s"
+          timeout  = "2s"
+        }
+      }
     }
   }
 }
