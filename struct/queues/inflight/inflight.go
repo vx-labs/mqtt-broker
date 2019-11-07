@@ -13,12 +13,16 @@ var (
 	ErrQueueFull = errors.New("queue is full")
 )
 
+type Job struct {
+	publish *packet.Publish
+	onAck   func()
+}
 type Queue struct {
 	acknowlegers *btree.BTree
 	messages     chan *packet.Publish
 	sender       func(*packet.Publish) error
 	stop         chan struct{}
-	jobs         chan chan *packet.Publish
+	jobs         chan chan Job
 }
 
 type acknowleger struct {
@@ -43,7 +47,7 @@ func New(sender func(*packet.Publish) error) *Queue {
 		messages:     make(chan *packet.Publish),
 		sender:       sender,
 		acknowlegers: btree.New(2),
-		jobs:         make(chan chan *packet.Publish),
+		jobs:         make(chan chan Job),
 	}
 	var i int32
 	for i = 1; i <= 10; i++ {
@@ -66,17 +70,21 @@ func New(sender func(*packet.Publish) error) *Queue {
 	return q
 }
 
-func (q *Queue) Put(publish *packet.Publish) {
+func (q *Queue) Put(publish *packet.Publish, onAck func()) {
 	ack := <-q.jobs
-	ack <- publish
+	ack <- Job{
+		onAck:   onAck,
+		publish: publish,
+	}
 }
-func (q *Queue) Ack(p *packet.PubAck) {
+func (q *Queue) Ack(p *packet.PubAck) error {
 	ack := q.acknowlegers.Get(&acknowleger{
 		mid: p.MessageId,
 	})
 	if ack == nil {
 		log.Printf("WARN: received ack for an unknown message id: %d", p.MessageId)
-		return
+		return errors.New("id not found")
 	}
 	ack.(*acknowleger).ch <- p
+	return nil
 }

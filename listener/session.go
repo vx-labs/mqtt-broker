@@ -6,6 +6,8 @@ import (
 	"net"
 	"time"
 
+	"github.com/vx-labs/mqtt-broker/struct/queues/inflight"
+
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 
@@ -74,6 +76,7 @@ func (local *endpoint) handleSessionPackets(ctx context.Context, session *localS
 	enc := encoder.New(t.Channel)
 	publishWorkers := pool.NewPool(5)
 	dec := decoder.Async(t.Channel)
+	inflightQueue := inflight.New(enc.Publish)
 	var poller chan error
 	renewDeadline(CONNECT_DEADLINE, t.Channel)
 	defer func() {
@@ -160,17 +163,29 @@ func (local *endpoint) handleSessionPackets(ctx context.Context, session *localS
 						err := local.queues.StreamMessages(ctx, session.id, offset, func(offset uint64, ackOffset uint64, messages []*packet.Publish) error {
 							for _, message := range messages {
 								if message == nil {
+									session.logger.Error("received empty message from queue")
 									continue
 								}
 								if message.Header == nil {
-									message.Header = &packet.Header{Qos: 1}
+									message.Header = &packet.Header{Qos: 0}
 									continue
 								}
-								message.MessageId = 1
-								enc.Publish(message)
-								err = local.queues.AckMessage(ctx, session.id, ackOffset)
-								if err != nil {
-									session.logger.Error("failed to ack message on queues service", zap.Error(err))
+								switch message.Header.Qos {
+								case 0:
+									message.MessageId = 1
+									enc.Publish(message)
+									err = local.queues.AckMessage(ctx, session.id, ackOffset)
+									if err != nil {
+										session.logger.Error("failed to ack message on queues service", zap.Error(err))
+									}
+								case 1:
+									inflightQueue.Put(message, func() {
+										err = local.queues.AckMessage(ctx, session.id, ackOffset)
+										if err != nil {
+											session.logger.Error("failed to ack message on queues service", zap.Error(err))
+										}
+									})
+								default:
 								}
 							}
 							return nil
@@ -215,7 +230,10 @@ func (local *endpoint) handleSessionPackets(ctx context.Context, session *localS
 			if session.token == "" {
 				return ErrConnectNotDone
 			}
-			//inflight.Ack(p)
+			err := inflightQueue.Ack(p)
+			if err != nil {
+				return err
+			}
 		case *packet.PingReq:
 			if session.token == "" {
 				return ErrConnectNotDone

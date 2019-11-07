@@ -65,7 +65,7 @@ job "mqtt-subscriptions" {
 
       resources {
         cpu    = 200
-        memory = 32
+        memory = 64
 
         network {
           mbits = 10

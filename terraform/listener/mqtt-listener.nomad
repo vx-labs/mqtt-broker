@@ -29,7 +29,7 @@ job "mqtt-listener" {
       driver = "docker"
 
       env {
-        CONSUL_HTTP_ADDR          = "172.17.0.1:8500"
+        CONSUL_HTTP_ADDR = "172.17.0.1:8500"
       }
 
       config {
@@ -47,17 +47,17 @@ job "mqtt-listener" {
         force_pull = true
 
         port_map {
-          health  = 9000
-          cluster = 3500
-          mqtt    = 1883
-          listener = 4000
-          listener_gossip  = 3100
+          health          = 9000
+          cluster         = 3500
+          mqtt            = 1883
+          listener        = 4000
+          listener_gossip = 3100
         }
       }
 
       resources {
         cpu    = 200
-        memory = 32
+        memory = 64
 
         network {
           mbits = 10
@@ -130,7 +130,8 @@ job "mqtt-listener" {
 
       template {
         destination = "local/proxy.conf"
-        env = true
+        env         = true
+
         data = <<EOH
 {{with secret "secret/data/vx/mqtt"}}
 http_proxy="{{.Data.http_proxy}}"
@@ -156,17 +157,17 @@ no_proxy="10.0.0.0/8,172.16.0.0/12"
         force_pull = true
 
         port_map {
-          health  = 9000
-          cluster = 3500
-          listener = 4000
-          listener_gossip  = 3100
-          mqtts   = 8883
+          health          = 9000
+          cluster         = 3500
+          listener        = 4000
+          listener_gossip = 3100
+          mqtts           = 8883
         }
       }
 
       resources {
         cpu    = 200
-        memory = 32
+        memory = 64
 
         network {
           mbits = 10
@@ -208,6 +209,7 @@ no_proxy="10.0.0.0/8,172.16.0.0/12"
       service {
         name = "mqtt-metrics"
         port = "health"
+
         check {
           type     = "http"
           path     = "/health"
@@ -251,7 +253,8 @@ no_proxy="10.0.0.0/8,172.16.0.0/12"
 
       template {
         destination = "local/proxy.conf"
-        env = true
+        env         = true
+
         data = <<EOH
 {{with secret "secret/data/vx/mqtt"}}
 http_proxy="{{.Data.http_proxy}}"
@@ -277,17 +280,17 @@ no_proxy="10.0.0.0/8,172.16.0.0/12"
         force_pull = true
 
         port_map {
-          health  = 9000
-          cluster = 3500
-          listener = 4000
-          listener_gossip  = 3100
-          wss     = 8008
+          health          = 9000
+          cluster         = 3500
+          listener        = 4000
+          listener_gossip = 3100
+          wss             = 8008
         }
       }
 
       resources {
         cpu    = 200
-        memory = 32
+        memory = 64
 
         network {
           mbits = 10
