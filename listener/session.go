@@ -25,9 +25,13 @@ var (
 	ErrConnectNotDone      = errors.New("CONNECT not done")
 )
 
-func renewDeadline(timer int32, conn transport.TimeoutReadWriteCloser) {
+type DeadlineSetter interface {
+	SetDeadline(time.Time) error
+}
+
+func renewDeadline(timer int32, conn DeadlineSetter) error {
 	deadline := time.Now().Add(time.Duration(timer) * time.Second * 2)
-	conn.SetDeadline(deadline)
+	return conn.SetDeadline(deadline)
 }
 
 func (local *endpoint) runLocalSession(t transport.Metadata) {
@@ -54,14 +58,14 @@ func (local *endpoint) runLocalSession(t transport.Metadata) {
 	if err != nil {
 		if session.id != "" {
 			if nerr, ok := err.(net.Error); ok && nerr.Timeout() {
-				logger.Info("session lost", zap.String("reason", "io timeout"))
+				session.logger.Info("session lost", zap.String("reason", "io timeout"))
 			} else {
-				logger.Info("session lost", zap.String("reason", err.Error()))
+				session.logger.Info("session lost", zap.String("reason", err.Error()))
 			}
 			local.broker.CloseSession(ctx, session.token)
 		}
 	} else {
-		logger.Info("session disconnected")
+		session.logger.Info("session disconnected")
 	}
 }
 func (local *endpoint) handleSessionPackets(ctx context.Context, session *localSession, t transport.Metadata) error {
@@ -224,7 +228,10 @@ func (local *endpoint) handleSessionPackets(ctx context.Context, session *localS
 			return err
 		default:
 		}
-		renewDeadline(timer, t.Channel)
+		err := renewDeadline(timer, t.Channel)
+		if err != nil {
+			session.logger.Error("failed to set connection deadline", zap.Error(err))
+		}
 	}
 	return dec.Err()
 }
