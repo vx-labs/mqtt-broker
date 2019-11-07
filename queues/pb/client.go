@@ -26,6 +26,13 @@ func (c *Client) Delete(ctx context.Context, id string) error {
 	})
 	return err
 }
+func (c *Client) AckMessage(ctx context.Context, id string, ackOffset uint64) error {
+	_, err := c.api.AckMessage(ctx, &AckMessageInput{
+		Id:     id,
+		Offset: ackOffset,
+	})
+	return err
+}
 func (c *Client) PutMessage(ctx context.Context, id string, publish *packet.Publish) error {
 	_, err := c.api.PutMessage(ctx, &QueuePutMessageInput{
 		Id:      id,
@@ -52,26 +59,7 @@ func (c *Client) PutMessageBatch(ctx context.Context, payload []MessageBatch) er
 	})
 	return err
 }
-func (c *Client) GetMessages(ctx context.Context, id string, offset uint64) (uint64, []*packet.Publish, error) {
-	resp, err := c.api.GetMessages(ctx, &QueueGetMessagesInput{
-		Id:     id,
-		Offset: offset,
-	})
-	if err != nil {
-		return 0, nil, err
-	}
-	return resp.Offset, resp.Publishes, nil
-}
-func (c *Client) GetMessagesBatch(ctx context.Context, input []*QueueGetMessagesInput) ([]*QueueGetMessagesOutput, error) {
-	resp, err := c.api.GetMessagesBatch(ctx, &QueueGetMessagesBatchInput{
-		Batches: input,
-	})
-	if err != nil {
-		return nil, err
-	}
-	return resp.Batches, nil
-}
-func (c *Client) StreamMessages(ctx context.Context, id string, offset uint64, f func(uint64, []*packet.Publish) error) error {
+func (c *Client) StreamMessages(ctx context.Context, id string, offset uint64, f func(uint64, uint64, []*packet.Publish) error) error {
 	stream, err := c.api.StreamMessages(ctx, &QueueGetMessagesInput{
 		Id:     id,
 		Offset: offset,
@@ -84,7 +72,7 @@ func (c *Client) StreamMessages(ctx context.Context, id string, offset uint64, f
 		if err != nil {
 			return err
 		}
-		err = f(message.Offset, message.Publishes)
+		err = f(message.Offset, message.AckOffset, message.Publishes)
 		if err != nil {
 			return err
 		}

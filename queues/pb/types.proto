@@ -38,26 +38,25 @@ message QueueGetMessagesInput {
   string id = 1;
   uint64 offset = 2;
 }
+message AckMessageInput {
+  string id = 1;
+  uint64 offset = 2;
+}
+message AckMessageOutput {}
+
 message QueueGetMessagesOutput {
   string id = 1;
   uint64 offset = 2;
   repeated packet.Publish publishes = 3;
+  uint64 ackOffset = 4;
 }
-message QueueGetMessagesBatchInput {
-  repeated QueueGetMessagesInput batches = 1;
-}
-message QueueGetMessagesBatchOutput {
-  repeated QueueGetMessagesOutput batches = 1;
-}
-
 service QueuesService {
   rpc Create(QueueCreateInput) returns (QueueCreateOutput);
   rpc Delete(QueueDeleteInput) returns (QueueDeleteOutput);
   rpc PutMessage(QueuePutMessageInput) returns (QueuePutMessageOutput);
   rpc PutMessageBatch(QueuePutMessageBatchInput) returns (QueuePutMessageBatchOutput);
-  rpc GetMessages(QueueGetMessagesInput) returns (QueueGetMessagesOutput);
+  rpc AckMessage(AckMessageInput) returns (AckMessageOutput);
   rpc StreamMessages(QueueGetMessagesInput) returns (stream QueueGetMessagesOutput);
-  rpc GetMessagesBatch(QueueGetMessagesBatchInput) returns (QueueGetMessagesBatchOutput);
 }
 message QueuesStateTransition {
   string Kind = 1;
@@ -65,12 +64,13 @@ message QueuesStateTransition {
   QueueStateTransitionQueueDeleted QueueDeleted = 3;
   QueueStateTransitionMessagePut QueueMessagePut = 4;
   QueueStateTransitionMessagePutBatch QueueMessagePutBatch = 5;
+  QueueStateTransitionMessageInflightSet MessageInflightSet = 6;
+  QueueStateTransitionMessageDeleted MessageDeleted = 7;
+  QueueStateTransitionMessageAcked MessageAcked = 8;
 }
-
 message QueueStateTransitionQueueCreated {
   QueueMetadata Input = 1;
 }
-
 message QueueStateTransitionQueueDeleted {
   string ID = 1;
 }
@@ -78,6 +78,19 @@ message QueueStateTransitionMessagePut {
   string QueueID = 1;
   uint64 Offset = 2;
   bytes Payload = 3;
+}
+message QueueStateTransitionMessageInflightSet {
+  string QueueID = 1;
+  uint64 Offset = 2;
+  uint64 Deadline = 3;
+}
+message QueueStateTransitionMessageAcked {
+  string QueueID = 1;
+  uint64 Offset = 2;
+}
+message QueueStateTransitionMessageDeleted {
+  string QueueID = 1;
+  uint64 Offset = 2;
 }
 message QueueStateTransitionMessagePutBatch {
   repeated QueueStateTransitionMessagePut batches = 1;

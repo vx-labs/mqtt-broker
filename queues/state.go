@@ -1,10 +1,8 @@
 package queues
 
 import (
-	"bytes"
 	"errors"
 	"io"
-	"io/ioutil"
 
 	"github.com/vx-labs/mqtt-broker/queues/store"
 
@@ -14,43 +12,28 @@ import (
 )
 
 const (
-	QueueCreated         string = "queue_created"
-	QueueDeleted         string = "queue_delete"
-	QueueMessagePut      string = "queue_message_put"
-	QueueMessagePutBatch string = "queue_message_put_batch"
+	QueueCreated            string = "queue_created"
+	QueueDeleted            string = "queue_delete"
+	QueueMessagePut         string = "queue_message_put"
+	QueueMessagePutBatch    string = "queue_message_put_batch"
+	QueueMessageDeleted     string = "queue_message_deleted"
+	QueueMessageSetInflight string = "queue_message_set_inflight"
+	QueueMessageAcked       string = "queue_message_acked"
 )
 
 func (m *server) Restore(r io.Reader) error {
-	payload, err := ioutil.ReadAll(r)
+	err := m.store.Restore(r)
 	if err != nil {
+		m.logger.Error("failed to restore snapshot", zap.Error(err))
 		return err
 	}
-	snapshot := &pb.QueueMetadataList{}
-	err = proto.Unmarshal(payload, snapshot)
-	if err != nil {
-		return err
-	}
-	for _, session := range snapshot.Queues {
-		m.store.CreateQueue(session.ID)
-	}
-	m.logger.Info("restored snapshot", zap.Int("size", len(payload)))
+	m.logger.Info("restored snapshot")
 	return nil
 }
 func (m *server) Snapshot() io.Reader {
-	queueList := m.store.All()
-	state := &pb.QueueMetadataList{
-		Queues: make([]*pb.QueueMetadata, len(queueList)),
-	}
-	for idx := range queueList {
-		state.Queues[idx] = &pb.QueueMetadata{ID: queueList[idx]}
-	}
-	payload, err := proto.Marshal(state)
-	if err != nil {
-		m.logger.Error("failed to marshal snapshot", zap.Error(err))
-		return nil
-	}
-	m.logger.Info("snapshotted store", zap.Int("size", len(payload)))
-	return bytes.NewReader(payload)
+	r, w := io.Pipe()
+	go m.store.WriteTo(w)
+	return r
 }
 
 func (m *server) Apply(payload []byte) error {
@@ -91,6 +74,27 @@ func (m *server) Apply(payload []byte) error {
 			if err != nil {
 				m.logger.Error("failed to put message in queue", zap.Error(err))
 			}
+		}
+		return nil
+	case QueueMessageAcked:
+		input := event.MessageAcked
+		err := m.store.AckInflight(input.QueueID, input.Offset)
+		if err != nil {
+			m.logger.Error("failed to ack message inflight", zap.Error(err))
+		}
+		return nil
+	case QueueMessageSetInflight:
+		input := event.MessageInflightSet
+		err := m.store.SetInflight(input.QueueID, input.Offset, input.Deadline)
+		if err != nil {
+			m.logger.Error("failed to set message inflight", zap.Error(err))
+		}
+		return nil
+	case QueueMessageDeleted:
+		input := event.MessageDeleted
+		err := m.store.Delete(input.QueueID, input.Offset)
+		if err != nil {
+			m.logger.Error("failed to delete message in queue", zap.Error(err))
 		}
 		return nil
 	default:

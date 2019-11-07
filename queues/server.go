@@ -185,6 +185,23 @@ func (s *server) StreamMessages(input *pb.QueueGetMessagesInput, stream pb.Queue
 				return err
 			}
 		}
+		event, err := proto.Marshal(&pb.QueuesStateTransition{
+			Kind: QueueMessageSetInflight,
+			MessageInflightSet: &pb.QueueStateTransitionMessageInflightSet{
+				Offset:   offset,
+				QueueID:  input.Id,
+				Deadline: uint64(time.Now().Add(30 * time.Second).UnixNano()),
+			},
+		})
+		if err != nil {
+			s.logger.Error("failed to encode event", zap.Error(err))
+			return err
+		}
+		err = s.state.ApplyEvent(event)
+		if err != nil {
+			s.logger.Error("failed to commit message ack event", zap.Error(err))
+			return err
+		}
 		err = stream.Send(&pb.QueueGetMessagesOutput{
 			Id:        input.Id,
 			Offset:    offset,
@@ -203,61 +220,26 @@ func (s *server) StreamMessages(input *pb.QueueGetMessagesInput, stream pb.Queue
 		}
 	}
 }
-func (s *server) GetMessages(ctx context.Context, input *pb.QueueGetMessagesInput) (*pb.QueueGetMessagesOutput, error) {
-	buff := make([][]byte, 10)
-	offset, count, err := s.store.GetRange(input.Id, input.Offset, buff)
+func (s *server) AckMessage(ctx context.Context, input *pb.AckMessageInput) (*pb.AckMessageOutput, error) {
+	idx := time.Now().UnixNano()
+
+	event, err := proto.Marshal(&pb.QueuesStateTransition{
+		Kind: QueueMessageAcked,
+		MessageAcked: &pb.QueueStateTransitionMessageAcked{
+			Offset:  uint64(idx),
+			QueueID: input.Id,
+		},
+	})
 	if err != nil {
+		s.logger.Error("failed to encode event", zap.Error(err))
 		return nil, err
 	}
-	out := make([]*packet.Publish, count)
-	for idx := range out {
-		out[idx] = &packet.Publish{}
-		err = proto.Unmarshal(buff[idx], out[idx])
-		if err != nil {
-			return nil, err
-		}
-	}
-	return &pb.QueueGetMessagesOutput{
-		Id:        input.Id,
-		Offset:    offset,
-		Publishes: out,
-	}, nil
-}
-func (s *server) GetMessagesBatch(ctx context.Context, batchInput *pb.QueueGetMessagesBatchInput) (*pb.QueueGetMessagesBatchOutput, error) {
-	in := make([]store.BatchInput, len(batchInput.Batches))
-	for idx := range in {
-		buff := make([][]byte, 10)
-		in[idx].Data = buff
-		in[idx].ID = batchInput.Batches[idx].Id
-		in[idx].Offset = batchInput.Batches[idx].Offset
-	}
-	batchOut, err := s.store.GetRangeBatch(in)
+	err = s.state.ApplyEvent(event)
 	if err != nil {
-		return nil, err
+		s.logger.Error("failed to commit message ack event", zap.Error(err))
 	}
-	resp := &pb.QueueGetMessagesBatchOutput{}
-
-	for idx, input := range batchOut {
-		if input.Err != nil {
-			continue
-		}
-		out := make([]*packet.Publish, input.Count)
-		for innerIdx := range out {
-			out[innerIdx] = &packet.Publish{}
-			err = proto.Unmarshal(in[idx].Data[innerIdx], out[innerIdx])
-			if err != nil {
-				continue
-			}
-		}
-		resp.Batches = append(resp.Batches, &pb.QueueGetMessagesOutput{
-			Id:        input.ID,
-			Offset:    input.Offset,
-			Publishes: out,
-		})
-	}
-	return resp, nil
+	return &pb.AckMessageOutput{}, err
 }
-
 func (m *server) isQueueExpired(id string) bool {
 	_, err := m.sessions.ByID(m.ctx, id)
 	return err != nil

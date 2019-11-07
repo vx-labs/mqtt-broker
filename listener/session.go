@@ -159,9 +159,16 @@ func (local *endpoint) handleSessionPackets(ctx context.Context, session *localS
 					var offset uint64 = 0
 					count := 0
 					err := backoff.Retry(func() error {
-						err := local.queues.StreamMessages(ctx, session.id, offset, func(offset uint64, messages []*packet.Publish) error {
+						err := local.queues.StreamMessages(ctx, session.id, offset, func(offset uint64, ackOffset uint64, messages []*packet.Publish) error {
 							for _, message := range messages {
-								inflight.Put(message)
+								err := enc.Publish(message)
+								if err != nil {
+									return err
+								}
+								err = local.queues.AckMessage(ctx, session.id, ackOffset)
+								if err != nil {
+									return err
+								}
 							}
 							return nil
 						})

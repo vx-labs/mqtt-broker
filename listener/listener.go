@@ -41,8 +41,8 @@ type Endpoint interface {
 }
 
 type QueuesStore interface {
-	GetMessages(ctx context.Context, id string, offset uint64) (uint64, []*packet.Publish, error)
-	StreamMessages(ctx context.Context, id string, offset uint64, f func(uint64, []*packet.Publish) error) error
+	StreamMessages(ctx context.Context, id string, offset uint64, f func(uint64, uint64, []*packet.Publish) error) error
+	AckMessage(ctx context.Context, id string, ackOffset uint64) error
 }
 
 type endpoint struct {
