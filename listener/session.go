@@ -11,7 +11,6 @@ import (
 
 	"github.com/cenkalti/backoff"
 	"github.com/vx-labs/mqtt-broker/pool"
-	"github.com/vx-labs/mqtt-broker/struct/queues/inflight"
 	"github.com/vx-labs/mqtt-broker/transport"
 	"github.com/vx-labs/mqtt-protocol/decoder"
 	"github.com/vx-labs/mqtt-protocol/encoder"
@@ -68,17 +67,16 @@ func (local *endpoint) runLocalSession(t transport.Metadata) {
 		session.logger.Info("session disconnected")
 	}
 }
+
 func (local *endpoint) handleSessionPackets(ctx context.Context, session *localSession, t transport.Metadata) error {
 	session.logger.Info("accepted new connection")
 	timer := CONNECT_DEADLINE
 	enc := encoder.New(t.Channel)
-	inflight := inflight.New(enc.Publish)
 	publishWorkers := pool.NewPool(5)
 	dec := decoder.Async(t.Channel)
 	var poller chan error
 	renewDeadline(CONNECT_DEADLINE, t.Channel)
 	defer func() {
-		inflight.Close()
 		dec.Cancel()
 	}()
 	for data := range dec.Packet() {
@@ -161,17 +159,25 @@ func (local *endpoint) handleSessionPackets(ctx context.Context, session *localS
 					err := backoff.Retry(func() error {
 						err := local.queues.StreamMessages(ctx, session.id, offset, func(offset uint64, ackOffset uint64, messages []*packet.Publish) error {
 							for _, message := range messages {
-								err := enc.Publish(message)
-								if err != nil {
-									return err
+								if message == nil {
+									continue
 								}
+								if message.Header == nil {
+									message.Header = &packet.Header{Qos: 1}
+									continue
+								}
+								message.MessageId = 1
+								enc.Publish(message)
 								err = local.queues.AckMessage(ctx, session.id, ackOffset)
 								if err != nil {
-									return err
+									session.logger.Error("failed to ack message on queues service", zap.Error(err))
 								}
 							}
 							return nil
 						})
+						if err == nil {
+							return nil
+						}
 						select {
 						case <-ctx.Done():
 							return nil
@@ -209,7 +215,7 @@ func (local *endpoint) handleSessionPackets(ctx context.Context, session *localS
 			if session.token == "" {
 				return ErrConnectNotDone
 			}
-			inflight.Ack(p)
+			//inflight.Ack(p)
 		case *packet.PingReq:
 			if session.token == "" {
 				return ErrConnectNotDone
