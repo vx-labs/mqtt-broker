@@ -1,6 +1,7 @@
 package inflight
 
 import (
+	"context"
 	"errors"
 	"log"
 
@@ -70,12 +71,21 @@ func New(sender func(*packet.Publish) error) *Queue {
 	return q
 }
 
-func (q *Queue) Put(publish *packet.Publish, onAck func()) {
-	ack := <-q.jobs
-	ack <- Job{
-		onAck:   onAck,
-		publish: publish,
+func (q *Queue) Put(ctx context.Context, publish *packet.Publish, onAck func()) error {
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case ack := <-q.jobs:
+		select {
+		case ack <- Job{
+			onAck:   onAck,
+			publish: publish,
+		}:
+		case <-ctx.Done():
+			return ctx.Err()
+		}
 	}
+	return nil
 }
 func (q *Queue) Ack(p *packet.PubAck) error {
 	ack := q.acknowlegers.Get(&acknowleger{

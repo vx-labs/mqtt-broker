@@ -45,5 +45,8 @@ func GRPCClientOptions() []grpc.DialOption {
 		grpc.WithStreamInterceptor(grpc_prometheus.StreamClientInterceptor),
 		grpc.WithUnaryInterceptor(grpc_prometheus.UnaryClientInterceptor),
 		grpc.WithBalancerName(roundrobin.Name),
+		grpc.WithDefaultCallOptions(
+			grpc.WaitForReady(true),
+		),
 	}
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"net"
+	"os"
 	"time"
 
 	"github.com/vx-labs/mqtt-broker/struct/queues/inflight"
@@ -12,7 +13,6 @@ import (
 	"go.uber.org/zap/zapcore"
 
 	"github.com/cenkalti/backoff"
-	"github.com/vx-labs/mqtt-broker/pool"
 	"github.com/vx-labs/mqtt-broker/transport"
 	"github.com/vx-labs/mqtt-protocol/decoder"
 	"github.com/vx-labs/mqtt-protocol/encoder"
@@ -20,7 +20,7 @@ import (
 )
 
 var CONNECT_DEADLINE int32 = 15
-
+var sessionTracePacket = os.Getenv("SESSION_TRACE_PACKET")
 var (
 	ErrSessionDisconnected = errors.New("session disconnected")
 	ErrConnectNotDone      = errors.New("CONNECT not done")
@@ -74,25 +74,32 @@ func (local *endpoint) handleSessionPackets(ctx context.Context, session *localS
 	session.logger.Info("accepted new connection")
 	timer := CONNECT_DEADLINE
 	enc := encoder.New(t.Channel)
-	publishWorkers := pool.NewPool(5)
 	dec := decoder.Async(t.Channel)
-	inflightQueue := inflight.New(enc.Publish)
+	ingressQueue := inflight.New(enc.Publish)
+	defer ingressQueue.Close()
+
 	var poller chan error
 	renewDeadline(CONNECT_DEADLINE, t.Channel)
 	defer func() {
 		dec.Cancel()
 	}()
 	for data := range dec.Packet() {
+		packetCtx, cancelReqCtx := context.WithTimeout(ctx, 3*time.Second)
+		if sessionTracePacket == "true" {
+			session.logger.Debug("session sent packet", zap.Any("traced_packet", data))
+		}
 		switch p := data.(type) {
 		case *packet.Connect:
-			id, token, connack, err := local.broker.Connect(ctx, t, p)
+			id, token, connack, err := local.broker.Connect(packetCtx, t, p)
 			if err != nil {
 				session.logger.Error("CONNECT failed", zap.Error(err))
 				enc.ConnAck(connack)
+				cancelReqCtx()
 				return ErrConnectNotDone
 			}
 			if connack.ReturnCode != packet.CONNACK_CONNECTION_ACCEPTED {
 				enc.ConnAck(connack)
+				cancelReqCtx()
 				return ErrConnectNotDone
 			}
 			if id == "" {
@@ -101,6 +108,7 @@ func (local *endpoint) handleSessionPackets(ctx context.Context, session *localS
 					ReturnCode: packet.CONNACK_REFUSED_SERVER_UNAVAILABLE,
 					Header:     &packet.Header{},
 				})
+				cancelReqCtx()
 				return ErrConnectNotDone
 			}
 			if token == "" {
@@ -109,6 +117,7 @@ func (local *endpoint) handleSessionPackets(ctx context.Context, session *localS
 					ReturnCode: packet.CONNACK_REFUSED_SERVER_UNAVAILABLE,
 					Header:     &packet.Header{},
 				})
+				cancelReqCtx()
 				return ErrConnectNotDone
 			}
 			session.logger = session.logger.WithOptions(zap.Fields(zap.String("session_id", id), zap.String("client_id", string(p.ClientId))))
@@ -128,29 +137,32 @@ func (local *endpoint) handleSessionPackets(ctx context.Context, session *localS
 			session.logger.Info("started session")
 		case *packet.Publish:
 			if session.token == "" {
+				cancelReqCtx()
 				return ErrConnectNotDone
 			}
-			err := publishWorkers.Call(func() error {
-				puback, err := local.broker.Publish(ctx, session.token, p)
+			ack, err := local.broker.Publish(packetCtx, session.token, p)
+			if err != nil {
+				cancelReqCtx()
+				session.logger.Error("failed to publish packet", zap.Error(err))
+				continue
+			}
+			if ack != nil {
+				err = enc.PubAck(ack)
 				if err != nil {
-					session.logger.Error("failed to publish message", zap.Error(err))
+					cancelReqCtx()
 					return err
 				}
-				if puback != nil {
-					return enc.PubAck(puback)
-				}
-				return nil
-			})
-			if err != nil {
-				return err
 			}
 		case *packet.Subscribe:
 			if session.token == "" {
+				cancelReqCtx()
 				return ErrConnectNotDone
 			}
-			suback, err := local.broker.Subscribe(ctx, session.token, p)
+			suback, err := local.broker.Subscribe(packetCtx, session.token, p)
 			if err != nil {
-				return err
+				cancelReqCtx()
+				session.logger.Error("failed to subscribe", zap.Error(err))
+				continue
 			}
 			if poller == nil {
 				poller = make(chan error)
@@ -179,7 +191,7 @@ func (local *endpoint) handleSessionPackets(ctx context.Context, session *localS
 										session.logger.Error("failed to ack message on queues service", zap.Error(err))
 									}
 								case 1:
-									inflightQueue.Put(message, func() {
+									ingressQueue.Put(ctx, message, func() {
 										err = local.queues.AckMessage(ctx, session.id, ackOffset)
 										if err != nil {
 											session.logger.Error("failed to ack message on queues service", zap.Error(err))
@@ -212,50 +224,63 @@ func (local *endpoint) handleSessionPackets(ctx context.Context, session *localS
 			}
 			err = enc.SubAck(suback)
 			if err != nil {
+				cancelReqCtx()
 				return err
 			}
 		case *packet.Unsubscribe:
 			if session.token == "" {
+				cancelReqCtx()
 				return ErrConnectNotDone
 			}
-			unsuback, err := local.broker.Unsubscribe(ctx, session.token, p)
+			unsuback, err := local.broker.Unsubscribe(packetCtx, session.token, p)
 			if err != nil {
-				return err
+				cancelReqCtx()
+				session.logger.Error("failed to unsubscribe", zap.Error(err))
+				continue
 			}
 			err = enc.UnsubAck(unsuback)
 			if err != nil {
+				cancelReqCtx()
 				return err
 			}
 		case *packet.PubAck:
 			if session.token == "" {
+				cancelReqCtx()
 				return ErrConnectNotDone
 			}
-			err := inflightQueue.Ack(p)
+			err := ingressQueue.Ack(p)
 			if err != nil {
+				cancelReqCtx()
 				return err
 			}
 		case *packet.PingReq:
 			if session.token == "" {
+				cancelReqCtx()
 				return ErrConnectNotDone
 			}
-			pingresp, err := local.broker.PingReq(ctx, session.token, p)
+			pingresp, err := local.broker.PingReq(packetCtx, session.token, p)
 			if err != nil {
+				cancelReqCtx()
 				return err
 			}
 			err = session.encoder.PingResp(pingresp)
 			if err != nil {
+				cancelReqCtx()
 				return err
 			}
 		case *packet.Disconnect:
 			if session.token == "" {
+				cancelReqCtx()
 				return ErrConnectNotDone
 			}
-			local.broker.Disconnect(ctx, session.token, p)
+			local.broker.Disconnect(packetCtx, session.token, p)
+			cancelReqCtx()
 			return nil
 		}
 		select {
 		case err := <-poller:
 			session.logger.Error("failed to poll messages", zap.Error(err))
+			cancelReqCtx()
 			return err
 		default:
 		}
@@ -263,6 +288,7 @@ func (local *endpoint) handleSessionPackets(ctx context.Context, session *localS
 		if err != nil {
 			session.logger.Error("failed to set connection deadline", zap.Error(err))
 		}
+		cancelReqCtx()
 	}
 	return dec.Err()
 }
