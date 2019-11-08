@@ -1,9 +1,13 @@
 package cluster
 
 import (
+	"crypto/md5"
+	"encoding/json"
+	fmt "fmt"
 	"log"
 	"net/url"
 	"strings"
+	"sync"
 
 	"github.com/vx-labs/mqtt-broker/cluster/pb"
 	"github.com/vx-labs/mqtt-broker/cluster/peers"
@@ -26,6 +30,8 @@ func newResolver(d Discoverer, logger *zap.Logger) resolver.Builder {
 }
 
 type meshResolver struct {
+	mtx           sync.Mutex
+	lastStateHash string
 	peers         Discoverer
 	logger        *zap.Logger
 	subscriptions []func()
@@ -48,13 +54,29 @@ func contains(needle string, slice []string) bool {
 	}
 	return false
 }
-func tagsFilter(endpoint string) (string, string) {
+func containsAll(needles []string, slice []string) bool {
+	for _, needle := range needles {
+		if !contains(needle, slice) {
+			return false
+		}
+	}
+	return true
+}
+func tagsFilter(endpoint string) (string, []string) {
 	targetURL, err := url.Parse("mesh:///" + endpoint)
 	if err != nil {
-		return endpoint, ""
+		return endpoint, nil
 	}
 	tagFilter := targetURL.Query().Get("tags")
-	return strings.TrimPrefix(targetURL.Path, "/"), tagFilter
+	return strings.TrimPrefix(targetURL.Path, "/"), strings.Split(tagFilter, ",")
+}
+func (r *meshResolver) hashAddresses(arr []resolver.Address) string {
+	jsonBytes, err := json.Marshal(arr)
+	if err != nil {
+		r.logger.Error("failed to build address hash", zap.Error(err))
+		return ""
+	}
+	return fmt.Sprintf("%x", md5.Sum(jsonBytes))
 }
 func (r *meshResolver) updateConn(target resolver.Target, cc resolver.ClientConn) {
 	service, tagFilter := tagsFilter(target.Endpoint)
@@ -66,7 +88,7 @@ func (r *meshResolver) updateConn(target resolver.Target, cc resolver.ClientConn
 	addresses := make([]resolver.Address, 0)
 	loggableAddresses := make([]string, 0)
 	for _, peer := range peers {
-		if tagFilter == "" || contains(tagFilter, peer.Tags) {
+		if containsAll(tagFilter, peer.Tags) {
 			loggableAddresses = append(loggableAddresses, peer.Peer)
 			addresses = append(addresses, resolver.Address{
 				Addr:       peer.NetworkAddress,
@@ -76,11 +98,20 @@ func (r *meshResolver) updateConn(target resolver.Target, cc resolver.ClientConn
 			})
 		}
 	}
-	//r.logger.Debug("updated mesh resolver targets", zap.Strings("targets", loggableAddresses), zap.String("grpc_endpoint", service))
-	cc.UpdateState(resolver.State{
-		Addresses:     addresses,
-		ServiceConfig: nil,
-	})
+	hash := r.hashAddresses(addresses)
+	if hash != r.lastStateHash {
+		r.mtx.Lock()
+		defer r.mtx.Unlock()
+		if hash == r.lastStateHash {
+			return
+		}
+		r.lastStateHash = hash
+		r.logger.Debug("updated mesh resolver targets", zap.Strings("targets", loggableAddresses), zap.String("grpc_endpoint", service))
+		cc.UpdateState(resolver.State{
+			Addresses:     addresses,
+			ServiceConfig: nil,
+		})
+	}
 }
 func (r *meshResolver) Build(target resolver.Target, cc resolver.ClientConn, opts resolver.BuildOption) (resolver.Resolver, error) {
 	cancelCreate := r.peers.On(peers.PeerCreated, func(p peers.Peer) { r.updateConn(target, cc) })
