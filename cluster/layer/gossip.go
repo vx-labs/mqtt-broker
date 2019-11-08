@@ -248,5 +248,6 @@ func NewGossipLayer(name string, logger *zap.Logger, userConfig config.Config, m
 		panic(err)
 	}
 	self.mlist = list
+	logger.Debug("created new layer", zap.String("layer_name", name))
 	return self
 }

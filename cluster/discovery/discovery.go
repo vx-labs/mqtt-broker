@@ -116,6 +116,38 @@ func (m *discoveryLayer) SetServiceTags(name string, tags []string) error {
 		return self
 	})
 }
+func (m *discoveryLayer) AddServiceTag(name string, tag string) error {
+	return m.peers.Update(m.id, func(self peers.Peer) peers.Peer {
+		for idx := range self.HostedServices {
+			if self.HostedServices[idx].ID == name {
+				self.HostedServices[idx].Tags = append(self.HostedServices[idx].Tags, tag)
+				break
+			}
+		}
+		return self
+	})
+}
+func (m *discoveryLayer) RemoveServiceTag(name string, tag string) error {
+	return m.peers.Update(m.id, func(self peers.Peer) peers.Peer {
+		for idx := range self.HostedServices {
+			if self.HostedServices[idx].ID == name {
+				dirty := false
+				tags := []string{}
+				for _, currentTag := range self.HostedServices[idx].Tags {
+					if currentTag != tag {
+						dirty = true
+						tags = append(tags, currentTag)
+					}
+				}
+				if dirty {
+					self.HostedServices[idx].Tags = tags
+				}
+				break
+			}
+		}
+		return self
+	})
+}
 func (m *discoveryLayer) UnregisterService(name string) error {
 	return m.peers.Update(m.id, func(self peers.Peer) peers.Peer {
 		newServices := []*pb.NodeService{}
