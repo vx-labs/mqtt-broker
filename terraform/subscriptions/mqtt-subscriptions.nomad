@@ -13,8 +13,9 @@ job "mqtt-subscriptions" {
 
   group "subscription-store" {
     count = 3
+
     constraint {
-        distinct_hosts = true
+      distinct_hosts = true
     }
 
     restart {
@@ -32,7 +33,7 @@ job "mqtt-subscriptions" {
       driver = "docker"
 
       env {
-        CONSUL_HTTP_ADDR          = "172.17.0.1:8500"
+        CONSUL_HTTP_ADDR = "172.17.0.1:8500"
       }
 
       config {
@@ -45,21 +46,23 @@ job "mqtt-subscriptions" {
           }
         }
 
-        image      = "quay.io/vxlabs/mqtt-subscriptions:${broker_version}"
-        args       = [
+        image = "quay.io/vxlabs/mqtt-subscriptions:${broker_version}"
+
+        args = [
           "--cluster-bind-port=3500",
           "--subscriptions_gossip-bind-port=3100",
           "--subscriptions-bind-port=4000",
           "--subscriptions_gossip_rpc-bind-port=3200",
         ]
+
         force_pull = true
 
         port_map {
-          health  = 9000
-          cluster = 3500
-          subscriptions = 4000
-          subscriptions_gossip  = 3100
-          subscriptions_gossip_rpc  = 3200
+          health                   = 9000
+          cluster                  = 3500
+          subscriptions            = 4000
+          subscriptions_gossip     = 3100
+          subscriptions_gossip_rpc = 3200
         }
       }
 
@@ -89,9 +92,11 @@ job "mqtt-subscriptions" {
           timeout  = "2s"
         }
       }
+
       service {
         name = "mqtt-metrics"
         port = "health"
+
         check {
           type     = "http"
           path     = "/health"
