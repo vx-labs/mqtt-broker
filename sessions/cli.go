@@ -67,7 +67,7 @@ func (m *server) Restore(r io.Reader) error {
 	return nil
 }
 func (m *server) Snapshot() io.Reader {
-	dump, err := m.store.All()
+	dump, err := m.store.All(nil)
 	if err != nil {
 		m.logger.Error("failed to snapshot store", zap.Error(err))
 		return nil

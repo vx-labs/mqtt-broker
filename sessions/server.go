@@ -40,7 +40,7 @@ func (m *server) ByPeer(ctx context.Context, input *pb.SessionByPeerInput) (*pb.
 	return m.store.ByPeer(input.Peer)
 }
 func (m *server) All(ctx context.Context, input *pb.SessionFilterInput) (*pb.SessionMetadataList, error) {
-	return m.store.All()
+	return m.store.All(input)
 }
 func (m *server) RefreshKeepAlive(ctx context.Context, input *pb.RefreshKeepAliveInput) (*pb.RefreshKeepAliveOutput, error) {
 	session, err := m.store.ByID(input.ID)
@@ -114,7 +114,7 @@ func (m *server) gcExpiredSessions() {
 	if !m.state.IsLeader() {
 		return
 	}
-	sessions, err := m.store.All()
+	sessions, err := m.store.All(nil)
 	if err != nil {
 		m.logger.Error("failed to gc sessions", zap.Error(err))
 	}

@@ -19,7 +19,7 @@ type SessionStore interface {
 	ByID(id string) (*pb.Session, error)
 	ByClientID(id string) (*pb.SessionMetadataList, error)
 	ByPeer(peer string) (*pb.SessionMetadataList, error)
-	All() (*pb.SessionMetadataList, error)
+	All(*pb.SessionFilterInput) (*pb.SessionMetadataList, error)
 	Exists(id string) bool
 	Delete(id string) error
 	Create(sess *pb.Session) error
@@ -80,7 +80,7 @@ func NewSessionStore(logger *zap.Logger) SessionStore {
 	}
 	return s
 }
-func (s *memDBStore) all() *pb.SessionMetadataList {
+func (s *memDBStore) all(filter *pb.SessionFilterInput) *pb.SessionMetadataList {
 	sessionList := &pb.SessionMetadataList{Sessions: make([]*pb.Session, 0)}
 	s.read(func(tx *memdb.Txn) error {
 		iterator, err := tx.Get(memdbTable, "id")
@@ -93,6 +93,20 @@ func (s *memDBStore) all() *pb.SessionMetadataList {
 				return nil
 			}
 			sess := payload.(*pb.Session)
+			if filter != nil {
+				filterMatched := false
+				if filter.ID != nil {
+					for _, wanted := range filter.ID {
+						if sess.ID == wanted {
+							filterMatched = true
+							break
+						}
+					}
+					if !filterMatched {
+						continue
+					}
+				}
+			}
 			sessionList.Sessions = append(sessionList.Sessions, sess)
 		}
 	})
@@ -131,8 +145,8 @@ func (s *memDBStore) ByClientID(id string) (*pb.SessionMetadataList, error) {
 		}
 	})
 }
-func (s *memDBStore) All() (*pb.SessionMetadataList, error) {
-	return s.all(), nil
+func (s *memDBStore) All(f *pb.SessionFilterInput) (*pb.SessionMetadataList, error) {
+	return s.all(f), nil
 }
 
 func (s *memDBStore) ByPeer(peer string) (*pb.SessionMetadataList, error) {

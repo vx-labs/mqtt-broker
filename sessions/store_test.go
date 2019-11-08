@@ -38,9 +38,15 @@ func TestSessionStore(t *testing.T) {
 
 	t.Run("lookup", lookup(store, sessionID))
 	t.Run("All", func(t *testing.T) {
-		set, err := store.All()
+		set, err := store.All(nil)
 		require.Nil(t, err)
 		require.Equal(t, 2, len(set.Sessions))
+	})
+	t.Run("All ID filtered", func(t *testing.T) {
+		set, err := store.All(&pb.SessionFilterInput{ID: []string{"3"}})
+		require.Nil(t, err)
+		require.Equal(t, 1, len(set.Sessions))
+		require.Equal(t, "3", set.Sessions[0].ID)
 	})
 	t.Run("lookup peer", func(t *testing.T) {
 		set, err := store.ByPeer("2")

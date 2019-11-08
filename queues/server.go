@@ -22,6 +22,7 @@ const (
 
 type SessionStore interface {
 	ByID(ctx context.Context, id string) (*sessions.Session, error)
+	All(ctx context.Context, filters ...sessions.SessionFilter) ([]*sessions.Session, error)
 }
 
 type server struct {
@@ -240,18 +241,30 @@ func (s *server) AckMessage(ctx context.Context, input *pb.AckMessageInput) (*pb
 	}
 	return &pb.AckMessageOutput{}, err
 }
-func (m *server) isQueueExpired(id string) bool {
-	_, err := m.sessions.ByID(m.ctx, id)
-	return err != nil
+func contains(needle string, slice []string) bool {
+	for _, s := range slice {
+		if s == needle {
+			return true
+		}
+	}
+	return false
 }
-
 func (m *server) gcExpiredQueues() {
 	if m.Health() != "ok" {
 		return
 	}
 	queues := m.store.All()
+	validSessions, err := m.sessions.All(m.ctx)
+	if err != nil {
+		m.logger.Error("failed to contact sessions service to check queues validity", zap.Error(err))
+		return
+	}
+	validSessionIDs := make([]string, len(validSessions))
+	for idx := range validSessions {
+		validSessionIDs[idx] = validSessions[idx].ID
+	}
 	for _, queue := range queues {
-		if m.isQueueExpired(queue) {
+		if !contains(queue, validSessionIDs) {
 			err := m.clusterDeleteQueue(queue)
 			if err != nil {
 				m.logger.Error("failed to gc queue", zap.String("queue_id", queue), zap.Error(err))
