@@ -43,7 +43,7 @@ func (b *api) acceptLoop(listener net.Listener) {
 			w.WriteHeader(http.StatusMethodNotAllowed)
 			return
 		}
-		sessions, err := b.sessionsClient.All(r.Context())
+		sessions, err := b.sessionsClient.All(r.Context(), )
 		if err != nil {
 			httpFail(w, err)
 			return

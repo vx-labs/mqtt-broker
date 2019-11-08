@@ -48,8 +48,22 @@ func (c *Client) ByPeer(ctx context.Context, id string) ([]*Session, error) {
 	}
 	return emptyArrayIfNull(out.Sessions), nil
 }
-func (c *Client) All(ctx context.Context) ([]*Session, error) {
-	out, err := c.api.All(ctx, &SessionFilterInput{})
+
+type SessionFilter func(SessionFilterInput) SessionFilterInput
+
+func ByIDFilter(id []string) SessionFilter {
+	return func(s SessionFilterInput) SessionFilterInput {
+		s.ID = id
+		return s
+	}
+}
+
+func (c *Client) All(ctx context.Context, filters ...SessionFilter) ([]*Session, error) {
+	filter := SessionFilterInput{}
+	for _, f := range filters {
+		filter = f(filter)
+	}
+	out, err := c.api.All(ctx, &filter)
 	if err != nil {
 		return nil, err
 	}

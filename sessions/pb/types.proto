@@ -46,7 +46,9 @@ message SessionByClientIDInput {
 message SessionByPeerInput {
   string Peer = 1;
 }
-message SessionFilterInput {}
+message SessionFilterInput {
+  repeated string ID = 1;
+}
 message SessionDeleteInput {
   string ID = 1;
 }
