@@ -5,6 +5,7 @@ import "github.com/vx-labs/mqtt-protocol/packet/pb.proto";
 
 message QueueMetadata {
   string ID = 1;
+  bool volatile = 2;
 }
 
 message QueueMetadataList {
@@ -47,8 +48,12 @@ message AckMessageOutput {}
 message QueueGetMessagesOutput {
   string id = 1;
   uint64 offset = 2;
-  repeated packet.Publish publishes = 3;
+  packet.Publish publish = 3;
   uint64 ackOffset = 4;
+}
+message StreamMessageOutput {
+  uint64 offset = 1;
+  repeated QueueGetMessagesOutput batches = 2;
 }
 service QueuesService {
   rpc Create(QueueCreateInput) returns (QueueCreateOutput);
@@ -56,7 +61,10 @@ service QueuesService {
   rpc PutMessage(QueuePutMessageInput) returns (QueuePutMessageOutput);
   rpc PutMessageBatch(QueuePutMessageBatchInput) returns (QueuePutMessageBatchOutput);
   rpc AckMessage(AckMessageInput) returns (AckMessageOutput);
-  rpc StreamMessages(QueueGetMessagesInput) returns (stream QueueGetMessagesOutput);
+  rpc StreamMessages(QueueGetMessagesInput) returns (stream StreamMessageOutput);
+}
+message QueuesStateTransitionSet {
+  repeated QueuesStateTransition events = 1;
 }
 message QueuesStateTransition {
   string Kind = 1;

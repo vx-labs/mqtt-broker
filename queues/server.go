@@ -64,7 +64,7 @@ func (s *server) clusterCreateQueue(id string) error {
 	if s.store.Exists(id) {
 		return nil
 	}
-	return s.applyTransition(&pb.QueuesStateTransition{
+	return s.commitEvent(&pb.QueuesStateTransition{
 		Kind: QueueCreated,
 		QueueCreated: &pb.QueueStateTransitionQueueCreated{
 			Input: &pb.QueueMetadata{ID: id},
@@ -75,24 +75,12 @@ func (s *server) clusterDeleteQueue(id string) error {
 	if !s.store.Exists(id) {
 		return nil
 	}
-	return s.applyTransition(&pb.QueuesStateTransition{
+	return s.commitEvent(&pb.QueuesStateTransition{
 		Kind: QueueDeleted,
 		QueueDeleted: &pb.QueueStateTransitionQueueDeleted{
 			ID: id,
 		},
 	})
-}
-func (s *server) applyTransition(event *pb.QueuesStateTransition) error {
-	payload, err := proto.Marshal(event)
-	if err != nil {
-		s.logger.Error("failed to encode event", zap.Error(err), zap.String("event_kind", event.Kind))
-		return err
-	}
-	err = s.state.ApplyEvent(payload)
-	if err != nil {
-		s.logger.Error("failed to commit event", zap.Error(err), zap.String("event_kind", event.Kind))
-	}
-	return err
 }
 func (s *server) PutMessage(ctx context.Context, input *pb.QueuePutMessageInput) (*pb.QueuePutMessageOutput, error) {
 	// FIXME: do not use time as a key generator
@@ -102,7 +90,7 @@ func (s *server) PutMessage(ctx context.Context, input *pb.QueuePutMessageInput)
 		s.logger.Error("failed to encode message", zap.Error(err))
 		return nil, err
 	}
-	event, err := proto.Marshal(&pb.QueuesStateTransition{
+	err = s.commitEvent(&pb.QueuesStateTransition{
 		Kind: QueueMessagePut,
 		QueueMessagePut: &pb.QueueStateTransitionMessagePut{
 			Offset:  uint64(idx),
@@ -111,11 +99,6 @@ func (s *server) PutMessage(ctx context.Context, input *pb.QueuePutMessageInput)
 		},
 	})
 	if err != nil {
-		s.logger.Error("failed to encode event", zap.Error(err))
-		return nil, err
-	}
-	err = s.state.ApplyEvent(event)
-	if err != nil {
 		s.logger.Error("failed to commit queue put event", zap.Error(err))
 	}
 	return &pb.QueuePutMessageOutput{}, err
@@ -123,31 +106,25 @@ func (s *server) PutMessage(ctx context.Context, input *pb.QueuePutMessageInput)
 func (s *server) PutMessageBatch(ctx context.Context, ev *pb.QueuePutMessageBatchInput) (*pb.QueuePutMessageBatchOutput, error) {
 	// FIXME: do not use time as a key generator
 	now := time.Now().UnixNano()
-	event := &pb.QueuesStateTransition{
-		Kind: QueueMessagePutBatch,
-		QueueMessagePutBatch: &pb.QueueStateTransitionMessagePutBatch{
-			Batches: []*pb.QueueStateTransitionMessagePut{},
-		},
-	}
+	event := []*pb.QueuesStateTransition{}
+	idx := now
 	for _, input := range ev.Batches {
-		idx := now
 		payload, err := proto.Marshal(input.Publish)
 		if err != nil {
 			s.logger.Error("failed to encode message", zap.Error(err))
 			return nil, err
 		}
-		event.QueueMessagePutBatch.Batches = append(event.QueueMessagePutBatch.Batches, &pb.QueueStateTransitionMessagePut{
-			Offset:  uint64(idx),
-			Payload: payload,
-			QueueID: input.Id,
+		event = append(event, &pb.QueuesStateTransition{
+			Kind: QueueMessagePut,
+			QueueMessagePut: &pb.QueueStateTransitionMessagePut{
+				Offset:  uint64(idx),
+				Payload: payload,
+				QueueID: input.Id,
+			},
 		})
+		idx++
 	}
-	payload, err := proto.Marshal(event)
-	if err != nil {
-		s.logger.Error("failed to encode event", zap.Error(err))
-		return nil, err
-	}
-	err = s.state.ApplyEvent(payload)
+	err := s.commitEvent(event...)
 	if err != nil {
 		s.logger.Error("failed to commit queue put batch event", zap.Error(err))
 	}
@@ -155,8 +132,6 @@ func (s *server) PutMessageBatch(ctx context.Context, ev *pb.QueuePutMessageBatc
 }
 func (s *server) StreamMessages(input *pb.QueueGetMessagesInput, stream pb.QueuesService_StreamMessagesServer) error {
 	offset := input.Offset
-	buff := make([][]byte, 10)
-	count := 0
 	var err error
 	tick := make(chan struct{}, 1)
 	closed := make(chan struct{})
@@ -173,46 +148,54 @@ func (s *server) StreamMessages(input *pb.QueueGetMessagesInput, stream pb.Queue
 		close(closed)
 	})
 	defer queueDeletedTicker()
+	batchSize := 10
+	items := make([]store.StoredMessage, batchSize)
+	count := 0
 	for {
-		offset, count, err = s.store.GetRange(input.Id, offset, buff)
+		count, offset, err = s.store.GetRange(input.Id, offset, items)
 		if err != nil {
 			return err
 		}
-		out := make([]*packet.Publish, count)
+		out := make([]*pb.QueueGetMessagesOutput, count)
+		events := make([]*pb.QueuesStateTransition, count)
 		for idx := range out {
-			out[idx] = &packet.Publish{}
-			err = proto.Unmarshal(buff[idx], out[idx])
+			inflightDeadline := uint64(time.Now().Add(30 * time.Second).UnixNano())
+			out[idx] = &pb.QueueGetMessagesOutput{
+				Id:        input.Id,
+				Offset:    offset,
+				AckOffset: inflightDeadline,
+				Publish:   &packet.Publish{},
+			}
+			err = proto.Unmarshal(items[idx].Payload, out[idx].Publish)
 			if err != nil {
 				return err
 			}
+			events[idx] = &pb.QueuesStateTransition{
+				Kind: QueueMessageSetInflight,
+				MessageInflightSet: &pb.QueueStateTransitionMessageInflightSet{
+					Deadline: inflightDeadline,
+					Offset:   items[idx].Offset,
+					QueueID:  input.Id,
+				},
+			}
 		}
-		event, err := proto.Marshal(&pb.QueuesStateTransition{
-			Kind: QueueMessageSetInflight,
-			MessageInflightSet: &pb.QueueStateTransitionMessageInflightSet{
-				Offset:   offset,
-				QueueID:  input.Id,
-				Deadline: uint64(time.Now().Add(30 * time.Second).UnixNano()),
-			},
-		})
-		if err != nil {
-			s.logger.Error("failed to encode event", zap.Error(err))
-			return err
-		}
-		err = s.state.ApplyEvent(event)
+		err := s.commitEvent(events...)
 		if err != nil {
 			s.logger.Error("failed to commit message ack event", zap.Error(err))
 			return err
 		}
-		err = stream.Send(&pb.QueueGetMessagesOutput{
-			Id:        input.Id,
-			Offset:    offset,
-			Publishes: out,
+		err = stream.Send(&pb.StreamMessageOutput{
+			Offset:  offset,
+			Batches: out,
 		})
 		if err != nil {
 			if err == io.EOF {
 				return nil
 			}
 			return err
+		}
+		if count == batchSize {
+			continue
 		}
 		select {
 		case <-tick:
@@ -224,18 +207,13 @@ func (s *server) StreamMessages(input *pb.QueueGetMessagesInput, stream pb.Queue
 func (s *server) AckMessage(ctx context.Context, input *pb.AckMessageInput) (*pb.AckMessageOutput, error) {
 	idx := time.Now().UnixNano()
 
-	event, err := proto.Marshal(&pb.QueuesStateTransition{
+	err := s.commitEvent(&pb.QueuesStateTransition{
 		Kind: QueueMessageAcked,
 		MessageAcked: &pb.QueueStateTransitionMessageAcked{
 			Offset:  uint64(idx),
 			QueueID: input.Id,
 		},
 	})
-	if err != nil {
-		s.logger.Error("failed to encode event", zap.Error(err))
-		return nil, err
-	}
-	err = s.state.ApplyEvent(event)
 	if err != nil {
 		s.logger.Error("failed to commit message ack event", zap.Error(err))
 	}
@@ -263,14 +241,16 @@ func (m *server) gcExpiredQueues() {
 	for idx := range validSessions {
 		validSessionIDs[idx] = validSessions[idx].ID
 	}
+	event := []*pb.QueuesStateTransition{}
 	for _, queue := range queues {
 		if !contains(queue, validSessionIDs) {
-			err := m.clusterDeleteQueue(queue)
-			if err != nil {
-				m.logger.Error("failed to gc queue", zap.String("queue_id", queue), zap.Error(err))
-			} else {
-				m.logger.Info("deleted expired queue", zap.String("queue_id", queue))
-			}
+			event = append(event, &pb.QueuesStateTransition{
+				Kind: QueueDeleted,
+				QueueDeleted: &pb.QueueStateTransitionQueueDeleted{
+					ID: queue,
+				},
+			})
 		}
 	}
+	err = m.commitEvent(event...)
 }

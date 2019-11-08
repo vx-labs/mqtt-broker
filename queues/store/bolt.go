@@ -287,41 +287,27 @@ func (b *BoltStore) All() []string {
 	}
 	return out
 }
-func (b *BoltStore) GetRange(id string, from uint64, buff [][]byte) (uint64, int, error) {
-	idx := 0
+
+type StoredMessage struct {
+	Offset  uint64
+	Payload []byte
+}
+
+func (b *BoltStore) GetRange(id string, from uint64, buff []StoredMessage) (int, uint64, error) {
 	bucketName := getBucketName(id)
 	tx, err := b.conn.Begin(false)
 	if err != nil {
-		return 0, idx, err
+		return 0, 0, err
 	}
 	defer tx.Rollback()
 
 	bucket := tx.Bucket(bucketName)
 	if bucket == nil {
-		return 0, idx, ErrQueueNotFound
+		return 0, 0, ErrQueueNotFound
 	}
 	return b.getRange(bucket, from, buff)
 }
 
-func (b *BoltStore) GetRangeBatch(input []BatchInput) ([]BatchOutput, error) {
-	tx, err := b.conn.Begin(false)
-	if err != nil {
-		return nil, err
-	}
-	defer tx.Rollback()
-
-	out := make([]BatchOutput, len(input))
-	for idx := range input {
-		out[idx] = BatchOutput{ID: input[idx].ID}
-		bucket := tx.Bucket([]byte(input[idx].ID))
-		if bucket == nil {
-			out[idx].Err = ErrQueueNotFound
-			continue
-		}
-		out[idx].Offset, out[idx].Count, out[idx].Err = b.getRange(bucket, input[idx].Offset, input[idx].Data)
-	}
-	return out, nil
-}
 func (b *BoltStore) WriteTo(out io.Writer) error {
 	return b.conn.View(func(tx *bolt.Tx) error {
 		_, err := tx.WriteTo(out)

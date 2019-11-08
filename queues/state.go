@@ -36,13 +36,7 @@ func (m *server) Snapshot() io.Reader {
 	return r
 }
 
-func (m *server) Apply(payload []byte) error {
-	event := pb.QueuesStateTransition{}
-	err := proto.Unmarshal(payload, &event)
-	if err != nil {
-		m.logger.Error("failed to unmarshal raft event", zap.Error(err))
-		return err
-	}
+func (m *server) applyEvent(event *pb.QueuesStateTransition) error {
 	switch event.Kind {
 	case QueueCreated:
 		input := event.QueueCreated.Input
@@ -100,4 +94,33 @@ func (m *server) Apply(payload []byte) error {
 	default:
 		return errors.New("invalid event type received")
 	}
+}
+func (m *server) commitEvent(payload ...*pb.QueuesStateTransition) error {
+	event, err := proto.Marshal(&pb.QueuesStateTransitionSet{Events: payload})
+	if err != nil {
+		m.logger.Error("failed to encode event", zap.Error(err))
+		return err
+	}
+	err = m.state.ApplyEvent(event)
+	if err != nil {
+		m.logger.Error("failed to commit message ack event", zap.Error(err))
+		return err
+	}
+	return nil
+}
+func (m *server) Apply(payload []byte) error {
+	data := pb.QueuesStateTransitionSet{}
+	err := proto.Unmarshal(payload, &data)
+	if err != nil {
+		m.logger.Error("failed to unmarshal raft event", zap.Error(err))
+		return err
+	}
+	for _, event := range data.Events {
+		err := m.applyEvent(event)
+		if err != nil {
+			m.logger.Error("failed to apply event", zap.String("event_kidn", event.Kind))
+			return err
+		}
+	}
+	return nil
 }

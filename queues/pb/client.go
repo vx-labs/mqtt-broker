@@ -59,10 +59,10 @@ func (c *Client) PutMessageBatch(ctx context.Context, payload []MessageBatch) er
 	})
 	return err
 }
-func (c *Client) StreamMessages(ctx context.Context, id string, offset uint64, f func(uint64, uint64, []*packet.Publish) error) error {
+func (c *Client) StreamMessages(ctx context.Context, id string, f func(uint64, *packet.Publish) error) error {
 	stream, err := c.api.StreamMessages(ctx, &QueueGetMessagesInput{
 		Id:     id,
-		Offset: offset,
+		Offset: 0,
 	})
 	if err != nil {
 		return err
@@ -72,9 +72,11 @@ func (c *Client) StreamMessages(ctx context.Context, id string, offset uint64, f
 		if err != nil {
 			return err
 		}
-		err = f(message.Offset, message.AckOffset, message.Publishes)
-		if err != nil {
-			return err
+		for _, batch := range message.Batches {
+			err = f(batch.AckOffset, batch.Publish)
+			if err != nil {
+				return err
+			}
 		}
 	}
 }

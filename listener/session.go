@@ -169,36 +169,42 @@ func (local *endpoint) handleSessionPackets(ctx context.Context, session *localS
 				go func() {
 					defer close(poller)
 					session.logger.Debug("starting queue poller")
-					var offset uint64 = 0
 					count := 0
 					err := backoff.Retry(func() error {
-						err := local.queues.StreamMessages(ctx, session.id, offset, func(offset uint64, ackOffset uint64, messages []*packet.Publish) error {
-							for _, message := range messages {
-								if message == nil {
-									session.logger.Error("received empty message from queue")
-									continue
+						err := local.queues.StreamMessages(ctx, session.id, func(ackOffset uint64, message *packet.Publish) error {
+							if message == nil {
+								session.logger.Error("received empty message from queue")
+								return nil
+							}
+							if message.Header == nil {
+								message.Header = &packet.Header{Qos: 0}
+							}
+							switch message.Header.Qos {
+							case 0:
+								message.MessageId = 1
+								enc.Publish(message)
+								err = local.queues.AckMessage(ctx, session.id, ackOffset)
+								if err != nil {
+									select {
+									case <-ctx.Done():
+										return nil
+									default:
+									}
+									session.logger.Error("failed to ack message on queues service", zap.Error(err))
 								}
-								if message.Header == nil {
-									message.Header = &packet.Header{Qos: 0}
-									continue
-								}
-								switch message.Header.Qos {
-								case 0:
-									message.MessageId = 1
-									enc.Publish(message)
+							case 1:
+								ingressQueue.Put(ctx, message, func() {
 									err = local.queues.AckMessage(ctx, session.id, ackOffset)
 									if err != nil {
+										select {
+										case <-ctx.Done():
+											return
+										default:
+										}
 										session.logger.Error("failed to ack message on queues service", zap.Error(err))
 									}
-								case 1:
-									ingressQueue.Put(ctx, message, func() {
-										err = local.queues.AckMessage(ctx, session.id, ackOffset)
-										if err != nil {
-											session.logger.Error("failed to ack message on queues service", zap.Error(err))
-										}
-									})
-								default:
-								}
+								})
+							default:
 							}
 							return nil
 						})
