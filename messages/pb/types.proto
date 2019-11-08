@@ -1,0 +1,33 @@
+syntax = "proto3";
+package pb;
+import "github.com/vx-labs/mqtt-protocol/packet/pb.proto";
+
+
+
+message MessagePutMessageInput {
+  string tenant = 1;
+  packet.Publish publish = 2;
+}
+message MessagePutMessageOutput {}
+
+message MessagePutMessageBatchInput {
+  repeated MessagePutMessageInput Batches = 1;
+}
+message MessagePutMessageBatchOutput {}
+
+service MessagesService {
+  rpc PutMessage(MessagePutMessageInput) returns (MessagePutMessageOutput);
+  rpc PutMessageBatch(MessagePutMessageBatchInput) returns (MessagePutMessageBatchOutput);
+}
+message MessagesStateTransitionSet {
+  repeated MessagesStateTransition events = 1;
+}
+message MessagesStateTransition {
+  string Kind = 1;
+  MessagesStateTransitionMessagePut MessagePut = 2;
+}
+message MessagesStateTransitionMessagePut {
+  string Tenant = 1;
+  uint64 Offset = 2;
+  bytes Payload = 3;
+}
