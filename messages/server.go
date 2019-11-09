@@ -1,12 +1,17 @@
-package queues
+package messages
 
 import (
 	"context"
 	fmt "fmt"
+	"hash/fnv"
 	"net"
 	"time"
 
-	"github.com/gogo/protobuf/proto"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+
+	"github.com/google/uuid"
+
 	"github.com/vx-labs/mqtt-broker/cluster/types"
 	"github.com/vx-labs/mqtt-broker/messages/pb"
 	"github.com/vx-labs/mqtt-broker/messages/store"
@@ -26,11 +31,17 @@ type server struct {
 	logger    *zap.Logger
 }
 
+func hashShardKey(key string, shardCount int) int {
+	hash := fnv.New32()
+	hash.Write([]byte(key))
+	return int(hash.Sum32()) % shardCount
+}
+
 func New(id string, logger *zap.Logger) *server {
 	logger.Debug("opening messages durable store")
 	boltstore, err := store.New(store.Options{
 		NoSync: false,
-		Path:   fmt.Sprintf("%s-%s-messages.bolt", dbPath, id),
+		Path:   fmt.Sprintf("%s-%s-queues.bolt", dbPath, id),
 	})
 	if err != nil {
 		logger.Fatal("failed to open messages durable store", zap.Error(err))
@@ -44,26 +55,103 @@ func New(id string, logger *zap.Logger) *server {
 	return b
 }
 
-func (s *server) PutMessage(ctx context.Context, input *pb.MessagePutMessageInput) (*pb.MessagePutMessageOutput, error) {
-	// FIXME: do not use time as a key generator
-	idx := time.Now().UnixNano()
-	payload, err := proto.Marshal(input.Publish)
+func (s *server) DeleteStream(ctx context.Context, input *pb.MessageDeleteStreamInput) (*pb.MessageDeleteStreamOutput, error) {
+	err := s.commitEvent(&pb.MessagesStateTransition{
+		Event: &pb.MessagesStateTransition_StreamDeleted{
+			StreamDeleted: &pb.MessagesStateTransitionStreamDeleted{
+				StreamID: input.ID,
+			},
+		},
+	})
 	if err != nil {
-		s.logger.Error("failed to encode message", zap.Error(err))
+		s.logger.Error("failed to commit stream deleted event", zap.Error(err))
+	}
+	return &pb.MessageDeleteStreamOutput{}, err
+}
+func (s *server) CreateStream(ctx context.Context, input *pb.MessageCreateStreamInput) (*pb.MessageCreateStreamOutput, error) {
+	if input.ID == "" {
+		return nil, ErrInvalidArgument("field 'ID' is required")
+	}
+	if input.ShardCount < 1 {
+		return nil, ErrInvalidArgument("ShardCount must be at least 1")
+	}
+	config := pb.StreamConfig{
+		ID:       input.ID,
+		ShardIDs: make([]string, input.ShardCount),
+	}
+	for idx := range config.ShardIDs {
+		config.ShardIDs[idx] = uuid.New().String()
+	}
+	err := s.commitEvent(&pb.MessagesStateTransition{
+		Event: &pb.MessagesStateTransition_StreamCreated{
+			StreamCreated: &pb.MessagesStateTransitionStreamCreated{
+				Config: &config,
+			},
+		},
+	})
+	if err != nil {
+		s.logger.Error("failed to commit stream created event", zap.Error(err))
+	}
+	return &pb.MessageCreateStreamOutput{}, err
+}
+
+func ErrNotFound(msg string) error {
+	return status.Error(codes.NotFound, msg)
+}
+
+func ErrInvalidArgument(msg string) error {
+	return status.Error(codes.InvalidArgument, msg)
+}
+
+func (s *server) GetStream(ctx context.Context, input *pb.MessageGetStreamInput) (*pb.MessageGetStreamOutput, error) {
+	config := s.store.GetStream(input.ID)
+	if config == nil {
+		return nil, ErrNotFound("stream not found")
+	}
+	return &pb.MessageGetStreamOutput{ID: input.ID, Config: config}, nil
+}
+func (s *server) GetMessages(ctx context.Context, input *pb.MessageGetMessagesInput) (*pb.MessageGetMessagesOutput, error) {
+	buf := make([]*pb.StoredMessage, input.MaxCount)
+	count, offset, err := s.store.GetRange(input.StreamID, input.ShardID, input.Offset, buf)
+	if err != nil {
 		return nil, err
 	}
-	err = s.commitEvent(&pb.MessagesStateTransition{
-		Kind: MessagePut,
-		MessagePut: &pb.MessagesStateTransitionMessagePut{
-			Offset:  uint64(idx),
-			Payload: payload,
-			Tenant:  input.Tenant,
+	return &pb.MessageGetMessagesOutput{
+		Messages:   buf[:count],
+		NextOffset: offset,
+		StreamID:   input.StreamID,
+		ShardID:    input.ShardID,
+	}, nil
+}
+
+func (s *server) PutMessage(ctx context.Context, input *pb.MessagePutMessageInput) (*pb.MessagePutMessageOutput, error) {
+	stream := s.store.GetStream(input.StreamID)
+	if stream == nil {
+		return nil, ErrNotFound("stream not found")
+	}
+	shardIdx := hashShardKey(input.ShardKey, len(stream.ShardIDs))
+	shardID := stream.ShardIDs[shardIdx]
+	// FIXME: do not use time as a key generator
+	idx := uint64(time.Now().UnixNano())
+	payload := input.Payload
+	err := s.commitEvent(&pb.MessagesStateTransition{
+		Event: &pb.MessagesStateTransition_MessagePut{
+			MessagePut: &pb.MessagesStateTransitionMessagePut{
+				StreamID: input.StreamID,
+				ShardID:  shardID,
+				Offset:   idx,
+				Payload:  payload,
+			},
 		},
 	})
 	if err != nil {
 		s.logger.Error("failed to commit queue put event", zap.Error(err))
 	}
-	return &pb.MessagePutMessageOutput{}, err
+	return &pb.MessagePutMessageOutput{
+		Offset:   idx,
+		ShardID:  shardID,
+		StreamID: stream.ID,
+	}, err
 }
 func (s *server) PutMessageBatch(ctx context.Context, ev *pb.MessagePutMessageBatchInput) (*pb.MessagePutMessageBatchOutput, error) {
 	// FIXME: do not use time as a key generator
@@ -71,17 +159,17 @@ func (s *server) PutMessageBatch(ctx context.Context, ev *pb.MessagePutMessageBa
 	event := []*pb.MessagesStateTransition{}
 	idx := now
 	for _, input := range ev.Batches {
-		payload, err := proto.Marshal(input.Publish)
-		if err != nil {
-			s.logger.Error("failed to encode message", zap.Error(err))
-			return nil, err
-		}
+		payload := input.Payload
+		// FIXME: implem sharding
+		shardID := "1"
 		event = append(event, &pb.MessagesStateTransition{
-			Kind: MessagePut,
-			MessagePut: &pb.MessagesStateTransitionMessagePut{
-				Offset:  uint64(idx),
-				Payload: payload,
-				Tenant:  input.Tenant,
+			Event: &pb.MessagesStateTransition_MessagePut{
+				MessagePut: &pb.MessagesStateTransitionMessagePut{
+					StreamID: input.StreamID,
+					ShardID:  shardID,
+					Offset:   uint64(idx),
+					Payload:  payload,
+				},
 			},
 		})
 		idx++

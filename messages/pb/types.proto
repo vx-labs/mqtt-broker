@@ -2,13 +2,59 @@ syntax = "proto3";
 package pb;
 import "github.com/vx-labs/mqtt-protocol/packet/pb.proto";
 
+message StreamConfig {
+  string ID = 1;
+  repeated string ShardIDs = 2;
+}
 
+message StoredMessage {
+  uint64 Offset = 1;
+  bytes Payload = 2;
+}
+
+message MessageGetStreamInput {
+  string ID = 1;
+}
+message MessageGetStreamOutput {
+  string ID = 1;
+  StreamConfig config =2;
+}
+
+message MessageCreateStreamInput {
+  string ID = 1;
+  int64 ShardCount = 2;
+}
+message MessageCreateStreamOutput {
+}
+message MessageDeleteStreamInput {
+  string ID = 1;
+}
+message MessageDeleteStreamOutput {
+}
+message MessageGetMessagesInput {
+  string StreamID = 1;
+  string ShardID = 2;
+  uint64 Offset = 3;
+  uint64 MaxCount = 4;
+}
+
+message MessageGetMessagesOutput {
+  string StreamID = 1;
+  string ShardID = 2;
+  uint64 NextOffset = 3;
+  repeated StoredMessage Messages = 4;
+}
 
 message MessagePutMessageInput {
-  string tenant = 1;
-  packet.Publish publish = 2;
+  string StreamID = 1;
+  string ShardKey = 2;
+  bytes payload = 3;
 }
-message MessagePutMessageOutput {}
+message MessagePutMessageOutput {
+  string StreamID = 1;
+  string ShardID = 2;
+  uint64 Offset = 3;
+}
 
 message MessagePutMessageBatchInput {
   repeated MessagePutMessageInput Batches = 1;
@@ -16,6 +62,10 @@ message MessagePutMessageBatchInput {
 message MessagePutMessageBatchOutput {}
 
 service MessagesService {
+  rpc CreateStream(MessageCreateStreamInput) returns (MessageCreateStreamOutput);
+  rpc DeleteStream(MessageDeleteStreamInput) returns (MessageDeleteStreamOutput);
+  rpc GetStream(MessageGetStreamInput) returns (MessageGetStreamOutput);
+  rpc GetMessages(MessageGetMessagesInput) returns (MessageGetMessagesOutput);
   rpc PutMessage(MessagePutMessageInput) returns (MessagePutMessageOutput);
   rpc PutMessageBatch(MessagePutMessageBatchInput) returns (MessagePutMessageBatchOutput);
 }
@@ -23,11 +73,21 @@ message MessagesStateTransitionSet {
   repeated MessagesStateTransition events = 1;
 }
 message MessagesStateTransition {
-  string Kind = 1;
+  oneof Event {
   MessagesStateTransitionMessagePut MessagePut = 2;
+  MessagesStateTransitionStreamCreated StreamCreated = 3;
+  MessagesStateTransitionStreamDeleted StreamDeleted = 4;
+  }
+}
+message MessagesStateTransitionStreamCreated {
+  StreamConfig config = 1;
+}
+message MessagesStateTransitionStreamDeleted {
+  string StreamID = 1;
 }
 message MessagesStateTransitionMessagePut {
-  string Tenant = 1;
-  uint64 Offset = 2;
-  bytes Payload = 3;
+  string StreamID = 1;
+  string ShardID = 2;
+  uint64 Offset = 3;
+  bytes Payload = 4;
 }

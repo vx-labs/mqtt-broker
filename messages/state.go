@@ -1,16 +1,13 @@
-package queues
+package messages
 
 import (
 	"errors"
 	"io"
 
 	"github.com/gogo/protobuf/proto"
+
 	"github.com/vx-labs/mqtt-broker/messages/pb"
 	"go.uber.org/zap"
-)
-
-const (
-	MessagePut string = "message_put"
 )
 
 func (m *server) Restore(r io.Reader) error {
@@ -27,13 +24,27 @@ func (m *server) Snapshot() io.Reader {
 	go m.store.WriteTo(w)
 	return r
 }
-
-func (m *server) applyEvent(event *pb.MessagesStateTransition) error {
-	switch event.Kind {
-	case MessagePut:
-		err := errors.New("not implem")
+func (m *server) applyEvent(payload *pb.MessagesStateTransition) error {
+	switch event := payload.GetEvent().(type) {
+	case *pb.MessagesStateTransition_StreamDeleted:
+		input := event.StreamDeleted
+		err := m.store.DeleteStream(input.StreamID)
 		if err != nil {
-			m.logger.Error("failed to put message in queue", zap.Error(err))
+			m.logger.Error("failed to delete stream", zap.Error(err))
+		}
+		return err
+	case *pb.MessagesStateTransition_StreamCreated:
+		input := event.StreamCreated
+		err := m.store.CreateStream(input.Config)
+		if err != nil {
+			m.logger.Error("failed to create stream", zap.Error(err))
+		}
+		return err
+	case *pb.MessagesStateTransition_MessagePut:
+		input := event.MessagePut
+		err := m.store.Put(input.StreamID, input.ShardID, input.Offset, input.Payload)
+		if err != nil {
+			m.logger.Error("failed to store message", zap.Error(err))
 		}
 		return err
 	default:
@@ -48,7 +59,7 @@ func (m *server) commitEvent(payload ...*pb.MessagesStateTransition) error {
 	}
 	err = m.state.ApplyEvent(event)
 	if err != nil {
-		m.logger.Error("failed to commit message ack event", zap.Error(err))
+		m.logger.Error("failed to commit event", zap.Error(err))
 		return err
 	}
 	return nil
@@ -63,7 +74,7 @@ func (m *server) Apply(payload []byte) error {
 	for _, event := range data.Events {
 		err := m.applyEvent(event)
 		if err != nil {
-			m.logger.Error("failed to apply event", zap.String("event_kidn", event.Kind))
+			m.logger.Error("failed to apply event", zap.Error(err))
 			return err
 		}
 	}

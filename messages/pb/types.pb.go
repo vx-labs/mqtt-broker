@@ -7,7 +7,7 @@ import (
 	context "context"
 	fmt "fmt"
 	proto "github.com/golang/protobuf/proto"
-	packet "github.com/vx-labs/mqtt-protocol/packet"
+	_ "github.com/vx-labs/mqtt-protocol/packet"
 	grpc "google.golang.org/grpc"
 	codes "google.golang.org/grpc/codes"
 	status "google.golang.org/grpc/status"
@@ -25,19 +25,474 @@ var _ = math.Inf
 // proto package needs to be updated.
 const _ = proto.ProtoPackageIsVersion3 // please upgrade the proto package
 
+type StreamConfig struct {
+	ID                   string   `protobuf:"bytes,1,opt,name=ID,proto3" json:"ID,omitempty"`
+	ShardIDs             []string `protobuf:"bytes,2,rep,name=ShardIDs,proto3" json:"ShardIDs,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *StreamConfig) Reset()         { *m = StreamConfig{} }
+func (m *StreamConfig) String() string { return proto.CompactTextString(m) }
+func (*StreamConfig) ProtoMessage()    {}
+func (*StreamConfig) Descriptor() ([]byte, []int) {
+	return fileDescriptor_d938547f84707355, []int{0}
+}
+
+func (m *StreamConfig) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_StreamConfig.Unmarshal(m, b)
+}
+func (m *StreamConfig) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_StreamConfig.Marshal(b, m, deterministic)
+}
+func (m *StreamConfig) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_StreamConfig.Merge(m, src)
+}
+func (m *StreamConfig) XXX_Size() int {
+	return xxx_messageInfo_StreamConfig.Size(m)
+}
+func (m *StreamConfig) XXX_DiscardUnknown() {
+	xxx_messageInfo_StreamConfig.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_StreamConfig proto.InternalMessageInfo
+
+func (m *StreamConfig) GetID() string {
+	if m != nil {
+		return m.ID
+	}
+	return ""
+}
+
+func (m *StreamConfig) GetShardIDs() []string {
+	if m != nil {
+		return m.ShardIDs
+	}
+	return nil
+}
+
+type StoredMessage struct {
+	Offset               uint64   `protobuf:"varint,1,opt,name=Offset,proto3" json:"Offset,omitempty"`
+	Payload              []byte   `protobuf:"bytes,2,opt,name=Payload,proto3" json:"Payload,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *StoredMessage) Reset()         { *m = StoredMessage{} }
+func (m *StoredMessage) String() string { return proto.CompactTextString(m) }
+func (*StoredMessage) ProtoMessage()    {}
+func (*StoredMessage) Descriptor() ([]byte, []int) {
+	return fileDescriptor_d938547f84707355, []int{1}
+}
+
+func (m *StoredMessage) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_StoredMessage.Unmarshal(m, b)
+}
+func (m *StoredMessage) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_StoredMessage.Marshal(b, m, deterministic)
+}
+func (m *StoredMessage) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_StoredMessage.Merge(m, src)
+}
+func (m *StoredMessage) XXX_Size() int {
+	return xxx_messageInfo_StoredMessage.Size(m)
+}
+func (m *StoredMessage) XXX_DiscardUnknown() {
+	xxx_messageInfo_StoredMessage.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_StoredMessage proto.InternalMessageInfo
+
+func (m *StoredMessage) GetOffset() uint64 {
+	if m != nil {
+		return m.Offset
+	}
+	return 0
+}
+
+func (m *StoredMessage) GetPayload() []byte {
+	if m != nil {
+		return m.Payload
+	}
+	return nil
+}
+
+type MessageGetStreamInput struct {
+	ID                   string   `protobuf:"bytes,1,opt,name=ID,proto3" json:"ID,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *MessageGetStreamInput) Reset()         { *m = MessageGetStreamInput{} }
+func (m *MessageGetStreamInput) String() string { return proto.CompactTextString(m) }
+func (*MessageGetStreamInput) ProtoMessage()    {}
+func (*MessageGetStreamInput) Descriptor() ([]byte, []int) {
+	return fileDescriptor_d938547f84707355, []int{2}
+}
+
+func (m *MessageGetStreamInput) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_MessageGetStreamInput.Unmarshal(m, b)
+}
+func (m *MessageGetStreamInput) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_MessageGetStreamInput.Marshal(b, m, deterministic)
+}
+func (m *MessageGetStreamInput) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_MessageGetStreamInput.Merge(m, src)
+}
+func (m *MessageGetStreamInput) XXX_Size() int {
+	return xxx_messageInfo_MessageGetStreamInput.Size(m)
+}
+func (m *MessageGetStreamInput) XXX_DiscardUnknown() {
+	xxx_messageInfo_MessageGetStreamInput.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_MessageGetStreamInput proto.InternalMessageInfo
+
+func (m *MessageGetStreamInput) GetID() string {
+	if m != nil {
+		return m.ID
+	}
+	return ""
+}
+
+type MessageGetStreamOutput struct {
+	ID                   string        `protobuf:"bytes,1,opt,name=ID,proto3" json:"ID,omitempty"`
+	Config               *StreamConfig `protobuf:"bytes,2,opt,name=config,proto3" json:"config,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}      `json:"-"`
+	XXX_unrecognized     []byte        `json:"-"`
+	XXX_sizecache        int32         `json:"-"`
+}
+
+func (m *MessageGetStreamOutput) Reset()         { *m = MessageGetStreamOutput{} }
+func (m *MessageGetStreamOutput) String() string { return proto.CompactTextString(m) }
+func (*MessageGetStreamOutput) ProtoMessage()    {}
+func (*MessageGetStreamOutput) Descriptor() ([]byte, []int) {
+	return fileDescriptor_d938547f84707355, []int{3}
+}
+
+func (m *MessageGetStreamOutput) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_MessageGetStreamOutput.Unmarshal(m, b)
+}
+func (m *MessageGetStreamOutput) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_MessageGetStreamOutput.Marshal(b, m, deterministic)
+}
+func (m *MessageGetStreamOutput) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_MessageGetStreamOutput.Merge(m, src)
+}
+func (m *MessageGetStreamOutput) XXX_Size() int {
+	return xxx_messageInfo_MessageGetStreamOutput.Size(m)
+}
+func (m *MessageGetStreamOutput) XXX_DiscardUnknown() {
+	xxx_messageInfo_MessageGetStreamOutput.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_MessageGetStreamOutput proto.InternalMessageInfo
+
+func (m *MessageGetStreamOutput) GetID() string {
+	if m != nil {
+		return m.ID
+	}
+	return ""
+}
+
+func (m *MessageGetStreamOutput) GetConfig() *StreamConfig {
+	if m != nil {
+		return m.Config
+	}
+	return nil
+}
+
+type MessageCreateStreamInput struct {
+	ID                   string   `protobuf:"bytes,1,opt,name=ID,proto3" json:"ID,omitempty"`
+	ShardCount           int64    `protobuf:"varint,2,opt,name=ShardCount,proto3" json:"ShardCount,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *MessageCreateStreamInput) Reset()         { *m = MessageCreateStreamInput{} }
+func (m *MessageCreateStreamInput) String() string { return proto.CompactTextString(m) }
+func (*MessageCreateStreamInput) ProtoMessage()    {}
+func (*MessageCreateStreamInput) Descriptor() ([]byte, []int) {
+	return fileDescriptor_d938547f84707355, []int{4}
+}
+
+func (m *MessageCreateStreamInput) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_MessageCreateStreamInput.Unmarshal(m, b)
+}
+func (m *MessageCreateStreamInput) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_MessageCreateStreamInput.Marshal(b, m, deterministic)
+}
+func (m *MessageCreateStreamInput) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_MessageCreateStreamInput.Merge(m, src)
+}
+func (m *MessageCreateStreamInput) XXX_Size() int {
+	return xxx_messageInfo_MessageCreateStreamInput.Size(m)
+}
+func (m *MessageCreateStreamInput) XXX_DiscardUnknown() {
+	xxx_messageInfo_MessageCreateStreamInput.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_MessageCreateStreamInput proto.InternalMessageInfo
+
+func (m *MessageCreateStreamInput) GetID() string {
+	if m != nil {
+		return m.ID
+	}
+	return ""
+}
+
+func (m *MessageCreateStreamInput) GetShardCount() int64 {
+	if m != nil {
+		return m.ShardCount
+	}
+	return 0
+}
+
+type MessageCreateStreamOutput struct {
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *MessageCreateStreamOutput) Reset()         { *m = MessageCreateStreamOutput{} }
+func (m *MessageCreateStreamOutput) String() string { return proto.CompactTextString(m) }
+func (*MessageCreateStreamOutput) ProtoMessage()    {}
+func (*MessageCreateStreamOutput) Descriptor() ([]byte, []int) {
+	return fileDescriptor_d938547f84707355, []int{5}
+}
+
+func (m *MessageCreateStreamOutput) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_MessageCreateStreamOutput.Unmarshal(m, b)
+}
+func (m *MessageCreateStreamOutput) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_MessageCreateStreamOutput.Marshal(b, m, deterministic)
+}
+func (m *MessageCreateStreamOutput) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_MessageCreateStreamOutput.Merge(m, src)
+}
+func (m *MessageCreateStreamOutput) XXX_Size() int {
+	return xxx_messageInfo_MessageCreateStreamOutput.Size(m)
+}
+func (m *MessageCreateStreamOutput) XXX_DiscardUnknown() {
+	xxx_messageInfo_MessageCreateStreamOutput.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_MessageCreateStreamOutput proto.InternalMessageInfo
+
+type MessageDeleteStreamInput struct {
+	ID                   string   `protobuf:"bytes,1,opt,name=ID,proto3" json:"ID,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *MessageDeleteStreamInput) Reset()         { *m = MessageDeleteStreamInput{} }
+func (m *MessageDeleteStreamInput) String() string { return proto.CompactTextString(m) }
+func (*MessageDeleteStreamInput) ProtoMessage()    {}
+func (*MessageDeleteStreamInput) Descriptor() ([]byte, []int) {
+	return fileDescriptor_d938547f84707355, []int{6}
+}
+
+func (m *MessageDeleteStreamInput) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_MessageDeleteStreamInput.Unmarshal(m, b)
+}
+func (m *MessageDeleteStreamInput) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_MessageDeleteStreamInput.Marshal(b, m, deterministic)
+}
+func (m *MessageDeleteStreamInput) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_MessageDeleteStreamInput.Merge(m, src)
+}
+func (m *MessageDeleteStreamInput) XXX_Size() int {
+	return xxx_messageInfo_MessageDeleteStreamInput.Size(m)
+}
+func (m *MessageDeleteStreamInput) XXX_DiscardUnknown() {
+	xxx_messageInfo_MessageDeleteStreamInput.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_MessageDeleteStreamInput proto.InternalMessageInfo
+
+func (m *MessageDeleteStreamInput) GetID() string {
+	if m != nil {
+		return m.ID
+	}
+	return ""
+}
+
+type MessageDeleteStreamOutput struct {
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *MessageDeleteStreamOutput) Reset()         { *m = MessageDeleteStreamOutput{} }
+func (m *MessageDeleteStreamOutput) String() string { return proto.CompactTextString(m) }
+func (*MessageDeleteStreamOutput) ProtoMessage()    {}
+func (*MessageDeleteStreamOutput) Descriptor() ([]byte, []int) {
+	return fileDescriptor_d938547f84707355, []int{7}
+}
+
+func (m *MessageDeleteStreamOutput) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_MessageDeleteStreamOutput.Unmarshal(m, b)
+}
+func (m *MessageDeleteStreamOutput) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_MessageDeleteStreamOutput.Marshal(b, m, deterministic)
+}
+func (m *MessageDeleteStreamOutput) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_MessageDeleteStreamOutput.Merge(m, src)
+}
+func (m *MessageDeleteStreamOutput) XXX_Size() int {
+	return xxx_messageInfo_MessageDeleteStreamOutput.Size(m)
+}
+func (m *MessageDeleteStreamOutput) XXX_DiscardUnknown() {
+	xxx_messageInfo_MessageDeleteStreamOutput.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_MessageDeleteStreamOutput proto.InternalMessageInfo
+
+type MessageGetMessagesInput struct {
+	StreamID             string   `protobuf:"bytes,1,opt,name=StreamID,proto3" json:"StreamID,omitempty"`
+	ShardID              string   `protobuf:"bytes,2,opt,name=ShardID,proto3" json:"ShardID,omitempty"`
+	Offset               uint64   `protobuf:"varint,3,opt,name=Offset,proto3" json:"Offset,omitempty"`
+	MaxCount             uint64   `protobuf:"varint,4,opt,name=MaxCount,proto3" json:"MaxCount,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *MessageGetMessagesInput) Reset()         { *m = MessageGetMessagesInput{} }
+func (m *MessageGetMessagesInput) String() string { return proto.CompactTextString(m) }
+func (*MessageGetMessagesInput) ProtoMessage()    {}
+func (*MessageGetMessagesInput) Descriptor() ([]byte, []int) {
+	return fileDescriptor_d938547f84707355, []int{8}
+}
+
+func (m *MessageGetMessagesInput) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_MessageGetMessagesInput.Unmarshal(m, b)
+}
+func (m *MessageGetMessagesInput) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_MessageGetMessagesInput.Marshal(b, m, deterministic)
+}
+func (m *MessageGetMessagesInput) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_MessageGetMessagesInput.Merge(m, src)
+}
+func (m *MessageGetMessagesInput) XXX_Size() int {
+	return xxx_messageInfo_MessageGetMessagesInput.Size(m)
+}
+func (m *MessageGetMessagesInput) XXX_DiscardUnknown() {
+	xxx_messageInfo_MessageGetMessagesInput.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_MessageGetMessagesInput proto.InternalMessageInfo
+
+func (m *MessageGetMessagesInput) GetStreamID() string {
+	if m != nil {
+		return m.StreamID
+	}
+	return ""
+}
+
+func (m *MessageGetMessagesInput) GetShardID() string {
+	if m != nil {
+		return m.ShardID
+	}
+	return ""
+}
+
+func (m *MessageGetMessagesInput) GetOffset() uint64 {
+	if m != nil {
+		return m.Offset
+	}
+	return 0
+}
+
+func (m *MessageGetMessagesInput) GetMaxCount() uint64 {
+	if m != nil {
+		return m.MaxCount
+	}
+	return 0
+}
+
+type MessageGetMessagesOutput struct {
+	StreamID             string           `protobuf:"bytes,1,opt,name=StreamID,proto3" json:"StreamID,omitempty"`
+	ShardID              string           `protobuf:"bytes,2,opt,name=ShardID,proto3" json:"ShardID,omitempty"`
+	NextOffset           uint64           `protobuf:"varint,3,opt,name=NextOffset,proto3" json:"NextOffset,omitempty"`
+	Messages             []*StoredMessage `protobuf:"bytes,4,rep,name=Messages,proto3" json:"Messages,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}         `json:"-"`
+	XXX_unrecognized     []byte           `json:"-"`
+	XXX_sizecache        int32            `json:"-"`
+}
+
+func (m *MessageGetMessagesOutput) Reset()         { *m = MessageGetMessagesOutput{} }
+func (m *MessageGetMessagesOutput) String() string { return proto.CompactTextString(m) }
+func (*MessageGetMessagesOutput) ProtoMessage()    {}
+func (*MessageGetMessagesOutput) Descriptor() ([]byte, []int) {
+	return fileDescriptor_d938547f84707355, []int{9}
+}
+
+func (m *MessageGetMessagesOutput) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_MessageGetMessagesOutput.Unmarshal(m, b)
+}
+func (m *MessageGetMessagesOutput) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_MessageGetMessagesOutput.Marshal(b, m, deterministic)
+}
+func (m *MessageGetMessagesOutput) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_MessageGetMessagesOutput.Merge(m, src)
+}
+func (m *MessageGetMessagesOutput) XXX_Size() int {
+	return xxx_messageInfo_MessageGetMessagesOutput.Size(m)
+}
+func (m *MessageGetMessagesOutput) XXX_DiscardUnknown() {
+	xxx_messageInfo_MessageGetMessagesOutput.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_MessageGetMessagesOutput proto.InternalMessageInfo
+
+func (m *MessageGetMessagesOutput) GetStreamID() string {
+	if m != nil {
+		return m.StreamID
+	}
+	return ""
+}
+
+func (m *MessageGetMessagesOutput) GetShardID() string {
+	if m != nil {
+		return m.ShardID
+	}
+	return ""
+}
+
+func (m *MessageGetMessagesOutput) GetNextOffset() uint64 {
+	if m != nil {
+		return m.NextOffset
+	}
+	return 0
+}
+
+func (m *MessageGetMessagesOutput) GetMessages() []*StoredMessage {
+	if m != nil {
+		return m.Messages
+	}
+	return nil
+}
+
 type MessagePutMessageInput struct {
-	Tenant               string          `protobuf:"bytes,1,opt,name=tenant,proto3" json:"tenant,omitempty"`
-	Publish              *packet.Publish `protobuf:"bytes,2,opt,name=publish,proto3" json:"publish,omitempty"`
-	XXX_NoUnkeyedLiteral struct{}        `json:"-"`
-	XXX_unrecognized     []byte          `json:"-"`
-	XXX_sizecache        int32           `json:"-"`
+	StreamID             string   `protobuf:"bytes,1,opt,name=StreamID,proto3" json:"StreamID,omitempty"`
+	ShardKey             string   `protobuf:"bytes,2,opt,name=ShardKey,proto3" json:"ShardKey,omitempty"`
+	Payload              []byte   `protobuf:"bytes,3,opt,name=payload,proto3" json:"payload,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
 func (m *MessagePutMessageInput) Reset()         { *m = MessagePutMessageInput{} }
 func (m *MessagePutMessageInput) String() string { return proto.CompactTextString(m) }
 func (*MessagePutMessageInput) ProtoMessage()    {}
 func (*MessagePutMessageInput) Descriptor() ([]byte, []int) {
-	return fileDescriptor_d938547f84707355, []int{0}
+	return fileDescriptor_d938547f84707355, []int{10}
 }
 
 func (m *MessagePutMessageInput) XXX_Unmarshal(b []byte) error {
@@ -58,21 +513,31 @@ func (m *MessagePutMessageInput) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_MessagePutMessageInput proto.InternalMessageInfo
 
-func (m *MessagePutMessageInput) GetTenant() string {
+func (m *MessagePutMessageInput) GetStreamID() string {
 	if m != nil {
-		return m.Tenant
+		return m.StreamID
 	}
 	return ""
 }
 
-func (m *MessagePutMessageInput) GetPublish() *packet.Publish {
+func (m *MessagePutMessageInput) GetShardKey() string {
 	if m != nil {
-		return m.Publish
+		return m.ShardKey
+	}
+	return ""
+}
+
+func (m *MessagePutMessageInput) GetPayload() []byte {
+	if m != nil {
+		return m.Payload
 	}
 	return nil
 }
 
 type MessagePutMessageOutput struct {
+	StreamID             string   `protobuf:"bytes,1,opt,name=StreamID,proto3" json:"StreamID,omitempty"`
+	ShardID              string   `protobuf:"bytes,2,opt,name=ShardID,proto3" json:"ShardID,omitempty"`
+	Offset               uint64   `protobuf:"varint,3,opt,name=Offset,proto3" json:"Offset,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -82,7 +547,7 @@ func (m *MessagePutMessageOutput) Reset()         { *m = MessagePutMessageOutput
 func (m *MessagePutMessageOutput) String() string { return proto.CompactTextString(m) }
 func (*MessagePutMessageOutput) ProtoMessage()    {}
 func (*MessagePutMessageOutput) Descriptor() ([]byte, []int) {
-	return fileDescriptor_d938547f84707355, []int{1}
+	return fileDescriptor_d938547f84707355, []int{11}
 }
 
 func (m *MessagePutMessageOutput) XXX_Unmarshal(b []byte) error {
@@ -103,6 +568,27 @@ func (m *MessagePutMessageOutput) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_MessagePutMessageOutput proto.InternalMessageInfo
 
+func (m *MessagePutMessageOutput) GetStreamID() string {
+	if m != nil {
+		return m.StreamID
+	}
+	return ""
+}
+
+func (m *MessagePutMessageOutput) GetShardID() string {
+	if m != nil {
+		return m.ShardID
+	}
+	return ""
+}
+
+func (m *MessagePutMessageOutput) GetOffset() uint64 {
+	if m != nil {
+		return m.Offset
+	}
+	return 0
+}
+
 type MessagePutMessageBatchInput struct {
 	Batches              []*MessagePutMessageInput `protobuf:"bytes,1,rep,name=Batches,proto3" json:"Batches,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}                  `json:"-"`
@@ -114,7 +600,7 @@ func (m *MessagePutMessageBatchInput) Reset()         { *m = MessagePutMessageBa
 func (m *MessagePutMessageBatchInput) String() string { return proto.CompactTextString(m) }
 func (*MessagePutMessageBatchInput) ProtoMessage()    {}
 func (*MessagePutMessageBatchInput) Descriptor() ([]byte, []int) {
-	return fileDescriptor_d938547f84707355, []int{2}
+	return fileDescriptor_d938547f84707355, []int{12}
 }
 
 func (m *MessagePutMessageBatchInput) XXX_Unmarshal(b []byte) error {
@@ -152,7 +638,7 @@ func (m *MessagePutMessageBatchOutput) Reset()         { *m = MessagePutMessageB
 func (m *MessagePutMessageBatchOutput) String() string { return proto.CompactTextString(m) }
 func (*MessagePutMessageBatchOutput) ProtoMessage()    {}
 func (*MessagePutMessageBatchOutput) Descriptor() ([]byte, []int) {
-	return fileDescriptor_d938547f84707355, []int{3}
+	return fileDescriptor_d938547f84707355, []int{13}
 }
 
 func (m *MessagePutMessageBatchOutput) XXX_Unmarshal(b []byte) error {
@@ -184,7 +670,7 @@ func (m *MessagesStateTransitionSet) Reset()         { *m = MessagesStateTransit
 func (m *MessagesStateTransitionSet) String() string { return proto.CompactTextString(m) }
 func (*MessagesStateTransitionSet) ProtoMessage()    {}
 func (*MessagesStateTransitionSet) Descriptor() ([]byte, []int) {
-	return fileDescriptor_d938547f84707355, []int{4}
+	return fileDescriptor_d938547f84707355, []int{14}
 }
 
 func (m *MessagesStateTransitionSet) XXX_Unmarshal(b []byte) error {
@@ -213,18 +699,21 @@ func (m *MessagesStateTransitionSet) GetEvents() []*MessagesStateTransition {
 }
 
 type MessagesStateTransition struct {
-	Kind                 string                             `protobuf:"bytes,1,opt,name=Kind,proto3" json:"Kind,omitempty"`
-	MessagePut           *MessagesStateTransitionMessagePut `protobuf:"bytes,2,opt,name=MessagePut,proto3" json:"MessagePut,omitempty"`
-	XXX_NoUnkeyedLiteral struct{}                           `json:"-"`
-	XXX_unrecognized     []byte                             `json:"-"`
-	XXX_sizecache        int32                              `json:"-"`
+	// Types that are valid to be assigned to Event:
+	//	*MessagesStateTransition_MessagePut
+	//	*MessagesStateTransition_StreamCreated
+	//	*MessagesStateTransition_StreamDeleted
+	Event                isMessagesStateTransition_Event `protobuf_oneof:"Event"`
+	XXX_NoUnkeyedLiteral struct{}                        `json:"-"`
+	XXX_unrecognized     []byte                          `json:"-"`
+	XXX_sizecache        int32                           `json:"-"`
 }
 
 func (m *MessagesStateTransition) Reset()         { *m = MessagesStateTransition{} }
 func (m *MessagesStateTransition) String() string { return proto.CompactTextString(m) }
 func (*MessagesStateTransition) ProtoMessage()    {}
 func (*MessagesStateTransition) Descriptor() ([]byte, []int) {
-	return fileDescriptor_d938547f84707355, []int{5}
+	return fileDescriptor_d938547f84707355, []int{15}
 }
 
 func (m *MessagesStateTransition) XXX_Unmarshal(b []byte) error {
@@ -245,24 +734,148 @@ func (m *MessagesStateTransition) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_MessagesStateTransition proto.InternalMessageInfo
 
-func (m *MessagesStateTransition) GetKind() string {
-	if m != nil {
-		return m.Kind
-	}
-	return ""
+type isMessagesStateTransition_Event interface {
+	isMessagesStateTransition_Event()
 }
 
-func (m *MessagesStateTransition) GetMessagePut() *MessagesStateTransitionMessagePut {
+type MessagesStateTransition_MessagePut struct {
+	MessagePut *MessagesStateTransitionMessagePut `protobuf:"bytes,2,opt,name=MessagePut,proto3,oneof"`
+}
+
+type MessagesStateTransition_StreamCreated struct {
+	StreamCreated *MessagesStateTransitionStreamCreated `protobuf:"bytes,3,opt,name=StreamCreated,proto3,oneof"`
+}
+
+type MessagesStateTransition_StreamDeleted struct {
+	StreamDeleted *MessagesStateTransitionStreamDeleted `protobuf:"bytes,4,opt,name=StreamDeleted,proto3,oneof"`
+}
+
+func (*MessagesStateTransition_MessagePut) isMessagesStateTransition_Event() {}
+
+func (*MessagesStateTransition_StreamCreated) isMessagesStateTransition_Event() {}
+
+func (*MessagesStateTransition_StreamDeleted) isMessagesStateTransition_Event() {}
+
+func (m *MessagesStateTransition) GetEvent() isMessagesStateTransition_Event {
 	if m != nil {
-		return m.MessagePut
+		return m.Event
 	}
 	return nil
 }
 
+func (m *MessagesStateTransition) GetMessagePut() *MessagesStateTransitionMessagePut {
+	if x, ok := m.GetEvent().(*MessagesStateTransition_MessagePut); ok {
+		return x.MessagePut
+	}
+	return nil
+}
+
+func (m *MessagesStateTransition) GetStreamCreated() *MessagesStateTransitionStreamCreated {
+	if x, ok := m.GetEvent().(*MessagesStateTransition_StreamCreated); ok {
+		return x.StreamCreated
+	}
+	return nil
+}
+
+func (m *MessagesStateTransition) GetStreamDeleted() *MessagesStateTransitionStreamDeleted {
+	if x, ok := m.GetEvent().(*MessagesStateTransition_StreamDeleted); ok {
+		return x.StreamDeleted
+	}
+	return nil
+}
+
+// XXX_OneofWrappers is for the internal use of the proto package.
+func (*MessagesStateTransition) XXX_OneofWrappers() []interface{} {
+	return []interface{}{
+		(*MessagesStateTransition_MessagePut)(nil),
+		(*MessagesStateTransition_StreamCreated)(nil),
+		(*MessagesStateTransition_StreamDeleted)(nil),
+	}
+}
+
+type MessagesStateTransitionStreamCreated struct {
+	Config               *StreamConfig `protobuf:"bytes,1,opt,name=config,proto3" json:"config,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}      `json:"-"`
+	XXX_unrecognized     []byte        `json:"-"`
+	XXX_sizecache        int32         `json:"-"`
+}
+
+func (m *MessagesStateTransitionStreamCreated) Reset()         { *m = MessagesStateTransitionStreamCreated{} }
+func (m *MessagesStateTransitionStreamCreated) String() string { return proto.CompactTextString(m) }
+func (*MessagesStateTransitionStreamCreated) ProtoMessage()    {}
+func (*MessagesStateTransitionStreamCreated) Descriptor() ([]byte, []int) {
+	return fileDescriptor_d938547f84707355, []int{16}
+}
+
+func (m *MessagesStateTransitionStreamCreated) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_MessagesStateTransitionStreamCreated.Unmarshal(m, b)
+}
+func (m *MessagesStateTransitionStreamCreated) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_MessagesStateTransitionStreamCreated.Marshal(b, m, deterministic)
+}
+func (m *MessagesStateTransitionStreamCreated) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_MessagesStateTransitionStreamCreated.Merge(m, src)
+}
+func (m *MessagesStateTransitionStreamCreated) XXX_Size() int {
+	return xxx_messageInfo_MessagesStateTransitionStreamCreated.Size(m)
+}
+func (m *MessagesStateTransitionStreamCreated) XXX_DiscardUnknown() {
+	xxx_messageInfo_MessagesStateTransitionStreamCreated.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_MessagesStateTransitionStreamCreated proto.InternalMessageInfo
+
+func (m *MessagesStateTransitionStreamCreated) GetConfig() *StreamConfig {
+	if m != nil {
+		return m.Config
+	}
+	return nil
+}
+
+type MessagesStateTransitionStreamDeleted struct {
+	StreamID             string   `protobuf:"bytes,1,opt,name=StreamID,proto3" json:"StreamID,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *MessagesStateTransitionStreamDeleted) Reset()         { *m = MessagesStateTransitionStreamDeleted{} }
+func (m *MessagesStateTransitionStreamDeleted) String() string { return proto.CompactTextString(m) }
+func (*MessagesStateTransitionStreamDeleted) ProtoMessage()    {}
+func (*MessagesStateTransitionStreamDeleted) Descriptor() ([]byte, []int) {
+	return fileDescriptor_d938547f84707355, []int{17}
+}
+
+func (m *MessagesStateTransitionStreamDeleted) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_MessagesStateTransitionStreamDeleted.Unmarshal(m, b)
+}
+func (m *MessagesStateTransitionStreamDeleted) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_MessagesStateTransitionStreamDeleted.Marshal(b, m, deterministic)
+}
+func (m *MessagesStateTransitionStreamDeleted) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_MessagesStateTransitionStreamDeleted.Merge(m, src)
+}
+func (m *MessagesStateTransitionStreamDeleted) XXX_Size() int {
+	return xxx_messageInfo_MessagesStateTransitionStreamDeleted.Size(m)
+}
+func (m *MessagesStateTransitionStreamDeleted) XXX_DiscardUnknown() {
+	xxx_messageInfo_MessagesStateTransitionStreamDeleted.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_MessagesStateTransitionStreamDeleted proto.InternalMessageInfo
+
+func (m *MessagesStateTransitionStreamDeleted) GetStreamID() string {
+	if m != nil {
+		return m.StreamID
+	}
+	return ""
+}
+
 type MessagesStateTransitionMessagePut struct {
-	Tenant               string   `protobuf:"bytes,1,opt,name=Tenant,proto3" json:"Tenant,omitempty"`
-	Offset               uint64   `protobuf:"varint,2,opt,name=Offset,proto3" json:"Offset,omitempty"`
-	Payload              []byte   `protobuf:"bytes,3,opt,name=Payload,proto3" json:"Payload,omitempty"`
+	StreamID             string   `protobuf:"bytes,1,opt,name=StreamID,proto3" json:"StreamID,omitempty"`
+	ShardID              string   `protobuf:"bytes,2,opt,name=ShardID,proto3" json:"ShardID,omitempty"`
+	Offset               uint64   `protobuf:"varint,3,opt,name=Offset,proto3" json:"Offset,omitempty"`
+	Payload              []byte   `protobuf:"bytes,4,opt,name=Payload,proto3" json:"Payload,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -272,7 +885,7 @@ func (m *MessagesStateTransitionMessagePut) Reset()         { *m = MessagesState
 func (m *MessagesStateTransitionMessagePut) String() string { return proto.CompactTextString(m) }
 func (*MessagesStateTransitionMessagePut) ProtoMessage()    {}
 func (*MessagesStateTransitionMessagePut) Descriptor() ([]byte, []int) {
-	return fileDescriptor_d938547f84707355, []int{6}
+	return fileDescriptor_d938547f84707355, []int{18}
 }
 
 func (m *MessagesStateTransitionMessagePut) XXX_Unmarshal(b []byte) error {
@@ -293,9 +906,16 @@ func (m *MessagesStateTransitionMessagePut) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_MessagesStateTransitionMessagePut proto.InternalMessageInfo
 
-func (m *MessagesStateTransitionMessagePut) GetTenant() string {
+func (m *MessagesStateTransitionMessagePut) GetStreamID() string {
 	if m != nil {
-		return m.Tenant
+		return m.StreamID
+	}
+	return ""
+}
+
+func (m *MessagesStateTransitionMessagePut) GetShardID() string {
+	if m != nil {
+		return m.ShardID
 	}
 	return ""
 }
@@ -315,42 +935,76 @@ func (m *MessagesStateTransitionMessagePut) GetPayload() []byte {
 }
 
 func init() {
+	proto.RegisterType((*StreamConfig)(nil), "pb.StreamConfig")
+	proto.RegisterType((*StoredMessage)(nil), "pb.StoredMessage")
+	proto.RegisterType((*MessageGetStreamInput)(nil), "pb.MessageGetStreamInput")
+	proto.RegisterType((*MessageGetStreamOutput)(nil), "pb.MessageGetStreamOutput")
+	proto.RegisterType((*MessageCreateStreamInput)(nil), "pb.MessageCreateStreamInput")
+	proto.RegisterType((*MessageCreateStreamOutput)(nil), "pb.MessageCreateStreamOutput")
+	proto.RegisterType((*MessageDeleteStreamInput)(nil), "pb.MessageDeleteStreamInput")
+	proto.RegisterType((*MessageDeleteStreamOutput)(nil), "pb.MessageDeleteStreamOutput")
+	proto.RegisterType((*MessageGetMessagesInput)(nil), "pb.MessageGetMessagesInput")
+	proto.RegisterType((*MessageGetMessagesOutput)(nil), "pb.MessageGetMessagesOutput")
 	proto.RegisterType((*MessagePutMessageInput)(nil), "pb.MessagePutMessageInput")
 	proto.RegisterType((*MessagePutMessageOutput)(nil), "pb.MessagePutMessageOutput")
 	proto.RegisterType((*MessagePutMessageBatchInput)(nil), "pb.MessagePutMessageBatchInput")
 	proto.RegisterType((*MessagePutMessageBatchOutput)(nil), "pb.MessagePutMessageBatchOutput")
 	proto.RegisterType((*MessagesStateTransitionSet)(nil), "pb.MessagesStateTransitionSet")
 	proto.RegisterType((*MessagesStateTransition)(nil), "pb.MessagesStateTransition")
+	proto.RegisterType((*MessagesStateTransitionStreamCreated)(nil), "pb.MessagesStateTransitionStreamCreated")
+	proto.RegisterType((*MessagesStateTransitionStreamDeleted)(nil), "pb.MessagesStateTransitionStreamDeleted")
 	proto.RegisterType((*MessagesStateTransitionMessagePut)(nil), "pb.MessagesStateTransitionMessagePut")
 }
 
 func init() { proto.RegisterFile("types.proto", fileDescriptor_d938547f84707355) }
 
 var fileDescriptor_d938547f84707355 = []byte{
-	// 368 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x84, 0x52, 0xc1, 0x6e, 0xe2, 0x30,
-	0x10, 0x55, 0x00, 0x81, 0x76, 0x58, 0x09, 0xc9, 0x07, 0x36, 0x1b, 0x56, 0xdb, 0x34, 0x52, 0xa5,
-	0xf4, 0x40, 0x52, 0x41, 0xbf, 0xa0, 0x52, 0x0f, 0x55, 0x55, 0x41, 0x03, 0xb7, 0x9e, 0x9c, 0x60,
-	0x20, 0x6a, 0x70, 0x5c, 0x3c, 0x41, 0xe5, 0xa7, 0xfa, 0x8d, 0x15, 0xb1, 0x43, 0x28, 0xa4, 0xf4,
-	0xe6, 0x37, 0xf3, 0xe6, 0x3d, 0x7b, 0x9e, 0xa1, 0x8d, 0x5b, 0xc1, 0xa4, 0x27, 0xd6, 0x29, 0xa6,
-	0xa4, 0x26, 0x42, 0xeb, 0x66, 0x11, 0xe3, 0x32, 0x0b, 0xbd, 0x28, 0x5d, 0xf9, 0x9b, 0xf7, 0x7e,
-	0x42, 0x43, 0xe9, 0xaf, 0xde, 0x10, 0xfb, 0x39, 0x25, 0x4a, 0x13, 0x5f, 0xd0, 0xe8, 0x95, 0xa1,
-	0x2f, 0x42, 0x35, 0xe5, 0xbc, 0x40, 0xf7, 0x89, 0x49, 0x49, 0x17, 0x6c, 0x9c, 0xa1, 0x3e, 0x3d,
-	0x70, 0x91, 0x21, 0xe9, 0x42, 0x13, 0x19, 0xa7, 0x1c, 0x4d, 0xc3, 0x36, 0xdc, 0x5f, 0x81, 0x46,
-	0xe4, 0x1a, 0x5a, 0x22, 0x0b, 0x93, 0x58, 0x2e, 0xcd, 0x9a, 0x6d, 0xb8, 0xed, 0x41, 0xc7, 0x53,
-	0xa2, 0xde, 0x58, 0x95, 0x83, 0xa2, 0xef, 0xfc, 0x85, 0x3f, 0x27, 0xe2, 0xa3, 0x0c, 0x45, 0x86,
-	0xce, 0x04, 0x7a, 0x27, 0xad, 0x3b, 0x8a, 0xd1, 0x52, 0x99, 0xdf, 0x42, 0x2b, 0x47, 0x4c, 0x9a,
-	0x86, 0x5d, 0x77, 0xdb, 0x03, 0xcb, 0x13, 0xa1, 0x57, 0x7d, 0xd3, 0xa0, 0xa0, 0x3a, 0xff, 0xe1,
-	0x5f, 0xb5, 0xa8, 0x36, 0x7d, 0x06, 0x4b, 0x57, 0xe5, 0x04, 0x29, 0xb2, 0xe9, 0x9a, 0x72, 0x19,
-	0x63, 0x9c, 0xf2, 0x09, 0x43, 0x32, 0x84, 0x26, 0xdb, 0x30, 0x8e, 0x85, 0x65, 0xef, 0xc0, 0xf2,
-	0x98, 0x1f, 0x68, 0xaa, 0x83, 0xfb, 0x27, 0x1e, 0x53, 0x08, 0x81, 0xc6, 0x63, 0xcc, 0x67, 0x7a,
-	0x7d, 0xf9, 0x99, 0xdc, 0x03, 0x94, 0x37, 0xd4, 0xfb, 0xbb, 0x3a, 0xe3, 0x53, 0x92, 0x83, 0x83,
-	0x41, 0x67, 0x05, 0x97, 0x3f, 0x0e, 0xec, 0x02, 0x9c, 0x7e, 0x09, 0x50, 0xa1, 0x5d, 0x7d, 0x34,
-	0x9f, 0x4b, 0xa6, 0xfc, 0x1b, 0x81, 0x46, 0xc4, 0x84, 0xd6, 0x98, 0x6e, 0x93, 0x94, 0xce, 0xcc,
-	0xba, 0x6d, 0xb8, 0xbf, 0x83, 0x02, 0x0e, 0x3e, 0x0c, 0xe8, 0xec, 0xfd, 0xd8, 0x7a, 0x13, 0x47,
-	0x6c, 0xf7, 0x92, 0x72, 0xc9, 0xe4, 0x4c, 0x3c, 0x56, 0xaf, 0xb2, 0xa7, 0x22, 0x21, 0x53, 0xe8,
-	0x1c, 0x65, 0x45, 0x2e, 0x2a, 0xf9, 0xe5, 0xe7, 0xb0, 0xec, 0xef, 0x09, 0x4a, 0x35, 0x6c, 0xe6,
-	0x9f, 0x7b, 0xf8, 0x19, 0x00, 0x00, 0xff, 0xff, 0x9a, 0xe9, 0x78, 0xac, 0x21, 0x03, 0x00, 0x00,
+	// 711 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xac, 0x56, 0xdf, 0x72, 0xd2, 0x4e,
+	0x14, 0x6e, 0x80, 0x1f, 0x2d, 0x07, 0x7e, 0x56, 0x77, 0xc6, 0x9a, 0x86, 0x5a, 0x71, 0x47, 0x47,
+	0xc6, 0x99, 0x82, 0x43, 0xbd, 0xf2, 0x4e, 0x4a, 0xa7, 0xc5, 0x4e, 0x2d, 0x2e, 0x7d, 0x81, 0x05,
+	0xb6, 0x14, 0xa5, 0x24, 0x26, 0x4b, 0xa7, 0xbd, 0xf6, 0xd2, 0x0b, 0x1f, 0xc1, 0xb7, 0xf2, 0x79,
+	0x9c, 0xec, 0x6e, 0x36, 0x1b, 0x48, 0x43, 0x47, 0xbd, 0xe3, 0x64, 0xbf, 0x7c, 0xe7, 0xdb, 0xf3,
+	0xe7, 0x0b, 0x50, 0xe6, 0xb7, 0x1e, 0x0b, 0x1a, 0x9e, 0xef, 0x72, 0x17, 0xe5, 0xbc, 0x81, 0xf3,
+	0x66, 0x3c, 0xe1, 0x97, 0xf3, 0x41, 0x63, 0xe8, 0x5e, 0x35, 0xaf, 0x6f, 0xf6, 0xa6, 0x74, 0x10,
+	0x34, 0xaf, 0xbe, 0x72, 0xbe, 0x27, 0x20, 0x43, 0x77, 0xda, 0xf4, 0xe8, 0xf0, 0x0b, 0xe3, 0x4d,
+	0x6f, 0x20, 0xdf, 0xc2, 0xef, 0xa0, 0xd2, 0xe7, 0x3e, 0xa3, 0x57, 0x07, 0xee, 0xec, 0x62, 0x32,
+	0x46, 0x0f, 0x20, 0xd7, 0xed, 0xd8, 0x56, 0xcd, 0xaa, 0x97, 0x48, 0xae, 0xdb, 0x41, 0x0e, 0x6c,
+	0xf4, 0x2f, 0xa9, 0x3f, 0xea, 0x76, 0x02, 0x3b, 0x57, 0xcb, 0xd7, 0x4b, 0x44, 0xc7, 0xf8, 0x3d,
+	0xfc, 0xdf, 0xe7, 0xae, 0xcf, 0x46, 0xa7, 0x2c, 0x08, 0xe8, 0x98, 0xa1, 0x2d, 0x28, 0x9e, 0x5d,
+	0x5c, 0x04, 0x8c, 0x0b, 0x82, 0x02, 0x51, 0x11, 0xb2, 0x61, 0xbd, 0x47, 0x6f, 0xa7, 0x2e, 0x1d,
+	0xd9, 0xb9, 0x9a, 0x55, 0xaf, 0x90, 0x28, 0xc4, 0xaf, 0xe0, 0xb1, 0x7a, 0xf9, 0x88, 0x71, 0x29,
+	0xa4, 0x3b, 0xf3, 0xe6, 0x7c, 0x51, 0x07, 0x26, 0xb0, 0xb5, 0x08, 0x3c, 0x9b, 0xf3, 0x14, 0x24,
+	0xaa, 0x43, 0x71, 0x28, 0xee, 0x22, 0x72, 0x95, 0x5b, 0x0f, 0x1b, 0xde, 0xa0, 0x61, 0xde, 0x91,
+	0xa8, 0x73, 0xfc, 0x01, 0x6c, 0xc5, 0x79, 0xe0, 0x33, 0xca, 0x59, 0x46, 0x7e, 0xb4, 0x0b, 0x20,
+	0xee, 0x7d, 0xe0, 0xce, 0x67, 0x5c, 0x30, 0xe7, 0x89, 0xf1, 0x04, 0x57, 0x61, 0x3b, 0x85, 0x4b,
+	0x4a, 0xc4, 0xaf, 0x75, 0xa2, 0x0e, 0x9b, 0xb2, 0xcc, 0x44, 0x06, 0x91, 0x89, 0x55, 0x44, 0xdf,
+	0x2c, 0x78, 0x12, 0x97, 0x41, 0xfd, 0x0a, 0x24, 0x51, 0xd8, 0x29, 0xc9, 0x1b, 0xd1, 0xe9, 0x38,
+	0x6c, 0x80, 0xea, 0x9a, 0x90, 0x5e, 0x22, 0x51, 0x68, 0xb4, 0x2c, 0x9f, 0x68, 0x99, 0x03, 0x1b,
+	0xa7, 0xf4, 0x46, 0xde, 0xb6, 0x20, 0x4e, 0x74, 0x8c, 0x7f, 0x5a, 0xfa, 0x3e, 0x86, 0x0a, 0xd5,
+	0x8e, 0x3f, 0x93, 0xb1, 0x0b, 0xf0, 0x91, 0xdd, 0xf0, 0x84, 0x14, 0xe3, 0x09, 0xda, 0x83, 0x8d,
+	0x28, 0x8f, 0x5d, 0xa8, 0xe5, 0xeb, 0xe5, 0xd6, 0x23, 0xd9, 0x56, 0x63, 0xfc, 0x88, 0x86, 0xe0,
+	0xcf, 0x7a, 0x5a, 0x7a, 0xf3, 0x48, 0xe0, 0xea, 0x2a, 0x45, 0xb3, 0x7e, 0xc2, 0x6e, 0x95, 0x3e,
+	0x1d, 0x87, 0xd2, 0x3d, 0x35, 0xc2, 0x79, 0x39, 0xc2, 0x2a, 0xc4, 0x63, 0xdd, 0x92, 0x38, 0xd7,
+	0x5f, 0xd5, 0xe2, 0x8e, 0x96, 0xe0, 0x3e, 0x54, 0x97, 0x12, 0xb5, 0x29, 0x1f, 0x5e, 0xca, 0x9b,
+	0xbd, 0x85, 0x75, 0x11, 0xb1, 0xc0, 0xb6, 0x44, 0x85, 0x9c, 0xb0, 0x42, 0xe9, 0x65, 0x20, 0x11,
+	0x14, 0xef, 0xc2, 0x4e, 0x3a, 0xa9, 0x9a, 0xb8, 0x4f, 0xe0, 0x44, 0x55, 0xed, 0x73, 0xca, 0xd9,
+	0xb9, 0x4f, 0x67, 0xc1, 0x84, 0x4f, 0xdc, 0x59, 0x9f, 0x71, 0xb4, 0x0f, 0x45, 0x76, 0xcd, 0x66,
+	0x3c, 0x4a, 0x59, 0x35, 0x52, 0x2e, 0xe2, 0x89, 0x82, 0xe2, 0x1f, 0x39, 0x5d, 0xb1, 0x45, 0x0c,
+	0x3a, 0x02, 0x88, 0xe5, 0xa8, 0x05, 0x7e, 0x99, 0x41, 0x1a, 0x83, 0x8f, 0xd7, 0x88, 0xf1, 0x2a,
+	0xea, 0x85, 0xde, 0x24, 0x76, 0x5e, 0xac, 0xa3, 0xec, 0x5a, 0xb9, 0x55, 0xcf, 0xe0, 0x4a, 0xe0,
+	0x8f, 0xd7, 0x48, 0x92, 0x20, 0x66, 0x94, 0x7b, 0x39, 0x12, 0x6b, 0x71, 0x1f, 0x46, 0x85, 0x8f,
+	0x19, 0xd5, 0x83, 0xf6, 0x3a, 0xfc, 0x77, 0x18, 0x96, 0x04, 0xf7, 0xe0, 0xc5, 0x7d, 0x34, 0x19,
+	0xd6, 0x66, 0xad, 0xb0, 0xb6, 0xf6, 0x0a, 0x46, 0x25, 0x21, 0x6b, 0x42, 0xf1, 0x77, 0x0b, 0x9e,
+	0xaf, 0x2c, 0xfb, 0x3f, 0xb6, 0x1d, 0xe3, 0x4b, 0x51, 0x48, 0x7c, 0x29, 0x5a, 0xbf, 0xf2, 0xb0,
+	0xa9, 0xd5, 0x30, 0xff, 0x7a, 0x32, 0x64, 0xe8, 0x04, 0x2a, 0xa6, 0xdb, 0xa2, 0x1d, 0xa3, 0x17,
+	0x4b, 0x96, 0xee, 0x3c, 0xbd, 0xe3, 0x54, 0x2d, 0xeb, 0x09, 0x54, 0x4c, 0xc7, 0x4d, 0x90, 0x2d,
+	0xd9, 0x76, 0x82, 0x6c, 0xd9, 0xa8, 0x51, 0x1b, 0x4a, 0xfa, 0x3b, 0x85, 0xb6, 0x0d, 0x6c, 0xf2,
+	0x33, 0xe7, 0x38, 0x69, 0x47, 0x8a, 0xe3, 0x18, 0xca, 0x86, 0xbd, 0xa2, 0x6a, 0x12, 0x9a, 0x30,
+	0x7f, 0x67, 0x27, 0xfd, 0x50, 0x31, 0x1d, 0x02, 0xc4, 0xdb, 0x8d, 0x32, 0x7c, 0xc1, 0xa9, 0xa6,
+	0x9e, 0x29, 0x9a, 0x73, 0xd8, 0x5c, 0x30, 0x09, 0xf4, 0x2c, 0x15, 0x1f, 0xbb, 0x92, 0x53, 0xbb,
+	0x1b, 0x20, 0x59, 0x07, 0x45, 0xf1, 0x47, 0x64, 0xff, 0x77, 0x00, 0x00, 0x00, 0xff, 0xff, 0x7d,
+	0x2e, 0x8b, 0x22, 0xcd, 0x08, 0x00, 0x00,
 }
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -365,6 +1019,10 @@ const _ = grpc.SupportPackageIsVersion4
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
 type MessagesServiceClient interface {
+	CreateStream(ctx context.Context, in *MessageCreateStreamInput, opts ...grpc.CallOption) (*MessageCreateStreamOutput, error)
+	DeleteStream(ctx context.Context, in *MessageDeleteStreamInput, opts ...grpc.CallOption) (*MessageDeleteStreamOutput, error)
+	GetStream(ctx context.Context, in *MessageGetStreamInput, opts ...grpc.CallOption) (*MessageGetStreamOutput, error)
+	GetMessages(ctx context.Context, in *MessageGetMessagesInput, opts ...grpc.CallOption) (*MessageGetMessagesOutput, error)
 	PutMessage(ctx context.Context, in *MessagePutMessageInput, opts ...grpc.CallOption) (*MessagePutMessageOutput, error)
 	PutMessageBatch(ctx context.Context, in *MessagePutMessageBatchInput, opts ...grpc.CallOption) (*MessagePutMessageBatchOutput, error)
 }
@@ -375,6 +1033,42 @@ type messagesServiceClient struct {
 
 func NewMessagesServiceClient(cc *grpc.ClientConn) MessagesServiceClient {
 	return &messagesServiceClient{cc}
+}
+
+func (c *messagesServiceClient) CreateStream(ctx context.Context, in *MessageCreateStreamInput, opts ...grpc.CallOption) (*MessageCreateStreamOutput, error) {
+	out := new(MessageCreateStreamOutput)
+	err := c.cc.Invoke(ctx, "/pb.MessagesService/CreateStream", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *messagesServiceClient) DeleteStream(ctx context.Context, in *MessageDeleteStreamInput, opts ...grpc.CallOption) (*MessageDeleteStreamOutput, error) {
+	out := new(MessageDeleteStreamOutput)
+	err := c.cc.Invoke(ctx, "/pb.MessagesService/DeleteStream", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *messagesServiceClient) GetStream(ctx context.Context, in *MessageGetStreamInput, opts ...grpc.CallOption) (*MessageGetStreamOutput, error) {
+	out := new(MessageGetStreamOutput)
+	err := c.cc.Invoke(ctx, "/pb.MessagesService/GetStream", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *messagesServiceClient) GetMessages(ctx context.Context, in *MessageGetMessagesInput, opts ...grpc.CallOption) (*MessageGetMessagesOutput, error) {
+	out := new(MessageGetMessagesOutput)
+	err := c.cc.Invoke(ctx, "/pb.MessagesService/GetMessages", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
 }
 
 func (c *messagesServiceClient) PutMessage(ctx context.Context, in *MessagePutMessageInput, opts ...grpc.CallOption) (*MessagePutMessageOutput, error) {
@@ -397,6 +1091,10 @@ func (c *messagesServiceClient) PutMessageBatch(ctx context.Context, in *Message
 
 // MessagesServiceServer is the server API for MessagesService service.
 type MessagesServiceServer interface {
+	CreateStream(context.Context, *MessageCreateStreamInput) (*MessageCreateStreamOutput, error)
+	DeleteStream(context.Context, *MessageDeleteStreamInput) (*MessageDeleteStreamOutput, error)
+	GetStream(context.Context, *MessageGetStreamInput) (*MessageGetStreamOutput, error)
+	GetMessages(context.Context, *MessageGetMessagesInput) (*MessageGetMessagesOutput, error)
 	PutMessage(context.Context, *MessagePutMessageInput) (*MessagePutMessageOutput, error)
 	PutMessageBatch(context.Context, *MessagePutMessageBatchInput) (*MessagePutMessageBatchOutput, error)
 }
@@ -405,6 +1103,18 @@ type MessagesServiceServer interface {
 type UnimplementedMessagesServiceServer struct {
 }
 
+func (*UnimplementedMessagesServiceServer) CreateStream(ctx context.Context, req *MessageCreateStreamInput) (*MessageCreateStreamOutput, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CreateStream not implemented")
+}
+func (*UnimplementedMessagesServiceServer) DeleteStream(ctx context.Context, req *MessageDeleteStreamInput) (*MessageDeleteStreamOutput, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method DeleteStream not implemented")
+}
+func (*UnimplementedMessagesServiceServer) GetStream(ctx context.Context, req *MessageGetStreamInput) (*MessageGetStreamOutput, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetStream not implemented")
+}
+func (*UnimplementedMessagesServiceServer) GetMessages(ctx context.Context, req *MessageGetMessagesInput) (*MessageGetMessagesOutput, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetMessages not implemented")
+}
 func (*UnimplementedMessagesServiceServer) PutMessage(ctx context.Context, req *MessagePutMessageInput) (*MessagePutMessageOutput, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method PutMessage not implemented")
 }
@@ -414,6 +1124,78 @@ func (*UnimplementedMessagesServiceServer) PutMessageBatch(ctx context.Context, 
 
 func RegisterMessagesServiceServer(s *grpc.Server, srv MessagesServiceServer) {
 	s.RegisterService(&_MessagesService_serviceDesc, srv)
+}
+
+func _MessagesService_CreateStream_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(MessageCreateStreamInput)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(MessagesServiceServer).CreateStream(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/pb.MessagesService/CreateStream",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(MessagesServiceServer).CreateStream(ctx, req.(*MessageCreateStreamInput))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _MessagesService_DeleteStream_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(MessageDeleteStreamInput)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(MessagesServiceServer).DeleteStream(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/pb.MessagesService/DeleteStream",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(MessagesServiceServer).DeleteStream(ctx, req.(*MessageDeleteStreamInput))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _MessagesService_GetStream_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(MessageGetStreamInput)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(MessagesServiceServer).GetStream(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/pb.MessagesService/GetStream",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(MessagesServiceServer).GetStream(ctx, req.(*MessageGetStreamInput))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _MessagesService_GetMessages_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(MessageGetMessagesInput)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(MessagesServiceServer).GetMessages(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/pb.MessagesService/GetMessages",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(MessagesServiceServer).GetMessages(ctx, req.(*MessageGetMessagesInput))
+	}
+	return interceptor(ctx, in, info, handler)
 }
 
 func _MessagesService_PutMessage_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
@@ -456,6 +1238,22 @@ var _MessagesService_serviceDesc = grpc.ServiceDesc{
 	ServiceName: "pb.MessagesService",
 	HandlerType: (*MessagesServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
+		{
+			MethodName: "CreateStream",
+			Handler:    _MessagesService_CreateStream_Handler,
+		},
+		{
+			MethodName: "DeleteStream",
+			Handler:    _MessagesService_DeleteStream_Handler,
+		},
+		{
+			MethodName: "GetStream",
+			Handler:    _MessagesService_GetStream_Handler,
+		},
+		{
+			MethodName: "GetMessages",
+			Handler:    _MessagesService_GetMessages_Handler,
+		},
 		{
 			MethodName: "PutMessage",
 			Handler:    _MessagesService_PutMessage_Handler,

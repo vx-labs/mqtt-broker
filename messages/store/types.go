@@ -5,8 +5,10 @@ import "errors"
 var (
 	// ErrKeyNotFound is an error indicating a given key does not exist
 	ErrKeyNotFound = errors.New("not found")
-	// ErrQueueNotFound is an error indicating a given queue does not exist
-	ErrQueueNotFound = errors.New("queue not found")
+	// ErrStreamNotFound is an error indicating a given stream does not exist
+	ErrStreamNotFound = errors.New("stream not found")
+	// ErrShardNotFound is an error indicating a given shard does not exist
+	ErrShardNotFound = errors.New("shard not found")
 	// ErrIndexOutdated is an error indicating that the supplied index is outdated
 	ErrIndexOutdated = errors.New("index outdated")
 )

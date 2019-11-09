@@ -1,16 +1,17 @@
 package store
 
 import (
-	"bytes"
-	"fmt"
 	"io"
 	"os"
 	"sync"
-	"time"
 
 	"github.com/boltdb/bolt"
-	"github.com/vx-labs/mqtt-broker/events"
+	"github.com/gogo/protobuf/proto"
+	"github.com/pkg/errors"
+	"github.com/vx-labs/mqtt-broker/messages/pb"
 )
+
+var configKey = []byte("configuration")
 
 type Options struct {
 	// Path is the file path to the BoltDB to use
@@ -29,7 +30,6 @@ type Options struct {
 type BoltStore struct {
 	conn        *bolt.DB
 	options     Options
-	eventBus    *events.Bus
 	restoreLock sync.Mutex
 }
 
@@ -61,28 +61,18 @@ func New(options Options) (*BoltStore, error) {
 
 	// Create the new store
 	store := &BoltStore{
-		conn:     handle,
-		options:  options,
-		eventBus: events.NewEventBus(),
+		conn:    handle,
+		options: options,
 	}
 	return store, nil
 }
 
-func getBucketName(id string) []byte {
+func getStreamName(id string) []byte {
 	return []byte(id)
-}
-func getInflightBucketName(id string) []byte {
-	return []byte(fmt.Sprintf("%s.inflight", id))
-}
-
-func (b *BoltStore) On(queue string, event string, f func(payload interface{})) (cancel func()) {
-	return b.eventBus.Subscribe(fmt.Sprintf("%s/%s", queue, event), func(e events.Event) {
-		f(e.Entry)
-	})
 }
 
 func (b *BoltStore) Exists(id string) bool {
-	bucketName := getBucketName(id)
+	bucketName := getStreamName(id)
 	tx, err := b.conn.Begin(false)
 	if err != nil {
 		return false
@@ -90,9 +80,8 @@ func (b *BoltStore) Exists(id string) bool {
 	defer tx.Rollback()
 	return tx.Bucket(bucketName) != nil
 }
-func (b *BoltStore) DeleteQueue(id string) error {
-	bucketName := getBucketName(id)
-	inflightBucketName := getInflightBucketName(id)
+func (b *BoltStore) DeleteStream(id string) error {
+	bucketName := getStreamName(id)
 
 	tx, err := b.conn.Begin(true)
 	if err != nil {
@@ -102,52 +91,41 @@ func (b *BoltStore) DeleteQueue(id string) error {
 	if err := tx.DeleteBucket(bucketName); err != nil {
 		return err
 	}
-	if err := tx.DeleteBucket(inflightBucketName); err != nil {
-		return err
-	}
 	err = tx.Commit()
-	if err == nil {
-		b.eventBus.Emit(events.Event{
-			Key: fmt.Sprintf("%s/queue_deleted", id),
-		})
-	}
 	return err
 }
-func (b *BoltStore) CreateQueue(id string) error {
-	bucketName := getBucketName(id)
-	inflightBucketName := getInflightBucketName(id)
+
+func (b *BoltStore) CreateStream(config *pb.StreamConfig) error {
+	id := config.ID
+	shardIDs := config.ShardIDs
+	bucketName := getStreamName(id)
 	tx, err := b.conn.Begin(true)
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback()
-
-	if _, err := tx.CreateBucketIfNotExists(bucketName); err != nil {
-		return err
+	stream, err := tx.CreateBucket(bucketName)
+	if err != nil {
+		return errors.Wrap(err, "failed to create stream")
 	}
-	if _, err := tx.CreateBucketIfNotExists(inflightBucketName); err != nil {
-		return err
+	for _, id := range shardIDs {
+		_, err := stream.CreateBucket([]byte(id))
+		if err != nil {
+			return errors.Wrap(err, "failed to create shard")
+		}
+	}
+	configPayload, err := proto.Marshal(config)
+	if err != nil {
+		return errors.Wrap(err, "failed to encode stream config")
+	}
+	err = stream.Put(configKey, configPayload)
+	if err != nil {
+		return errors.Wrap(err, "failed to save stream config")
 	}
 	return tx.Commit()
 }
-func (b *BoltStore) Delete(id string, index uint64) error {
-	bucketName := getBucketName(id)
-	tx, err := b.conn.Begin(true)
-	if err != nil {
-		return err
-	}
-	defer tx.Rollback()
-	bucket := tx.Bucket(bucketName)
-	if bucket == nil {
-		return ErrQueueNotFound
-	}
-	if err := b.delete(bucket, index); err != nil {
-		return err
-	}
-	return tx.Commit()
-}
-func (b *BoltStore) Put(id string, index uint64, payload []byte) error {
-	bucketName := getBucketName(id)
+func (b *BoltStore) Put(stream string, shardID string, index uint64, payload []byte) error {
+	bucketName := getStreamName(stream)
 	tx, err := b.conn.Begin(true)
 	if err != nil {
 		return err
@@ -156,129 +134,57 @@ func (b *BoltStore) Put(id string, index uint64, payload []byte) error {
 
 	bucket := tx.Bucket(bucketName)
 	if bucket == nil {
-		return ErrQueueNotFound
+		return ErrStreamNotFound
 	}
-	err = b.put(bucket, index, payload)
-	if err != nil {
-		return err
+	shard := bucket.Bucket([]byte(shardID))
+	if shard == nil {
+		return ErrShardNotFound
 	}
-	err = tx.Commit()
-	if err == nil {
-		b.eventBus.Emit(events.Event{
-			Key: fmt.Sprintf("%s/message_put", id),
-		})
-	}
-	return err
-}
-func (b *BoltStore) AckInflight(id string, index uint64) error {
-	bucketName := getInflightBucketName(id)
-	tx, err := b.conn.Begin(true)
-	if err != nil {
-		return err
-	}
-	defer tx.Rollback()
-	bucket := tx.Bucket(bucketName)
-	if bucket == nil {
-		return ErrQueueNotFound
-	}
-	if err := b.delete(bucket, index); err != nil {
-		return err
-	}
-	return tx.Commit()
-}
-func (b *BoltStore) SetInflight(id string, index uint64, deadline uint64) error {
-	bucketName := getBucketName(id)
-	inflightBucketName := getInflightBucketName(id)
-	tx, err := b.conn.Begin(true)
-	if err != nil {
-		return err
-	}
-	defer tx.Rollback()
-
-	bucket := tx.Bucket(bucketName)
-	if bucket == nil {
-		return ErrQueueNotFound
-	}
-	inflightBucket := tx.Bucket(inflightBucketName)
-	if bucket == nil {
-		return ErrQueueNotFound
-	}
-
-	value := b.get(bucket, index)
-	err = inflightBucket.Put(uint64ToBytes(deadline), value)
+	err = b.put(shard, index, payload)
 	if err != nil {
 		return err
 	}
 	err = tx.Commit()
 	return err
+
 }
-func (b *BoltStore) TickInflights(currentTime time.Time) error {
-	now := currentTime.UnixNano()
-	tx, err := b.conn.Begin(true)
-	if err != nil {
-		return nil
-	}
-	defer tx.Rollback()
-	queues := []string{}
-	err = tx.ForEach(func(bucketName []byte, bucket *bolt.Bucket) error {
-		if bytes.HasSuffix(bucketName, []byte(".inflight")) {
-			queueBucketName := bytes.TrimSuffix(bucketName, []byte(".inflight"))
-			queueBucket := tx.Bucket(queueBucketName)
-			err := b.tickInflight(tx, queueBucket, bucket, uint64(now))
-			if err == nil {
-				queues = append(queues, string(queueBucketName))
-			}
-			return err
-		}
-		return nil
-	})
-	if err != nil {
-		return err
-	}
-	err = tx.Commit()
-	if err == nil {
-		for _, id := range queues {
-			b.eventBus.Emit(events.Event{
-				Key: fmt.Sprintf("%s/message_put", id),
-			})
-		}
-	}
-	return nil
-}
-func (b *BoltStore) tickInflight(tx *bolt.Tx, queueBucket *bolt.Bucket, bucket *bolt.Bucket, now uint64) error {
-	err := b.walk(bucket, func(key []byte, payload []byte) error {
-		deadline := bytesToUint64(key)
-		if deadline < now {
-			err := bucket.Delete(key)
-			if err != nil {
-				return err
-			}
-			offset, err := queueBucket.NextSequence()
-			if err != nil {
-				return err
-			}
-			return queueBucket.Put(uint64ToBytes(offset), payload)
-		}
-		return io.EOF
-	})
-	if err != nil {
-		if err == io.EOF {
-			return nil
-		}
-		return err
-	}
-	return nil
-}
-func (b *BoltStore) All() []string {
+func (b *BoltStore) GetStream(id string) *pb.StreamConfig {
 	tx, err := b.conn.Begin(false)
 	if err != nil {
 		return nil
 	}
 	defer tx.Rollback()
-	out := []string{}
-	err = tx.ForEach(func(bucketName []byte, _ *bolt.Bucket) error {
-		if !bytes.HasSuffix(bucketName, []byte(".inflight")) {
-			out = append(out, string(bucketName))
+	bucket := tx.Bucket(getStreamName(id))
+	if bucket == nil {
+		return nil
+	}
+
+	return b.getConfig(bucket)
+}
+
+func (b *BoltStore) getConfig(bucket *bolt.Bucket) *pb.StreamConfig {
+	configPayload := bucket.Get(configKey)
+	if configPayload == nil {
+		return nil
+	}
+	config := &pb.StreamConfig{}
+	err := proto.Unmarshal(configPayload, config)
+	if err != nil {
+		return nil
+	}
+	return config
+}
+func (b *BoltStore) ListStreams() []*pb.StreamConfig {
+	tx, err := b.conn.Begin(false)
+	if err != nil {
+		return nil
+	}
+	defer tx.Rollback()
+	out := []*pb.StreamConfig{}
+	err = tx.ForEach(func(_ []byte, bucket *bolt.Bucket) error {
+		config := b.getConfig(bucket)
+		if config != nil {
+			out = append(out, config)
 		}
 		return nil
 	})
@@ -288,13 +194,8 @@ func (b *BoltStore) All() []string {
 	return out
 }
 
-type StoredMessage struct {
-	Offset  uint64
-	Payload []byte
-}
-
-func (b *BoltStore) GetRange(id string, from uint64, buff []StoredMessage) (int, uint64, error) {
-	bucketName := getBucketName(id)
+func (b *BoltStore) GetRange(id string, shardID string, from uint64, buff []*pb.StoredMessage) (int, uint64, error) {
+	bucketName := getStreamName(id)
 	tx, err := b.conn.Begin(false)
 	if err != nil {
 		return 0, 0, err
@@ -303,9 +204,13 @@ func (b *BoltStore) GetRange(id string, from uint64, buff []StoredMessage) (int,
 
 	bucket := tx.Bucket(bucketName)
 	if bucket == nil {
-		return 0, 0, ErrQueueNotFound
+		return 0, 0, ErrStreamNotFound
 	}
-	return b.getRange(bucket, from, buff)
+	shard := bucket.Bucket([]byte(shardID))
+	if shard == nil {
+		return 0, 0, ErrShardNotFound
+	}
+	return b.getRange(shard, from, buff)
 }
 
 func (b *BoltStore) WriteTo(out io.Writer) error {

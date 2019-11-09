@@ -2,6 +2,7 @@ package store
 
 import (
 	"github.com/boltdb/bolt"
+	"github.com/vx-labs/mqtt-broker/messages/pb"
 )
 
 func (b *BoltStore) delete(backend *bolt.Bucket, index uint64) error {
@@ -17,7 +18,7 @@ func (b *BoltStore) put(backend *bolt.Bucket, index uint64, payload []byte) erro
 func (b *BoltStore) get(backend *bolt.Bucket, offset uint64) []byte {
 	return backend.Get(uint64ToBytes(offset))
 }
-func (b *BoltStore) getRange(backend *bolt.Bucket, offset uint64, buff []StoredMessage) (int, uint64, error) {
+func (b *BoltStore) getRange(backend *bolt.Bucket, offset uint64, buff []*pb.StoredMessage) (int, uint64, error) {
 	idx := 0
 	cursor := backend.Cursor()
 	count := len(buff)
@@ -31,7 +32,7 @@ func (b *BoltStore) getRange(backend *bolt.Bucket, offset uint64, buff []StoredM
 
 	for itemKey, itemValue := firstLoop(); itemKey != nil && idx < count; itemKey, itemValue = cursor.Next() {
 		offset = bytesToUint64(itemKey)
-		buff[idx] = StoredMessage{Offset: offset, Payload: itemValue}
+		buff[idx] = &pb.StoredMessage{Offset: offset, Payload: itemValue}
 		idx++
 	}
 	return idx, offset, nil

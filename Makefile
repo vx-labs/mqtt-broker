@@ -4,7 +4,7 @@ DOCKER_BUILD_ARGS = --network host --build-arg https_proxy=${https_proxy} --buil
 build:: build-api build-broker build-listener build-sessions build-subscriptions build-queues
 release:: release-api release-broker release-listener release-sessions release-subscriptions release-queues
 deploy: deploy-api deploy-broker deploy-listener deploy-sessions deploy-subscriptions deploy-queues
-deploy-nodep: deploy-api-nodep deploy-broker-nodep deploy-listener-nodep deploy-sessions-nodep deploy-subscriptions-nodep deploy-queues-nodep
+deploy-nodep: deploy-api-nodep deploy-broker-nodep deploy-listener-nodep deploy-sessions-nodep deploy-subscriptions-nodep deploy-queues-nodep deploy-messages-nodep
 
 build-api:: build-common
 	docker build ${DOCKER_BUILD_ARGS} --build-arg ARTIFACT=api -t quay.io/vxlabs/mqtt-api:${VERSION} .
@@ -18,6 +18,8 @@ build-subscriptions:: build-common
 	docker build ${DOCKER_BUILD_ARGS} --build-arg ARTIFACT=subscriptions -t quay.io/vxlabs/mqtt-subscriptions:${VERSION} .
 build-queues:: build-common
 	docker build ${DOCKER_BUILD_ARGS} --build-arg ARTIFACT=queues -t quay.io/vxlabs/mqtt-queues:${VERSION} .
+build-messages:: build-common
+	docker build ${DOCKER_BUILD_ARGS} --build-arg ARTIFACT=messages -t quay.io/vxlabs/mqtt-messages:${VERSION} .
 
 release-api:: build-api
 	docker push quay.io/vxlabs/mqtt-api:${VERSION}
@@ -31,6 +33,8 @@ release-subscriptions:: build-subscriptions
 	docker push quay.io/vxlabs/mqtt-subscriptions:${VERSION}
 release-queues:: build-queues
 	docker push quay.io/vxlabs/mqtt-queues:${VERSION}
+release-messages:: build-messages
+	docker push quay.io/vxlabs/mqtt-messages:${VERSION}
 
 deploy-api:: release-api deploy-api-nodep
 deploy-broker:: release-broker deploy-broker-nodep
@@ -38,6 +42,7 @@ deploy-listener:: release-listener deploy-listener-nodep
 deploy-sessions:: release-sessions deploy-sessions-nodep
 deploy-subscriptions:: release-subscriptions deploy-subscriptions-nodep
 deploy-queues:: release-queues deploy-queues-nodep
+deploy-messages:: release-messages deploy-messages-nodep
 
 deploy-api-nodep::
 	cd terraform/api && terraform init      && terraform apply -auto-approve -var api_version=${VERSION}
@@ -51,6 +56,8 @@ deploy-subscriptions-nodep::
 	cd terraform/subscriptions && terraform init && terraform apply -auto-approve -var subscriptions_version=${VERSION}
 deploy-queues-nodep::
 	cd terraform/queues && terraform init && terraform apply -auto-approve -var queues_version=${VERSION}
+deploy-messages-nodep::
+	cd terraform/messages && terraform init && terraform apply -auto-approve -var messages_version=${VERSION}
 nuke:
 	cd terraform/api && terraform init && terraform destroy -auto-approve -var api_version=${VERSION}
 	cd terraform/broker && terraform init && terraform destroy -auto-approve -var broker_version=${VERSION}
@@ -58,9 +65,10 @@ nuke:
 	cd terraform/sessions && terraform init && terraform destroy -auto-approve -var sessions_version=${VERSION}
 	cd terraform/subscriptions && terraform init && terraform destroy -auto-approve -var subscriptions_version=${VERSION}
 	cd terraform/queues && terraform init && terraform destroy -auto-approve -var queues_version=${VERSION}
+	cd terraform/messages && terraform init && terraform destroy -auto-approve -var messages_version=${VERSION}
 
 build-common::
 	docker build ${DOCKER_BUILD_ARGS} --target builder .
 
 dockerfiles::
-	for svc in api listener subscriptions sessions broker queues; do sed "s/###/$$svc/g" Dockerfile > Dockerfile.$$svc; done
+	for svc in api listener subscriptions sessions broker queues messages; do sed "s/###/$$svc/g" Dockerfile > Dockerfile.$$svc; done
