@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/vx-labs/mqtt-broker/cluster"
-	publishQueue "github.com/vx-labs/mqtt-broker/struct/queues/publish"
 	"go.uber.org/zap"
 
 	sessions "github.com/vx-labs/mqtt-broker/sessions/pb"
@@ -197,10 +196,7 @@ func (b *Broker) Publish(ctx context.Context, token string, p *packet.Publish) (
 		err = errors.New("QoS2 is not supported")
 		return nil, err
 	}
-	b.publishQueue.Enqueue(&publishQueue.Message{
-		Tenant:  sess.SessionTenant,
-		Publish: p,
-	})
+	b.enqueuePublish(sess.SessionTenant, p)
 	if p.Header.Qos == 1 {
 		puback := &packet.PubAck{
 			Header:    &packet.Header{},
@@ -258,17 +254,14 @@ func (b *Broker) CloseSession(ctx context.Context, token string) error {
 	}
 	if len(sess.WillTopic) > 0 {
 		b.logger.Info("sending LWT", zap.String("session_id", sess.ID), zap.Error(err))
-		b.publishQueue.Enqueue(&publishQueue.Message{
-			Tenant: sess.Tenant,
-			Publish: &packet.Publish{
-				Header: &packet.Header{
-					Dup:    false,
-					Retain: sess.WillRetain,
-					Qos:    sess.WillQoS,
-				},
-				Payload: sess.WillPayload,
-				Topic:   sess.WillTopic,
+		b.enqueuePublish(sess.Tenant, &packet.Publish{
+			Header: &packet.Header{
+				Dup:    false,
+				Retain: sess.WillRetain,
+				Qos:    sess.WillQoS,
 			},
+			Payload: sess.WillPayload,
+			Topic:   sess.WillTopic,
 		})
 	}
 	b.Sessions.Delete(b.ctx, decodedToken.SessionID)

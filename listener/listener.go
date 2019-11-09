@@ -11,7 +11,6 @@ import (
 	"github.com/google/btree"
 	brokerpb "github.com/vx-labs/mqtt-broker/broker/pb"
 	queues "github.com/vx-labs/mqtt-broker/queues/pb"
-	publishQueue "github.com/vx-labs/mqtt-broker/struct/queues/publish"
 
 	"github.com/vx-labs/mqtt-broker/cluster"
 	"github.com/vx-labs/mqtt-broker/transport"
@@ -67,34 +66,11 @@ func (local *endpoint) Close() error {
 	}
 	return nil
 }
-func (local *endpoint) CloseSession(ctx context.Context, id string) error {
-	local.mutex.Lock()
-	defer local.mutex.Unlock()
-	session := local.sessions.Delete(&localSession{
-		id: id,
-	})
-	if session != nil {
-		return session.(*localSession).transport.Close()
-	}
-	return ErrSessionNotFound
-}
-func (local *endpoint) Publish(ctx context.Context, id string, publish *packet.Publish) error {
-	session := local.sessions.Get(&localSession{
-		id: id,
-	})
-	if session == nil {
-		local.logger.Warn("session not found", zap.String("session_id", id))
-		return ErrSessionNotFound
-	}
-	session.(*localSession).queue.Enqueue(&publishQueue.Message{Publish: publish})
-	return nil
-}
 
 type localSession struct {
 	id        string
 	token     string
 	encoder   *encoder.Encoder
-	queue     publishQueue.Queue
 	logger    *zap.Logger
 	transport io.Closer
 }

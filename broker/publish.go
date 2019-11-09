@@ -8,6 +8,12 @@ import (
 	"go.uber.org/zap"
 )
 
+func (b *Broker) enqueuePublish(tenant string, publish *packet.Publish) {
+	b.publishQueue.Enqueue(&publishQueue.Message{
+		Tenant:  tenant,
+		Publish: publish,
+	})
+}
 func (b *Broker) startPublishConsumers() {
 	jobs := make(chan chan *publishQueue.Message)
 	for i := 0; i < 5; i++ {
