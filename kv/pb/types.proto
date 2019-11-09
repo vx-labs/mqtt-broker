@@ -1,0 +1,45 @@
+syntax = "proto3";
+package pb;
+import "github.com/vx-labs/mqtt-protocol/packet/pb.proto";
+
+message KVGetInput {
+  bytes Key = 1;
+}
+message KVGetOutput {
+  bytes Key = 1;
+  bytes Value= 2;
+}
+
+message KVSetInput {
+  bytes Key = 1;
+  bytes Value= 2;
+}
+message KVSetOutput {}
+
+message KVDeleteInput {
+  bytes Key = 1;
+}
+message KVDeleteOutput {}
+
+service KVService {
+  rpc Get(KVGetInput) returns (KVGetOutput);
+  rpc Set(KVSetInput) returns (KVSetOutput);
+  rpc Delete(KVDeleteInput) returns (KVDeleteOutput);
+}
+message KVStateTransitionSet {
+  repeated KVStateTransition events = 1;
+}
+message KVStateTransition {
+  oneof Event {
+  KVStateTransitionValueSet Set = 1;
+  KVStateTransitionValueDeleted Delete = 2;
+  }
+}
+
+message KVStateTransitionValueSet {
+  bytes Key = 1;
+  bytes Value= 2;
+}
+message KVStateTransitionValueDeleted {
+  bytes Key = 1;
+}

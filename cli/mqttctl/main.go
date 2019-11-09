@@ -5,6 +5,7 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	kvCommand "github.com/vx-labs/mqtt-broker/kv/cobra"
 	messagesCommand "github.com/vx-labs/mqtt-broker/messages/cobra"
 )
 
@@ -15,5 +16,6 @@ func main() {
 	config.BindPFlag("host", rootCmd.PersistentFlags().Lookup("host"))
 	ctx := context.Background()
 	messagesCommand.Register(ctx, rootCmd, config)
+	kvCommand.Register(ctx, rootCmd, config)
 	rootCmd.Execute()
 }
