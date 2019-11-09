@@ -1,7 +1,9 @@
 package broker
 
 import (
+	"context"
 	"net"
+	"time"
 
 	"github.com/cenkalti/backoff"
 	"github.com/vx-labs/mqtt-broker/cluster"
@@ -27,11 +29,13 @@ func (b *Broker) JoinServiceLayer(name string, logger *zap.Logger, config cluste
 		}
 		b.Messages = messages.NewClient(messagesConn)
 		err = backoff.Retry(func() error {
-			_, err := b.Messages.GetStream(b.ctx, "messages")
+			ctx, cancel := context.WithTimeout(b.ctx, 3*time.Second)
+			defer cancel()
+			_, err := b.Messages.GetStream(ctx, "messages")
 			if err != nil {
 				if code, ok := status.FromError(err); ok {
 					if code.Code() == codes.NotFound {
-						err := b.Messages.CreateStream(b.ctx, "messages", 1)
+						err := b.Messages.CreateStream(ctx, "messages", 1)
 						if err != nil {
 							b.logger.Error("failed to create stream in message store", zap.Error(err))
 						}

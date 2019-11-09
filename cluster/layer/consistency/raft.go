@@ -119,12 +119,16 @@ func (s *raftlayer) Start(name string, state types.RaftState) error {
 	if index != 0 {
 		return nil
 	}
+	err = s.discovery.RegisterService(fmt.Sprintf("%s_cluster", name), fmt.Sprintf("%s:%d", s.config.AdvertiseAddr, s.config.AdvertisePort))
+	if err != nil {
+		return err
+	}
 	go func() {
 		defer cancel()
 		for {
-			// hardcoded for now
 			select {
 			case <-ctx.Done():
+				s.logger.Debug("join session canceled")
 				return
 			case err := <-s.startClusterJoin(ctx, name, 3):
 				if err != nil {
@@ -134,6 +138,7 @@ func (s *raftlayer) Start(name string, state types.RaftState) error {
 					}
 					s.logger.Error("failed to join cluster, retrying", zap.Error(err))
 				} else {
+					s.logger.Debug("join session finished")
 					return
 				}
 			}
@@ -156,6 +161,7 @@ func (s *raftlayer) nodeStatus(node, serviceName string) string {
 		return nil
 	})
 	if err != nil {
+		s.logger.Error("failed to get remote node status", zap.Error(err))
 		return ""
 	}
 	return status

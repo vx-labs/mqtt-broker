@@ -154,20 +154,22 @@ func (s *server) PutMessage(ctx context.Context, input *pb.MessagePutMessageInpu
 	}, err
 }
 func (s *server) PutMessageBatch(ctx context.Context, ev *pb.MessagePutMessageBatchInput) (*pb.MessagePutMessageBatchOutput, error) {
-	// FIXME: do not use time as a key generator
-	now := time.Now().UnixNano()
 	event := []*pb.MessagesStateTransition{}
-	idx := now
 	for _, input := range ev.Batches {
+		stream := s.store.GetStream(input.StreamID)
+		if stream == nil {
+			return nil, ErrNotFound("stream not found")
+		}
+		idx := uint64(time.Now().UnixNano())
 		payload := input.Payload
-		// FIXME: implem sharding
-		shardID := "1"
+		shardIdx := hashShardKey(input.ShardKey, len(stream.ShardIDs))
+		shardID := stream.ShardIDs[shardIdx]
 		event = append(event, &pb.MessagesStateTransition{
 			Event: &pb.MessagesStateTransition_MessagePut{
 				MessagePut: &pb.MessagesStateTransitionMessagePut{
 					StreamID: input.StreamID,
 					ShardID:  shardID,
-					Offset:   uint64(idx),
+					Offset:   idx,
 					Payload:  payload,
 				},
 			},
@@ -176,7 +178,7 @@ func (s *server) PutMessageBatch(ctx context.Context, ev *pb.MessagePutMessageBa
 	}
 	err := s.commitEvent(event...)
 	if err != nil {
-		s.logger.Error("failed to commit queue put batch event", zap.Error(err))
+		s.logger.Error("failed to commit messages put batch event", zap.Error(err))
 	}
 	return &pb.MessagePutMessageBatchOutput{}, err
 }

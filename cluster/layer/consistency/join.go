@@ -107,7 +107,6 @@ func (s *raftlayer) startClusterJoin(ctx context.Context, name string, expectNod
 	return ch
 }
 func (s *raftlayer) joinCluster(ctx context.Context, name string, expectNodeCount int, logger *zap.Logger, done func(members []*pb.NodeService) error) error {
-	s.discovery.RegisterService(fmt.Sprintf("%s_cluster", name), fmt.Sprintf("%s:%d", s.config.AdvertiseAddr, s.config.AdvertisePort))
 	s.status = raftStatusBootstrapping
 	ticker := time.NewTicker(5 * time.Second)
 	defer ticker.Stop()

@@ -12,6 +12,7 @@ import (
 	"github.com/vx-labs/mqtt-broker/listener"
 	"github.com/vx-labs/mqtt-broker/messages"
 	"github.com/vx-labs/mqtt-broker/queues"
+	"github.com/vx-labs/mqtt-broker/router"
 	"github.com/vx-labs/mqtt-broker/sessions"
 	"github.com/vx-labs/mqtt-broker/subscriptions"
 	"github.com/vx-labs/mqtt-broker/transport"
@@ -112,6 +113,12 @@ func main() {
 			ctx.AddService(cmd, "subscriptions", func(id string, logger *zap.Logger, mesh cluster.DiscoveryLayer) cli.Service {
 				return subscriptions.New(id, logger)
 			})
+			if withRouter, _ := cmd.Flags().GetBool("with-router-cn"); withRouter {
+				ctx.AddService(cmd, "router", func(id string, logger *zap.Logger, mesh cluster.DiscoveryLayer) cli.Service {
+					return router.New(id, logger, mesh)
+				})
+			}
+
 			ctx.Run()
 		},
 	}
@@ -131,5 +138,6 @@ func main() {
 	root.Flags().IntP("wss-port", "w", 0, "Start Secure WS listener on this port. Specify 0 to disable the listener")
 	root.Flags().IntP("ws-port", "", 0, "Start WS listener on this port. Specify 0 to disable the listener")
 	root.Flags().StringP("tls-cn", "", "localhost", "Get ACME certificat for this CN")
+	root.Flags().BoolP("with-router", "", false, "Start the router message consumer")
 	root.Execute()
 }
