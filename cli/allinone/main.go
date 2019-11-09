@@ -9,6 +9,7 @@ import (
 	"github.com/vx-labs/mqtt-broker/api"
 	"github.com/vx-labs/mqtt-broker/cli"
 	"github.com/vx-labs/mqtt-broker/listener"
+	"github.com/vx-labs/mqtt-broker/messages"
 	"github.com/vx-labs/mqtt-broker/queues"
 	"github.com/vx-labs/mqtt-broker/sessions"
 	"github.com/vx-labs/mqtt-broker/subscriptions"
@@ -101,6 +102,9 @@ func main() {
 			ctx.AddService(cmd, "queues", func(id string, logger *zap.Logger, mesh cluster.DiscoveryLayer) cli.Service {
 				return queues.New(id, logger)
 			})
+			ctx.AddService(cmd, "messages", func(id string, logger *zap.Logger, mesh cluster.DiscoveryLayer) cli.Service {
+				return messages.New(id, logger)
+			})
 			ctx.AddService(cmd, "subscriptions", func(id string, logger *zap.Logger, mesh cluster.DiscoveryLayer) cli.Service {
 				return subscriptions.New(id, logger)
 			})
@@ -114,6 +118,7 @@ func main() {
 	cli.AddServiceFlags(root, "sessions")
 	cli.AddServiceFlags(root, "subscriptions")
 	cli.AddServiceFlags(root, "queues")
+	cli.AddServiceFlags(root, "messages")
 	root.Flags().IntP("api-tcp-port", "", 0, "Start API TCP listener on this port. Specify 0 to disable the listener")
 	root.Flags().IntP("api-tls-port", "", 0, "Start API TLS listener on this port. Specify 0 to disable the listener")
 	root.Flags().IntP("tcp-port", "t", 0, "Start TCP listener on this port. Specify 0 to disable the listener")

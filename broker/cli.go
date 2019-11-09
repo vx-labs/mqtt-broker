@@ -3,8 +3,12 @@ package broker
 import (
 	"net"
 
+	"github.com/cenkalti/backoff"
 	"github.com/vx-labs/mqtt-broker/cluster"
+	messages "github.com/vx-labs/mqtt-broker/messages/pb"
 	"go.uber.org/zap"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 func (b *Broker) Serve(port int) net.Listener {
@@ -16,6 +20,34 @@ func (b *Broker) Shutdown() {
 func (b *Broker) JoinServiceLayer(name string, logger *zap.Logger, config cluster.ServiceConfig, rpcConfig cluster.ServiceConfig, mesh cluster.DiscoveryLayer) {
 	l := cluster.NewGossipServiceLayer(name, logger, config, mesh)
 	b.Start(l)
+	go func() {
+		messagesConn, err := mesh.DialService("messages?tags=leader")
+		if err != nil {
+			panic(err)
+		}
+		b.Messages = messages.NewClient(messagesConn)
+		err = backoff.Retry(func() error {
+			_, err := b.Messages.GetStream(b.ctx, "messages")
+			if err != nil {
+				if code, ok := status.FromError(err); ok {
+					if code.Code() == codes.NotFound {
+						err := b.Messages.CreateStream(b.ctx, "messages", 1)
+						if err != nil {
+							b.logger.Error("failed to create stream in message store", zap.Error(err))
+						}
+					}
+				} else {
+					b.logger.Error("failed to ensure stream exists", zap.Error(err))
+				}
+				return err
+			}
+			return nil
+		}, backoff.NewExponentialBackOff())
+		if err != nil {
+			b.logger.Fatal("failed to create stream in message store", zap.Error(err))
+		}
+		b.startPublishConsumers()
+	}()
 }
 
 func (b *Broker) Health() string {

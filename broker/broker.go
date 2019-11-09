@@ -19,6 +19,7 @@ import (
 
 	"github.com/vx-labs/mqtt-protocol/packet"
 
+	messages "github.com/vx-labs/mqtt-broker/messages/pb"
 	queues "github.com/vx-labs/mqtt-broker/queues/pb"
 	publishQueue "github.com/vx-labs/mqtt-broker/struct/queues/publish"
 	subscriptions "github.com/vx-labs/mqtt-broker/subscriptions/pb"
@@ -69,7 +70,11 @@ type Queue interface {
 	Consume(f func(*publishQueue.Message))
 	Close() error
 }
-
+type MessagesStore interface {
+	Put(ctx context.Context, streamId string, shardKey string, payload []byte) error
+	CreateStream(ctx context.Context, streamId string, shardCount int) error
+	GetStream(ctx context.Context, streamId string) (*messages.StreamConfig, error)
+}
 type Broker struct {
 	ID            string
 	logger        *zap.Logger
@@ -79,6 +84,7 @@ type Broker struct {
 	Sessions      SessionStore
 	Topics        TopicStore
 	Queues        QueuesStore
+	Messages      MessagesStore
 	Peers         PeerStore
 	workers       *pool.Pool
 	ctx           context.Context
@@ -112,7 +118,6 @@ func New(id string, logger *zap.Logger, mesh cluster.DiscoveryLayer, config Conf
 		Subscriptions: subscriptions.NewClient(subscriptionsConn),
 	}
 
-	broker.startPublishConsumers()
 	return broker
 }
 
