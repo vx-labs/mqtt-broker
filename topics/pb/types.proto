@@ -14,3 +14,16 @@ message RetainedMessage {
 message RetainedMessageMetadataList {
   repeated RetainedMessage RetainedMessages = 1;
 }
+
+message ByTopicPatternInput {
+  string Tenant = 1;
+  bytes Pattern = 2;
+}
+
+message ByTopicPatternOutput {
+  repeated RetainedMessage messages = 1;
+}
+
+service TopicsService {
+  rpc ByTopicPattern(ByTopicPatternInput) returns (ByTopicPatternOutput);
+}

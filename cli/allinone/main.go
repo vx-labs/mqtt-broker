@@ -15,6 +15,7 @@ import (
 	"github.com/vx-labs/mqtt-broker/router"
 	"github.com/vx-labs/mqtt-broker/sessions"
 	"github.com/vx-labs/mqtt-broker/subscriptions"
+	"github.com/vx-labs/mqtt-broker/topics"
 	"github.com/vx-labs/mqtt-broker/transport"
 	"go.uber.org/zap"
 
@@ -112,6 +113,9 @@ func main() {
 			})
 			ctx.AddService(cmd, "subscriptions", func(id string, logger *zap.Logger, mesh cluster.DiscoveryLayer) cli.Service {
 				return subscriptions.New(id, logger)
+			})
+			ctx.AddService(cmd, "topics", func(id string, logger *zap.Logger, mesh cluster.DiscoveryLayer) cli.Service {
+				return topics.New(id, logger)
 			})
 			if withRouter, _ := cmd.Flags().GetBool("with-router-cn"); withRouter {
 				ctx.AddService(cmd, "router", func(id string, logger *zap.Logger, mesh cluster.DiscoveryLayer) cli.Service {

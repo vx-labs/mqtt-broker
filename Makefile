@@ -1,10 +1,10 @@
 VERSION = $(shell git rev-parse --short HEAD)
 DOCKER_BUILD_ARGS = --network host --build-arg https_proxy=${https_proxy} --build-arg BUILT_VERSION=${VERSION}
 
-build:: build-api build-broker build-listener build-sessions build-subscriptions build-queues
-release:: release-api release-broker release-listener release-sessions release-subscriptions release-queues
-deploy: deploy-api deploy-broker deploy-listener deploy-sessions deploy-subscriptions deploy-queues
-deploy-nodep: deploy-api-nodep deploy-broker-nodep deploy-listener-nodep deploy-sessions-nodep deploy-subscriptions-nodep deploy-queues-nodep deploy-messages-nodep deploy-kv-nodep deploy-router-nodep
+build:: build-api build-broker build-listener build-sessions build-subscriptions build-queues build-messages build-kv build-router build-topics
+release:: release-api release-broker release-listener release-sessions release-subscriptions release-queues release-messages release-kv release-router release-topics
+deploy: deploy-api deploy-broker deploy-listener deploy-sessions deploy-subscriptions deploy-queues deploy-messages deploy-kv deploy-router deploy-topics
+deploy-nodep: deploy-api-nodep deploy-broker-nodep deploy-listener-nodep deploy-sessions-nodep deploy-subscriptions-nodep deploy-queues-nodep deploy-messages-nodep deploy-kv-nodep deploy-router-nodep deploy-topics-nodep
 
 build-api:: build-common
 	docker build ${DOCKER_BUILD_ARGS} --build-arg ARTIFACT=api -t quay.io/vxlabs/mqtt-api:${VERSION} .
@@ -24,6 +24,8 @@ build-kv:: build-common
 	docker build ${DOCKER_BUILD_ARGS} --build-arg ARTIFACT=kv -t quay.io/vxlabs/mqtt-kv:${VERSION} .
 build-router:: build-common
 	docker build ${DOCKER_BUILD_ARGS} --build-arg ARTIFACT=router -t quay.io/vxlabs/mqtt-router:${VERSION} .
+build-topics:: build-common
+	docker build ${DOCKER_BUILD_ARGS} --build-arg ARTIFACT=topics -t quay.io/vxlabs/mqtt-topics:${VERSION} .
 
 release-api:: build-api
 	docker push quay.io/vxlabs/mqtt-api:${VERSION}
@@ -43,6 +45,8 @@ release-kv:: build-kv
 	docker push quay.io/vxlabs/mqtt-kv:${VERSION}
 release-router:: build-router
 	docker push quay.io/vxlabs/mqtt-router:${VERSION}
+release-topics:: build-topics
+	docker push quay.io/vxlabs/mqtt-topics:${VERSION}
 
 deploy-api:: release-api deploy-api-nodep
 deploy-broker:: release-broker deploy-broker-nodep
@@ -53,6 +57,7 @@ deploy-queues:: release-queues deploy-queues-nodep
 deploy-messages:: release-messages deploy-messages-nodep
 deploy-kv:: release-kv deploy-kv-nodep
 deploy-router:: release-router deploy-router-nodep
+deploy-topics:: release-topics deploy-topics-nodep
 
 deploy-api-nodep::
 	cd terraform/api && terraform init      && terraform apply -auto-approve -var api_version=${VERSION}
@@ -72,6 +77,8 @@ deploy-kv-nodep::
 	cd terraform/kv && terraform init && terraform apply -auto-approve -var kv_version=${VERSION}
 deploy-router-nodep::
 	cd terraform/router && terraform init && terraform apply -auto-approve -var router_version=${VERSION}
+deploy-topics-nodep::
+	cd terraform/topics && terraform init && terraform apply -auto-approve -var topics_version=${VERSION}
 nuke:
 	cd terraform/api && terraform init && terraform destroy -auto-approve -var api_version=${VERSION}
 	cd terraform/broker && terraform init && terraform destroy -auto-approve -var broker_version=${VERSION}
@@ -80,8 +87,9 @@ nuke:
 	cd terraform/subscriptions && terraform init && terraform destroy -auto-approve -var subscriptions_version=${VERSION}
 	cd terraform/queues && terraform init && terraform destroy -auto-approve -var queues_version=${VERSION}
 	cd terraform/messages && terraform init && terraform destroy -auto-approve -var messages_version=${VERSION}
-	cd terraform/kv && terraform init && terraform destroy -auto-approve -var kv=${VERSION}
-	cd terraform/router && terraform init && terraform destroy -auto-approve -var router=${VERSION}
+	cd terraform/kv && terraform init && terraform destroy -auto-approve -var kv_version=${VERSION}
+	cd terraform/router && terraform init && terraform destroy -auto-approve -var router_version=${VERSION}
+	cd terraform/topics && terraform init && terraform destroy -auto-approve -var topics_version=${VERSION}
 
 build-common::
 	docker build ${DOCKER_BUILD_ARGS} --target builder .

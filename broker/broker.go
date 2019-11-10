@@ -48,7 +48,6 @@ type SessionStore interface {
 type TopicStore interface {
 	Create(message topicspb.RetainedMessage) error
 	ByTopicPattern(tenant string, pattern []byte) (topicspb.RetainedMessageSet, error)
-	All() (topicspb.RetainedMessageSet, error)
 }
 type SubscriptionStore interface {
 	ByTopic(ctx context.Context, tenant string, pattern []byte) ([]*subscriptions.Metadata, error)
