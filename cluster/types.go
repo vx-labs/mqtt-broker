@@ -23,8 +23,9 @@ type DiscoveryLayer interface {
 	DialService(name string) (*grpc.ClientConn, error)
 	DialAddress(service, id string, f func(*grpc.ClientConn) error) error
 	RegisterService(name, address string) error
-	SetServiceTags(name string, tags []string) error
 	UnregisterService(name string) error
+	AddServiceTag(service, key, value string) error
+	RemoveServiceTag(name string, tag string) error
 	Leave()
 	Join(hosts []string) error
 	Health() string

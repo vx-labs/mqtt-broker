@@ -39,7 +39,7 @@ func New(id string, logger *zap.Logger, mesh cluster.DiscoveryLayer) *server {
 		cancel: cancel,
 		done:   make(chan struct{}),
 	}
-	kvConn, err := mesh.DialService("kv?tags=leader")
+	kvConn, err := mesh.DialService("kv?raft_status=leader")
 	if err != nil {
 		panic(err)
 	}
@@ -47,7 +47,7 @@ func New(id string, logger *zap.Logger, mesh cluster.DiscoveryLayer) *server {
 	if err != nil {
 		panic(err)
 	}
-	queuesConn, err := mesh.DialService("queues?tags=leader")
+	queuesConn, err := mesh.DialService("queues?raft_status=leader")
 	if err != nil {
 		panic(err)
 	}

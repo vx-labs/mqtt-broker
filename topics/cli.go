@@ -46,7 +46,7 @@ func (b *server) JoinServiceLayer(name string, logger *zap.Logger, config cluste
 		panic(err)
 	}
 	b.store = db
-	kvConn, err := mesh.DialService("kv?tags=leader")
+	kvConn, err := mesh.DialService("kv?raft_status=leader")
 	if err != nil {
 		panic(err)
 	}

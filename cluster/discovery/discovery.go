@@ -105,22 +105,24 @@ func (m *discoveryLayer) RegisterService(name, address string) error {
 	})
 }
 
-func (m *discoveryLayer) SetServiceTags(name string, tags []string) error {
+func (m *discoveryLayer) AddServiceTag(service, key, value string) error {
 	return m.peers.Update(m.id, func(self peers.Peer) peers.Peer {
 		for idx := range self.HostedServices {
-			if self.HostedServices[idx].ID == name {
-				self.HostedServices[idx].Tags = tags
-				break
-			}
-		}
-		return self
-	})
-}
-func (m *discoveryLayer) AddServiceTag(name string, tag string) error {
-	return m.peers.Update(m.id, func(self peers.Peer) peers.Peer {
-		for idx := range self.HostedServices {
-			if self.HostedServices[idx].ID == name {
-				self.HostedServices[idx].Tags = append(self.HostedServices[idx].Tags, tag)
+			if self.HostedServices[idx].ID == service {
+				found := false
+				for _, tag := range self.HostedServices[idx].Tags {
+					found = true
+					if tag.Key == key {
+						tag.Value = value
+					}
+					break
+				}
+				if !found {
+					self.HostedServices[idx].Tags = append(self.HostedServices[idx].Tags, &pb.ServiceTag{
+						Key:   key,
+						Value: value,
+					})
+				}
 				break
 			}
 		}
@@ -132,9 +134,9 @@ func (m *discoveryLayer) RemoveServiceTag(name string, tag string) error {
 		for idx := range self.HostedServices {
 			if self.HostedServices[idx].ID == name {
 				dirty := false
-				tags := []string{}
+				tags := []*pb.ServiceTag{}
 				for _, currentTag := range self.HostedServices[idx].Tags {
-					if currentTag != tag {
+					if currentTag.Key != tag {
 						dirty = true
 						tags = append(tags, currentTag)
 					}

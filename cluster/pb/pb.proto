@@ -10,11 +10,15 @@ message Part {
 message FullState {
   repeated Part parts = 1;
 }
+message ServiceTag {
+  string Key = 1;
+  string Value = 2;
+}
 message NodeService {
   string ID = 1;
   string NetworkAddress = 2;
   string Peer = 3;
-  repeated string Tags = 4;
+  repeated ServiceTag Tags = 4;
 }
 message NodeMeta {
   string ID = 1;

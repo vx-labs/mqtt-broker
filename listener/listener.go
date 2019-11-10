@@ -93,7 +93,7 @@ func New(id string, logger *zap.Logger, mesh cluster.Mesh, config Config) *endpo
 	if err != nil {
 		panic(err)
 	}
-	queuesConn, err := mesh.DialService("queues?tags=leader")
+	queuesConn, err := mesh.DialService("queues?raft_status=leader")
 	if err != nil {
 		panic(err)
 	}

@@ -35,11 +35,11 @@ func New(id string, logger *zap.Logger, mesh cluster.Mesh, config Config) *api {
 	if err != nil {
 		panic(err)
 	}
-	sessionsConn, err := mesh.DialService("sessions?tags=leader")
+	sessionsConn, err := mesh.DialService("sessions?raft_status=leader")
 	if err != nil {
 		panic(err)
 	}
-	subscriptionsConn, err := mesh.DialService("subscriptions?tags=leader")
+	subscriptionsConn, err := mesh.DialService("subscriptions?raft_status=leader")
 	if err != nil {
 		panic(err)
 	}

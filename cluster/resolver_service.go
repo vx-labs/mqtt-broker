@@ -60,16 +60,13 @@ func containsAll(needles []string, slice []string) bool {
 	return true
 }
 
-func tagsFilter(endpoint string) (string, []string) {
+func tagsFilter(endpoint string) (string, []*pb.ServiceTag) {
 	targetURL, err := url.Parse("mesh:///" + endpoint)
 	if err != nil {
 		return endpoint, nil
 	}
-	tagFilter := targetURL.Query().Get("tags")
-	if tagFilter == "" {
-		return strings.TrimPrefix(targetURL.Path, "/"), []string{}
-	}
-	return strings.TrimPrefix(targetURL.Path, "/"), strings.Split(tagFilter, ",")
+	tagFilter := pb.ParseFilter(targetURL.Query())
+	return strings.TrimPrefix(targetURL.Path, "/"), tagFilter
 }
 func (r *meshResolver) updateConn(target resolver.Target, cc resolver.ClientConn) {
 	service, tagFilter := tagsFilter(target.Endpoint)
@@ -82,7 +79,7 @@ func (r *meshResolver) updateConn(target resolver.Target, cc resolver.ClientConn
 	loggableAddresses := make([]string, 0)
 	for idx := range peers {
 		peer := peers[idx]
-		if containsAll(tagFilter, peer.Tags) {
+		if pb.MatchFilter(tagFilter, peer.Tags) {
 			loggableAddresses = append(loggableAddresses, peer.Peer)
 			addresses = append(addresses, resolver.Address{
 				Addr:       peer.NetworkAddress,

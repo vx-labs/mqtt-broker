@@ -74,15 +74,15 @@ type Broker struct {
 
 func New(id string, logger *zap.Logger, mesh cluster.DiscoveryLayer, config Config) *Broker {
 	ctx := context.Background()
-	sessionsConn, err := mesh.DialService("sessions?tags=leader")
+	sessionsConn, err := mesh.DialService("sessions?raft_status=leader")
 	if err != nil {
 		panic(err)
 	}
-	subscriptionsConn, err := mesh.DialService("subscriptions?tags=leader")
+	subscriptionsConn, err := mesh.DialService("subscriptions?raft_status=leader")
 	if err != nil {
 		panic(err)
 	}
-	queuesConn, err := mesh.DialService("queues?tags=leader")
+	queuesConn, err := mesh.DialService("queues?raft_status=leader")
 	if err != nil {
 		panic(err)
 	}
