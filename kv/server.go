@@ -3,7 +3,6 @@ package kv
 import (
 	"context"
 	fmt "fmt"
-	"hash/fnv"
 	"net"
 	"time"
 
@@ -27,12 +26,6 @@ type server struct {
 	ctx       context.Context
 	listeners []net.Listener
 	logger    *zap.Logger
-}
-
-func hashShardKey(key string, shardCount int) int {
-	hash := fnv.New32()
-	hash.Write([]byte(key))
-	return int(hash.Sum32()) % shardCount
 }
 
 func New(id string, logger *zap.Logger) *server {

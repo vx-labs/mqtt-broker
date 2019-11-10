@@ -31,8 +31,9 @@ func (m *server) applyEvent(payload *pb.KVStateTransition) error {
 		err := m.store.DeleteBatch(input.KeyMDs)
 		if err != nil {
 			m.logger.Error("failed to delete keys", zap.Error(err))
+			return err
 		}
-		return err
+		return nil
 	case *pb.KVStateTransition_Delete:
 		input := event.Delete
 		err := m.store.Delete(input.Key, input.Version)
