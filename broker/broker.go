@@ -10,7 +10,6 @@ import (
 	"github.com/vx-labs/mqtt-broker/transport"
 	"go.uber.org/zap"
 
-	"github.com/vx-labs/mqtt-broker/broker/pb"
 	"github.com/vx-labs/mqtt-broker/cluster"
 	clusterpb "github.com/vx-labs/mqtt-broker/cluster/pb"
 
@@ -21,13 +20,7 @@ import (
 
 	messages "github.com/vx-labs/mqtt-broker/messages/pb"
 	queues "github.com/vx-labs/mqtt-broker/queues/pb"
-	publishQueue "github.com/vx-labs/mqtt-broker/struct/queues/publish"
 	subscriptions "github.com/vx-labs/mqtt-broker/subscriptions/pb"
-)
-
-const (
-	EVENT_MESSAGE_PUBLISHED = "message_published"
-	EVENT_STATE_UPDATED     = "state_updated"
 )
 
 type PeerStore interface {
@@ -65,11 +58,6 @@ type SubscriptionStore interface {
 	Create(ctx context.Context, message subscriptions.SubscriptionCreateInput) error
 	Delete(ctx context.Context, id string) error
 }
-type Queue interface {
-	Enqueue(p *publishQueue.Message)
-	Consume(f func(*publishQueue.Message))
-	Close() error
-}
 type MessagesStore interface {
 	Put(ctx context.Context, streamId string, shardKey string, payload []byte) error
 	CreateStream(ctx context.Context, streamId string, shardCount int) error
@@ -88,7 +76,6 @@ type Broker struct {
 	Peers         PeerStore
 	workers       *pool.Pool
 	ctx           context.Context
-	publishQueue  Queue
 }
 
 func New(id string, logger *zap.Logger, mesh cluster.DiscoveryLayer, config Config) *Broker {
@@ -112,7 +99,6 @@ func New(id string, logger *zap.Logger, mesh cluster.DiscoveryLayer, config Conf
 		ctx:           ctx,
 		mesh:          mesh,
 		Queues:        queues.NewClient(queuesConn),
-		publishQueue:  publishQueue.New(),
 		logger:        logger,
 		Sessions:      sessions.NewClient(sessionsConn),
 		Subscriptions: subscriptions.NewClient(subscriptionsConn),
@@ -166,24 +152,5 @@ func (b *Broker) onPeerDown(name string) {
 	}
 }
 
-func (b *Broker) dispatch(message *pb.MessagePublished) error {
-	session, err := b.Sessions.ByID(b.ctx, message.Recipient)
-	if err != nil {
-		return err
-	}
-	packet := packet.Publish{
-		Header: &packet.Header{
-			Dup:    message.Dup,
-			Qos:    message.Qos,
-			Retain: message.Retained,
-		},
-		Payload:   message.Payload,
-		Topic:     message.Topic,
-		MessageId: 1,
-	}
-	return b.sendToSession(b.ctx, session.ID, &packet)
-}
-
 func (b *Broker) Stop() {
-	b.publishQueue.Close()
 }

@@ -10,17 +10,6 @@ message CloseSessionInput {
 message CloseSessionOutput {
   string ID = 1;
 }
-message MessagePublished {
-  string Recipient = 1;
-  bytes Topic = 2;
-  int32 Qos = 3;
-  bytes Payload = 4;
-  bool Retained = 5;
-  bool Dup = 6;
-  string Tenant = 7;
-}
-message MessagePublishedOutput {
-}
 
 message TransportMetadata {
   string Name = 1;
@@ -73,13 +62,11 @@ message PingReqOutput {
 }
 
 service BrokerService {
-    rpc CloseSession(CloseSessionInput) returns (CloseSessionOutput);
-    rpc DistributeMessage(MessagePublished) returns (MessagePublishedOutput);
-
     rpc Connect(ConnectInput) returns (ConnectOutput);
     rpc Disconnect(DisconnectInput) returns (DisconnectOutput);
     rpc Publish(PublishInput) returns (PublishOutput);
     rpc Subscribe(SubscribeInput) returns (SubscribeOutput);
     rpc Unsubscribe(UnsubscribeInput) returns (UnsubscribeOutput);
     rpc PingReq(PingReqInput) returns (PingReqOutput);
+    rpc CloseSession(CloseSessionInput) returns (CloseSessionOutput);
 }

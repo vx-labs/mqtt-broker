@@ -18,7 +18,6 @@ import (
 
 type broker interface {
 	CloseSession(ctx context.Context, id string) error
-	DistributeMessage(*pb.MessagePublished) error
 	Connect(context.Context, transport.Metadata, *packet.Connect) (string, string, *packet.ConnAck, error)
 	Disconnect(context.Context, string, *packet.Disconnect) error
 	Publish(context.Context, string, *packet.Publish) (*packet.PubAck, error)
@@ -57,11 +56,6 @@ func (s *server) Close() error {
 }
 func (s *server) CloseSession(ctx context.Context, input *pb.CloseSessionInput) (*pb.CloseSessionOutput, error) {
 	return &pb.CloseSessionOutput{ID: input.ID}, s.broker.CloseSession(ctx, input.ID)
-}
-
-func (s *server) DistributeMessage(ctx context.Context, msg *pb.MessagePublished) (*pb.MessagePublishedOutput, error) {
-	err := s.broker.DistributeMessage(msg)
-	return &pb.MessagePublishedOutput{}, err
 }
 
 func (s *server) Connect(ctx context.Context, input *pb.ConnectInput) (*pb.ConnectOutput, error) {
