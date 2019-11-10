@@ -11,6 +11,11 @@ message CloseSessionOutput {
   string ID = 1;
 }
 
+message MessagePublished {
+  string Tenant = 1;
+  packet.Publish publish = 2;
+}
+
 message TransportMetadata {
   string Name = 1;
   bool Encrypted = 2;

@@ -196,7 +196,10 @@ func (b *Broker) Publish(ctx context.Context, token string, p *packet.Publish) (
 		err = errors.New("QoS2 is not supported")
 		return nil, err
 	}
-	b.enqueuePublish(sess.SessionTenant, p)
+	err = b.enqueuePublish(sess.SessionTenant, p)
+	if err != nil {
+		return nil, err
+	}
 	if p.Header.Qos == 1 {
 		puback := &packet.PubAck{
 			Header:    &packet.Header{},
