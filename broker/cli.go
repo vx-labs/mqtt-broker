@@ -50,7 +50,6 @@ func (b *Broker) JoinServiceLayer(name string, logger *zap.Logger, config cluste
 		if err != nil {
 			b.logger.Fatal("failed to create stream in message store", zap.Error(err))
 		}
-		b.startPublishConsumers()
 	}()
 }
 
