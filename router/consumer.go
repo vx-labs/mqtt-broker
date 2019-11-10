@@ -147,6 +147,7 @@ func (b *server) v1ConsumePayload(messages []*messages.StoredMessage) (int, erro
 	}
 	for idx := range messages {
 		p := publishes[idx]
+		p.Header.Retain = false
 		recipients := topics.Recipients(p.Topic)
 
 		payload := make([]queues.MessageBatch, len(recipients))
@@ -189,6 +190,7 @@ func (b *server) v2ConsumePayload(messages []*messages.StoredMessage) (int, erro
 	}
 	for idx := range messages {
 		p := publishes[idx].Publish
+		p.Header.Retain = false
 		recipients := topics.Recipients(p.Topic)
 
 		payload := make([]queues.MessageBatch, len(recipients))
