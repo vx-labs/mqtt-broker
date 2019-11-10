@@ -2,6 +2,7 @@ package broker
 
 import (
 	"context"
+	"fmt"
 	"net"
 	"time"
 
@@ -20,8 +21,7 @@ func (b *Broker) Shutdown() {
 	b.Stop()
 }
 func (b *Broker) JoinServiceLayer(name string, logger *zap.Logger, config cluster.ServiceConfig, rpcConfig cluster.ServiceConfig, mesh cluster.DiscoveryLayer) {
-	l := cluster.NewGossipServiceLayer(name, logger, config, mesh)
-	b.Start(l)
+	mesh.RegisterService(name, fmt.Sprintf("%s:%d", config.AdvertiseAddr, config.ServicePort))
 	go func() {
 		messagesConn, err := mesh.DialService("messages?tags=leader")
 		if err != nil {

@@ -2,15 +2,22 @@ package topics
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"net"
 
+	"github.com/pkg/errors"
+
+	proto "github.com/golang/protobuf/proto"
 	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
+	broker "github.com/vx-labs/mqtt-broker/broker/pb"
 	"github.com/vx-labs/mqtt-broker/cluster"
 	"github.com/vx-labs/mqtt-broker/cluster/types"
+	kv "github.com/vx-labs/mqtt-broker/kv/pb"
+	messages "github.com/vx-labs/mqtt-broker/messages/pb"
 	"github.com/vx-labs/mqtt-broker/network"
+	"github.com/vx-labs/mqtt-broker/stream"
 	"github.com/vx-labs/mqtt-broker/topics/pb"
+
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 )
@@ -39,8 +46,52 @@ func (b *server) JoinServiceLayer(name string, logger *zap.Logger, config cluste
 		panic(err)
 	}
 	b.store = db
+	kvConn, err := mesh.DialService("kv?tags=leader")
+	if err != nil {
+		panic(err)
+	}
+	messagesConn, err := mesh.DialService("messages")
+	if err != nil {
+		panic(err)
+	}
+	k := kv.NewClient(kvConn)
+	m := messages.NewClient(messagesConn)
+	streamClient := stream.NewClient(k, m, logger)
+
+	ctx := context.Background()
+	logger.Debug("started stream consumer")
+	//FIXME: routine leak
+	go streamClient.Consume(ctx, "messages", b.consumeStream,
+		stream.WithConsumerID(b.id),
+		stream.WithConsumerGroupID("topics"),
+		stream.WithInitialOffsetBehaviour(stream.OFFSET_BEHAVIOUR_FROM_START),
+	)
 }
 
+func (b *server) consumeStream(messages []*messages.StoredMessage) (int, error) {
+	if b.store == nil {
+		return 0, errors.New("store not ready")
+	}
+	for idx := range messages {
+		publish := &broker.MessagePublished{}
+		err := proto.Unmarshal(messages[idx].Payload, publish)
+		if err != nil {
+			return idx, errors.Wrap(err, "failed to decode message for shard")
+		}
+		if publish.Publish.Header.Retain {
+			err := b.store.Create(pb.RetainedMessage{
+				Tenant:  publish.Tenant,
+				Payload: publish.Publish.Payload,
+				Qos:     publish.Publish.Header.Qos,
+				Topic:   publish.Publish.Topic,
+			})
+			if err != nil {
+				return idx, err
+			}
+		}
+	}
+	return len(messages), nil
+}
 func (b *server) Health() string {
 	return "ok"
 }

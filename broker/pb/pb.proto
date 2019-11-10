@@ -1,5 +1,4 @@
 syntax = "proto3";
-import "github.com/vx-labs/mqtt-broker/topics/types.proto";
 import "github.com/vx-labs/mqtt-protocol/packet/pb.proto";
 
 

@@ -2,20 +2,16 @@ package broker
 
 import (
 	"context"
-	"log"
 
 	"github.com/vx-labs/mqtt-broker/cluster/peers"
-	"github.com/vx-labs/mqtt-broker/cluster/types"
 	"github.com/vx-labs/mqtt-broker/pool"
 	"github.com/vx-labs/mqtt-broker/transport"
 	"go.uber.org/zap"
 
 	"github.com/vx-labs/mqtt-broker/cluster"
-	clusterpb "github.com/vx-labs/mqtt-broker/cluster/pb"
 
 	sessions "github.com/vx-labs/mqtt-broker/sessions/pb"
-	"github.com/vx-labs/mqtt-broker/topics"
-	topicspb "github.com/vx-labs/mqtt-broker/topics/pb"
+	topics "github.com/vx-labs/mqtt-broker/topics/pb"
 
 	"github.com/vx-labs/mqtt-protocol/packet"
 
@@ -46,8 +42,7 @@ type SessionStore interface {
 }
 
 type TopicStore interface {
-	Create(message topicspb.RetainedMessage) error
-	ByTopicPattern(tenant string, pattern []byte) (topicspb.RetainedMessageSet, error)
+	ByTopicPattern(ctx context.Context, tenant string, pattern []byte) ([]*topics.RetainedMessage, error)
 }
 type SubscriptionStore interface {
 	ByTopic(ctx context.Context, tenant string, pattern []byte) ([]*subscriptions.Metadata, error)
@@ -73,7 +68,6 @@ type Broker struct {
 	Topics        TopicStore
 	Queues        QueuesStore
 	Messages      MessagesStore
-	Peers         PeerStore
 	workers       *pool.Pool
 	ctx           context.Context
 }
@@ -92,6 +86,10 @@ func New(id string, logger *zap.Logger, mesh cluster.DiscoveryLayer, config Conf
 	if err != nil {
 		panic(err)
 	}
+	topicsConn, err := mesh.DialService("topics")
+	if err != nil {
+		panic(err)
+	}
 	broker := &Broker{
 		ID:            id,
 		authHelper:    config.AuthHelper,
@@ -102,23 +100,12 @@ func New(id string, logger *zap.Logger, mesh cluster.DiscoveryLayer, config Conf
 		logger:        logger,
 		Sessions:      sessions.NewClient(sessionsConn),
 		Subscriptions: subscriptions.NewClient(subscriptionsConn),
+		Topics:        topics.NewClient(topicsConn),
 	}
 
 	return broker
 }
 
-func (broker *Broker) Start(layer types.GossipServiceLayer) {
-	peersStore := broker.mesh.Peers()
-	topicssStore, err := topics.NewMemDBStore(layer)
-	if err != nil {
-		log.Fatal(err)
-	}
-	broker.Peers = peersStore
-	broker.Topics = topicssStore
-	layer.OnNodeLeave(func(id string, meta clusterpb.NodeMeta) {
-		broker.onPeerDown(id)
-	})
-}
 func (b *Broker) onPeerDown(name string) {
 	set, err := b.Subscriptions.ByPeer(b.ctx, name)
 	if err != nil {

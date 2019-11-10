@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/vx-labs/mqtt-broker/cluster"
-	topicspb "github.com/vx-labs/mqtt-broker/topics/pb"
 	"go.uber.org/zap"
 
 	sessions "github.com/vx-labs/mqtt-broker/sessions/pb"
@@ -143,12 +142,14 @@ func (b *Broker) Subscribe(ctx context.Context, token string, p *packet.Subscrib
 			zap.Binary("topic_pattern", event.Pattern))
 
 		go func(packetQoS int32, pattern []byte) {
-			// Look for retained messages
-			set, err := b.Topics.ByTopicPattern(sess.SessionTenant, pattern)
+			set, err := b.Topics.ByTopicPattern(b.ctx, sess.SessionTenant, pattern)
 			if err != nil {
+				b.logger.Error("failed to look for retained messages",
+					zap.Error(err),
+					zap.String("session_id", sess.SessionID))
 				return
 			}
-			set.Apply(func(message topicspb.RetainedMessage) {
+			for _, message := range set {
 				qos := getLowerQoS(message.Qos, packetQoS)
 				err := b.sendToSession(b.ctx, sess.SessionID, &packet.Publish{
 					Header: &packet.Header{
@@ -166,7 +167,7 @@ func (b *Broker) Subscribe(ctx context.Context, token string, p *packet.Subscrib
 						zap.String("subscription_id", subID),
 						zap.Binary("topic_pattern", message.Topic))
 				}
-			})
+			}
 		}(p.Qos[idx], pattern)
 	}
 	qos := make([]int32, len(p.Qos))
