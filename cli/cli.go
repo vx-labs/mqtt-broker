@@ -241,11 +241,11 @@ func Bootstrap(cmd *cobra.Command) *Context {
 	var logger *zap.Logger
 	var err error
 	fields := []zap.Field{
-		zap.String("node_id", id), zap.String("version", Version()),
+		zap.String("node_id", id[:8]), zap.String("version", Version()),
 	}
 	if allocID := os.Getenv("NOMAD_ALLOC_ID"); allocID != "" {
 		fields = append(fields,
-			zap.String("nomad_alloc_id", os.Getenv("NOMAD_ALLOC_ID")),
+			zap.String("nomad_alloc_id", os.Getenv("NOMAD_ALLOC_ID")[:8]),
 			zap.String("nomad_alloc_name", os.Getenv("NOMAD_ALLOC_NAME")),
 			zap.String("nomad_alloc_index", os.Getenv("NOMAD_ALLOC_INDEX")),
 		)

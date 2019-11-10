@@ -58,7 +58,7 @@ func New(logger *zap.Logger, userConfig config.Config, discovery DiscoveryProvid
 		id:              userConfig.ID,
 		selfRaftAddress: raft.ServerAddress(fmt.Sprintf("%s:%d", userConfig.AdvertiseAddr, userConfig.AdvertisePort)),
 		discovery:       discovery,
-		logger:          logger.WithOptions(zap.Fields(zap.String("emitter", "raft_layer"))),
+		logger:          logger,
 		config:          userConfig,
 		status:          raftStatusInit,
 	}
@@ -80,9 +80,9 @@ func (s *raftlayer) Start(name string, state types.RaftState) error {
 	}
 	var transport *raft.NetworkTransport
 	if os.Getenv("ENABLE_RAFT_LOG") != "true" {
-		transport, err = raft.NewTCPTransport(raftBind, addr, 5, 5*time.Second, ioutil.Discard)
+		transport, err = raft.NewTCPTransport(raftBind, addr, 5, 15*time.Second, ioutil.Discard)
 	} else {
-		transport, err = raft.NewTCPTransport(raftBind, addr, 5, 5*time.Second, os.Stderr)
+		transport, err = raft.NewTCPTransport(raftBind, addr, 5, 15*time.Second, os.Stderr)
 	}
 	if err != nil {
 		return err
@@ -146,26 +146,6 @@ func (s *raftlayer) Start(name string, state types.RaftState) error {
 		}
 	}()
 	return nil
-}
-
-func (s *raftlayer) nodeStatus(node, serviceName string) string {
-	serviceRPC := fmt.Sprintf("%s_rpc", serviceName)
-	status := ""
-
-	err := s.discovery.DialAddress(serviceRPC, node, func(c *grpc.ClientConn) error {
-		client := pb.NewLayerClient(c)
-		out, err := client.Status(context.TODO(), &pb.StatusInput{})
-		if err != nil {
-			return nil
-		}
-		status = out.Status
-		return nil
-	})
-	if err != nil {
-		s.logger.Error("failed to get remote node status", zap.Error(err))
-		return ""
-	}
-	return status
 }
 
 func (s *raftlayer) logRaftStatus(log *raft.Log) {
@@ -242,7 +222,7 @@ func (s *raftlayer) removeMember(id string) {
 		s.logger.Error("failed to remove dead node", zap.Error(err))
 		return
 	}
-	s.logger.Info("removed dead node", zap.Strings("raft_members", s.raftMembers()), zap.Strings("discovered_members", s.discoveredMembers()))
+	s.logger.Info("removed dead node")
 }
 func (s *raftlayer) addMember(id, address string) {
 	err := s.raft.AddVoter(raft.ServerID(id), raft.ServerAddress(address), 0, 0).Error()
@@ -250,7 +230,7 @@ func (s *raftlayer) addMember(id, address string) {
 		s.logger.Error("failed to add new node", zap.String("new_node", id), zap.Error(err))
 		return
 	}
-	s.logger.Info("adopted new raft node", zap.String("new_node", id), zap.Strings("raft_members", s.raftMembers()), zap.Strings("discovered_members", s.discoveredMembers()), zap.Uint64("raft_last_index", s.raft.LastIndex()))
+	s.logger.Info("adopted new raft node", zap.String("new_node", id))
 }
 func (s *raftlayer) syncMembers() {
 	members, err := s.discovery.Peers().EndpointsByService(fmt.Sprintf("%s_cluster", s.name))
@@ -303,18 +283,14 @@ func (s *raftlayer) leaderRoutine() {
 		leader := s.IsLeader()
 		if s.status != raftStatusBootstrapped {
 			s.cancelJoin()
-			s.logger.Info("raft cluster joined", zap.Uint64("raft_index", s.raft.LastIndex()),
-				zap.Strings("discovered_members", s.discoveredMembers()),
-			)
+			s.logger.Info("raft cluster joined")
 			s.setStatus(raftStatusBootstrapped)
 		}
 		if !leader {
 			s.discovery.RemoveServiceTag(s.name, "raft_status")
 			continue
 		}
-		s.logger.Info("raft cluster leadership acquired",
-			zap.Strings("raft_members", s.raftMembers()), zap.Strings("discovered_members", s.discoveredMembers()),
-		)
+		s.logger.Info("raft cluster leadership acquired")
 		s.discovery.AddServiceTag(s.name, "raft_status", "leader")
 		s.syncMembers()
 	}
@@ -323,7 +299,7 @@ func (s *raftlayer) Apply(log *raft.Log) interface{} {
 	if log.Type == raft.LogCommand {
 		err := s.state.Apply(log.Data)
 		if err != nil {
-			s.logger.Error("failed to apply raft event in FSM", zap.Error(err), zap.Uint64("raft_current_index", log.Index))
+			s.logger.Error("failed to apply raft event in FSM", zap.Error(err))
 		}
 	}
 	return nil

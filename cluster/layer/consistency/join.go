@@ -86,7 +86,7 @@ func (s *raftlayer) startClusterJoin(ctx context.Context, name string, expectNod
 		defer close(ch)
 		ctx, cancel := context.WithCancel(ctx)
 		defer cancel()
-		ch <- s.joinCluster(ctx, name, expectNodeCount, s.logger, func(members []*pb.NodeService) error {
+		err := s.joinCluster(ctx, name, expectNodeCount, s.logger, func(members []*pb.NodeService) error {
 			configuration := raft.Configuration{
 				Servers: []raft.Server{
 					{
@@ -103,6 +103,10 @@ func (s *raftlayer) startClusterJoin(ctx context.Context, name string, expectNod
 			s.status = raftStatusBootstrapped
 			return nil
 		})
+		if err != nil {
+			s.logger.Error("cluster join failed")
+		}
+		ch <- err
 	}()
 	return ch
 }
@@ -120,7 +124,7 @@ func (s *raftlayer) joinCluster(ctx context.Context, name string, expectNodeCoun
 		}
 		bootstrappingMembers := make([]*pb.NodeService, 0)
 		for _, member := range members {
-			status := s.nodeStatus(member.Peer, name)
+			status := s.getNodeStatus(member.Peer)
 			if strings.HasPrefix(status, raftStatusBootstrapping) {
 				bootstrappingMembers = append(bootstrappingMembers, member)
 			}
