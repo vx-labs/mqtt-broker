@@ -188,15 +188,17 @@ func (s *memDBStore) Update(id string, mutation func(peer Peer) Peer) error {
 		updatedPeer.LastAdded = now()
 		err = tx.Insert(peerTable, updatedPeer)
 		if err == nil {
-			buf, err := proto.Marshal(&pb.PeerMetadataList{
-				Metadatas: []*pb.Metadata{
-					&updatedPeer.Metadata,
-				},
-			})
-			if err != nil {
-				return err
-			}
-			s.channel.Broadcast(buf)
+			defer func() {
+				buf, err := proto.Marshal(&pb.PeerMetadataList{
+					Metadatas: []*pb.Metadata{
+						&updatedPeer.Metadata,
+					},
+				})
+				if err != nil {
+					return
+				}
+				s.channel.Broadcast(buf)
+			}()
 		}
 		return err
 	})

@@ -236,7 +236,7 @@ func (s *raftlayer) isNodeAdopted(id string) bool {
 	return false
 }
 func (s *raftlayer) removeMember(id string) {
-	err := s.raft.RemoveServer(raft.ServerID(id), 0, 2*time.Second).Error()
+	err := s.raft.RemoveServer(raft.ServerID(id), 0, 0).Error()
 	if err != nil {
 		s.logger.Error("failed to remove dead node", zap.Error(err))
 		return
@@ -244,7 +244,7 @@ func (s *raftlayer) removeMember(id string) {
 	s.logger.Info("removed dead node", zap.Strings("raft_members", s.raftMembers()), zap.Strings("discovered_members", s.discoveredMembers()))
 }
 func (s *raftlayer) addMember(id, address string) {
-	err := s.raft.AddVoter(raft.ServerID(id), raft.ServerAddress(address), 0, 2*time.Second).Error()
+	err := s.raft.AddVoter(raft.ServerID(id), raft.ServerAddress(address), 0, 0).Error()
 	if err != nil {
 		s.logger.Error("failed to add new node", zap.String("new_node", id), zap.Error(err))
 		return
@@ -319,7 +319,6 @@ func (s *raftlayer) leaderRoutine() {
 	}
 }
 func (s *raftlayer) Apply(log *raft.Log) interface{} {
-	s.logRaftStatus(log)
 	if log.Type == raft.LogCommand {
 		err := s.state.Apply(log.Data)
 		if err != nil {
@@ -367,15 +366,15 @@ func (s *raftlayer) ApplyEvent(event []byte) error {
 			return nil
 		})
 	}
-	promise := s.raft.Apply(event, 500*time.Millisecond)
+	promise := s.raft.Apply(event, 30*time.Second)
 	err := promise.Error()
 	if err != nil {
-		s.logger.Error("failed to apply raft event", zap.Error(err))
+		s.logger.Error("failed to add raft event to log", zap.Error(err))
 		return err
 	}
 	resp := promise.Response()
 	if resp != nil {
-		s.logger.Error("failed to apply raft event", zap.Error(resp.(error)))
+		s.logger.Error("failed to apply raft event in FSM", zap.Error(resp.(error)))
 		return resp.(error)
 	}
 	return nil
