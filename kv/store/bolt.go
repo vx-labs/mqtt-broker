@@ -80,7 +80,10 @@ func (b *BoltStore) initStore() error {
 func loadMetadata(bucket *bolt.Bucket, key []byte) (*pb.KVMetadata, error) {
 	data := bucket.Get(key)
 	if data == nil {
-		return nil, ErrKeyNotFound
+		return &pb.KVMetadata{
+			Key:     key,
+			Version: 0,
+		}, nil
 	}
 	md := &pb.KVMetadata{}
 	err := proto.Unmarshal(data, md)
@@ -124,10 +127,8 @@ func (b *BoltStore) Put(key []byte, value []byte, deadline uint64, version uint6
 		}
 	}
 
-	if version > 0 {
-		if md.Version != version {
-			return ErrIndexOutdated
-		}
+	if md.Version != version {
+		return ErrIndexOutdated
 	}
 
 	if deadline > 0 || md.Deadline > 0 {
@@ -190,23 +191,25 @@ func (b *BoltStore) deleteKey(tx *bolt.Tx, key []byte, version uint64) error {
 	}
 
 	md, err := loadMetadata(metadatasBucket, key)
-	if err == nil {
-		if version > 0 && version != md.Version {
-			return ErrIndexOutdated
-		}
-		md.Version++
-		err := saveMetadata(metadatasBucket, key, md)
-		if err != nil {
-			return err
-		}
-		deadlinesBucket := tx.Bucket(deadlinesBucketName)
-		if deadlinesBucket == nil {
-			return ErrTTLBucketNotFound
-		}
-		if md.Deadline > 0 {
-			deadlinesBucket.Delete(uint64ToBytes(md.Deadline))
-		}
+	if err != nil {
+		return err
 	}
+	if version != md.Version {
+		return ErrIndexOutdated
+	}
+	md.Version++
+	err = saveMetadata(metadatasBucket, key, md)
+	if err != nil {
+		return err
+	}
+	deadlinesBucket := tx.Bucket(deadlinesBucketName)
+	if deadlinesBucket == nil {
+		return ErrTTLBucketNotFound
+	}
+	if md.Deadline > 0 {
+		deadlinesBucket.Delete(uint64ToBytes(md.Deadline))
+	}
+
 	return bucket.Delete(key)
 }
 func (b *BoltStore) Get(key []byte) ([]byte, error) {
@@ -249,13 +252,13 @@ func (b *BoltStore) GetWithMetadata(key []byte) ([]byte, *pb.KVMetadata, error) 
 	if bucket == nil {
 		return nil, nil, ErrBucketNotFound
 	}
-	value := bucket.Get(key)
-	if value == nil {
-		return nil, nil, ErrKeyNotFound
-	}
 	md, err := loadMetadata(mdBucket, key)
 	if err != nil {
 		return nil, nil, ErrMDNotFound
+	}
+	value := bucket.Get(key)
+	if value == nil {
+		return nil, &pb.KVMetadata{Key: key, Version: 0}, nil
 	}
 	return value, md, nil
 }

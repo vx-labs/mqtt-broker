@@ -27,20 +27,7 @@ func WithTimeToLive(ttl time.Duration) setOpt {
 		return s
 	}
 }
-func WithVersionPreCondition(version uint64) setOpt {
-	return func(s KVSetInput) KVSetInput {
-		s.Version = version
-		return s
-	}
-}
-func WithDeleteVersionPreCondition(version uint64) deleteOpt {
-	return func(s KVDeleteInput) KVDeleteInput {
-		s.Version = version
-		return s
-	}
-}
-
-func (c *Client) Set(ctx context.Context, key []byte, value []byte, opts ...setOpt) error {
+func (c *Client) SetWithVersion(ctx context.Context, key []byte, value []byte, version uint64, opts ...setOpt) error {
 	if len(key) == 0 {
 		return errors.New("invalid key")
 	}
@@ -48,13 +35,21 @@ func (c *Client) Set(ctx context.Context, key []byte, value []byte, opts ...setO
 		Key:        key,
 		Value:      value,
 		TimeToLive: 0,
-		Version:    0,
+		Version:    version,
 	}
 	for _, opt := range opts {
 		input = opt(input)
 	}
 	_, err := c.api.Set(ctx, &input)
 	return err
+}
+
+func (c *Client) Set(ctx context.Context, key []byte, value []byte, opts ...setOpt) error {
+	md, err := c.GetMetadata(ctx, key)
+	if err != nil {
+		return err
+	}
+	return c.SetWithVersion(ctx, key, value, md.Version)
 }
 func (c *Client) Get(ctx context.Context, key []byte) ([]byte, error) {
 	if len(key) == 0 {
@@ -68,7 +63,7 @@ func (c *Client) Get(ctx context.Context, key []byte) ([]byte, error) {
 	}
 	return out.Value, nil
 }
-func (c *Client) GetWith(ctx context.Context, key []byte) ([]byte, *KVMetadata, error) {
+func (c *Client) GetWithMetadata(ctx context.Context, key []byte) ([]byte, *KVMetadata, error) {
 	if len(key) == 0 {
 		return nil, nil, errors.New("invalid key")
 	}
@@ -93,12 +88,19 @@ func (c *Client) GetMetadata(ctx context.Context, key []byte) (*KVMetadata, erro
 	return out.Metadata, nil
 }
 func (c *Client) Delete(ctx context.Context, key []byte, opts ...deleteOpt) error {
+	md, err := c.GetMetadata(ctx, key)
+	if err != nil {
+		return err
+	}
+	return c.DeleteWithVersion(ctx, key, md.Version)
+}
+func (c *Client) DeleteWithVersion(ctx context.Context, key []byte, version uint64, opts ...deleteOpt) error {
 	if len(key) == 0 {
 		return errors.New("invalid key")
 	}
 	input := KVDeleteInput{
 		Key:     key,
-		Version: 0,
+		Version: version,
 	}
 	for _, opt := range opts {
 		input = opt(input)

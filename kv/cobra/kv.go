@@ -68,7 +68,12 @@ func Delete(ctx context.Context, config *viper.Viper) *cobra.Command {
 		Run: func(cmd *cobra.Command, argv []string) {
 			client := getClient(config)
 			for _, key := range argv {
-				err := client.Delete(ctx, []byte(key), pb.WithDeleteVersionPreCondition(config.GetUint64("version")))
+				var err error
+				if cmd.Flag("version").Changed {
+					err = client.DeleteWithVersion(ctx, []byte(key), config.GetUint64("version"))
+				} else {
+					err = client.Delete(ctx, []byte(key))
+				}
 				if err != nil {
 					logrus.Errorf("failed to delete %q: %v", key, err)
 				} else {
@@ -94,8 +99,13 @@ func Set(ctx context.Context, config *viper.Viper) *cobra.Command {
 			key := config.GetString("key")
 			ttl := config.GetDuration("ttl")
 			version := config.GetUint64("version")
-			err := client.Set(ctx, []byte(key), []byte(config.GetString("value")),
-				pb.WithTimeToLive(ttl), pb.WithVersionPreCondition(version))
+			var err error
+			if cmd.Flag("version").Changed {
+				err = client.SetWithVersion(ctx, []byte(key), []byte(config.GetString("value")), version, pb.WithTimeToLive(ttl))
+			} else {
+				err = client.Set(ctx, []byte(key), []byte(config.GetString("value")), pb.WithTimeToLive(ttl))
+			}
+
 			if err != nil {
 				logrus.Errorf("failed to set %s: %v", key, err)
 			} else {
