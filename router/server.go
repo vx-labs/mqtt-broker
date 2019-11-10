@@ -3,6 +3,8 @@ package router
 import (
 	"context"
 
+	"github.com/vx-labs/mqtt-broker/stream"
+
 	"github.com/vx-labs/mqtt-broker/cluster"
 	kv "github.com/vx-labs/mqtt-broker/kv/pb"
 	messages "github.com/vx-labs/mqtt-broker/messages/pb"
@@ -57,8 +59,13 @@ func New(id string, logger *zap.Logger, mesh cluster.DiscoveryLayer) *server {
 	b.Queues = queues.NewClient(queuesConn)
 	b.Messages = messages.NewClient(messagesConn)
 	b.Subscriptions = subscriptions.NewClient(subscriptionConn)
-	//FIXME: routine leak
-	go b.consumeMessages()
 
+	streamClient := stream.NewClient(b.KV, b.Messages, logger)
+	//FIXME: routine leak
+	go streamClient.Consume(ctx, "messages", b.v2ConsumePayload,
+		stream.WithConsumerID(id),
+		stream.WithConsumerGroupID("router"),
+		stream.WithInitialOffsetBehaviour(stream.OFFSET_BEHAVIOUR_FROM_NOW),
+	)
 	return b
 }
