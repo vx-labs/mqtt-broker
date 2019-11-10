@@ -190,15 +190,6 @@ func (s *raftlayer) raftMembers() []string {
 	return members
 }
 
-func (s *raftlayer) Status(ctx context.Context, input *pb.StatusInput) (*pb.StatusOutput, error) {
-	return &pb.StatusOutput{
-		Layer:  "raft",
-		Status: s.status,
-	}, nil
-}
-func (s *raftlayer) SendEvent(ctx context.Context, input *pb.SendEventInput) (*pb.SendEventOutput, error) {
-	return &pb.SendEventOutput{}, s.ApplyEvent(input.Payload)
-}
 func (s *raftlayer) IsLeader() bool {
 	return s.raft != nil && s.raft.State() == raft.Leader
 }
@@ -227,10 +218,10 @@ func (s *raftlayer) removeMember(id string) {
 func (s *raftlayer) addMember(id, address string) {
 	err := s.raft.AddVoter(raft.ServerID(id), raft.ServerAddress(address), 0, 0).Error()
 	if err != nil {
-		s.logger.Error("failed to add new node", zap.String("new_node", id), zap.Error(err))
+		s.logger.Error("failed to add new node", zap.String("new_node", id[:8]), zap.Error(err))
 		return
 	}
-	s.logger.Info("adopted new raft node", zap.String("new_node", id))
+	s.logger.Info("adopted new raft node", zap.String("new_node", id[:8]))
 }
 func (s *raftlayer) syncMembers() {
 	members, err := s.discovery.Peers().EndpointsByService(fmt.Sprintf("%s_cluster", s.name))
@@ -358,7 +349,12 @@ func (s *raftlayer) ApplyEvent(event []byte) error {
 }
 
 func (s *raftlayer) setStatus(status string) {
-	s.discovery.AddServiceTag(fmt.Sprintf("%s_cluster", s.name), "raft_bootstrap_status", status)
+	err := s.discovery.AddServiceTag(fmt.Sprintf("%s_cluster", s.name), "raft_bootstrap_status", status)
+	if err != nil {
+		s.logger.Error("failed to set raft bootstrap tag", zap.Error(err))
+	} else {
+		s.logger.Debug("raft bootstrap tag set", zap.String("tag_value", status))
+	}
 	s.status = status
 }
 func (s *raftlayer) getMembers() ([]*pb.NodeService, error) {

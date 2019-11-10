@@ -14,7 +14,7 @@ func memUsage() runtime.MemStats {
 	return m
 }
 func (b *discoveryLayer) keepaliveSender() {
-	ticker := time.NewTicker(15 * time.Second)
+	ticker := time.NewTicker(1 * time.Hour)
 	for {
 		now := time.Now().UnixNano()
 		b.peers.Update(b.id, func(self peers.Peer) peers.Peer {
@@ -27,8 +27,8 @@ func (b *discoveryLayer) keepaliveSender() {
 	}
 }
 func (b *discoveryLayer) deadNodeDeleter() {
-	ticker := time.NewTicker(10 * time.Second)
-	for {
+	ticker := time.NewTicker(3 * time.Hour)
+	for range ticker.C {
 		deadline := time.Now().AddDate(0, 0, -1).UnixNano()
 		peers, err := b.peers.All()
 		if err == nil {
@@ -38,11 +38,10 @@ func (b *discoveryLayer) deadNodeDeleter() {
 				}
 			}
 		}
-		<-ticker.C
 	}
 }
 func (b *discoveryLayer) oSStatsReporter() {
-	ticker := time.NewTicker(10 * time.Second)
+	ticker := time.NewTicker(5 * time.Minute)
 	for {
 		m := memUsage()
 		nbRoutines := runtime.NumGoroutine()

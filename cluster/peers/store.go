@@ -187,21 +187,21 @@ func (s *memDBStore) Update(id string, mutation func(peer Peer) Peer) error {
 		updatedPeer = mutation(peer)
 		updatedPeer.LastAdded = now()
 		err = tx.Insert(peerTable, updatedPeer)
-		if err == nil {
-			defer func() {
-				buf, err := proto.Marshal(&pb.PeerMetadataList{
-					Metadatas: []*pb.Metadata{
-						&updatedPeer.Metadata,
-					},
-				})
-				if err != nil {
-					return
-				}
-				s.channel.Broadcast(buf)
-			}()
-		}
 		return err
 	})
+	if err == nil {
+		buf, err := proto.Marshal(&pb.PeerMetadataList{
+			Metadatas: []*pb.Metadata{
+				&updatedPeer.Metadata,
+			},
+		})
+		if err != nil {
+			log.Printf("WARN: failed to encode peer")
+			return nil
+		}
+		s.channel.Broadcast(buf)
+		s.emitPeerEvent(updatedPeer)
+	}
 	return err
 }
 

@@ -84,7 +84,7 @@ func (local *endpoint) handleSessionPackets(ctx context.Context, session *localS
 		dec.Cancel()
 	}()
 	for data := range dec.Packet() {
-		packetCtx, cancelReqCtx := context.WithTimeout(ctx, 3*time.Second)
+		packetCtx, cancelReqCtx := context.WithTimeout(ctx, 15*time.Second)
 		if sessionTracePacket == "true" {
 			session.logger.Debug("session sent packet", zap.Any("traced_packet", data))
 		}
