@@ -68,6 +68,18 @@ func (c *Client) Get(ctx context.Context, key []byte) ([]byte, error) {
 	}
 	return out.Value, nil
 }
+func (c *Client) GetWith(ctx context.Context, key []byte) ([]byte, *KVMetadata, error) {
+	if len(key) == 0 {
+		return nil, nil, errors.New("invalid key")
+	}
+	out, err := c.api.GetWithMetadata(ctx, &KVGetWithMetadataInput{
+		Key: key,
+	})
+	if err != nil {
+		return nil, nil, err
+	}
+	return out.Value, out.Metadata, nil
+}
 func (c *Client) GetMetadata(ctx context.Context, key []byte) (*KVMetadata, error) {
 	if len(key) == 0 {
 		return nil, errors.New("invalid key")

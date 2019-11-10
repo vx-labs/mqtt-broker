@@ -14,8 +14,14 @@ message KVGetInput {
 message KVGetOutput {
   bytes Key = 1;
   bytes Value= 2;
-  uint64 Deadline = 3;
-  uint64 Version = 4;
+}
+message KVGetWithMetadataInput {
+  bytes Key = 1;
+}
+message KVGetWithMetadataOutput {
+  bytes Key = 1;
+  bytes Value= 2;
+  KVMetadata Metadata = 3;
 }
 message KVGetMetadataInput {
   bytes Key = 1;
@@ -40,6 +46,7 @@ message KVDeleteOutput {}
 
 service KVService {
   rpc Get(KVGetInput) returns (KVGetOutput);
+  rpc GetWithMetadata(KVGetWithMetadataInput) returns (KVGetWithMetadataOutput);
   rpc GetMetadata(KVGetMetadataInput) returns (KVGetMetadataOutput);
   rpc Set(KVSetInput) returns (KVSetOutput);
   rpc Delete(KVDeleteInput) returns (KVDeleteOutput);

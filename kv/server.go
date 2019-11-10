@@ -140,3 +140,13 @@ func (s *server) GetMetadata(ctx context.Context, input *pb.KVGetMetadataInput) 
 	}
 	return &pb.KVGetMetadataOutput{Metadata: value}, nil
 }
+func (s *server) GetWithMetadata(ctx context.Context, input *pb.KVGetWithMetadataInput) (*pb.KVGetWithMetadataOutput, error) {
+	value, md, err := s.store.GetWithMetadata(input.Key)
+	if err != nil {
+		if err == store.ErrKeyNotFound {
+			return nil, ErrNotFound("key not found")
+		}
+		return nil, err
+	}
+	return &pb.KVGetWithMetadataOutput{Value: value, Metadata: md}, nil
+}

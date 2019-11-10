@@ -227,6 +227,30 @@ func (b *BoltStore) GetMetadata(key []byte) (*pb.KVMetadata, error) {
 	}
 	return loadMetadata(bucket, key)
 }
+func (b *BoltStore) GetWithMetadata(key []byte) ([]byte, *pb.KVMetadata, error) {
+	tx, err := b.conn.Begin(false)
+	if err != nil {
+		return nil, nil, err
+	}
+	defer tx.Rollback()
+	mdBucket := tx.Bucket(metadatasBucketName)
+	if mdBucket == nil {
+		return nil, nil, ErrMDBucketNotFound
+	}
+	bucket := tx.Bucket(kvBucket)
+	if bucket == nil {
+		return nil, nil, ErrBucketNotFound
+	}
+	value := bucket.Get(key)
+	if value == nil {
+		return nil, nil, ErrKeyNotFound
+	}
+	md, err := loadMetadata(mdBucket, key)
+	if err != nil {
+		return nil, nil, ErrMDNotFound
+	}
+	return value, md, nil
+}
 
 func (b *BoltStore) WriteTo(out io.Writer) error {
 	return b.conn.View(func(tx *bolt.Tx) error {
