@@ -335,7 +335,11 @@ type snapshot struct {
 
 func (s *snapshot) Persist(sink raft.SnapshotSink) error {
 	_, err := io.Copy(sink, s.src)
-	return err
+	if err != nil {
+		sink.Cancel()
+		return err
+	}
+	return sink.Close()
 }
 
 func (s *snapshot) Release() {}
