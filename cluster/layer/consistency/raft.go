@@ -306,7 +306,7 @@ func (s *raftlayer) leaderRoutine() {
 			s.logger.Info("raft cluster joined", zap.Uint64("raft_index", s.raft.LastIndex()),
 				zap.Strings("discovered_members", s.discoveredMembers()),
 			)
-			s.status = raftStatusBootstrapped
+			s.setStatus(raftStatusBootstrapped)
 		}
 		if !leader {
 			s.discovery.RemoveServiceTag(s.name, "raft_status")
@@ -382,11 +382,21 @@ func (s *raftlayer) ApplyEvent(event []byte) error {
 }
 
 func (s *raftlayer) setStatus(status string) {
+	s.discovery.AddServiceTag(fmt.Sprintf("%s_cluster", s.name), "raft_bootstrap_status", status)
 	s.status = status
 }
 func (s *raftlayer) getMembers() ([]*pb.NodeService, error) {
 	return s.discovery.Peers().EndpointsByService(fmt.Sprintf("%s_cluster", s.name))
 }
 func (s *raftlayer) getNodeStatus(peer string) string {
-	return s.nodeStatus(peer, s.name)
+	discovered, err := s.discovery.Peers().EndpointsByService(fmt.Sprintf("%s_cluster", s.name))
+	if err != nil {
+		return ""
+	}
+	for _, service := range discovered {
+		if service.Peer == peer {
+			return pb.GetTagValue("raft_bootstrap_status", service.Tags)
+		}
+	}
+	return ""
 }
