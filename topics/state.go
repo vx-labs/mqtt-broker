@@ -7,10 +7,11 @@ import (
 	proto "github.com/golang/protobuf/proto"
 	memdb "github.com/hashicorp/go-memdb"
 	"github.com/vx-labs/mqtt-broker/crdt"
+	"github.com/vx-labs/mqtt-broker/topics/pb"
 )
 
-func (m memDBStore) dumpRetainedMessages() *RetainedMessageMetadataList {
-	RetainedMessageList := RetainedMessageMetadataList{}
+func (m memDBStore) dumpRetainedMessages() *pb.RetainedMessageMetadataList {
+	RetainedMessageList := pb.RetainedMessageMetadataList{}
 	m.read(func(tx *memdb.Txn) error {
 		iterator, err := tx.Get("messages", "id")
 		if err != nil || iterator == nil {
@@ -21,8 +22,8 @@ func (m memDBStore) dumpRetainedMessages() *RetainedMessageMetadataList {
 			if payload == nil {
 				return nil
 			}
-			sess := payload.(RetainedMessage)
-			RetainedMessageList.Metadatas = append(RetainedMessageList.Metadatas, &sess.Metadata)
+			sess := payload.(pb.RetainedMessage)
+			RetainedMessageList.RetainedMessages = append(RetainedMessageList.RetainedMessages, &sess)
 		}
 	})
 	return &RetainedMessageList
@@ -49,31 +50,25 @@ func (m *memDBStore) runGC() error {
 			if payload == nil {
 				return nil, io.EOF
 			}
-			sess := payload.(RetainedMessage)
+			sess := payload.(pb.RetainedMessage)
 			return &sess, nil
 		}, func(id string) error {
-			return tx.Delete(table, RetainedMessage{
-				Metadata: Metadata{ID: id},
-			})
-		},
-		)
+			return tx.Delete(table, pb.RetainedMessage{ID: id})
+		})
 	})
 }
-func (m *memDBStore) insertPBRemoteSubscription(remote Metadata, tx *memdb.Txn) error {
-	sub := RetainedMessage{
-		Metadata: remote,
-	}
-	m.topicIndex.Index(sub)
-	return tx.Insert(table, sub)
+func (m *memDBStore) insertPBRemoteSubscription(remote pb.RetainedMessage, tx *memdb.Txn) error {
+	m.topicIndex.Index(remote)
+	return tx.Insert(table, remote)
 }
 func (m *memDBStore) Merge(inc []byte, _ bool) error {
-	set := &RetainedMessageMetadataList{}
+	set := &pb.RetainedMessageMetadataList{}
 	err := proto.Unmarshal(inc, set)
 	if err != nil {
 		return err
 	}
 	return m.write(func(tx *memdb.Txn) error {
-		for _, remote := range set.Metadatas {
+		for _, remote := range set.RetainedMessages {
 			localData, err := tx.First(table, "id", remote.ID)
 			if err != nil || localData == nil {
 				err := m.insertPBRemoteSubscription(*remote, tx)
@@ -82,7 +77,7 @@ func (m *memDBStore) Merge(inc []byte, _ bool) error {
 				}
 				continue
 			}
-			local, ok := localData.(RetainedMessage)
+			local, ok := localData.(pb.RetainedMessage)
 			if !ok {
 				log.Printf("WARN: invalid data found in store")
 				continue

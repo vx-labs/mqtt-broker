@@ -1,4 +1,4 @@
-package topics
+package pb
 
 import (
 	"bytes"

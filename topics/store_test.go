@@ -5,29 +5,30 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/vx-labs/mqtt-broker/cluster"
+	"github.com/vx-labs/mqtt-broker/topics/pb"
 )
 
 func TestMemDB(t *testing.T) {
 	db, err := NewMemDBStore(cluster.MockedMesh())
 	assert.Nil(t, err)
-	assert.Nil(t, db.Create(RetainedMessage{Metadata: Metadata{
+	assert.Nil(t, db.Create(pb.RetainedMessage{
 		ID:      "a1",
 		Payload: []byte("bla"),
 		Tenant:  "tenant1",
 		Topic:   []byte("devices/a/temperature"),
-	}}))
-	assert.Nil(t, db.Create(RetainedMessage{Metadata: Metadata{
+	}))
+	assert.Nil(t, db.Create(pb.RetainedMessage{
 		ID:      "a2",
 		Payload: []byte("bla"),
 		Tenant:  "tenant1",
 		Topic:   []byte("devices/b/temperature"),
-	}}))
-	assert.Nil(t, db.Create(RetainedMessage{Metadata: Metadata{
+	}))
+	assert.Nil(t, db.Create(pb.RetainedMessage{
 		ID:      "b1",
 		Payload: []byte("bla"),
 		Tenant:  "tenant2",
 		Topic:   []byte("devices/c/temperature"),
-	}}))
+	}))
 	m, err := db.ByTenant("tenant1")
 	assert.Nil(t, err)
 	if !assert.Equal(t, 2, len(m)) {
@@ -47,22 +48,22 @@ func TestMemDB(t *testing.T) {
 func TestMemDBDump(t *testing.T) {
 	db, err := NewMemDBStore(cluster.MockedMesh())
 	assert.Nil(t, err)
-	assert.Nil(t, db.Create(RetainedMessage{Metadata: Metadata{
+	assert.Nil(t, db.Create(pb.RetainedMessage{
 		ID:      "a1",
 		Payload: []byte("bla"),
 		Tenant:  "tenant1",
 		Topic:   []byte("devices/a/temperature"),
-	}}))
-	assert.Nil(t, db.Create(RetainedMessage{Metadata: Metadata{
+	}))
+	assert.Nil(t, db.Create(pb.RetainedMessage{
 		ID:      "a2",
 		Payload: []byte("bla"),
 		Tenant:  "tenant1",
 		Topic:   []byte("devices/b/temperature"),
-	}}))
-	assert.Nil(t, db.Create(RetainedMessage{Metadata: Metadata{
+	}))
+	assert.Nil(t, db.Create(pb.RetainedMessage{
 		ID:      "b1",
 		Payload: []byte("bla"),
 		Tenant:  "tenant2",
 		Topic:   []byte("devices/c/temperature"),
-	}}))
+	}))
 }

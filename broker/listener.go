@@ -8,11 +8,11 @@ import (
 	"time"
 
 	"github.com/vx-labs/mqtt-broker/cluster"
+	topicspb "github.com/vx-labs/mqtt-broker/topics/pb"
 	"go.uber.org/zap"
 
 	sessions "github.com/vx-labs/mqtt-broker/sessions/pb"
 	subscriptions "github.com/vx-labs/mqtt-broker/subscriptions/pb"
-	"github.com/vx-labs/mqtt-broker/topics"
 	"github.com/vx-labs/mqtt-broker/transport"
 	"github.com/vx-labs/mqtt-protocol/packet"
 )
@@ -148,7 +148,7 @@ func (b *Broker) Subscribe(ctx context.Context, token string, p *packet.Subscrib
 			if err != nil {
 				return
 			}
-			set.Apply(func(message topics.RetainedMessage) {
+			set.Apply(func(message topicspb.RetainedMessage) {
 				qos := getLowerQoS(message.Qos, packetQoS)
 				err := b.sendToSession(b.ctx, sess.SessionID, &packet.Publish{
 					Header: &packet.Header{

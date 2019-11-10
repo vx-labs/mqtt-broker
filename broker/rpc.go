@@ -1,9 +1,7 @@
 package broker
 
-import (
-	"github.com/vx-labs/mqtt-broker/topics"
-)
+import topicspb "github.com/vx-labs/mqtt-broker/topics/pb"
 
-func (b *Broker) ListRetainedMessages() (topics.RetainedMessageSet, error) {
+func (b *Broker) ListRetainedMessages() (topicspb.RetainedMessageSet, error) {
 	return b.Topics.All()
 }

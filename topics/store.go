@@ -10,6 +10,7 @@ import (
 	proto "github.com/golang/protobuf/proto"
 	"github.com/vx-labs/mqtt-broker/cluster/types"
 	"github.com/vx-labs/mqtt-broker/crdt"
+	"github.com/vx-labs/mqtt-broker/topics/pb"
 
 	memdb "github.com/hashicorp/go-memdb"
 )
@@ -32,10 +33,6 @@ const (
 	RetainedMessageDeleted        = "retained_message_deleted"
 	table                         = "messages"
 )
-
-type RetainedMessage struct {
-	Metadata
-}
 
 func makeTopicID(tenant string, topic []byte) (string, error) {
 	hash := sha1.New()
@@ -97,8 +94,8 @@ func NewMemDBStore(mesh types.GossipServiceLayer) (*memDBStore, error) {
 	return s, nil
 }
 
-func (m *memDBStore) ByID(id string) (RetainedMessage, error) {
-	var res RetainedMessage
+func (m *memDBStore) ByID(id string) (pb.RetainedMessage, error) {
+	var res pb.RetainedMessage
 	return res, m.read(func(tx *memdb.Txn) (err error) {
 		res, err = m.first(tx, "id", id)
 		if crdt.IsEntryRemoved(&res) {
@@ -107,30 +104,30 @@ func (m *memDBStore) ByID(id string) (RetainedMessage, error) {
 		return
 	})
 }
-func (m *memDBStore) All() (RetainedMessageSet, error) {
-	var res RetainedMessageSet
+func (m *memDBStore) All() (pb.RetainedMessageSet, error) {
+	var res pb.RetainedMessageSet
 	return res, m.read(func(tx *memdb.Txn) (err error) {
 		res, err = m.all(tx, "id")
 		return
 	})
 }
-func (m *memDBStore) ByTenant(tenant string) (RetainedMessageSet, error) {
-	var res RetainedMessageSet
+func (m *memDBStore) ByTenant(tenant string) (pb.RetainedMessageSet, error) {
+	var res pb.RetainedMessageSet
 	return res, m.read(func(tx *memdb.Txn) (err error) {
 		res, err = m.all(tx, "tenant", tenant)
 		return
 	})
 }
-func (m *memDBStore) ByTopicPattern(tenant string, pattern []byte) (RetainedMessageSet, error) {
+func (m *memDBStore) ByTopicPattern(tenant string, pattern []byte) (pb.RetainedMessageSet, error) {
 	set, err := m.topicIndex.Lookup(tenant, pattern)
 	if err != nil {
-		return RetainedMessageSet{}, err
+		return pb.RetainedMessageSet{}, err
 	}
-	return set.Filter(func(m RetainedMessage) bool {
+	return set.Filter(func(m pb.RetainedMessage) bool {
 		return len(m.Payload) > 0
 	}), nil
 }
-func (s *memDBStore) Create(sess RetainedMessage) error {
+func (s *memDBStore) Create(sess pb.RetainedMessage) error {
 	sess.LastAdded = now()
 	var err error
 	if sess.ID == "" {
@@ -145,7 +142,7 @@ func (s *memDBStore) Create(sess RetainedMessage) error {
 	}
 	return s.insert(sess)
 }
-func (m *memDBStore) insert(message RetainedMessage) error {
+func (m *memDBStore) insert(message pb.RetainedMessage) error {
 	defer m.emitRetainedMessageEvent(message)
 	err := m.write(func(tx *memdb.Txn) error {
 		err := tx.Insert(table, message)
@@ -156,9 +153,9 @@ func (m *memDBStore) insert(message RetainedMessage) error {
 		return nil
 	})
 	if err == nil {
-		buf, err := proto.Marshal(&RetainedMessageMetadataList{
-			Metadatas: []*Metadata{
-				&message.Metadata,
+		buf, err := proto.Marshal(&pb.RetainedMessageMetadataList{
+			RetainedMessages: []*pb.RetainedMessage{
+				&message,
 			},
 		})
 		if err != nil {
@@ -168,7 +165,7 @@ func (m *memDBStore) insert(message RetainedMessage) error {
 	}
 	return err
 }
-func (s *memDBStore) emitRetainedMessageEvent(sess RetainedMessage) {
+func (s *memDBStore) emitRetainedMessageEvent(sess pb.RetainedMessage) {
 	if crdt.IsEntryAdded(&sess) {
 	}
 	if crdt.IsEntryRemoved(&sess) {

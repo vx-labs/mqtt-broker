@@ -1,8 +1,10 @@
-package topics
+package tree
 
 import (
 	"fmt"
 	"sync"
+
+	"github.com/vx-labs/mqtt-broker/topics/pb"
 )
 
 var (
@@ -11,7 +13,7 @@ var (
 
 type Node struct {
 	Id       string
-	Message  RetainedMessage
+	Message  pb.RetainedMessage
 	Tenant   string
 	mutex    sync.RWMutex
 	children map[string]*Node
@@ -50,7 +52,7 @@ func (n *Node) AddChild(id, tenant string) *Node {
 	return c
 }
 
-func (n *Node) Apply(tenant string, topic *Topic, f func(*Node) bool) {
+func (n *Node) Apply(tenant string, topic *pb.Topic, f func(*Node) bool) {
 	var (
 		token string
 		read  bool
@@ -62,7 +64,7 @@ func (n *Node) Apply(tenant string, topic *Topic, f func(*Node) bool) {
 			if f(child) {
 				return
 			}
-			child.Apply(tenant, NewTopic([]byte("#")), f)
+			child.Apply(tenant, pb.NewTopic([]byte("#")), f)
 		}
 	case "+":
 		for _, child := range n.Children(tenant) {
@@ -88,7 +90,7 @@ func (n *Node) Apply(tenant string, topic *Topic, f func(*Node) bool) {
 		}
 	}
 }
-func (n *Node) Upsert(tenant string, topic *Topic) *Node {
+func (n *Node) Upsert(tenant string, topic *pb.Topic) *Node {
 	var (
 		token string
 		read  bool

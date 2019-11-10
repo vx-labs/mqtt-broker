@@ -15,6 +15,7 @@ import (
 
 	sessions "github.com/vx-labs/mqtt-broker/sessions/pb"
 	"github.com/vx-labs/mqtt-broker/topics"
+	topicspb "github.com/vx-labs/mqtt-broker/topics/pb"
 
 	"github.com/vx-labs/mqtt-protocol/packet"
 
@@ -45,9 +46,9 @@ type SessionStore interface {
 }
 
 type TopicStore interface {
-	Create(message topics.RetainedMessage) error
-	ByTopicPattern(tenant string, pattern []byte) (topics.RetainedMessageSet, error)
-	All() (topics.RetainedMessageSet, error)
+	Create(message topicspb.RetainedMessage) error
+	ByTopicPattern(tenant string, pattern []byte) (topicspb.RetainedMessageSet, error)
+	All() (topicspb.RetainedMessageSet, error)
 }
 type SubscriptionStore interface {
 	ByTopic(ctx context.Context, tenant string, pattern []byte) ([]*subscriptions.Metadata, error)

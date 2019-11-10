@@ -1,7 +1,7 @@
 syntax = "proto3";
-package topics;
+package pb;
 
-message Metadata {
+message RetainedMessage {
   string ID = 1;
   string Tenant = 2;
   bytes Topic = 3;
@@ -12,5 +12,5 @@ message Metadata {
 }
 
 message RetainedMessageMetadataList {
-  repeated Metadata Metadatas = 1;
+  repeated RetainedMessage RetainedMessages = 1;
 }

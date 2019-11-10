@@ -1,19 +1,24 @@
 package topics
 
+import (
+	"github.com/vx-labs/mqtt-broker/topics/pb"
+	"github.com/vx-labs/mqtt-broker/topics/tree"
+)
+
 type topicIndexer struct {
-	root *Node
+	root *tree.Node
 }
 
 func TenantTopicIndexer() *topicIndexer {
 	return &topicIndexer{
-		root: NewNode("_root", "_all"),
+		root: tree.NewNode("_root", "_all"),
 	}
 }
 
-func (t *topicIndexer) Lookup(tenant string, pattern []byte) (RetainedMessageSet, error) {
-	var vals RetainedMessageSet
-	topic := NewTopic(pattern)
-	t.root.Apply(tenant, topic, func(node *Node) bool {
+func (t *topicIndexer) Lookup(tenant string, pattern []byte) (pb.RetainedMessageSet, error) {
+	var vals pb.RetainedMessageSet
+	topic := pb.NewTopic(pattern)
+	t.root.Apply(tenant, topic, func(node *tree.Node) bool {
 		if len(node.Message.Payload) > 0 {
 			vals = append(vals, node.Message)
 		}
@@ -22,8 +27,8 @@ func (t *topicIndexer) Lookup(tenant string, pattern []byte) (RetainedMessageSet
 	return vals, nil
 }
 
-func (s *topicIndexer) Index(message RetainedMessage) error {
-	topic := NewTopic(message.GetTopic())
+func (s *topicIndexer) Index(message pb.RetainedMessage) error {
+	topic := pb.NewTopic(message.GetTopic())
 	node := s.root.Upsert(message.GetTenant(), topic)
 	node.Message = message
 	return nil
