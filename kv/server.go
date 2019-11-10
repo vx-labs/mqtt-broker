@@ -54,10 +54,20 @@ func New(id string, logger *zap.Logger) *server {
 }
 
 func (s *server) Delete(ctx context.Context, input *pb.KVDeleteInput) (*pb.KVDeleteOutput, error) {
+	if input.Version > 0 {
+		md, err := s.store.GetMetadata(input.Key)
+		if err != nil {
+			return nil, err
+		}
+		if md.Version != input.Version {
+			return nil, status.Error(codes.FailedPrecondition, "version not matched")
+		}
+	}
 	err := s.commitEvent(&pb.KVStateTransition{
 		Event: &pb.KVStateTransition_Delete{
 			Delete: &pb.KVStateTransitionValueDeleted{
-				Key: input.Key,
+				Key:     input.Key,
+				Version: input.Version,
 			},
 		},
 	})
@@ -73,6 +83,15 @@ func (s *server) Set(ctx context.Context, input *pb.KVSetInput) (*pb.KVSetOutput
 	if len(input.Value) == 0 {
 		return nil, ErrInvalidArgument("field 'Value' is required")
 	}
+	if input.Version > 0 {
+		md, err := s.store.GetMetadata(input.Key)
+		if err != nil {
+			return nil, err
+		}
+		if md.Version != input.Version {
+			return nil, status.Error(codes.FailedPrecondition, "version not matched")
+		}
+	}
 	var deadline uint64 = 0
 	if input.TimeToLive > 0 {
 		deadline = uint64(time.Now().Add(time.Duration(input.TimeToLive)).UnixNano())
@@ -83,6 +102,7 @@ func (s *server) Set(ctx context.Context, input *pb.KVSetInput) (*pb.KVSetOutput
 				Key:      input.Key,
 				Value:    input.Value,
 				Deadline: deadline,
+				Version:  input.Version,
 			},
 		},
 	})
@@ -109,4 +129,14 @@ func (s *server) Get(ctx context.Context, input *pb.KVGetInput) (*pb.KVGetOutput
 		return nil, ErrNotFound("key not found")
 	}
 	return &pb.KVGetOutput{Key: input.Key, Value: value}, nil
+}
+func (s *server) GetMetadata(ctx context.Context, input *pb.KVGetMetadataInput) (*pb.KVGetMetadataOutput, error) {
+	value, err := s.store.GetMetadata(input.Key)
+	if err != nil {
+		if err == store.ErrKeyNotFound {
+			return nil, ErrNotFound("key not found")
+		}
+		return nil, err
+	}
+	return &pb.KVGetMetadataOutput{Metadata: value}, nil
 }

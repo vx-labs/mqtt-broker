@@ -5,6 +5,7 @@ import "github.com/vx-labs/mqtt-protocol/packet/pb.proto";
 message KVMetadata {
   uint64 Version = 1;
   uint64 Deadline = 2;
+  bytes Key = 3;
 }
 
 message KVGetInput {
@@ -14,22 +15,32 @@ message KVGetOutput {
   bytes Key = 1;
   bytes Value= 2;
   uint64 Deadline = 3;
+  uint64 Version = 4;
+}
+message KVGetMetadataInput {
+  bytes Key = 1;
+}
+message KVGetMetadataOutput {
+  KVMetadata Metadata = 1;
 }
 
 message KVSetInput {
   bytes Key = 1;
   bytes Value= 2;
   uint64 TimeToLive = 3;
+  uint64 Version = 4;
 }
 message KVSetOutput {}
 
 message KVDeleteInput {
   bytes Key = 1;
+  uint64 Version = 2;
 }
 message KVDeleteOutput {}
 
 service KVService {
   rpc Get(KVGetInput) returns (KVGetOutput);
+  rpc GetMetadata(KVGetMetadataInput) returns (KVGetMetadataOutput);
   rpc Set(KVSetInput) returns (KVSetOutput);
   rpc Delete(KVDeleteInput) returns (KVDeleteOutput);
 }
@@ -48,10 +59,12 @@ message KVStateTransitionValueSet {
   bytes Key = 1;
   bytes Value= 2;
   uint64 Deadline = 3;
+  uint64 Version = 4;
 }
 message KVStateTransitionValueDeleted {
   bytes Key = 1;
+  uint64 Version = 2;
 }
 message KVStateTransitionValueBatchDeleted {
-  repeated bytes Keys = 1;
+  repeated KVMetadata KeyMDs = 1;
 }

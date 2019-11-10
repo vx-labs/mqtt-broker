@@ -41,7 +41,7 @@ func (b *server) JoinServiceLayer(name string, logger *zap.Logger, config cluste
 				b.commitEvent(&pb.KVStateTransition{
 					Event: &pb.KVStateTransition_DeleteBatch{
 						DeleteBatch: &pb.KVStateTransitionValueBatchDeleted{
-							Keys: keys,
+							KeyMDs: keys,
 						},
 					},
 				})

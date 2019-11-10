@@ -28,6 +28,7 @@ const _ = proto.ProtoPackageIsVersion3 // please upgrade the proto package
 type KVMetadata struct {
 	Version              uint64   `protobuf:"varint,1,opt,name=Version,proto3" json:"Version,omitempty"`
 	Deadline             uint64   `protobuf:"varint,2,opt,name=Deadline,proto3" json:"Deadline,omitempty"`
+	Key                  []byte   `protobuf:"bytes,3,opt,name=Key,proto3" json:"Key,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -70,6 +71,13 @@ func (m *KVMetadata) GetDeadline() uint64 {
 		return m.Deadline
 	}
 	return 0
+}
+
+func (m *KVMetadata) GetKey() []byte {
+	if m != nil {
+		return m.Key
+	}
+	return nil
 }
 
 type KVGetInput struct {
@@ -115,6 +123,7 @@ type KVGetOutput struct {
 	Key                  []byte   `protobuf:"bytes,1,opt,name=Key,proto3" json:"Key,omitempty"`
 	Value                []byte   `protobuf:"bytes,2,opt,name=Value,proto3" json:"Value,omitempty"`
 	Deadline             uint64   `protobuf:"varint,3,opt,name=Deadline,proto3" json:"Deadline,omitempty"`
+	Version              uint64   `protobuf:"varint,4,opt,name=Version,proto3" json:"Version,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -166,10 +175,96 @@ func (m *KVGetOutput) GetDeadline() uint64 {
 	return 0
 }
 
+func (m *KVGetOutput) GetVersion() uint64 {
+	if m != nil {
+		return m.Version
+	}
+	return 0
+}
+
+type KVGetMetadataInput struct {
+	Key                  []byte   `protobuf:"bytes,1,opt,name=Key,proto3" json:"Key,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *KVGetMetadataInput) Reset()         { *m = KVGetMetadataInput{} }
+func (m *KVGetMetadataInput) String() string { return proto.CompactTextString(m) }
+func (*KVGetMetadataInput) ProtoMessage()    {}
+func (*KVGetMetadataInput) Descriptor() ([]byte, []int) {
+	return fileDescriptor_d938547f84707355, []int{3}
+}
+
+func (m *KVGetMetadataInput) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_KVGetMetadataInput.Unmarshal(m, b)
+}
+func (m *KVGetMetadataInput) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_KVGetMetadataInput.Marshal(b, m, deterministic)
+}
+func (m *KVGetMetadataInput) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_KVGetMetadataInput.Merge(m, src)
+}
+func (m *KVGetMetadataInput) XXX_Size() int {
+	return xxx_messageInfo_KVGetMetadataInput.Size(m)
+}
+func (m *KVGetMetadataInput) XXX_DiscardUnknown() {
+	xxx_messageInfo_KVGetMetadataInput.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_KVGetMetadataInput proto.InternalMessageInfo
+
+func (m *KVGetMetadataInput) GetKey() []byte {
+	if m != nil {
+		return m.Key
+	}
+	return nil
+}
+
+type KVGetMetadataOutput struct {
+	Metadata             *KVMetadata `protobuf:"bytes,1,opt,name=Metadata,proto3" json:"Metadata,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}    `json:"-"`
+	XXX_unrecognized     []byte      `json:"-"`
+	XXX_sizecache        int32       `json:"-"`
+}
+
+func (m *KVGetMetadataOutput) Reset()         { *m = KVGetMetadataOutput{} }
+func (m *KVGetMetadataOutput) String() string { return proto.CompactTextString(m) }
+func (*KVGetMetadataOutput) ProtoMessage()    {}
+func (*KVGetMetadataOutput) Descriptor() ([]byte, []int) {
+	return fileDescriptor_d938547f84707355, []int{4}
+}
+
+func (m *KVGetMetadataOutput) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_KVGetMetadataOutput.Unmarshal(m, b)
+}
+func (m *KVGetMetadataOutput) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_KVGetMetadataOutput.Marshal(b, m, deterministic)
+}
+func (m *KVGetMetadataOutput) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_KVGetMetadataOutput.Merge(m, src)
+}
+func (m *KVGetMetadataOutput) XXX_Size() int {
+	return xxx_messageInfo_KVGetMetadataOutput.Size(m)
+}
+func (m *KVGetMetadataOutput) XXX_DiscardUnknown() {
+	xxx_messageInfo_KVGetMetadataOutput.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_KVGetMetadataOutput proto.InternalMessageInfo
+
+func (m *KVGetMetadataOutput) GetMetadata() *KVMetadata {
+	if m != nil {
+		return m.Metadata
+	}
+	return nil
+}
+
 type KVSetInput struct {
 	Key                  []byte   `protobuf:"bytes,1,opt,name=Key,proto3" json:"Key,omitempty"`
 	Value                []byte   `protobuf:"bytes,2,opt,name=Value,proto3" json:"Value,omitempty"`
 	TimeToLive           uint64   `protobuf:"varint,3,opt,name=TimeToLive,proto3" json:"TimeToLive,omitempty"`
+	Version              uint64   `protobuf:"varint,4,opt,name=Version,proto3" json:"Version,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -179,7 +274,7 @@ func (m *KVSetInput) Reset()         { *m = KVSetInput{} }
 func (m *KVSetInput) String() string { return proto.CompactTextString(m) }
 func (*KVSetInput) ProtoMessage()    {}
 func (*KVSetInput) Descriptor() ([]byte, []int) {
-	return fileDescriptor_d938547f84707355, []int{3}
+	return fileDescriptor_d938547f84707355, []int{5}
 }
 
 func (m *KVSetInput) XXX_Unmarshal(b []byte) error {
@@ -221,6 +316,13 @@ func (m *KVSetInput) GetTimeToLive() uint64 {
 	return 0
 }
 
+func (m *KVSetInput) GetVersion() uint64 {
+	if m != nil {
+		return m.Version
+	}
+	return 0
+}
+
 type KVSetOutput struct {
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
@@ -231,7 +333,7 @@ func (m *KVSetOutput) Reset()         { *m = KVSetOutput{} }
 func (m *KVSetOutput) String() string { return proto.CompactTextString(m) }
 func (*KVSetOutput) ProtoMessage()    {}
 func (*KVSetOutput) Descriptor() ([]byte, []int) {
-	return fileDescriptor_d938547f84707355, []int{4}
+	return fileDescriptor_d938547f84707355, []int{6}
 }
 
 func (m *KVSetOutput) XXX_Unmarshal(b []byte) error {
@@ -254,6 +356,7 @@ var xxx_messageInfo_KVSetOutput proto.InternalMessageInfo
 
 type KVDeleteInput struct {
 	Key                  []byte   `protobuf:"bytes,1,opt,name=Key,proto3" json:"Key,omitempty"`
+	Version              uint64   `protobuf:"varint,2,opt,name=Version,proto3" json:"Version,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -263,7 +366,7 @@ func (m *KVDeleteInput) Reset()         { *m = KVDeleteInput{} }
 func (m *KVDeleteInput) String() string { return proto.CompactTextString(m) }
 func (*KVDeleteInput) ProtoMessage()    {}
 func (*KVDeleteInput) Descriptor() ([]byte, []int) {
-	return fileDescriptor_d938547f84707355, []int{5}
+	return fileDescriptor_d938547f84707355, []int{7}
 }
 
 func (m *KVDeleteInput) XXX_Unmarshal(b []byte) error {
@@ -291,6 +394,13 @@ func (m *KVDeleteInput) GetKey() []byte {
 	return nil
 }
 
+func (m *KVDeleteInput) GetVersion() uint64 {
+	if m != nil {
+		return m.Version
+	}
+	return 0
+}
+
 type KVDeleteOutput struct {
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
@@ -301,7 +411,7 @@ func (m *KVDeleteOutput) Reset()         { *m = KVDeleteOutput{} }
 func (m *KVDeleteOutput) String() string { return proto.CompactTextString(m) }
 func (*KVDeleteOutput) ProtoMessage()    {}
 func (*KVDeleteOutput) Descriptor() ([]byte, []int) {
-	return fileDescriptor_d938547f84707355, []int{6}
+	return fileDescriptor_d938547f84707355, []int{8}
 }
 
 func (m *KVDeleteOutput) XXX_Unmarshal(b []byte) error {
@@ -333,7 +443,7 @@ func (m *KVStateTransitionSet) Reset()         { *m = KVStateTransitionSet{} }
 func (m *KVStateTransitionSet) String() string { return proto.CompactTextString(m) }
 func (*KVStateTransitionSet) ProtoMessage()    {}
 func (*KVStateTransitionSet) Descriptor() ([]byte, []int) {
-	return fileDescriptor_d938547f84707355, []int{7}
+	return fileDescriptor_d938547f84707355, []int{9}
 }
 
 func (m *KVStateTransitionSet) XXX_Unmarshal(b []byte) error {
@@ -376,7 +486,7 @@ func (m *KVStateTransition) Reset()         { *m = KVStateTransition{} }
 func (m *KVStateTransition) String() string { return proto.CompactTextString(m) }
 func (*KVStateTransition) ProtoMessage()    {}
 func (*KVStateTransition) Descriptor() ([]byte, []int) {
-	return fileDescriptor_d938547f84707355, []int{8}
+	return fileDescriptor_d938547f84707355, []int{10}
 }
 
 func (m *KVStateTransition) XXX_Unmarshal(b []byte) error {
@@ -460,6 +570,7 @@ type KVStateTransitionValueSet struct {
 	Key                  []byte   `protobuf:"bytes,1,opt,name=Key,proto3" json:"Key,omitempty"`
 	Value                []byte   `protobuf:"bytes,2,opt,name=Value,proto3" json:"Value,omitempty"`
 	Deadline             uint64   `protobuf:"varint,3,opt,name=Deadline,proto3" json:"Deadline,omitempty"`
+	Version              uint64   `protobuf:"varint,4,opt,name=Version,proto3" json:"Version,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -469,7 +580,7 @@ func (m *KVStateTransitionValueSet) Reset()         { *m = KVStateTransitionValu
 func (m *KVStateTransitionValueSet) String() string { return proto.CompactTextString(m) }
 func (*KVStateTransitionValueSet) ProtoMessage()    {}
 func (*KVStateTransitionValueSet) Descriptor() ([]byte, []int) {
-	return fileDescriptor_d938547f84707355, []int{9}
+	return fileDescriptor_d938547f84707355, []int{11}
 }
 
 func (m *KVStateTransitionValueSet) XXX_Unmarshal(b []byte) error {
@@ -511,8 +622,16 @@ func (m *KVStateTransitionValueSet) GetDeadline() uint64 {
 	return 0
 }
 
+func (m *KVStateTransitionValueSet) GetVersion() uint64 {
+	if m != nil {
+		return m.Version
+	}
+	return 0
+}
+
 type KVStateTransitionValueDeleted struct {
 	Key                  []byte   `protobuf:"bytes,1,opt,name=Key,proto3" json:"Key,omitempty"`
+	Version              uint64   `protobuf:"varint,2,opt,name=Version,proto3" json:"Version,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -522,7 +641,7 @@ func (m *KVStateTransitionValueDeleted) Reset()         { *m = KVStateTransition
 func (m *KVStateTransitionValueDeleted) String() string { return proto.CompactTextString(m) }
 func (*KVStateTransitionValueDeleted) ProtoMessage()    {}
 func (*KVStateTransitionValueDeleted) Descriptor() ([]byte, []int) {
-	return fileDescriptor_d938547f84707355, []int{10}
+	return fileDescriptor_d938547f84707355, []int{12}
 }
 
 func (m *KVStateTransitionValueDeleted) XXX_Unmarshal(b []byte) error {
@@ -550,18 +669,25 @@ func (m *KVStateTransitionValueDeleted) GetKey() []byte {
 	return nil
 }
 
+func (m *KVStateTransitionValueDeleted) GetVersion() uint64 {
+	if m != nil {
+		return m.Version
+	}
+	return 0
+}
+
 type KVStateTransitionValueBatchDeleted struct {
-	Keys                 [][]byte `protobuf:"bytes,1,rep,name=Keys,proto3" json:"Keys,omitempty"`
-	XXX_NoUnkeyedLiteral struct{} `json:"-"`
-	XXX_unrecognized     []byte   `json:"-"`
-	XXX_sizecache        int32    `json:"-"`
+	KeyMDs               []*KVMetadata `protobuf:"bytes,1,rep,name=KeyMDs,proto3" json:"KeyMDs,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}      `json:"-"`
+	XXX_unrecognized     []byte        `json:"-"`
+	XXX_sizecache        int32         `json:"-"`
 }
 
 func (m *KVStateTransitionValueBatchDeleted) Reset()         { *m = KVStateTransitionValueBatchDeleted{} }
 func (m *KVStateTransitionValueBatchDeleted) String() string { return proto.CompactTextString(m) }
 func (*KVStateTransitionValueBatchDeleted) ProtoMessage()    {}
 func (*KVStateTransitionValueBatchDeleted) Descriptor() ([]byte, []int) {
-	return fileDescriptor_d938547f84707355, []int{11}
+	return fileDescriptor_d938547f84707355, []int{13}
 }
 
 func (m *KVStateTransitionValueBatchDeleted) XXX_Unmarshal(b []byte) error {
@@ -582,9 +708,9 @@ func (m *KVStateTransitionValueBatchDeleted) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_KVStateTransitionValueBatchDeleted proto.InternalMessageInfo
 
-func (m *KVStateTransitionValueBatchDeleted) GetKeys() [][]byte {
+func (m *KVStateTransitionValueBatchDeleted) GetKeyMDs() []*KVMetadata {
 	if m != nil {
-		return m.Keys
+		return m.KeyMDs
 	}
 	return nil
 }
@@ -593,6 +719,8 @@ func init() {
 	proto.RegisterType((*KVMetadata)(nil), "pb.KVMetadata")
 	proto.RegisterType((*KVGetInput)(nil), "pb.KVGetInput")
 	proto.RegisterType((*KVGetOutput)(nil), "pb.KVGetOutput")
+	proto.RegisterType((*KVGetMetadataInput)(nil), "pb.KVGetMetadataInput")
+	proto.RegisterType((*KVGetMetadataOutput)(nil), "pb.KVGetMetadataOutput")
 	proto.RegisterType((*KVSetInput)(nil), "pb.KVSetInput")
 	proto.RegisterType((*KVSetOutput)(nil), "pb.KVSetOutput")
 	proto.RegisterType((*KVDeleteInput)(nil), "pb.KVDeleteInput")
@@ -607,36 +735,40 @@ func init() {
 func init() { proto.RegisterFile("types.proto", fileDescriptor_d938547f84707355) }
 
 var fileDescriptor_d938547f84707355 = []byte{
-	// 453 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xac, 0x53, 0xcd, 0x6e, 0xd3, 0x40,
-	0x10, 0xae, 0xeb, 0x36, 0x85, 0x71, 0x5a, 0xda, 0x51, 0x91, 0x42, 0xa4, 0x56, 0xed, 0x1e, 0xa2,
-	0x5e, 0x12, 0x53, 0x73, 0x41, 0xe2, 0x16, 0xb5, 0x6a, 0xc1, 0x20, 0x84, 0x1d, 0xf9, 0x8a, 0xd6,
-	0xce, 0x88, 0xae, 0x70, 0x6c, 0x13, 0x4f, 0x22, 0xf2, 0x0e, 0x3c, 0x20, 0x8f, 0x83, 0xbc, 0x1b,
-	0x87, 0xd0, 0xc4, 0x70, 0xe1, 0xb6, 0xb3, 0xf3, 0x7d, 0xdf, 0xfc, 0x83, 0xc3, 0x8b, 0x82, 0xca,
-	0x41, 0x31, 0xcd, 0x39, 0xc7, 0xdd, 0x22, 0xee, 0xbe, 0xfc, 0xa2, 0xf8, 0x61, 0x16, 0x0f, 0x92,
-	0x7c, 0xe2, 0xce, 0xbf, 0xf7, 0x53, 0x19, 0x97, 0xee, 0xe4, 0x1b, 0x73, 0x5f, 0x43, 0x92, 0x3c,
-	0x75, 0x0b, 0x99, 0x7c, 0x25, 0x76, 0x8b, 0xd8, 0xb0, 0xc4, 0x10, 0xc0, 0x8f, 0x3e, 0x10, 0xcb,
-	0xb1, 0x64, 0x89, 0x1d, 0x38, 0x88, 0x68, 0x5a, 0xaa, 0x3c, 0xeb, 0x58, 0x17, 0xd6, 0xd5, 0x5e,
-	0x50, 0x9b, 0xd8, 0x85, 0x27, 0x37, 0x24, 0xc7, 0xa9, 0xca, 0xa8, 0xb3, 0xab, 0x5d, 0x2b, 0x5b,
-	0x9c, 0x57, 0x1a, 0x77, 0xc4, 0x6f, 0xb3, 0x62, 0xc6, 0x78, 0x0c, 0xb6, 0x4f, 0x0b, 0xcd, 0x6f,
-	0x07, 0xd5, 0x53, 0x7c, 0x02, 0x47, 0xfb, 0x3f, 0xce, 0x78, 0x2b, 0x00, 0x4f, 0x61, 0x3f, 0x92,
-	0xe9, 0xcc, 0x28, 0xb7, 0x03, 0x63, 0xfc, 0x11, 0xd2, 0x7e, 0x14, 0x72, 0x54, 0x85, 0x0c, 0x1b,
-	0x43, 0x36, 0x28, 0x9e, 0x03, 0x8c, 0xd4, 0x84, 0x46, 0xf9, 0x7b, 0x35, 0xaf, 0x35, 0xd7, 0x7e,
-	0xc4, 0x61, 0x95, 0x68, 0x58, 0x27, 0x2a, 0x2e, 0xe1, 0xd0, 0x8f, 0x6e, 0x28, 0x25, 0xa6, 0xa6,
-	0xd2, 0x8e, 0xe1, 0xa8, 0x86, 0x2c, 0x49, 0xb7, 0x70, 0xea, 0x47, 0x21, 0x4b, 0xa6, 0xd1, 0x54,
-	0x66, 0xa5, 0x62, 0x95, 0x67, 0x21, 0x31, 0xf6, 0xa1, 0x45, 0x73, 0xca, 0xb8, 0xec, 0x58, 0x17,
-	0xf6, 0x95, 0xe3, 0x3d, 0x1f, 0x14, 0xf1, 0x60, 0x03, 0x19, 0x2c, 0x41, 0xe2, 0xa7, 0x05, 0x27,
-	0x1b, 0x5e, 0xbc, 0x06, 0x3b, 0x24, 0xd6, 0x09, 0x38, 0xde, 0xd9, 0x56, 0x05, 0x5d, 0x69, 0x48,
-	0x7c, 0xbf, 0x13, 0x54, 0x58, 0x7c, 0x03, 0x2d, 0x93, 0x9f, 0x6e, 0x85, 0xe3, 0x5d, 0x36, 0xb3,
-	0x0c, 0x6e, 0x7c, 0xbf, 0x13, 0x2c, 0x29, 0xf8, 0x0e, 0x1c, 0xf3, 0x1a, 0x4a, 0x4e, 0x1e, 0x74,
-	0xc7, 0x1c, 0xaf, 0xd7, 0xac, 0xa0, 0x61, 0xbf, 0x65, 0xd6, 0xc9, 0xc3, 0x03, 0xd8, 0xbf, 0xad,
-	0x6a, 0x13, 0x9f, 0xe1, 0x45, 0x63, 0xd6, 0xff, 0x65, 0x39, 0xae, 0xe1, 0xec, 0xaf, 0x05, 0x6e,
-	0x99, 0xe3, 0x6b, 0x10, 0xff, 0xae, 0x08, 0x11, 0xf6, 0x7c, 0x5a, 0x98, 0x09, 0xb6, 0x03, 0xfd,
-	0xf6, 0x7e, 0x58, 0xf0, 0xb4, 0x5a, 0x9a, 0xe9, 0x5c, 0x25, 0x84, 0x3d, 0xb0, 0xef, 0x88, 0xf1,
-	0xc8, 0xb4, 0xa8, 0xbe, 0x89, 0xee, 0xb3, 0x95, 0xbd, 0xbc, 0x81, 0x9e, 0x1e, 0x64, 0x8d, 0x0b,
-	0x1f, 0xe1, 0x56, 0x2b, 0x88, 0x6e, 0x3d, 0x3d, 0x3c, 0x31, 0xae, 0xb5, 0x75, 0xec, 0xe2, 0xfa,
-	0x97, 0x21, 0xc4, 0x2d, 0x7d, 0xd6, 0xaf, 0x7e, 0x05, 0x00, 0x00, 0xff, 0xff, 0x17, 0xb0, 0xd4,
-	0x8c, 0x1b, 0x04, 0x00, 0x00,
+	// 524 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xb4, 0x54, 0xc1, 0x6e, 0x9b, 0x40,
+	0x10, 0x0d, 0x26, 0x71, 0xd2, 0x21, 0x49, 0x93, 0x6d, 0xda, 0xba, 0x96, 0x12, 0xb9, 0x1c, 0x2c,
+	0xab, 0x92, 0x4d, 0x4b, 0x8f, 0x91, 0x2a, 0x35, 0x72, 0x94, 0xb4, 0x24, 0xaa, 0x04, 0x16, 0xf7,
+	0x05, 0x8f, 0x1a, 0x14, 0x0c, 0xd4, 0x8c, 0xad, 0xfa, 0x1f, 0xfb, 0x01, 0xfd, 0x9c, 0x8a, 0x85,
+	0xc5, 0xe0, 0x84, 0x54, 0x3d, 0xf4, 0xc6, 0xee, 0x7b, 0x33, 0xfb, 0xde, 0x63, 0x67, 0x41, 0xa3,
+	0x55, 0x82, 0xe9, 0x28, 0x99, 0xc7, 0x14, 0xb3, 0x56, 0xe2, 0x75, 0xdf, 0x7f, 0x0f, 0xe8, 0x6e,
+	0xe1, 0x8d, 0xfc, 0x78, 0x66, 0x2c, 0x7f, 0x0e, 0x43, 0xee, 0xa5, 0xc6, 0xec, 0x07, 0xd1, 0x50,
+	0x50, 0xfc, 0x38, 0x34, 0x12, 0xee, 0xdf, 0x23, 0x19, 0x89, 0x97, 0x57, 0xe9, 0x13, 0x00, 0xcb,
+	0xbd, 0x45, 0xe2, 0x53, 0x4e, 0x9c, 0x75, 0x60, 0xd7, 0xc5, 0x79, 0x1a, 0xc4, 0x51, 0x47, 0xe9,
+	0x29, 0x83, 0x6d, 0x5b, 0x2e, 0x59, 0x17, 0xf6, 0xc6, 0xc8, 0xa7, 0x61, 0x10, 0x61, 0xa7, 0x25,
+	0xa0, 0x72, 0xcd, 0x8e, 0x40, 0xb5, 0x70, 0xd5, 0x51, 0x7b, 0xca, 0x60, 0xdf, 0xce, 0x3e, 0xf5,
+	0xb3, 0xac, 0xeb, 0x15, 0xd2, 0x97, 0x28, 0x59, 0x90, 0xc4, 0x95, 0x35, 0x7e, 0x0f, 0x9a, 0xc0,
+	0xbf, 0x2d, 0xe8, 0x51, 0x02, 0x3b, 0x81, 0x1d, 0x97, 0x87, 0x8b, 0xfc, 0xac, 0x7d, 0x3b, 0x5f,
+	0xd4, 0x44, 0xa8, 0x1b, 0x22, 0x2a, 0xd2, 0xb7, 0x6b, 0xd2, 0xf5, 0x3e, 0x30, 0x71, 0x98, 0x74,
+	0xd9, 0x24, 0xea, 0x33, 0xbc, 0xa8, 0xf1, 0x0a, 0x71, 0xef, 0x60, 0x4f, 0xee, 0x08, 0xb6, 0x66,
+	0x1e, 0x8e, 0x12, 0x6f, 0xb4, 0x4e, 0xcd, 0x2e, 0x71, 0x3d, 0xca, 0x7c, 0x3b, 0x8d, 0xbe, 0x1b,
+	0x6c, 0x9d, 0x01, 0x4c, 0x82, 0x19, 0x4e, 0xe2, 0x9b, 0x60, 0x29, 0x8d, 0x55, 0x76, 0x9e, 0xb0,
+	0x76, 0x90, 0xe5, 0xe8, 0xc8, 0x1c, 0xf5, 0x73, 0x38, 0xb0, 0xdc, 0x31, 0x86, 0x48, 0xd8, 0xa4,
+	0xa0, 0xd2, 0xab, 0x55, 0xef, 0x75, 0x04, 0x87, 0xb2, 0xb8, 0x68, 0x77, 0x09, 0x27, 0x96, 0xeb,
+	0x10, 0x27, 0x9c, 0xcc, 0x79, 0x94, 0x06, 0x14, 0xc4, 0x91, 0x83, 0xc4, 0x86, 0xd0, 0xc6, 0x25,
+	0x46, 0x94, 0x76, 0x94, 0x9e, 0x3a, 0xd0, 0xcc, 0x97, 0x79, 0x1e, 0x1b, 0x4c, 0xbb, 0x20, 0xe9,
+	0xbf, 0x15, 0x38, 0x7e, 0x80, 0xb2, 0x0f, 0xa0, 0x3a, 0x48, 0x45, 0xa2, 0xa7, 0x8f, 0x76, 0x10,
+	0xe9, 0x38, 0x48, 0xd7, 0x5b, 0x76, 0xc6, 0x65, 0xe7, 0xd0, 0xce, 0xf5, 0x09, 0xe9, 0x9a, 0xf9,
+	0xb6, 0xb9, 0x2a, 0xe7, 0x4d, 0xaf, 0xb7, 0xec, 0xa2, 0x84, 0x7d, 0x05, 0x2d, 0xff, 0xba, 0xe0,
+	0xe4, 0xdf, 0x89, 0x94, 0x35, 0xb3, 0xdf, 0xdc, 0x41, 0xd0, 0xd6, 0x6d, 0xaa, 0xc5, 0x17, 0xbb,
+	0xb0, 0x73, 0x99, 0x79, 0xd3, 0x57, 0xf0, 0xa6, 0x51, 0xf5, 0x7f, 0xbe, 0xd5, 0x16, 0x9c, 0x3e,
+	0x69, 0xfd, 0x9f, 0xfe, 0xfd, 0x0d, 0xe8, 0x7f, 0x4f, 0x81, 0xf5, 0xa1, 0x6d, 0xe1, 0xea, 0x76,
+	0x2c, 0xff, 0xfb, 0xe6, 0x1c, 0x14, 0xa8, 0xf9, 0x4b, 0x81, 0x67, 0xd9, 0xb5, 0x9c, 0x2f, 0x03,
+	0x1f, 0x59, 0x1f, 0xd4, 0x2b, 0x24, 0x56, 0x90, 0xe5, 0xa3, 0xd0, 0x7d, 0x5e, 0xae, 0x8b, 0x39,
+	0xfb, 0x04, 0x5a, 0x65, 0xf8, 0xd8, 0xab, 0x12, 0xaf, 0xcd, 0x6d, 0xf7, 0xf5, 0x83, 0xfd, 0xa2,
+	0xbe, 0x2f, 0x2e, 0x94, 0x3c, 0xc7, 0xd9, 0x38, 0xa7, 0x1c, 0x12, 0x66, 0xc8, 0x5b, 0xc4, 0x8e,
+	0x73, 0xa8, 0x32, 0x30, 0x5d, 0x56, 0xdd, 0xca, 0x0b, 0xbc, 0xb6, 0x78, 0x29, 0x3f, 0xfe, 0x09,
+	0x00, 0x00, 0xff, 0xff, 0x6f, 0x37, 0x6b, 0xfe, 0x6e, 0x05, 0x00, 0x00,
 }
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -652,6 +784,7 @@ const _ = grpc.SupportPackageIsVersion4
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
 type KVServiceClient interface {
 	Get(ctx context.Context, in *KVGetInput, opts ...grpc.CallOption) (*KVGetOutput, error)
+	GetMetadata(ctx context.Context, in *KVGetMetadataInput, opts ...grpc.CallOption) (*KVGetMetadataOutput, error)
 	Set(ctx context.Context, in *KVSetInput, opts ...grpc.CallOption) (*KVSetOutput, error)
 	Delete(ctx context.Context, in *KVDeleteInput, opts ...grpc.CallOption) (*KVDeleteOutput, error)
 }
@@ -667,6 +800,15 @@ func NewKVServiceClient(cc *grpc.ClientConn) KVServiceClient {
 func (c *kVServiceClient) Get(ctx context.Context, in *KVGetInput, opts ...grpc.CallOption) (*KVGetOutput, error) {
 	out := new(KVGetOutput)
 	err := c.cc.Invoke(ctx, "/pb.KVService/Get", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *kVServiceClient) GetMetadata(ctx context.Context, in *KVGetMetadataInput, opts ...grpc.CallOption) (*KVGetMetadataOutput, error) {
+	out := new(KVGetMetadataOutput)
+	err := c.cc.Invoke(ctx, "/pb.KVService/GetMetadata", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -694,6 +836,7 @@ func (c *kVServiceClient) Delete(ctx context.Context, in *KVDeleteInput, opts ..
 // KVServiceServer is the server API for KVService service.
 type KVServiceServer interface {
 	Get(context.Context, *KVGetInput) (*KVGetOutput, error)
+	GetMetadata(context.Context, *KVGetMetadataInput) (*KVGetMetadataOutput, error)
 	Set(context.Context, *KVSetInput) (*KVSetOutput, error)
 	Delete(context.Context, *KVDeleteInput) (*KVDeleteOutput, error)
 }
@@ -704,6 +847,9 @@ type UnimplementedKVServiceServer struct {
 
 func (*UnimplementedKVServiceServer) Get(ctx context.Context, req *KVGetInput) (*KVGetOutput, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Get not implemented")
+}
+func (*UnimplementedKVServiceServer) GetMetadata(ctx context.Context, req *KVGetMetadataInput) (*KVGetMetadataOutput, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetMetadata not implemented")
 }
 func (*UnimplementedKVServiceServer) Set(ctx context.Context, req *KVSetInput) (*KVSetOutput, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Set not implemented")
@@ -730,6 +876,24 @@ func _KVService_Get_Handler(srv interface{}, ctx context.Context, dec func(inter
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(KVServiceServer).Get(ctx, req.(*KVGetInput))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _KVService_GetMetadata_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(KVGetMetadataInput)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(KVServiceServer).GetMetadata(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/pb.KVService/GetMetadata",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(KVServiceServer).GetMetadata(ctx, req.(*KVGetMetadataInput))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -777,6 +941,10 @@ var _KVService_serviceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "Get",
 			Handler:    _KVService_Get_Handler,
+		},
+		{
+			MethodName: "GetMetadata",
+			Handler:    _KVService_GetMetadata_Handler,
 		},
 		{
 			MethodName: "Set",
