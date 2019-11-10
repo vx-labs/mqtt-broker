@@ -3,6 +3,7 @@ package pb
 import (
 	context "context"
 	"errors"
+	"time"
 
 	"google.golang.org/grpc"
 )
@@ -16,14 +17,29 @@ func NewClient(conn *grpc.ClientConn) *Client {
 		api: NewKVServiceClient(conn),
 	}
 }
-func (c *Client) Set(ctx context.Context, key []byte, value []byte) error {
+
+type setOpt func(KVSetInput) KVSetInput
+
+func WithTimeToLive(ttl time.Duration) setOpt {
+	return func(s KVSetInput) KVSetInput {
+		s.TimeToLive = uint64(ttl.Nanoseconds())
+		return s
+	}
+}
+
+func (c *Client) Set(ctx context.Context, key []byte, value []byte, opts ...setOpt) error {
 	if len(key) == 0 {
 		return errors.New("invalid key")
 	}
-	_, err := c.api.Set(ctx, &KVSetInput{
-		Key:   key,
-		Value: value,
-	})
+	input := KVSetInput{
+		Key:        key,
+		Value:      value,
+		TimeToLive: 0,
+	}
+	for _, opt := range opts {
+		input = opt(input)
+	}
+	_, err := c.api.Set(ctx, &input)
 	return err
 }
 func (c *Client) Get(ctx context.Context, key []byte) ([]byte, error) {

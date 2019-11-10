@@ -5,6 +5,7 @@ import (
 	fmt "fmt"
 	"hash/fnv"
 	"net"
+	"time"
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -72,11 +73,16 @@ func (s *server) Set(ctx context.Context, input *pb.KVSetInput) (*pb.KVSetOutput
 	if len(input.Value) == 0 {
 		return nil, ErrInvalidArgument("field 'Value' is required")
 	}
+	var deadline uint64 = 0
+	if input.TimeToLive > 0 {
+		deadline = uint64(time.Now().Add(time.Duration(input.TimeToLive)).UnixNano())
+	}
 	err := s.commitEvent(&pb.KVStateTransition{
 		Event: &pb.KVStateTransition_Set{
 			Set: &pb.KVStateTransitionValueSet{
-				Key:   input.Key,
-				Value: input.Value,
+				Key:      input.Key,
+				Value:    input.Value,
+				Deadline: deadline,
 			},
 		},
 	})

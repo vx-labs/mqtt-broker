@@ -26,6 +26,13 @@ func (m *server) Snapshot() io.Reader {
 }
 func (m *server) applyEvent(payload *pb.KVStateTransition) error {
 	switch event := payload.GetEvent().(type) {
+	case *pb.KVStateTransition_DeleteBatch:
+		input := event.DeleteBatch
+		err := m.store.DeleteBatch(input.Keys)
+		if err != nil {
+			m.logger.Error("failed to delete keys", zap.Error(err))
+		}
+		return err
 	case *pb.KVStateTransition_Delete:
 		input := event.Delete
 		err := m.store.Delete(input.Key)
@@ -35,7 +42,7 @@ func (m *server) applyEvent(payload *pb.KVStateTransition) error {
 		return err
 	case *pb.KVStateTransition_Set:
 		input := event.Set
-		err := m.store.Put(input.Key, input.Value)
+		err := m.store.Put(input.Key, input.Value, input.Deadline)
 		if err != nil {
 			m.logger.Error("failed to set key", zap.Error(err))
 		}

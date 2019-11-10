@@ -2,17 +2,24 @@ syntax = "proto3";
 package pb;
 import "github.com/vx-labs/mqtt-protocol/packet/pb.proto";
 
+message KVMetadata {
+  uint64 Version = 1;
+  uint64 Deadline = 2;
+}
+
 message KVGetInput {
   bytes Key = 1;
 }
 message KVGetOutput {
   bytes Key = 1;
   bytes Value= 2;
+  uint64 Deadline = 3;
 }
 
 message KVSetInput {
   bytes Key = 1;
   bytes Value= 2;
+  uint64 TimeToLive = 3;
 }
 message KVSetOutput {}
 
@@ -33,13 +40,18 @@ message KVStateTransition {
   oneof Event {
   KVStateTransitionValueSet Set = 1;
   KVStateTransitionValueDeleted Delete = 2;
+  KVStateTransitionValueBatchDeleted DeleteBatch = 3;
   }
 }
 
 message KVStateTransitionValueSet {
   bytes Key = 1;
   bytes Value= 2;
+  uint64 Deadline = 3;
 }
 message KVStateTransitionValueDeleted {
   bytes Key = 1;
+}
+message KVStateTransitionValueBatchDeleted {
+  repeated bytes Keys = 1;
 }

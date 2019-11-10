@@ -5,8 +5,10 @@ import "errors"
 var (
 	// ErrKeyNotFound is an error indicating a given key does not exist
 	ErrKeyNotFound = errors.New("not found")
-	// ErrBucketNotFound is an error indicating a given stream does not exist
+	// ErrBucketNotFound is an error indicating the data store bucket does not exist
 	ErrBucketNotFound = errors.New("bucket not found")
+	// ErrTTLBucketNotFound is an error indicating a the TTL index bucket does not exist
+	ErrTTLBucketNotFound = errors.New("ttl bucket not found")
 	// ErrIndexOutdated is an error indicating that the supplied index is outdated
 	ErrIndexOutdated = errors.New("index outdated")
 )

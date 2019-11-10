@@ -3,6 +3,7 @@ package kv
 import (
 	fmt "fmt"
 	"net"
+	"time"
 
 	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
 	"github.com/vx-labs/mqtt-broker/cluster"
@@ -26,6 +27,25 @@ func (b *server) JoinServiceLayer(name string, logger *zap.Logger, config cluste
 		err := b.state.Start(name, b)
 		if err != nil {
 			panic(err)
+		}
+	}()
+	go func() {
+		ticker := time.NewTicker(1 * time.Second)
+		for range ticker.C {
+			if b.state.IsLeader() {
+				keys, err := b.store.ListExpiredKeys(uint64(time.Now().UnixNano()))
+				if err != nil {
+					b.logger.Error("failed to list expired messages", zap.Error(err))
+					continue
+				}
+				b.commitEvent(&pb.KVStateTransition{
+					Event: &pb.KVStateTransition_DeleteBatch{
+						DeleteBatch: &pb.KVStateTransitionValueBatchDeleted{
+							Keys: keys,
+						},
+					},
+				})
+			}
 		}
 	}()
 }
