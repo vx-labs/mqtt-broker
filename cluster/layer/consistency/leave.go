@@ -34,7 +34,11 @@ func (s *raftlayer) Leave() error {
 	numPeers := len(s.raftMembers())
 	isLeader := s.IsLeader()
 	if isLeader && numPeers > 1 {
-		err := s.raft.RemoveServer(raft.ServerID(s.id), 0, 0).Error()
+		if b := s.raft.Barrier(5 * time.Second); b.Error() != nil {
+			s.logger.Error("failed to wait for other members to catch-up log", zap.Error(err))
+			return err
+		}
+		err = s.raft.RemoveServer(raft.ServerID(s.id), 0, 0).Error()
 		if err != nil {
 			s.logger.Error("failed to leave raft cluster", zap.Error(err))
 			return err

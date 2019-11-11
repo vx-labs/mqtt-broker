@@ -16,6 +16,10 @@ import (
 )
 
 func (b *server) Shutdown() {
+	err := b.state.Shutdown()
+	if err != nil {
+		b.logger.Error("failed to shutdown raft state", zap.Error(err))
+	}
 	for _, lis := range b.listeners {
 		lis.Close()
 	}
@@ -75,5 +79,6 @@ func (m *server) Serve(port int) net.Listener {
 	pb.RegisterKVServiceServer(s, m)
 	grpc_prometheus.Register(s)
 	go s.Serve(lis)
+	m.listeners = append(m.listeners, lis)
 	return lis
 }

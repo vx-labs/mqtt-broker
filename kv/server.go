@@ -48,6 +48,9 @@ func New(id string, logger *zap.Logger) *server {
 }
 
 func (s *server) Delete(ctx context.Context, input *pb.KVDeleteInput) (*pb.KVDeleteOutput, error) {
+	if s.state == nil || s.leaderRPC == nil {
+		return nil, status.Error(codes.Unavailable, "node is not ready")
+	}
 	if !s.state.IsLeader() {
 		return s.leaderRPC.Delete(ctx, input)
 	}
@@ -73,6 +76,9 @@ func (s *server) Delete(ctx context.Context, input *pb.KVDeleteInput) (*pb.KVDel
 	return &pb.KVDeleteOutput{}, err
 }
 func (s *server) Set(ctx context.Context, input *pb.KVSetInput) (*pb.KVSetOutput, error) {
+	if s.state == nil || s.leaderRPC == nil {
+		return nil, status.Error(codes.Unavailable, "node is not ready")
+	}
 	if !s.state.IsLeader() {
 		return s.leaderRPC.Set(ctx, input)
 	}
@@ -121,6 +127,9 @@ func ErrInvalidArgument(msg string) error {
 }
 
 func (s *server) Get(ctx context.Context, input *pb.KVGetInput) (*pb.KVGetOutput, error) {
+	if s.state == nil || s.leaderRPC == nil {
+		return nil, status.Error(codes.Unavailable, "node is not ready")
+	}
 	if !s.state.IsLeader() {
 		return s.leaderRPC.Get(ctx, input)
 	}
@@ -134,6 +143,9 @@ func (s *server) Get(ctx context.Context, input *pb.KVGetInput) (*pb.KVGetOutput
 	return &pb.KVGetOutput{Key: input.Key, Value: value}, nil
 }
 func (s *server) GetMetadata(ctx context.Context, input *pb.KVGetMetadataInput) (*pb.KVGetMetadataOutput, error) {
+	if s.state == nil || s.leaderRPC == nil {
+		return nil, status.Error(codes.Unavailable, "node is not ready")
+	}
 	if !s.state.IsLeader() {
 		return s.leaderRPC.GetMetadata(ctx, input)
 	}
@@ -147,6 +159,9 @@ func (s *server) GetMetadata(ctx context.Context, input *pb.KVGetMetadataInput) 
 	return &pb.KVGetMetadataOutput{Metadata: value}, nil
 }
 func (s *server) GetWithMetadata(ctx context.Context, input *pb.KVGetWithMetadataInput) (*pb.KVGetWithMetadataOutput, error) {
+	if s.state == nil || s.leaderRPC == nil {
+		return nil, status.Error(codes.Unavailable, "node is not ready")
+	}
 	if !s.state.IsLeader() {
 		return s.leaderRPC.GetWithMetadata(ctx, input)
 	}

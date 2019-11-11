@@ -15,6 +15,10 @@ import (
 )
 
 func (b *server) Shutdown() {
+	err := b.state.Shutdown()
+	if err != nil {
+		b.logger.Error("failed to shutdown raft state", zap.Error(err))
+	}
 	for _, lis := range b.listeners {
 		lis.Close()
 	}
@@ -26,6 +30,12 @@ func (b *server) JoinServiceLayer(name string, logger *zap.Logger, config cluste
 	if err != nil {
 		panic(err)
 	}
+	leaderConn, err := mesh.DialService("messages?raft_status=leader")
+	if err != nil {
+		panic(err)
+	}
+	b.leaderRPC = pb.NewMessagesServiceClient(leaderConn)
+
 }
 func (m *server) Health() string {
 	return m.state.Health()
@@ -41,5 +51,6 @@ func (m *server) Serve(port int) net.Listener {
 	pb.RegisterMessagesServiceServer(s, m)
 	grpc_prometheus.Register(s)
 	go s.Serve(lis)
+	m.listeners = append(m.listeners, lis)
 	return lis
 }

@@ -29,6 +29,7 @@ type server struct {
 	ctx       context.Context
 	listeners []net.Listener
 	logger    *zap.Logger
+	leaderRPC pb.MessagesServiceClient
 }
 
 func hashShardKey(key string, shardCount int) int {
@@ -56,6 +57,12 @@ func New(id string, logger *zap.Logger) *server {
 }
 
 func (s *server) DeleteStream(ctx context.Context, input *pb.MessageDeleteStreamInput) (*pb.MessageDeleteStreamOutput, error) {
+	if s.state == nil || s.leaderRPC == nil {
+		return nil, status.Error(codes.Unavailable, "node is not ready")
+	}
+	if !s.state.IsLeader() {
+		return s.leaderRPC.DeleteStream(ctx, input)
+	}
 	err := s.commitEvent(&pb.MessagesStateTransition{
 		Event: &pb.MessagesStateTransition_StreamDeleted{
 			StreamDeleted: &pb.MessagesStateTransitionStreamDeleted{
@@ -69,6 +76,12 @@ func (s *server) DeleteStream(ctx context.Context, input *pb.MessageDeleteStream
 	return &pb.MessageDeleteStreamOutput{}, err
 }
 func (s *server) CreateStream(ctx context.Context, input *pb.MessageCreateStreamInput) (*pb.MessageCreateStreamOutput, error) {
+	if s.state == nil || s.leaderRPC == nil {
+		return nil, status.Error(codes.Unavailable, "node is not ready")
+	}
+	if !s.state.IsLeader() {
+		return s.leaderRPC.CreateStream(ctx, input)
+	}
 	if input.ID == "" {
 		return nil, ErrInvalidArgument("field 'ID' is required")
 	}
@@ -104,6 +117,9 @@ func ErrInvalidArgument(msg string) error {
 }
 
 func (s *server) GetStream(ctx context.Context, input *pb.MessageGetStreamInput) (*pb.MessageGetStreamOutput, error) {
+	if s.state == nil || s.leaderRPC == nil {
+		return nil, status.Error(codes.Unavailable, "node is not ready")
+	}
 	config := s.store.GetStream(input.ID)
 	if config == nil {
 		return nil, ErrNotFound("stream not found")
@@ -111,6 +127,9 @@ func (s *server) GetStream(ctx context.Context, input *pb.MessageGetStreamInput)
 	return &pb.MessageGetStreamOutput{ID: input.ID, Config: config}, nil
 }
 func (s *server) GetMessages(ctx context.Context, input *pb.MessageGetMessagesInput) (*pb.MessageGetMessagesOutput, error) {
+	if s.state == nil || s.leaderRPC == nil {
+		return nil, status.Error(codes.Unavailable, "node is not ready")
+	}
 	buf := make([]*pb.StoredMessage, input.MaxCount)
 	count, offset, err := s.store.GetRange(input.StreamID, input.ShardID, input.Offset, buf)
 	if err != nil {
@@ -125,6 +144,12 @@ func (s *server) GetMessages(ctx context.Context, input *pb.MessageGetMessagesIn
 }
 
 func (s *server) PutMessage(ctx context.Context, input *pb.MessagePutMessageInput) (*pb.MessagePutMessageOutput, error) {
+	if s.state == nil || s.leaderRPC == nil {
+		return nil, status.Error(codes.Unavailable, "node is not ready")
+	}
+	if !s.state.IsLeader() {
+		return s.leaderRPC.PutMessage(ctx, input)
+	}
 	stream := s.store.GetStream(input.StreamID)
 	if stream == nil {
 		return nil, ErrNotFound("stream not found")
@@ -154,6 +179,12 @@ func (s *server) PutMessage(ctx context.Context, input *pb.MessagePutMessageInpu
 	}, err
 }
 func (s *server) PutMessageBatch(ctx context.Context, ev *pb.MessagePutMessageBatchInput) (*pb.MessagePutMessageBatchOutput, error) {
+	if s.state == nil || s.leaderRPC == nil {
+		return nil, status.Error(codes.Unavailable, "node is not ready")
+	}
+	if !s.state.IsLeader() {
+		return s.leaderRPC.PutMessageBatch(ctx, ev)
+	}
 	event := []*pb.MessagesStateTransition{}
 	for _, input := range ev.Batches {
 		stream := s.store.GetStream(input.StreamID)
