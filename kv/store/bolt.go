@@ -256,10 +256,10 @@ func (b *BoltStore) GetWithMetadata(key []byte) ([]byte, *pb.KVMetadata, error) 
 	if err != nil {
 		return nil, nil, ErrMDNotFound
 	}
-	value := bucket.Get(key)
-	if value == nil {
-		return nil, &pb.KVMetadata{Key: key, Version: 0}, nil
+	if md == nil {
+		md = &pb.KVMetadata{Key: key, Version: 0}
 	}
+	value := bucket.Get(key)
 	return value, md, nil
 }
 

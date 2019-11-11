@@ -15,6 +15,7 @@ func KV(ctx context.Context, config *viper.Viper) *cobra.Command {
 	}
 	c.AddCommand(Get(ctx, config))
 	c.AddCommand(GetMetadata(ctx, config))
+	c.AddCommand(GetWithMetadata(ctx, config))
 	c.AddCommand(Set(ctx, config))
 	c.AddCommand(Delete(ctx, config))
 	return c
@@ -53,6 +54,27 @@ func GetMetadata(ctx context.Context, config *viper.Viper) *cobra.Command {
 					logrus.Errorf("failed to get %q: %v", key, err)
 				} else {
 					logrus.Infof("%s: version=%v, deadline=%d", key, value.Version, value.Deadline)
+				}
+			}
+		},
+	}
+	return c
+}
+func GetWithMetadata(ctx context.Context, config *viper.Viper) *cobra.Command {
+	c := &cobra.Command{
+		Use:     "get-withmetadata",
+		Aliases: []string{"gmd"},
+		PreRun: func(c *cobra.Command, _ []string) {
+		},
+		Run: func(cmd *cobra.Command, argv []string) {
+			client := getClient(config)
+			for _, key := range argv {
+				value, md, err := client.GetWithMetadata(ctx, []byte(key))
+				if err != nil {
+					logrus.Errorf("failed to get %q: %v", key, err)
+				} else {
+					logrus.Infof("%s: %s", key, string(value))
+					logrus.Infof("%s: version=%v, deadline=%d", key, md.Version, md.Deadline)
 				}
 			}
 		},
