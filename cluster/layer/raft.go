@@ -14,7 +14,7 @@ type DiscoveryProvider interface {
 	UnregisterService(string) error
 	AddServiceTag(service, key, value string) error
 	RemoveServiceTag(name string, tag string) error
-	DialAddress(service, id string, f func(*grpc.ClientConn) error) error
+	DialService(id string) (*grpc.ClientConn, error)
 	Peers() peers.PeerStore
 }
 

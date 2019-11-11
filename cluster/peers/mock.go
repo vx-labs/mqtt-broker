@@ -12,7 +12,8 @@ import (
 
 type mockedChannel struct{}
 
-func (m *mockedChannel) Broadcast([]byte) {}
+func (m *mockedChannel) Broadcast([]byte)          {}
+func (m *mockedChannel) BroadcastFullState([]byte) {}
 
 type mockedMesh struct{}
 
@@ -39,10 +40,6 @@ func (m *mockedMesh) Status(context.Context, *pb.StatusInput) (*pb.StatusOutput,
 	return nil, nil
 }
 func (m *mockedMesh) Peers() PeerStore {
-	return nil
-}
-
-func (m *mockedMesh) DialAddress(service, id string, f func(*grpc.ClientConn) error) error {
 	return nil
 }
 

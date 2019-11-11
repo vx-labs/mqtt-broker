@@ -13,6 +13,3 @@ func (m *discoveryLayer) DialService(name string) (*grpc.ClientConn, error) {
 		network.GRPCClientOptions()...,
 	)
 }
-func (m *discoveryLayer) DialAddress(service, id string, f func(*grpc.ClientConn) error) error {
-	return m.rpcCaller.Call(fmt.Sprintf("%s+%s", service, id), f)
-}

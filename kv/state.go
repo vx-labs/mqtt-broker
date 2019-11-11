@@ -1,10 +1,10 @@
 package kv
 
 import (
-	"errors"
 	"io"
 
 	"github.com/gogo/protobuf/proto"
+	"github.com/pkg/errors"
 
 	"github.com/vx-labs/mqtt-broker/kv/pb"
 	"go.uber.org/zap"
@@ -29,27 +29,17 @@ func (m *server) applyEvent(payload *pb.KVStateTransition) error {
 	case *pb.KVStateTransition_DeleteBatch:
 		input := event.DeleteBatch
 		err := m.store.DeleteBatch(input.KeyMDs)
-		if err != nil {
-			m.logger.Error("failed to delete keys", zap.Error(err))
-			return err
-		}
-		return nil
+		return errors.Wrap(err, "failed to delete batch of keys")
 	case *pb.KVStateTransition_Delete:
 		input := event.Delete
 		err := m.store.Delete(input.Key, input.Version)
-		if err != nil {
-			m.logger.Error("failed to delete key", zap.Error(err))
-		}
-		return err
+		return errors.Wrap(err, "failed to delete key")
 	case *pb.KVStateTransition_Set:
 		input := event.Set
 		err := m.store.Put(input.Key, input.Value, input.Deadline, input.Version)
-		if err != nil {
-			m.logger.Error("failed to set key", zap.Error(err))
-		}
-		return err
+		return errors.Wrap(err, "failed to set key")
 	default:
-		return errors.New("invalid event type received")
+		return errors.New("invalid event received")
 	}
 }
 func (m *server) commitEvent(payload ...*pb.KVStateTransition) error {

@@ -43,7 +43,7 @@ func (b *api) acceptLoop(listener net.Listener) {
 			w.WriteHeader(http.StatusMethodNotAllowed)
 			return
 		}
-		sessions, err := b.sessionsClient.All(r.Context(), )
+		sessions, err := b.sessionsClient.All(r.Context())
 		if err != nil {
 			httpFail(w, err)
 			return
@@ -113,7 +113,6 @@ func (b *api) Shutdown() {
 	}
 }
 func (b *api) JoinServiceLayer(name string, logger *zap.Logger, config cluster.ServiceConfig, rpcConfig cluster.ServiceConfig, mesh cluster.DiscoveryLayer) {
-	cluster.NewGossipServiceLayer(name, logger, config, mesh)
 }
 func (m *api) Health() string {
 	return "ok"

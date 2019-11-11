@@ -23,12 +23,10 @@ func (b *server) Shutdown() {
 }
 func (b *server) JoinServiceLayer(name string, logger *zap.Logger, config cluster.ServiceConfig, rpcConfig cluster.ServiceConfig, mesh cluster.DiscoveryLayer) {
 	b.state = cluster.NewRaftServiceLayer(name, logger, config, rpcConfig, mesh)
-	go func() {
-		err := b.state.Start(name, b)
-		if err != nil {
-			panic(err)
-		}
-	}()
+	err := b.state.Start(name, b)
+	if err != nil {
+		panic(err)
+	}
 	go func() {
 		ticker := time.NewTicker(1 * time.Second)
 		var lastDeadline uint64 = 0

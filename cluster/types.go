@@ -13,7 +13,6 @@ type Mesh interface {
 	Join(hosts []string) error
 	Peers() peers.PeerStore
 	DialService(name string) (*grpc.ClientConn, error)
-	DialAddress(service, id string, f func(*grpc.ClientConn) error) error
 	RegisterService(name, address string) error
 	Leave()
 	Health() string
@@ -21,7 +20,6 @@ type Mesh interface {
 type DiscoveryLayer interface {
 	Peers() peers.PeerStore
 	DialService(name string) (*grpc.ClientConn, error)
-	DialAddress(service, id string, f func(*grpc.ClientConn) error) error
 	RegisterService(name, address string) error
 	UnregisterService(name string) error
 	AddServiceTag(service, key, value string) error

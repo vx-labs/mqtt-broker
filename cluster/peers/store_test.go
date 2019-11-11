@@ -34,9 +34,9 @@ func TestPeerStore(t *testing.T) {
 	})
 	t.Run("delete", func(t *testing.T) {
 		err := store.Delete(peerID)
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 		_, err = store.ByID(peerID)
-		assert.NotNil(t, err)
+		assert.Error(t, err)
 	})
 }
 

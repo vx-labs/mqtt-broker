@@ -50,12 +50,10 @@ func (b *server) JoinServiceLayer(name string, logger *zap.Logger, config cluste
 		}
 	}()
 
-	go func() {
-		err := b.state.Start(name, b)
-		if err != nil {
-			panic(err)
-		}
-	}()
+	err = b.state.Start(name, b)
+	if err != nil {
+		panic(err)
+	}
 }
 func (m *server) Restore(r io.Reader) error {
 	payload, err := ioutil.ReadAll(r)

@@ -47,7 +47,7 @@ type PeerStore interface {
 	On(event string, handler func(Peer)) func()
 }
 type Channel interface {
-	Broadcast(b []byte)
+	BroadcastFullState(b []byte)
 }
 type memDBStore struct {
 	db      *memdb.MemDB
@@ -178,31 +178,34 @@ func (s *memDBStore) Upsert(sess Peer) error {
 	return s.insert(sess)
 }
 func (s *memDBStore) Update(id string, mutation func(peer Peer) Peer) error {
-	var updatedPeer Peer
-	err := s.write(func(tx *memdb.Txn) error {
-		peer, err := s.first(tx, "id", id)
-		if err != nil {
-			return err
-		}
-		updatedPeer = mutation(peer)
-		updatedPeer.LastAdded = now()
-		err = tx.Insert(peerTable, updatedPeer)
+	tx := s.db.Txn(true)
+	defer tx.Abort()
+	peer, err := s.first(tx, "id", id)
+	if err != nil {
 		return err
-	})
-	if err == nil {
-		buf, err := proto.Marshal(&pb.PeerMetadataList{
-			Metadatas: []*pb.Metadata{
-				&updatedPeer.Metadata,
-			},
-		})
-		if err != nil {
-			log.Printf("WARN: failed to encode peer")
-			return nil
-		}
-		s.channel.Broadcast(buf)
-		s.emitPeerEvent(updatedPeer)
 	}
-	return err
+	if crdt.IsEntryRemoved(&peer) {
+		return ErrPeerNotFound
+	}
+	peer = mutation(peer)
+	peer.LastAdded = now()
+	err = tx.Insert(peerTable, peer)
+	if err != nil {
+		return err
+	}
+	tx.Commit()
+	buf, err := proto.Marshal(&pb.PeerMetadataList{
+		Metadatas: []*pb.Metadata{
+			&peer.Metadata,
+		},
+	})
+	if err != nil {
+		log.Printf("WARN: failed to encode peer")
+		return nil
+	}
+	s.channel.BroadcastFullState(buf)
+	s.emitPeerEvent(peer)
+	return nil
 }
 
 func (s *memDBStore) emitPeerEvent(sess Peer) {
@@ -235,7 +238,6 @@ func (m *memDBStore) insert(message Peer) error {
 		if err != nil {
 			return err
 		}
-		tx.Commit()
 		return nil
 	})
 	if err == nil {
@@ -247,17 +249,39 @@ func (m *memDBStore) insert(message Peer) error {
 		if err != nil {
 			return err
 		}
-		m.channel.Broadcast(buf)
+		m.channel.BroadcastFullState(buf)
 	}
 	return err
 }
 func (s *memDBStore) Delete(id string) error {
-	sess, err := s.ByID(id)
+	tx := s.db.Txn(true)
+	defer tx.Abort()
+	peer, err := s.first(tx, "id", id)
 	if err != nil {
 		return err
 	}
-	sess.LastDeleted = now()
-	return s.insert(sess)
+	if crdt.IsEntryRemoved(&peer) {
+		return ErrPeerNotFound
+	}
+	peer.LastDeleted = now()
+	err = tx.Insert(peerTable, peer)
+	if err != nil {
+		return err
+	}
+	tx.Commit()
+	buf, err := proto.Marshal(&pb.PeerMetadataList{
+		Metadatas: []*pb.Metadata{
+			&peer.Metadata,
+		},
+	})
+	if err != nil {
+		log.Printf("WARN: failed to encode peer")
+		return nil
+	}
+	s.channel.BroadcastFullState(buf)
+	s.emitPeerEvent(peer)
+	return nil
+
 }
 
 func (s *memDBStore) read(statement func(tx *memdb.Txn) error) error {

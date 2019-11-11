@@ -23,8 +23,10 @@ type statusChecker interface {
 func waitForToken(ctx context.Context, token string, expectNodeCount int, s statusChecker, ticker *time.Ticker, logger *zap.Logger) error {
 	timeout := time.NewTimer(60 * time.Second)
 	defer timeout.Stop()
+	now := time.Now()
 	s.setStatus(fmt.Sprintf("%s-%s", raftStatusBootstrapping, token))
 	prefix := fmt.Sprintf("%s-", raftStatusBootstrapping)
+	lastCount := 0
 	for {
 		members, err := s.getMembers()
 		if err != nil {
@@ -39,16 +41,19 @@ func waitForToken(ctx context.Context, token string, expectNodeCount int, s stat
 			if strings.TrimPrefix(status, prefix) == token {
 				bootstrappingMembers = append(bootstrappingMembers, member)
 			}
-
-			if len(bootstrappingMembers) == expectNodeCount {
+			count := len(bootstrappingMembers)
+			if count == expectNodeCount {
 				sortMembers(bootstrappingMembers)
 				if token == SyncToken(bootstrappingMembers) {
-					logger.Debug("members synchronization done", zap.Int("member_count", len(bootstrappingMembers)))
+					logger.Info("members synchronization done", zap.Int("member_count", count), zap.Duration("member_synchronization_duration", time.Since(now)))
 					return nil
 				}
 			} else {
-				logger.Debug("synchronizing members", zap.Int("current_member_count", len(bootstrappingMembers)))
+				if count != lastCount {
+					logger.Debug("synchronizing members", zap.Int("current_member_count", count))
+				}
 			}
+			lastCount = count
 			select {
 			case <-ctx.Done():
 				return ctx.Err()
@@ -99,7 +104,7 @@ func (s *raftlayer) startClusterJoin(ctx context.Context, name string, expectNod
 				return err
 			}
 			s.logger.Info("raft cluster bootstrapped")
-			s.status = raftStatusBootstrapped
+			s.setStatus(raftStatusBootstrapped)
 			return nil
 		})
 		ch <- err
@@ -110,16 +115,16 @@ func (s *raftlayer) joinCluster(ctx context.Context, name string, expectNodeCoun
 	ticker := time.NewTicker(3 * time.Second)
 	var members []*pb.NodeService
 	var err error
-	s.logger.Debug("discovering members", zap.Int("expected_count", expectNodeCount))
+	start := time.Now()
 	s.setStatus(raftStatusBootstrapping)
 	for {
-		members, err = s.discovery.Peers().EndpointsByService(fmt.Sprintf("%s_cluster", name))
+		members, err = s.getMembers()
 		if err != nil {
 			return err
 		}
 		bootstrappingMembers := make([]*pb.NodeService, 0)
 		for _, member := range members {
-			status := s.getNodeStatus(member.Peer)
+			status := pb.GetTagValue("raft_bootstrap_status", member.Tags)
 			if strings.HasPrefix(status, raftStatusBootstrapping) {
 				bootstrappingMembers = append(bootstrappingMembers, member)
 			}
@@ -137,6 +142,7 @@ func (s *raftlayer) joinCluster(ctx context.Context, name string, expectNodeCoun
 			return ctx.Err()
 		}
 	}
+	logger.Info("discovered members", zap.Duration("member_discovery_duration", time.Since(start)))
 	sortMembers(members)
 	err = waitForToken(ctx, SyncToken(members), expectNodeCount, s, ticker, logger)
 	if err != nil {

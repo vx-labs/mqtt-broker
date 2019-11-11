@@ -91,7 +91,8 @@ func JoinConsulPeers(api *consul.Client, service string, selfAddress string, sel
 }
 
 func logService(logger *zap.Logger, name string, config network.Configuration) {
-	logger.Info("loaded service config",
+	fmt.Printf("service %s is listening on %s:%d\n", name, config.AdvertisedAddress, config.AdvertisedPort)
+	logger.Debug("loaded service config",
 		zap.String("bind_address", config.BindAddress),
 		zap.Int("bind_port", config.BindPort),
 		zap.String("advertised_address", config.AdvertisedAddress),
@@ -125,7 +126,6 @@ type Context struct {
 func (ctx *Context) AddService(cmd *cobra.Command, name string, f func(id string, logger *zap.Logger, mesh cluster.DiscoveryLayer) Service) {
 	id := ctx.ID
 	logger := ctx.Logger.WithOptions(zap.Fields(zap.String("service_name", name)))
-	logger.Debug("adding service to local node")
 	serviceNetConf := network.ConfigurationFromFlags(cmd, name)
 	serviceGossipNetConf := network.ConfigurationFromFlags(cmd, fmt.Sprintf("%s_gossip", name))
 	serviceGossipRPCNetConf := network.ConfigurationFromFlags(cmd, fmt.Sprintf("%s_gossip_rpc", name))
@@ -138,7 +138,6 @@ func (ctx *Context) AddService(cmd *cobra.Command, name string, f func(id string
 		Service:   service,
 		ID:        name,
 	})
-	logger.Debug("service added to local node")
 }
 
 func (ctx *Context) Run() error {
@@ -169,10 +168,8 @@ func (ctx *Context) Run() error {
 		sensors = append(sensors, service)
 	}
 	go serveHTTPHealth(logger, sensors)
-	logger.Debug("started healthcheck endpoint")
 	nodes := viper.GetStringSlice("join")
 	if len(nodes) > 0 {
-		logger.Debug("joining cluster")
 		mesh.Join(nodes)
 	}
 	for _, service := range ctx.Services {
@@ -208,7 +205,7 @@ func (ctx *Context) Run() error {
 				gossipRPCConfig.ServicePort = port
 			}
 			logService(logger, service.ID, service.Network)
-			go service.Service.JoinServiceLayer(service.ID, logger, serviceConfig, gossipRPCConfig, ctx.Discovery)
+			service.Service.JoinServiceLayer(service.ID, logger, serviceConfig, gossipRPCConfig, ctx.Discovery)
 		}
 	}
 	quit := make(chan struct{})
@@ -327,7 +324,7 @@ func serveHTTPHealth(logger *zap.Logger, sensors []healthChecker) {
 	})
 	err := http.ListenAndServe("[::]:9000", mux)
 	if err != nil {
-		logger.Error("failed to run healthcheck endpoint", zap.Error(err))
+		logger.Warn("failed to run healthcheck endpoint", zap.Error(err))
 	}
 }
 

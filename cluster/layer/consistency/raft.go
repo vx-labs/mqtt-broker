@@ -34,7 +34,6 @@ var (
 type raftlayer struct {
 	id              string
 	name            string
-	status          string
 	raft            *raft.Raft
 	raftNetwork     *raft.NetworkTransport
 	selfRaftAddress raft.ServerAddress
@@ -43,13 +42,14 @@ type raftlayer struct {
 	logger          *zap.Logger
 	discovery       DiscoveryProvider
 	cancelJoin      context.CancelFunc
+	leaderRPC       pb.LayerClient
 }
 type DiscoveryProvider interface {
 	UnregisterService(id string) error
 	RegisterService(id string, address string) error
 	AddServiceTag(service, key, value string) error
 	RemoveServiceTag(name string, tag string) error
-	DialAddress(service, id string, f func(*grpc.ClientConn) error) error
+	DialService(id string) (*grpc.ClientConn, error)
 	Peers() peers.PeerStore
 }
 
@@ -60,14 +60,19 @@ func New(logger *zap.Logger, userConfig config.Config, discovery DiscoveryProvid
 		discovery:       discovery,
 		logger:          logger,
 		config:          userConfig,
-		status:          raftStatusInit,
 	}
 	return self, nil
 }
 func (s *raftlayer) Start(name string, state types.RaftState) error {
 	s.name = name
+	leaderConn, err := s.discovery.DialService(fmt.Sprintf("%s_rpc?raft_status=leader", name))
+	if err != nil {
+		panic(err)
+	}
+	s.leaderRPC = pb.NewLayerClient(leaderConn)
 	raftConfig := raft.DefaultConfig()
 	s.state = state
+	s.setStatus(raftStatusInit)
 	if os.Getenv("ENABLE_RAFT_LOG") != "true" {
 		raftConfig.LogOutput = ioutil.Discard
 	}
@@ -137,7 +142,7 @@ func (s *raftlayer) Start(name string, state types.RaftState) error {
 						s.logger.Info("found an existing cluster, waiting for adoption")
 						return
 					}
-					s.logger.Error("failed to join cluster, retrying", zap.Error(err))
+					s.logger.Warn("failed to join cluster, retrying", zap.Error(err))
 				} else {
 					s.logger.Debug("join session finished")
 					return
@@ -272,17 +277,19 @@ func (s *raftlayer) leaderRoutine() {
 			s.logger.Info("leader lost")
 		}
 		leader := s.IsLeader()
-		if s.status != raftStatusBootstrapped {
+		if s.getNodeStatus(s.id) != raftStatusBootstrapped {
 			s.cancelJoin()
 			s.logger.Info("raft cluster joined")
 			s.setStatus(raftStatusBootstrapped)
 		}
 		if !leader {
 			s.discovery.RemoveServiceTag(s.name, "raft_status")
+			s.discovery.RemoveServiceTag(fmt.Sprintf("%s_rpc", s.name), "raft_status")
 			continue
 		}
 		s.logger.Info("raft cluster leadership acquired")
 		s.discovery.AddServiceTag(s.name, "raft_status", "leader")
+		s.discovery.AddServiceTag(fmt.Sprintf("%s_rpc", s.name), "raft_status", "leader")
 		s.syncMembers()
 	}
 }
@@ -291,6 +298,7 @@ func (s *raftlayer) Apply(log *raft.Log) interface{} {
 		err := s.state.Apply(log.Data)
 		if err != nil {
 			s.logger.Error("failed to apply raft event in FSM", zap.Error(err))
+			return err
 		}
 	}
 	return nil
@@ -324,9 +332,11 @@ func (s *raftlayer) Restore(snap io.ReadCloser) error {
 
 func (s *raftlayer) ApplyEvent(event []byte) error {
 	if !s.IsLeader() {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
 		s.logger.Debug("forwarding event to leader")
 		return s.DialLeader(func(client pb.LayerClient) error {
-			_, err := client.SendEvent(context.TODO(), &pb.SendEventInput{Payload: event})
+			_, err := client.SendEvent(ctx, &pb.SendEventInput{Payload: event})
 			if err != nil {
 				s.logger.Error("failed to forward event to leader", zap.Error(err))
 				return err
@@ -351,11 +361,8 @@ func (s *raftlayer) ApplyEvent(event []byte) error {
 func (s *raftlayer) setStatus(status string) {
 	err := s.discovery.AddServiceTag(fmt.Sprintf("%s_cluster", s.name), "raft_bootstrap_status", status)
 	if err != nil {
-		s.logger.Error("failed to set raft bootstrap tag", zap.Error(err))
-	} else {
-		s.logger.Debug("raft bootstrap tag set", zap.String("tag_value", status))
+		s.logger.Warn("failed to set raft bootstrap tag", zap.Error(err))
 	}
-	s.status = status
 }
 func (s *raftlayer) getMembers() ([]*pb.NodeService, error) {
 	return s.discovery.Peers().EndpointsByService(fmt.Sprintf("%s_cluster", s.name))

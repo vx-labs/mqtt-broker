@@ -28,6 +28,7 @@ type RaftState interface {
 // broadcasted in a best-effort manner.
 type Channel interface {
 	Broadcast(b []byte)
+	BroadcastFullState(b []byte)
 }
 
 type GossipServiceLayer interface {

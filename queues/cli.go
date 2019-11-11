@@ -29,12 +29,10 @@ func (b *server) JoinServiceLayer(name string, logger *zap.Logger, config cluste
 	}
 	b.sessions = sessions.NewClient(sessionConn)
 	b.state = cluster.NewRaftServiceLayer(name, logger, config, rpcConfig, mesh)
-	go func() {
-		err := b.state.Start(name, b)
-		if err != nil {
-			panic(err)
-		}
-	}()
+	err = b.state.Start(name, b)
+	if err != nil {
+		panic(err)
+	}
 	go func() {
 		ticker := time.NewTicker(30 * time.Second)
 		for range ticker.C {

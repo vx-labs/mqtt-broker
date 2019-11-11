@@ -83,12 +83,10 @@ func (m *layer) NotifyMsg(b []byte) {
 	if !ok {
 		return
 	}
-	now := time.Now()
 	if err := s.Merge(p.Data, false); err != nil {
 		m.logger.Error("failed to merge remote state", zap.Error(err))
 		return
 	}
-	m.logger.Debug("merged remote state", zap.Duration("merge_elapsed", time.Since(now)))
 }
 func (s *layer) Health() string {
 	if s.mlist.NumMembers() == 1 {
@@ -138,12 +136,10 @@ func (m *layer) MergeRemoteState(buf []byte, join bool) {
 		if !ok {
 			continue
 		}
-		now := time.Now()
 		if err := s.Merge(p.Data, join); err != nil {
 			m.logger.Error("failed to merge remote state", zap.Error(err))
 			return
 		}
-		m.logger.Debug("merged remote state", zap.Duration("merge_elapsed", time.Since(now)))
 	}
 }
 
@@ -177,7 +173,7 @@ func (m *layer) Join(newHosts []string) error {
 	if err != nil {
 		if count == 0 {
 			if m.mlist.NumMembers() == 1 {
-				m.logger.Error("failed to join cluster", zap.Error(err))
+				m.logger.Warn("failed to join cluster", zap.Error(err))
 				return err
 			}
 		}

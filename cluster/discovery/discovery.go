@@ -12,7 +12,6 @@ import (
 	"github.com/vx-labs/mqtt-broker/cluster/layer"
 	"github.com/vx-labs/mqtt-broker/cluster/pb"
 	"github.com/vx-labs/mqtt-broker/cluster/peers"
-	"github.com/vx-labs/mqtt-broker/cluster/pool"
 	"github.com/vx-labs/mqtt-broker/cluster/types"
 )
 
@@ -22,10 +21,9 @@ var (
 )
 
 type discoveryLayer struct {
-	id        string
-	rpcCaller *pool.Caller
-	layer     types.GossipServiceLayer
-	peers     peers.PeerStore
+	id    string
+	layer types.GossipServiceLayer
+	peers peers.PeerStore
 }
 
 func (m *discoveryLayer) ID() string {
@@ -42,15 +40,11 @@ type Service struct {
 
 func NewDiscoveryLayer(logger *zap.Logger, userConfig config.Config) *discoveryLayer {
 	self := &discoveryLayer{
-		id:        userConfig.ID,
-		rpcCaller: pool.NewCaller(),
+		id: userConfig.ID,
 	}
 	userConfig.OnNodeJoin = func(id string, meta pb.NodeMeta) {
 	}
 	userConfig.OnNodeLeave = func(id string, meta pb.NodeMeta) {
-		for _, service := range meta.Services {
-			self.rpcCaller.Cancel(service.NetworkAddress)
-		}
 		self.peers.Delete(id)
 	}
 	self.layer = layer.NewGossipLayer("cluster", logger, userConfig, pb.NodeMeta{
