@@ -2,22 +2,22 @@ package sessions
 
 import (
 	"context"
-	"net"
 	"time"
 
 	"github.com/gogo/protobuf/proto"
 	"github.com/vx-labs/mqtt-broker/cluster/types"
 	"github.com/vx-labs/mqtt-broker/sessions/pb"
 	"go.uber.org/zap"
+	grpc "google.golang.org/grpc"
 )
 
 type server struct {
-	id        string
-	store     SessionStore
-	state     types.RaftServiceLayer
-	ctx       context.Context
-	listeners []net.Listener
-	logger    *zap.Logger
+	id         string
+	store      SessionStore
+	state      types.RaftServiceLayer
+	ctx        context.Context
+	gprcServer *grpc.Server
+	logger     *zap.Logger
 }
 
 func New(id string, logger *zap.Logger) *server {

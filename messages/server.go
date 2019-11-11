@@ -4,9 +4,9 @@ import (
 	"context"
 	fmt "fmt"
 	"hash/fnv"
-	"net"
 	"time"
 
+	grpc "google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
@@ -23,13 +23,13 @@ const (
 )
 
 type server struct {
-	id        string
-	store     *store.BoltStore
-	state     types.RaftServiceLayer
-	ctx       context.Context
-	listeners []net.Listener
-	logger    *zap.Logger
-	leaderRPC pb.MessagesServiceClient
+	id         string
+	store      *store.BoltStore
+	state      types.RaftServiceLayer
+	ctx        context.Context
+	gprcServer *grpc.Server
+	logger     *zap.Logger
+	leaderRPC  pb.MessagesServiceClient
 }
 
 func hashShardKey(key string, shardCount int) int {

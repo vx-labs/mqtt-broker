@@ -1,19 +1,10 @@
 package broker
 
 import (
-	"fmt"
-	"io"
-	"net"
-
-	"github.com/vx-labs/mqtt-broker/network"
-
-	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
-
 	"github.com/vx-labs/mqtt-broker/broker/pb"
 	"github.com/vx-labs/mqtt-broker/transport"
 	packet "github.com/vx-labs/mqtt-protocol/packet"
 	context "golang.org/x/net/context"
-	"google.golang.org/grpc"
 )
 
 type broker interface {
@@ -27,33 +18,9 @@ type broker interface {
 }
 
 type server struct {
-	broker   broker
-	listener io.Closer
-	server   *grpc.Server
+	broker broker
 }
 
-func Serve(port int, handler broker) net.Listener {
-	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
-	if err != nil {
-		return nil
-	}
-	s := grpc.NewServer(
-		network.GRPCServerOptions()...,
-	)
-	server := &server{
-		broker:   handler,
-		listener: lis,
-		server:   s,
-	}
-	pb.RegisterBrokerServiceServer(s, server)
-	grpc_prometheus.Register(s)
-	go s.Serve(lis)
-	return lis
-}
-func (s *server) Close() error {
-	s.server.Stop()
-	return s.listener.Close()
-}
 func (s *server) CloseSession(ctx context.Context, input *pb.CloseSessionInput) (*pb.CloseSessionOutput, error) {
 	return &pb.CloseSessionOutput{ID: input.ID}, s.broker.CloseSession(ctx, input.ID)
 }

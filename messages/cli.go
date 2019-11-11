@@ -19,9 +19,7 @@ func (b *server) Shutdown() {
 	if err != nil {
 		b.logger.Error("failed to shutdown raft state", zap.Error(err))
 	}
-	for _, lis := range b.listeners {
-		lis.Close()
-	}
+	b.gprcServer.GracefulStop()
 	b.store.Close()
 }
 func (b *server) JoinServiceLayer(name string, logger *zap.Logger, config cluster.ServiceConfig, rpcConfig cluster.ServiceConfig, mesh cluster.DiscoveryLayer) {
@@ -51,6 +49,5 @@ func (m *server) Serve(port int) net.Listener {
 	pb.RegisterMessagesServiceServer(s, m)
 	grpc_prometheus.Register(s)
 	go s.Serve(lis)
-	m.listeners = append(m.listeners, lis)
 	return lis
 }

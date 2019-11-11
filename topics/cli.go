@@ -23,10 +23,11 @@ import (
 )
 
 type server struct {
-	id     string
-	store  *memDBStore
-	state  types.GossipServiceLayer
-	logger *zap.Logger
+	id         string
+	store      *memDBStore
+	state      types.GossipServiceLayer
+	logger     *zap.Logger
+	gprcServer *grpc.Server
 }
 
 func New(id string, logger *zap.Logger) *server {
@@ -38,6 +39,7 @@ func New(id string, logger *zap.Logger) *server {
 }
 
 func (b *server) Shutdown() {
+	b.gprcServer.GracefulStop()
 }
 func (b *server) JoinServiceLayer(name string, logger *zap.Logger, config cluster.ServiceConfig, rpcConfig cluster.ServiceConfig, mesh cluster.DiscoveryLayer) {
 	l := cluster.NewGossipServiceLayer(name, logger, config, mesh)
@@ -107,6 +109,7 @@ func (m *server) Serve(port int) net.Listener {
 	pb.RegisterTopicsServiceServer(s, m)
 	grpc_prometheus.Register(s)
 	go s.Serve(lis)
+	m.gprcServer = s
 	return lis
 }
 

@@ -4,7 +4,6 @@ import (
 	"context"
 	fmt "fmt"
 	"io"
-	"net"
 	"time"
 
 	"github.com/gogo/protobuf/proto"
@@ -14,6 +13,7 @@ import (
 	sessions "github.com/vx-labs/mqtt-broker/sessions/pb"
 	"github.com/vx-labs/mqtt-protocol/packet"
 	"go.uber.org/zap"
+	grpc "google.golang.org/grpc"
 )
 
 const (
@@ -26,13 +26,13 @@ type SessionStore interface {
 }
 
 type server struct {
-	id        string
-	store     *store.BoltStore
-	state     types.RaftServiceLayer
-	ctx       context.Context
-	listeners []net.Listener
-	logger    *zap.Logger
-	sessions  SessionStore
+	id         string
+	store      *store.BoltStore
+	state      types.RaftServiceLayer
+	ctx        context.Context
+	gprcServer *grpc.Server
+	logger     *zap.Logger
+	sessions   SessionStore
 }
 
 func New(id string, logger *zap.Logger) *server {

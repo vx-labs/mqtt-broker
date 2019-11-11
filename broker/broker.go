@@ -7,6 +7,7 @@ import (
 	"github.com/vx-labs/mqtt-broker/pool"
 	"github.com/vx-labs/mqtt-broker/transport"
 	"go.uber.org/zap"
+	"google.golang.org/grpc"
 
 	"github.com/vx-labs/mqtt-broker/cluster"
 
@@ -69,6 +70,7 @@ type Broker struct {
 	Queues        QueuesStore
 	Messages      MessagesStore
 	workers       *pool.Pool
+	grpcServer    *grpc.Server
 	ctx           context.Context
 }
 
@@ -137,7 +139,4 @@ func (b *Broker) onPeerDown(name string) {
 			b.enqueuePublish(s.Tenant, lwt)
 		}
 	}
-}
-
-func (b *Broker) Stop() {
 }

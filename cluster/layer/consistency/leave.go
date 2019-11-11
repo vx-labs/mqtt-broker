@@ -25,6 +25,9 @@ func (s *raftlayer) Shutdown() error {
 	return nil
 }
 func (s *raftlayer) Leave() error {
+	ticker := time.NewTicker(50 * time.Millisecond)
+	defer ticker.Stop()
+
 	err := s.discovery.UnregisterService(fmt.Sprintf("%s_cluster", s.name))
 	if err != nil {
 		s.logger.Error("failed to unregister raft service from discovery", zap.Error(err))
@@ -42,15 +45,19 @@ func (s *raftlayer) Leave() error {
 			s.logger.Error("failed to transfert raft cluster", zap.Error(err))
 			return err
 		}
+		for {
+			isLeader = s.IsLeader()
+			if !isLeader {
+				break
+			}
+			<-ticker.C
+		}
 		s.logger.Info("raft leadership transfered")
-		isLeader = s.IsLeader()
 	}
 
 	if !isLeader {
 		left := false
 		deadline := time.Now().Add(15 * time.Second)
-		ticker := time.NewTicker(50 * time.Millisecond)
-		defer ticker.Stop()
 		for !left && time.Now().Before(deadline) {
 			<-ticker.C
 			future := s.raft.GetConfiguration()

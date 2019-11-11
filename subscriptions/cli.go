@@ -28,13 +28,11 @@ const (
 )
 
 func (b *server) Shutdown() {
-	for _, lis := range b.listeners {
-		lis.Close()
-	}
 	err := b.state.Shutdown()
 	if err != nil {
 		b.logger.Error("failed to shutdown raft instance cleanly", zap.Error(err))
 	}
+	b.gprcServer.GracefulStop()
 }
 func (b *server) JoinServiceLayer(name string, logger *zap.Logger, config cluster.ServiceConfig, rpcConfig cluster.ServiceConfig, mesh cluster.DiscoveryLayer) {
 	sessionsConn, err := mesh.DialService("sessions?raft_status=leader")
@@ -99,6 +97,7 @@ func (m *server) Serve(port int) net.Listener {
 	pb.RegisterSubscriptionsServiceServer(s, m)
 	grpc_prometheus.Register(s)
 	go s.Serve(lis)
+	m.gprcServer = s
 	return lis
 }
 

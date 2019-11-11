@@ -2,13 +2,13 @@ package subscriptions
 
 import (
 	"context"
-	"net"
 
 	"github.com/gogo/protobuf/proto"
 	"github.com/vx-labs/mqtt-broker/cluster/types"
 	sessions "github.com/vx-labs/mqtt-broker/sessions/pb"
 	"github.com/vx-labs/mqtt-broker/subscriptions/pb"
 	"go.uber.org/zap"
+	grpc "google.golang.org/grpc"
 )
 
 type SessionStore interface {
@@ -16,13 +16,13 @@ type SessionStore interface {
 }
 
 type server struct {
-	id        string
-	store     Store
-	state     types.RaftServiceLayer
-	ctx       context.Context
-	listeners []net.Listener
-	logger    *zap.Logger
-	sessions  SessionStore
+	id         string
+	store      Store
+	state      types.RaftServiceLayer
+	ctx        context.Context
+	gprcServer *grpc.Server
+	logger     *zap.Logger
+	sessions   SessionStore
 }
 
 func New(id string, logger *zap.Logger) *server {
