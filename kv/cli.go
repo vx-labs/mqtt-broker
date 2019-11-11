@@ -27,6 +27,11 @@ func (b *server) JoinServiceLayer(name string, logger *zap.Logger, config cluste
 	if err != nil {
 		panic(err)
 	}
+	leaderConn, err := mesh.DialService("kv?raft_status=leader")
+	if err != nil {
+		panic(err)
+	}
+	b.leaderRPC = pb.NewKVServiceClient(leaderConn)
 	go func() {
 		ticker := time.NewTicker(1 * time.Second)
 		var lastDeadline uint64 = 0

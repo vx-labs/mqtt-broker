@@ -26,10 +26,11 @@ type server struct {
 	ctx       context.Context
 	listeners []net.Listener
 	logger    *zap.Logger
+	leaderRPC pb.KVServiceClient
 }
 
 func New(id string, logger *zap.Logger) *server {
-	logger.Debug("opening messages durable store")
+	logger.Debug("opening kv durable store")
 	boltstore, err := store.New(store.Options{
 		NoSync: false,
 		Path:   fmt.Sprintf("%s-%s-queues.bolt", dbPath, id),
@@ -47,6 +48,9 @@ func New(id string, logger *zap.Logger) *server {
 }
 
 func (s *server) Delete(ctx context.Context, input *pb.KVDeleteInput) (*pb.KVDeleteOutput, error) {
+	if !s.state.IsLeader() {
+		return s.leaderRPC.Delete(ctx, input)
+	}
 	md, err := s.store.GetMetadata(input.Key)
 	if err != nil {
 		return nil, err
@@ -69,6 +73,9 @@ func (s *server) Delete(ctx context.Context, input *pb.KVDeleteInput) (*pb.KVDel
 	return &pb.KVDeleteOutput{}, err
 }
 func (s *server) Set(ctx context.Context, input *pb.KVSetInput) (*pb.KVSetOutput, error) {
+	if !s.state.IsLeader() {
+		return s.leaderRPC.Set(ctx, input)
+	}
 	if len(input.Key) == 0 {
 		return nil, ErrInvalidArgument("field 'Key' is required")
 	}
@@ -97,7 +104,10 @@ func (s *server) Set(ctx context.Context, input *pb.KVSetInput) (*pb.KVSetOutput
 		},
 	})
 	if err != nil {
-		s.logger.Error("failed to commit value set event", zap.Error(err))
+		if err == store.ErrIndexOutdated {
+			return nil, status.Error(codes.FailedPrecondition, "version mismatched")
+		}
+		s.logger.Warn("failed to commit value set event", zap.Error(err))
 	}
 	return &pb.KVSetOutput{}, err
 }
@@ -111,6 +121,9 @@ func ErrInvalidArgument(msg string) error {
 }
 
 func (s *server) Get(ctx context.Context, input *pb.KVGetInput) (*pb.KVGetOutput, error) {
+	if !s.state.IsLeader() {
+		return s.leaderRPC.Get(ctx, input)
+	}
 	value, err := s.store.Get(input.Key)
 	if err != nil {
 		return nil, err
@@ -121,6 +134,9 @@ func (s *server) Get(ctx context.Context, input *pb.KVGetInput) (*pb.KVGetOutput
 	return &pb.KVGetOutput{Key: input.Key, Value: value}, nil
 }
 func (s *server) GetMetadata(ctx context.Context, input *pb.KVGetMetadataInput) (*pb.KVGetMetadataOutput, error) {
+	if !s.state.IsLeader() {
+		return s.leaderRPC.GetMetadata(ctx, input)
+	}
 	value, err := s.store.GetMetadata(input.Key)
 	if err != nil {
 		if err == store.ErrKeyNotFound {
@@ -131,6 +147,9 @@ func (s *server) GetMetadata(ctx context.Context, input *pb.KVGetMetadataInput) 
 	return &pb.KVGetMetadataOutput{Metadata: value}, nil
 }
 func (s *server) GetWithMetadata(ctx context.Context, input *pb.KVGetWithMetadataInput) (*pb.KVGetWithMetadataOutput, error) {
+	if !s.state.IsLeader() {
+		return s.leaderRPC.GetWithMetadata(ctx, input)
+	}
 	value, md, err := s.store.GetWithMetadata(input.Key)
 	if err != nil {
 		if err == store.ErrKeyNotFound {

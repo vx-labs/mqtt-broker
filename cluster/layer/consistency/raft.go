@@ -267,7 +267,13 @@ func (s *raftlayer) leaderRoutine() {
 		return ok
 	}))
 	s.discovery.Peers().On(peers.PeerCreated, func(member peers.Peer) {
-		if !s.IsLeader() {
+		if !s.IsLeader() || member.ID == s.id {
+			return
+		}
+		s.syncMembers()
+	})
+	s.discovery.Peers().On(peers.PeerUpdated, func(member peers.Peer) {
+		if !s.IsLeader() || member.ID == s.id {
 			return
 		}
 		s.syncMembers()
@@ -297,7 +303,6 @@ func (s *raftlayer) Apply(log *raft.Log) interface{} {
 	if log.Type == raft.LogCommand {
 		err := s.state.Apply(log.Data)
 		if err != nil {
-			s.logger.Error("failed to apply raft event in FSM", zap.Error(err))
 			return err
 		}
 	}
@@ -337,22 +342,16 @@ func (s *raftlayer) ApplyEvent(event []byte) error {
 		s.logger.Debug("forwarding event to leader")
 		return s.DialLeader(func(client pb.LayerClient) error {
 			_, err := client.SendEvent(ctx, &pb.SendEventInput{Payload: event})
-			if err != nil {
-				s.logger.Error("failed to forward event to leader", zap.Error(err))
-				return err
-			}
-			return nil
+			return err
 		})
 	}
 	promise := s.raft.Apply(event, 30*time.Second)
 	err := promise.Error()
 	if err != nil {
-		s.logger.Error("failed to add raft event to log", zap.Error(err))
 		return err
 	}
 	resp := promise.Response()
 	if resp != nil {
-		s.logger.Error("failed to apply raft event in FSM", zap.Error(resp.(error)))
 		return resp.(error)
 	}
 	return nil

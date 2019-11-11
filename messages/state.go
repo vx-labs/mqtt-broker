@@ -59,7 +59,6 @@ func (m *server) commitEvent(payload ...*pb.MessagesStateTransition) error {
 	}
 	err = m.state.ApplyEvent(event)
 	if err != nil {
-		m.logger.Error("failed to commit event", zap.Error(err))
 		return err
 	}
 	return nil
@@ -74,7 +73,6 @@ func (m *server) Apply(payload []byte) error {
 	for _, event := range data.Events {
 		err := m.applyEvent(event)
 		if err != nil {
-			m.logger.Error("failed to apply event", zap.Error(err))
 			return err
 		}
 	}

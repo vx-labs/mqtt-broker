@@ -118,7 +118,6 @@ func (m *server) Apply(payload []byte) error {
 	for _, event := range data.Events {
 		err := m.applyEvent(event)
 		if err != nil {
-			m.logger.Error("failed to apply event", zap.String("event_kidn", event.Kind))
 			return err
 		}
 	}
