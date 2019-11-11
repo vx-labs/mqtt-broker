@@ -20,16 +20,9 @@ message NodeService {
   string Peer = 3;
   repeated ServiceTag Tags = 4;
 }
-message NodeMeta {
-  string ID = 1;
-  repeated NodeService Services = 3;
-}
-
 message Metadata {
   string ID = 1;
   string Hostname = 3;
-  int64 LastAdded = 5;
-  int64 LastDeleted = 6;
   MemoryUsage MemoryUsage = 7;
   ComputeUsage ComputeUsage = 8;
   string Runtime = 9;

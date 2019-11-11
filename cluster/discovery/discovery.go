@@ -8,6 +8,7 @@ import (
 
 	"go.uber.org/zap"
 
+	"github.com/gogo/protobuf/proto"
 	"github.com/vx-labs/mqtt-broker/cluster/config"
 	"github.com/vx-labs/mqtt-broker/cluster/layer"
 	"github.com/vx-labs/mqtt-broker/cluster/pb"
@@ -42,20 +43,6 @@ func NewDiscoveryLayer(logger *zap.Logger, userConfig config.Config) *discoveryL
 	self := &discoveryLayer{
 		id: userConfig.ID,
 	}
-	userConfig.OnNodeJoin = func(id string, meta pb.NodeMeta) {
-	}
-	userConfig.OnNodeLeave = func(id string, meta pb.NodeMeta) {
-		self.peers.Delete(id)
-	}
-	self.layer = layer.NewGossipLayer("cluster", logger, userConfig, pb.NodeMeta{
-		ID: userConfig.ID,
-	})
-	store, err := peers.NewPeerStore(self.layer)
-	self.layer.AddState("", store)
-	if err != nil {
-		panic(err)
-	}
-	self.peers = store
 	hostname, err := os.Hostname()
 	if err != nil {
 		hostname = os.Getenv("HOSTNAME")
@@ -63,18 +50,68 @@ func NewDiscoveryLayer(logger *zap.Logger, userConfig config.Config) *discoveryL
 	if hostname == "" {
 		hostname = "hostname_not_available"
 	}
-
-	self.peers.Upsert(peers.Peer{
+	peer := peers.Peer{
 		Metadata: pb.Metadata{
 			ID:       self.id,
 			Hostname: hostname,
 			Runtime:  runtime.Version(),
 			Started:  time.Now().Unix(),
 		},
-	})
-	go self.keepaliveSender()
+	}
+	payload, err := proto.Marshal(&peer)
+	if err != nil {
+		panic(err)
+	}
+	store, err := peers.NewPeerStore()
+	if err != nil {
+		panic(err)
+	}
+	self.peers = store
+	self.peers.Upsert(peer)
+
+	userConfig.OnNodeJoin = func(id string, meta []byte) {
+		if id == userConfig.ID {
+			return
+		}
+		p := peers.Peer{}
+		err := proto.Unmarshal(meta, &p)
+		if err != nil {
+			logger.Warn("failed to unmarshal metadata on node join", zap.Error(err))
+		}
+		err = self.peers.Upsert(p)
+		if err != nil {
+			logger.Warn("failed to update peer in local store", zap.Error(err))
+		}
+		logger.Info("node joined", zap.String("remote_node_id", id[:8]))
+	}
+	userConfig.OnNodeLeave = func(id string, _ []byte) {
+		if id == userConfig.ID {
+			return
+		}
+		err := self.peers.Delete(id)
+		if err != nil {
+			logger.Warn("failed to delete peer in local store", zap.Error(err))
+		}
+		logger.Info("node left", zap.String("remote_node_id", id[:8]))
+	}
+	userConfig.OnNodeUpdate = func(id string, meta []byte) {
+		if id == userConfig.ID {
+			return
+		}
+		p := peers.Peer{}
+		err := proto.Unmarshal(meta, &p)
+		if err != nil {
+			logger.Warn("failed to unmarshal metadata on node join", zap.Error(err))
+		}
+		err = self.peers.Update(id, func(_ peers.Peer) peers.Peer {
+			return p
+		})
+		if err != nil {
+			logger.Warn("failed to update peer in local store", zap.Error(err))
+		}
+	}
+	self.layer = layer.NewGossipLayer("cluster", logger, userConfig, payload)
 	go self.oSStatsReporter()
-	go self.deadNodeDeleter()
 	return self
 }
 func (m *discoveryLayer) Leave() {
@@ -88,7 +125,7 @@ func (m *discoveryLayer) ServiceName() string {
 	return "cluster"
 }
 func (m *discoveryLayer) RegisterService(name, address string) error {
-	return m.peers.Update(m.id, func(self peers.Peer) peers.Peer {
+	err := m.peers.Update(m.id, func(self peers.Peer) peers.Peer {
 		self.HostedServices = append(self.HostedServices, &pb.NodeService{
 			ID:             name,
 			NetworkAddress: address,
@@ -97,10 +134,25 @@ func (m *discoveryLayer) RegisterService(name, address string) error {
 		self.Services = append(self.Services, name)
 		return self
 	})
+	if err == nil {
+		m.syncMeta()
+	}
+	return err
 }
 
+func (m *discoveryLayer) syncMeta() error {
+	self, err := m.peers.ByID(m.id)
+	if err == nil {
+		payload, err := proto.Marshal(&self)
+		if err != nil {
+			panic(err)
+		}
+		m.layer.UpdateMeta(payload)
+	}
+	return err
+}
 func (m *discoveryLayer) AddServiceTag(service, key, value string) error {
-	return m.peers.Update(m.id, func(self peers.Peer) peers.Peer {
+	err := m.peers.Update(m.id, func(self peers.Peer) peers.Peer {
 		for idx := range self.HostedServices {
 			if self.HostedServices[idx].ID == service {
 				found := false
@@ -122,9 +174,13 @@ func (m *discoveryLayer) AddServiceTag(service, key, value string) error {
 		}
 		return self
 	})
+	if err == nil {
+		return m.syncMeta()
+	}
+	return err
 }
 func (m *discoveryLayer) RemoveServiceTag(name string, tag string) error {
-	return m.peers.Update(m.id, func(self peers.Peer) peers.Peer {
+	err := m.peers.Update(m.id, func(self peers.Peer) peers.Peer {
 		for idx := range self.HostedServices {
 			if self.HostedServices[idx].ID == name {
 				dirty := false
@@ -143,9 +199,13 @@ func (m *discoveryLayer) RemoveServiceTag(name string, tag string) error {
 		}
 		return self
 	})
+	if err == nil {
+		return m.syncMeta()
+	}
+	return err
 }
 func (m *discoveryLayer) UnregisterService(name string) error {
-	return m.peers.Update(m.id, func(self peers.Peer) peers.Peer {
+	err := m.peers.Update(m.id, func(self peers.Peer) peers.Peer {
 		newServices := []*pb.NodeService{}
 		newServiceNames := []string{}
 		for _, service := range self.HostedServices {
@@ -162,6 +222,10 @@ func (m *discoveryLayer) UnregisterService(name string) error {
 		self.Services = newServiceNames
 		return self
 	})
+	if err == nil {
+		return m.syncMeta()
+	}
+	return err
 }
 func (m *discoveryLayer) Health() string {
 	if len(m.layer.Members()) > 1 {

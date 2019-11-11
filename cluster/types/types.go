@@ -35,9 +35,9 @@ type GossipServiceLayer interface {
 	ServiceLayer
 	Leave()
 	Members() []*memberlist.Node
+	UpdateMeta([]byte)
 	Join([]string) error
 	AddState(key string, state GossipState) (Channel, error)
-	OnNodeLeave(f func(id string, meta pb.NodeMeta))
 }
 
 type RaftServiceLayer interface {

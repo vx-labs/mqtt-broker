@@ -2,7 +2,6 @@ package cluster
 
 import (
 	"github.com/hashicorp/memberlist"
-	"github.com/vx-labs/mqtt-broker/cluster/pb"
 	"github.com/vx-labs/mqtt-broker/cluster/peers"
 	"github.com/vx-labs/mqtt-broker/cluster/types"
 	"google.golang.org/grpc"
@@ -36,7 +35,8 @@ type GossipLayer interface {
 	DiscoverPeers(discovery peers.PeerStore)
 	Join(peers []string) error
 	Members() []*memberlist.Node
-	OnNodeJoin(func(id string, meta pb.NodeMeta))
-	OnNodeLeave(func(id string, meta pb.NodeMeta))
+	OnNodeJoin(func(id string, meta []byte))
+	OnNodeLeave(func(id string, meta []byte))
+	OnNodeUpdate(func(id string, meta []byte))
 	Leave()
 }

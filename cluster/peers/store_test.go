@@ -13,30 +13,30 @@ const (
 )
 
 func TestPeerStore(t *testing.T) {
-	store, _ := NewPeerStore(MockedMesh())
+	store, _ := NewPeerStore()
 
 	t.Run("create", func(t *testing.T) {
 		err := store.Upsert(Peer{Metadata: pb.Metadata{
 			ID: peerID,
 		}})
-		assert.Nil(t, err)
+		require.Nil(t, err)
 		err = store.Upsert(Peer{Metadata: pb.Metadata{
 			ID: "3",
 		}})
-		assert.Nil(t, err)
+		require.Nil(t, err)
 	})
 
 	t.Run("lookup", lookup(store, peerID))
 	t.Run("All", func(t *testing.T) {
 		set, err := store.All()
 		require.Nil(t, err)
-		assert.Equal(t, 2, len(set))
+		require.Equal(t, 2, len(set))
 	})
 	t.Run("delete", func(t *testing.T) {
 		err := store.Delete(peerID)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		_, err = store.ByID(peerID)
-		assert.Error(t, err)
+		require.Error(t, err)
 	})
 }
 

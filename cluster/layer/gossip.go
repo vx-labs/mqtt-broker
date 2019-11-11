@@ -1,8 +1,11 @@
 package layer
 
 import (
+	"bytes"
+	"compress/zlib"
 	"context"
 	fmt "fmt"
+	"io"
 	"io/ioutil"
 	"os"
 	"sync"
@@ -18,16 +21,17 @@ import (
 )
 
 type layer struct {
-	id          string
-	name        string
-	mlist       *memberlist.Memberlist
-	logger      *zap.Logger
-	mtx         sync.RWMutex
-	states      map[string]types.GossipState
-	bcastQueue  *memberlist.TransmitLimitedQueue
-	meta        pb.NodeMeta
-	onNodeJoin  func(id string, meta pb.NodeMeta)
-	onNodeLeave func(id string, meta pb.NodeMeta)
+	id           string
+	name         string
+	mlist        *memberlist.Memberlist
+	logger       *zap.Logger
+	mtx          sync.RWMutex
+	states       map[string]types.GossipState
+	bcastQueue   *memberlist.TransmitLimitedQueue
+	meta         []byte
+	onNodeJoin   func(id string, meta []byte)
+	onNodeLeave  func(id string, meta []byte)
+	onNodeUpdate func(id string, meta []byte)
 }
 
 func (s *layer) Status(ctx context.Context, input *pb.StatusInput) (*pb.StatusOutput, error) {
@@ -40,11 +44,14 @@ func (m *layer) Members() []*memberlist.Node {
 	return m.mlist.Members()
 }
 
-func (m *layer) OnNodeJoin(f func(id string, meta pb.NodeMeta)) {
+func (m *layer) OnNodeJoin(f func(id string, meta []byte)) {
 	m.onNodeJoin = f
 }
-func (m *layer) OnNodeLeave(f func(id string, meta pb.NodeMeta)) {
+func (m *layer) OnNodeLeave(f func(id string, meta []byte)) {
 	m.onNodeLeave = f
+}
+func (m *layer) OnNodeUpdate(f func(id string, meta []byte)) {
+	m.onNodeUpdate = f
 }
 
 func (m *layer) AddState(key string, state types.GossipState) (types.Channel, error) {
@@ -94,16 +101,34 @@ func (s *layer) Health() string {
 	}
 	return "ok"
 }
-func (m *layer) GetBroadcasts(overhead, limit int) [][]byte {
-	return m.bcastQueue.GetBroadcasts(overhead, limit)
+func (s *layer) GetBroadcasts(overhead, limit int) [][]byte {
+	return s.bcastQueue.GetBroadcasts(overhead, limit)
 }
-func (m *layer) NodeMeta(limit int) []byte {
-	payload, err := proto.Marshal(&m.meta)
-	if err != nil || len(payload) > limit {
-		m.logger.Warn("not publishing node meta because limit is exceeded")
-		return []byte{}
+func (s *layer) decodeMeta(b []byte) []byte {
+	r := bytes.NewBuffer(b)
+	uncompressed, err := zlib.NewReader(r)
+	if err != nil {
+		panic(err)
 	}
-	return payload
+	out := bytes.NewBuffer(nil)
+	_, err = io.Copy(out, uncompressed)
+	if err != nil {
+		panic(err)
+	}
+	return out.Bytes()
+}
+func (s *layer) NodeMeta(limit int) []byte {
+	b := bytes.NewBuffer(nil)
+	w := zlib.NewWriter(b)
+	_, err := w.Write(s.meta)
+	if err != nil {
+		panic(err)
+	}
+	err = w.Close()
+	if err != nil {
+		panic(err)
+	}
+	return b.Bytes()
 }
 func (m *layer) LocalState(join bool) []byte {
 	m.mtx.RLock()
@@ -196,6 +221,10 @@ func (self *layer) DiscoverPeers(discovery peers.PeerStore) {
 		}
 	}
 }
+func (self *layer) UpdateMeta(meta []byte) {
+	self.meta = meta
+	self.mlist.UpdateNode(5 * time.Second)
+}
 func (self *layer) Leave() {
 	self.mlist.Leave(5 * time.Second)
 	self.mlist.Shutdown()
@@ -216,15 +245,16 @@ func (self *layer) numMembers() int {
 	return self.mlist.NumMembers()
 }
 
-func NewGossipLayer(name string, logger *zap.Logger, userConfig config.Config, meta pb.NodeMeta) *layer {
+func NewGossipLayer(name string, logger *zap.Logger, userConfig config.Config, meta []byte) *layer {
 	self := &layer{
-		id:          userConfig.ID,
-		name:        name,
-		states:      map[string]types.GossipState{},
-		meta:        meta,
-		onNodeJoin:  userConfig.OnNodeJoin,
-		onNodeLeave: userConfig.OnNodeLeave,
-		logger:      logger,
+		id:           userConfig.ID,
+		name:         name,
+		states:       map[string]types.GossipState{},
+		meta:         meta,
+		onNodeJoin:   userConfig.OnNodeJoin,
+		onNodeLeave:  userConfig.OnNodeLeave,
+		onNodeUpdate: userConfig.OnNodeUpdate,
+		logger:       logger,
 	}
 
 	self.bcastQueue = &memberlist.TransmitLimitedQueue{

@@ -2,13 +2,8 @@ package peers
 
 import (
 	"errors"
-	"log"
-	"time"
 
-	"github.com/golang/protobuf/proto"
 	"github.com/vx-labs/mqtt-broker/cluster/pb"
-	"github.com/vx-labs/mqtt-broker/cluster/types"
-	"github.com/vx-labs/mqtt-broker/crdt"
 
 	"github.com/vx-labs/mqtt-broker/events"
 
@@ -28,10 +23,6 @@ var (
 	ErrPeerNotFound = errors.New("peer not found")
 )
 
-var now = func() int64 {
-	return time.Now().UnixNano()
-}
-
 type Peer struct {
 	pb.Metadata
 }
@@ -46,16 +37,12 @@ type PeerStore interface {
 	Delete(id string) error
 	On(event string, handler func(Peer)) func()
 }
-type Channel interface {
-	BroadcastFullState(b []byte)
-}
 type memDBStore struct {
-	db      *memdb.MemDB
-	events  *events.Bus
-	channel Channel
+	db     *memdb.MemDB
+	events *events.Bus
 }
 
-func NewPeerStore(mesh types.GossipServiceLayer) (*memDBStore, error) {
+func NewPeerStore() (*memDBStore, error) {
 	db, err := memdb.NewMemDB(&memdb.DBSchema{
 		Tables: map[string]*memdb.TableSchema{
 			peerTable: {
@@ -88,15 +75,6 @@ func NewPeerStore(mesh types.GossipServiceLayer) (*memDBStore, error) {
 		db:     db,
 		events: events.NewEventBus(),
 	}
-	s.channel, err = mesh.AddState("mqtt-peers", s)
-	go func() {
-		for range time.Tick(1 * time.Hour) {
-			err := s.runGC()
-			if err != nil {
-				log.Printf("WARN: failed to GC peers: %v", err)
-			}
-		}
-	}()
 	return s, nil
 }
 func (m *memDBStore) all(tx *memdb.Txn, index string, value ...interface{}) (SubscriptionSet, error) {
@@ -114,9 +92,8 @@ func (m *memDBStore) all(tx *memdb.Txn, index string, value ...interface{}) (Sub
 		if !ok {
 			return set, errors.New("invalid type fetched")
 		}
-		if crdt.IsEntryAdded(&res) {
-			set = append(set, res)
-		}
+		set = append(set, res)
+
 	}
 }
 
@@ -130,9 +107,6 @@ func (s *memDBStore) ByID(id string) (Peer, error) {
 		p, err := s.first(tx, "id", id)
 		if err != nil {
 			return err
-		}
-		if crdt.IsEntryRemoved(&p) {
-			return ErrPeerNotFound
 		}
 		peer = p
 		return nil
@@ -173,9 +147,9 @@ func (m *memDBStore) EndpointsByService(name string) ([]*pb.NodeService, error) 
 	return out, nil
 }
 
-func (s *memDBStore) Upsert(sess Peer) error {
-	sess.LastAdded = now()
-	return s.insert(sess)
+func (s *memDBStore) Upsert(peer Peer) error {
+	defer s.emitPeerEvent(PeerCreated, peer)
+	return s.insert(peer)
 }
 func (s *memDBStore) Update(id string, mutation func(peer Peer) Peer) error {
 	tx := s.db.Txn(true)
@@ -184,74 +158,31 @@ func (s *memDBStore) Update(id string, mutation func(peer Peer) Peer) error {
 	if err != nil {
 		return err
 	}
-	if crdt.IsEntryRemoved(&peer) {
-		return ErrPeerNotFound
-	}
 	peer = mutation(peer)
-	peer.LastAdded = now()
 	err = tx.Insert(peerTable, peer)
 	if err != nil {
 		return err
 	}
+	defer s.emitPeerEvent(PeerUpdated, peer)
 	tx.Commit()
-	buf, err := proto.Marshal(&pb.PeerMetadataList{
-		Metadatas: []*pb.Metadata{
-			&peer.Metadata,
-		},
-	})
-	if err != nil {
-		log.Printf("WARN: failed to encode peer")
-		return nil
-	}
-	s.channel.BroadcastFullState(buf)
-	s.emitPeerEvent(peer)
 	return nil
 }
 
-func (s *memDBStore) emitPeerEvent(sess Peer) {
-	if crdt.IsEntryAdded(&sess) {
-		s.events.Emit(events.Event{
-			Entry: sess,
-			Key:   PeerCreated,
-		})
-		s.events.Emit(events.Event{
-			Entry: sess,
-			Key:   PeerCreated + "/" + sess.ID,
-		})
-	}
-	if crdt.IsEntryRemoved(&sess) {
-		s.events.Emit(events.Event{
-			Entry: sess,
-			Key:   PeerDeleted,
-		})
-		s.events.Emit(events.Event{
-			Entry: sess,
-			Key:   PeerDeleted + "/" + sess.ID,
-		})
-	}
+func (s *memDBStore) emitPeerEvent(event string, sess Peer) {
+	s.events.Emit(events.Event{
+		Entry: sess,
+		Key:   event,
+	})
+	s.events.Emit(events.Event{
+		Entry: sess,
+		Key:   event + "/" + sess.ID,
+	})
 }
 
 func (m *memDBStore) insert(message Peer) error {
-	defer m.emitPeerEvent(message)
-	err := m.write(func(tx *memdb.Txn) error {
-		err := tx.Insert(peerTable, message)
-		if err != nil {
-			return err
-		}
-		return nil
+	return m.write(func(tx *memdb.Txn) error {
+		return tx.Insert(peerTable, message)
 	})
-	if err == nil {
-		buf, err := proto.Marshal(&pb.PeerMetadataList{
-			Metadatas: []*pb.Metadata{
-				&message.Metadata,
-			},
-		})
-		if err != nil {
-			return err
-		}
-		m.channel.BroadcastFullState(buf)
-	}
-	return err
 }
 func (s *memDBStore) Delete(id string) error {
 	tx := s.db.Txn(true)
@@ -260,28 +191,13 @@ func (s *memDBStore) Delete(id string) error {
 	if err != nil {
 		return err
 	}
-	if crdt.IsEntryRemoved(&peer) {
-		return ErrPeerNotFound
-	}
-	peer.LastDeleted = now()
-	err = tx.Insert(peerTable, peer)
+	err = tx.Delete(peerTable, peer)
 	if err != nil {
 		return err
 	}
+	defer s.emitPeerEvent(PeerDeleted, peer)
 	tx.Commit()
-	buf, err := proto.Marshal(&pb.PeerMetadataList{
-		Metadatas: []*pb.Metadata{
-			&peer.Metadata,
-		},
-	})
-	if err != nil {
-		log.Printf("WARN: failed to encode peer")
-		return nil
-	}
-	s.channel.BroadcastFullState(buf)
-	s.emitPeerEvent(peer)
 	return nil
-
 }
 
 func (s *memDBStore) read(statement func(tx *memdb.Txn) error) error {

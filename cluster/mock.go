@@ -26,7 +26,7 @@ type mockedMesh struct{}
 func (m *mockedMesh) AddState(key string, state types.GossipState) (types.Channel, error) {
 	return &mockedChannel{}, nil
 }
-func (m *mockedMesh) OnNodeLeave(f func(id string, meta pb.NodeMeta)) {}
+func (m *mockedMesh) OnNodeLeave(f func(id string, meta []byte)) {}
 func (m *mockedMesh) Join(hosts []string) error {
 	return nil
 }
@@ -56,6 +56,7 @@ func (m *mockedMesh) RegisterService(name, addr string) error {
 func (m *mockedMesh) Health() string {
 	return "ok"
 }
+func (m *mockedMesh) UpdateMeta([]byte)             {}
 func (m *mockedMesh) Leave()                        {}
 func (m *mockedMesh) DiscoverPeers(peers.PeerStore) {}
 func (m *mockedMesh) Members() []*memberlist.Node {

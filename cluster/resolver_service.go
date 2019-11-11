@@ -89,7 +89,7 @@ func (r *meshResolver) updateConn(target resolver.Target, cc resolver.ClientConn
 			})
 		}
 	}
-	r.logger.Debug("updated mesh resolver targets", zap.Strings("targets", loggableAddresses), zap.String("grpc_endpoint", service))
+	//	r.logger.Debug("updated mesh resolver targets", zap.Strings("targets", loggableAddresses), zap.String("grpc_endpoint", service))
 	cc.UpdateState(resolver.State{
 		Addresses:     addresses,
 		ServiceConfig: nil,
@@ -98,7 +98,8 @@ func (r *meshResolver) updateConn(target resolver.Target, cc resolver.ClientConn
 func (r *meshResolver) Build(target resolver.Target, cc resolver.ClientConn, opts resolver.BuildOption) (resolver.Resolver, error) {
 	cancelCreate := r.peers.On(peers.PeerCreated, func(p peers.Peer) { r.updateConn(target, cc) })
 	cancelDelete := r.peers.On(peers.PeerDeleted, func(p peers.Peer) { r.updateConn(target, cc) })
-	r.subscriptions = append(r.subscriptions, cancelCreate, cancelDelete)
+	cancelUpdate := r.peers.On(peers.PeerUpdated, func(p peers.Peer) { r.updateConn(target, cc) })
+	r.subscriptions = append(r.subscriptions, cancelCreate, cancelDelete, cancelUpdate)
 	r.updateConn(target, cc)
 	return r, nil
 }
