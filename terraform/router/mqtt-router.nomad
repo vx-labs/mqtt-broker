@@ -12,7 +12,7 @@ job "mqtt-router" {
   }
 
   group "router" {
-    count = 1
+    count = 3
     constraint {
         distinct_hosts = true
     }

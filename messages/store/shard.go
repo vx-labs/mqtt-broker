@@ -26,8 +26,7 @@ func (b *BoltStore) getRange(backend *bolt.Bucket, offset uint64, buff []*pb.Sto
 		if offset == 0 {
 			return cursor.First()
 		}
-		cursor.Seek(uint64ToBytes(offset))
-		return cursor.Next()
+		return cursor.Seek(uint64ToBytes(offset))
 	}
 
 	for itemKey, itemValue := firstLoop(); itemKey != nil && idx < count; itemKey, itemValue = cursor.Next() {
@@ -35,7 +34,7 @@ func (b *BoltStore) getRange(backend *bolt.Bucket, offset uint64, buff []*pb.Sto
 		buff[idx] = &pb.StoredMessage{Offset: offset, Payload: itemValue}
 		idx++
 	}
-	return idx, offset, nil
+	return idx, offset + 1, nil
 }
 func (b *BoltStore) walk(backend *bolt.Bucket, f func(key []byte, payload []byte) error) error {
 	cursor := backend.Cursor()

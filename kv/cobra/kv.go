@@ -2,6 +2,7 @@ package cobra
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -33,7 +34,7 @@ func Get(ctx context.Context, config *viper.Viper) *cobra.Command {
 				if err != nil {
 					logrus.Errorf("failed to get %q: %v", key, err)
 				} else {
-					logrus.Infof("%s: %v", key, string(value))
+					fmt.Println(string(value))
 				}
 			}
 		},
@@ -73,7 +74,7 @@ func GetWithMetadata(ctx context.Context, config *viper.Viper) *cobra.Command {
 				if err != nil {
 					logrus.Errorf("failed to get %q: %v", key, err)
 				} else {
-					logrus.Infof("%s: %s", key, string(value))
+					fmt.Println(string(value))
 					logrus.Infof("%s: version=%v, deadline=%d", key, md.Version, md.Deadline)
 				}
 			}

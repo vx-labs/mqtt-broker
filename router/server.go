@@ -21,23 +21,21 @@ const (
 type server struct {
 	id            string
 	ctx           context.Context
-	cancel        context.CancelFunc
 	logger        *zap.Logger
 	Subscriptions *subscriptions.Client
 	Queues        *queues.Client
 	Messages      *messages.Client
 	KV            *kv.Client
 	done          chan struct{}
+	cancel        chan struct{}
 }
 
 func New(id string, logger *zap.Logger, mesh cluster.DiscoveryLayer) *server {
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx := context.Background()
 	b := &server{
 		id:     id,
 		ctx:    ctx,
 		logger: logger,
-		cancel: cancel,
-		done:   make(chan struct{}),
 	}
 	kvConn, err := mesh.DialService("kv?raft_status=leader")
 	if err != nil {
@@ -61,11 +59,16 @@ func New(id string, logger *zap.Logger, mesh cluster.DiscoveryLayer) *server {
 	b.Subscriptions = subscriptions.NewClient(subscriptionConn)
 
 	streamClient := stream.NewClient(b.KV, b.Messages, logger)
-	//FIXME: routine leak
-	go streamClient.Consume(ctx, "messages", b.v2ConsumePayload,
-		stream.WithConsumerID(id),
-		stream.WithConsumerGroupID("router"),
-		stream.WithInitialOffsetBehaviour(stream.OFFSET_BEHAVIOUR_FROM_NOW),
-	)
+	b.cancel = make(chan struct{})
+	b.done = make(chan struct{})
+
+	go func() {
+		defer close(b.done)
+		streamClient.Consume(ctx, b.cancel, "messages", b.v2ConsumePayload,
+			stream.WithConsumerID(b.id),
+			stream.WithConsumerGroupID("router"),
+			stream.WithInitialOffsetBehaviour(stream.OFFSET_BEHAVIOUR_FROM_START),
+		)
+	}()
 	return b
 }

@@ -49,7 +49,7 @@ func (c *Client) Set(ctx context.Context, key []byte, value []byte, opts ...setO
 	if err != nil {
 		return err
 	}
-	return c.SetWithVersion(ctx, key, value, md.Version)
+	return c.SetWithVersion(ctx, key, value, md.Version, opts...)
 }
 func (c *Client) Get(ctx context.Context, key []byte) ([]byte, error) {
 	if len(key) == 0 {

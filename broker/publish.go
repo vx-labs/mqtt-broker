@@ -7,7 +7,7 @@ import (
 	"go.uber.org/zap"
 )
 
-func (b *Broker) enqueuePublish(tenant string, publish *packet.Publish) error {
+func (b *Broker) enqueuePublish(tenant string, sender string, publish *packet.Publish) error {
 	payload := &pb.MessagePublished{
 		Tenant:  tenant,
 		Publish: publish,
@@ -16,7 +16,7 @@ func (b *Broker) enqueuePublish(tenant string, publish *packet.Publish) error {
 	if err != nil {
 		return err
 	}
-	err = b.Messages.Put(b.ctx, "messages", tenant, data)
+	err = b.Messages.Put(b.ctx, "messages", sender, data)
 	if err != nil {
 		b.logger.Error("failed to enqueue message in message store", zap.Error(err))
 		return err

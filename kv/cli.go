@@ -39,11 +39,13 @@ func (b *server) JoinServiceLayer(name string, logger *zap.Logger, config cluste
 		var lastDeadline uint64 = 0
 		for range ticker.C {
 			if b.state.IsLeader() {
-				keys, err := b.store.ListExpiredKeys(lastDeadline, uint64(time.Now().UnixNano()))
+				now := uint64(time.Now().UnixNano())
+				keys, err := b.store.ListExpiredKeys(lastDeadline, now)
 				if err != nil {
 					b.logger.Error("failed to list expired messages", zap.Error(err))
 					continue
 				}
+				lastDeadline = now
 				if len(keys) > 0 {
 					err := b.commitEvent(&pb.KVStateTransition{
 						Event: &pb.KVStateTransition_DeleteBatch{
@@ -56,7 +58,6 @@ func (b *server) JoinServiceLayer(name string, logger *zap.Logger, config cluste
 						b.logger.Error("failed to delete expired keys", zap.Int("expired_key_count", len(keys)), zap.Error(err))
 					} else {
 						b.logger.Info("deleted expired keys", zap.Int("expired_key_count", len(keys)))
-						lastDeadline = keys[len(keys)-1].Deadline
 					}
 				}
 			}

@@ -136,7 +136,7 @@ func (b *Broker) onPeerDown(name string) {
 					Retain: s.WillRetain,
 				},
 			}
-			b.enqueuePublish(s.Tenant, lwt)
+			b.enqueuePublish(s.Tenant, s.ID, lwt)
 		}
 	}
 }

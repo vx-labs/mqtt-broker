@@ -100,13 +100,12 @@ func saveMetadata(bucket *bolt.Bucket, key []byte, md *pb.KVMetadata) error {
 	return bucket.Put(key, data)
 }
 func (b *BoltStore) Put(key []byte, value []byte, deadline uint64, version uint64) error {
-	bucketName := kvBucket
 	tx, err := b.conn.Begin(true)
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback()
-	bucket := tx.Bucket(bucketName)
+	bucket := tx.Bucket(kvBucket)
 	if bucket == nil {
 		return ErrBucketNotFound
 	}
@@ -120,11 +119,7 @@ func (b *BoltStore) Put(key []byte, value []byte, deadline uint64, version uint6
 	var md *pb.KVMetadata
 	md, err = loadMetadata(metadatasBucket, key)
 	if err != nil {
-		md = &pb.KVMetadata{
-			Key:      key,
-			Deadline: 0,
-			Version:  0,
-		}
+		return err
 	}
 
 	if md.Version != version {
@@ -328,15 +323,7 @@ func (b *BoltStore) ListExpiredKeys(from uint64, until uint64) ([]*pb.KVMetadata
 	out := []*pb.KVMetadata{}
 	cursor := deadlineBucket.Cursor()
 
-	firstLoop := func() ([]byte, []byte) {
-		if from == 0 {
-			return cursor.First()
-		}
-		cursor.Seek(uint64ToBytes(from))
-		return cursor.Next()
-	}
-
-	for itemKey, itemValue := firstLoop(); itemKey != nil && bytes.Compare(itemKey, nowKey) < 0; itemKey, itemValue = cursor.Next() {
+	for itemKey, itemValue := cursor.Seek(uint64ToBytes(from)); itemKey != nil && bytes.Compare(itemKey, nowKey) < 0; itemKey, itemValue = cursor.Next() {
 		md := &pb.KVMetadata{}
 		err := proto.Unmarshal(itemValue, md)
 		if err == nil {

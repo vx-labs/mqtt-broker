@@ -135,6 +135,9 @@ func (s *server) GetMessages(ctx context.Context, input *pb.MessageGetMessagesIn
 	if err != nil {
 		return nil, err
 	}
+	if count == 0 {
+		offset = input.Offset
+	}
 	return &pb.MessageGetMessagesOutput{
 		Messages:   buf[:count],
 		NextOffset: offset,

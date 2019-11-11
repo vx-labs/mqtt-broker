@@ -28,6 +28,8 @@ type server struct {
 	state      types.GossipServiceLayer
 	logger     *zap.Logger
 	gprcServer *grpc.Server
+	cancel     chan struct{}
+	done       chan struct{}
 }
 
 func New(id string, logger *zap.Logger) *server {
@@ -39,7 +41,9 @@ func New(id string, logger *zap.Logger) *server {
 }
 
 func (b *server) Shutdown() {
+	close(b.cancel)
 	b.gprcServer.GracefulStop()
+	<-b.done
 }
 func (b *server) JoinServiceLayer(name string, logger *zap.Logger, config cluster.ServiceConfig, rpcConfig cluster.ServiceConfig, mesh cluster.DiscoveryLayer) {
 	l := cluster.NewGossipServiceLayer(name, logger, config, mesh)
@@ -61,13 +65,17 @@ func (b *server) JoinServiceLayer(name string, logger *zap.Logger, config cluste
 	streamClient := stream.NewClient(k, m, logger)
 
 	ctx := context.Background()
-	logger.Debug("started stream consumer")
-	//FIXME: routine leak
-	go streamClient.Consume(ctx, "messages", b.consumeStream,
-		stream.WithConsumerID(b.id),
-		stream.WithConsumerGroupID("topics"),
-		stream.WithInitialOffsetBehaviour(stream.OFFSET_BEHAVIOUR_FROM_START),
-	)
+	b.cancel = make(chan struct{})
+	b.done = make(chan struct{})
+
+	go func() {
+		defer close(b.done)
+		streamClient.Consume(ctx, b.cancel, "messages", b.consumeStream,
+			stream.WithConsumerID(b.id),
+			stream.WithConsumerGroupID("topics"),
+			stream.WithInitialOffsetBehaviour(stream.OFFSET_BEHAVIOUR_FROM_START),
+		)
+	}()
 }
 
 func (b *server) consumeStream(messages []*messages.StoredMessage) (int, error) {

@@ -197,7 +197,7 @@ func (b *Broker) Publish(ctx context.Context, token string, p *packet.Publish) (
 		err = errors.New("QoS2 is not supported")
 		return nil, err
 	}
-	err = b.enqueuePublish(sess.SessionTenant, p)
+	err = b.enqueuePublish(sess.SessionTenant, sess.SessionID, p)
 	if err != nil {
 		return nil, err
 	}
@@ -258,7 +258,7 @@ func (b *Broker) CloseSession(ctx context.Context, token string) error {
 	}
 	if len(sess.WillTopic) > 0 {
 		b.logger.Info("sending LWT", zap.String("session_id", sess.ID), zap.Error(err))
-		b.enqueuePublish(sess.Tenant, &packet.Publish{
+		b.enqueuePublish(sess.Tenant, sess.ID, &packet.Publish{
 			Header: &packet.Header{
 				Dup:    false,
 				Retain: sess.WillRetain,

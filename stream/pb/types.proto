@@ -1,7 +1,0 @@
-syntax = "proto3";
-package pb;
-
-message ConsumerGroupMetadata {
-  string id = 1;
-  repeated string members = 2;
-}

@@ -53,7 +53,7 @@ func (b *Broker) JoinServiceLayer(name string, logger *zap.Logger, config cluste
 			if err != nil {
 				if code, ok := status.FromError(err); ok {
 					if code.Code() == codes.NotFound {
-						err := b.Messages.CreateStream(ctx, "messages", 1)
+						err := b.Messages.CreateStream(ctx, "messages", 3)
 						if err != nil {
 							b.logger.Error("failed to create stream in message store", zap.Error(err))
 						}

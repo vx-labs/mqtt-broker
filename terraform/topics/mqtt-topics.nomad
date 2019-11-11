@@ -12,7 +12,7 @@ job "mqtt-topics" {
   }
 
   group "subscription-store" {
-    count = 1
+    count = 3
 
     constraint {
       distinct_hosts = true
