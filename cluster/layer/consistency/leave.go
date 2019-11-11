@@ -4,7 +4,6 @@ import (
 	fmt "fmt"
 	"time"
 
-	"github.com/hashicorp/raft"
 	"go.uber.org/zap"
 )
 
@@ -38,12 +37,13 @@ func (s *raftlayer) Leave() error {
 			s.logger.Error("failed to wait for other members to catch-up log", zap.Error(err))
 			return err
 		}
-		err = s.raft.RemoveServer(raft.ServerID(s.id), 0, 0).Error()
+		err = s.raft.LeadershipTransfer().Error()
 		if err != nil {
-			s.logger.Error("failed to leave raft cluster", zap.Error(err))
+			s.logger.Error("failed to transfert raft cluster", zap.Error(err))
 			return err
 		}
 		s.logger.Info("raft leadership transfered")
+		isLeader = s.IsLeader()
 	}
 
 	if !isLeader {
