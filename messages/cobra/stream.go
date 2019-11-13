@@ -35,6 +35,8 @@ func ConsumeStream(ctx context.Context, config *viper.Viper) *cobra.Command {
 			config.BindPFlag("shard-id", c.Flags().Lookup("shard-id"))
 			config.BindPFlag("from-offset", c.Flags().Lookup("from-offset"))
 			config.BindPFlag("poll", c.Flags().Lookup("poll"))
+			config.BindPFlag("from-now", c.Flags().Lookup("from-now"))
+			config.BindPFlag("batch-size", c.Flags().Lookup("batch-size"))
 		},
 		Use: "consume",
 		Run: func(cmd *cobra.Command, _ []string) {
@@ -42,13 +44,16 @@ func ConsumeStream(ctx context.Context, config *viper.Viper) *cobra.Command {
 			ticker := time.NewTicker(200 * time.Millisecond)
 			defer ticker.Stop()
 			offset := config.GetUint64("from-offset")
+			size := config.GetInt("batch-size")
+			if config.GetBool("from-now") {
+				offset = uint64(time.Now().UnixNano())
+			}
 			for {
-				next, messages, err := client.GetMessages(ctx, config.GetString("stream-id"), config.GetString("shard-id"), offset, 10)
+				next, messages, err := client.GetMessages(ctx, config.GetString("stream-id"), config.GetString("shard-id"), offset, size)
 				if err != nil {
 					logrus.Errorf("failed to consume stream: %v", err)
 					return
 				}
-				offset = next
 				for _, message := range messages {
 					fmt.Printf("%d - %s\n", message.Offset, string(message.Payload))
 				}
@@ -64,8 +69,10 @@ func ConsumeStream(ctx context.Context, config *viper.Viper) *cobra.Command {
 	c.MarkFlagRequired("stream-id")
 	c.Flags().StringP("shard-id", "s", "", "Stream shard id")
 	c.MarkFlagRequired("shard-id")
-	c.Flags().Uint64P("from-offset", "o", 0, "Stream offset")
+	c.Flags().Uint64P("from-offset", "o", 0, "Stream from offset")
+	c.Flags().Bool("from-now", false, "Stream from now")
 	c.Flags().BoolP("poll", "", false, "Continuously polls the stream for new messages")
+	c.Flags().Int("batch-size", 10, "maximum batch size")
 	return c
 }
 func PutMessageInStream(ctx context.Context, config *viper.Viper) *cobra.Command {
