@@ -174,3 +174,16 @@ func (s *server) GetWithMetadata(ctx context.Context, input *pb.KVGetWithMetadat
 	}
 	return &pb.KVGetWithMetadataOutput{Value: value, Metadata: md}, nil
 }
+func (s *server) List(ctx context.Context, input *pb.KVListInput) (*pb.KVListOutput, error) {
+	if s.state == nil || s.leaderRPC == nil {
+		return nil, status.Error(codes.Unavailable, "node is not ready")
+	}
+	if !s.state.IsLeader() {
+		return s.leaderRPC.List(ctx, input)
+	}
+	keyMds, err := s.store.ListKeys(input.Prefix)
+	if err != nil {
+		return nil, err
+	}
+	return &pb.KVListOutput{KeyMetadatas: keyMds}, nil
+}

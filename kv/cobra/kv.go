@@ -15,6 +15,7 @@ func KV(ctx context.Context, config *viper.Viper) *cobra.Command {
 		Use: "kv",
 	}
 	c.AddCommand(Get(ctx, config))
+	c.AddCommand(List(ctx, config))
 	c.AddCommand(GetMetadata(ctx, config))
 	c.AddCommand(GetWithMetadata(ctx, config))
 	c.AddCommand(Set(ctx, config))
@@ -63,7 +64,7 @@ func GetMetadata(ctx context.Context, config *viper.Viper) *cobra.Command {
 }
 func GetWithMetadata(ctx context.Context, config *viper.Viper) *cobra.Command {
 	c := &cobra.Command{
-		Use:     "get-withmetadata",
+		Use:     "get-with-metadata",
 		Aliases: []string{"gmd"},
 		PreRun: func(c *cobra.Command, _ []string) {
 		},
@@ -142,5 +143,25 @@ func Set(ctx context.Context, config *viper.Viper) *cobra.Command {
 	c.Flags().Uint64("version", 0, "Key version to update")
 	c.MarkFlagRequired("key")
 	c.MarkFlagRequired("value")
+	return c
+}
+func List(ctx context.Context, config *viper.Viper) *cobra.Command {
+	c := &cobra.Command{
+		Use:     "list",
+		Aliases: []string{"ls"},
+		PreRun: func(c *cobra.Command, _ []string) {
+		},
+		Run: func(cmd *cobra.Command, argv []string) {
+			client := getClient(config)
+			mds, err := client.List(ctx)
+			if err != nil {
+				logrus.Errorf("failed to list keys: %v", err)
+				return
+			}
+			for _, md := range mds {
+				logrus.Infof("%s: version=%v, deadline=%d", md.Key, md.Version, md.Deadline)
+			}
+		},
+	}
 	return c
 }

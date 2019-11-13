@@ -87,6 +87,13 @@ func (c *Client) GetMetadata(ctx context.Context, key []byte) (*KVMetadata, erro
 	}
 	return out.Metadata, nil
 }
+func (c *Client) List(ctx context.Context) ([]*KVMetadata, error) {
+	out, err := c.api.List(ctx, &KVListInput{})
+	if err != nil {
+		return nil, err
+	}
+	return out.KeyMetadatas, nil
+}
 func (c *Client) Delete(ctx context.Context, key []byte, opts ...deleteOpt) error {
 	md, err := c.GetMetadata(ctx, key)
 	if err != nil {

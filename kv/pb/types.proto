@@ -29,6 +29,12 @@ message KVGetMetadataInput {
 message KVGetMetadataOutput {
   KVMetadata Metadata = 1;
 }
+message KVListInput {
+  bytes Prefix = 1;
+}
+message KVListOutput {
+  repeated KVMetadata KeyMetadatas = 1;
+}
 
 message KVSetInput {
   bytes Key = 1;
@@ -50,6 +56,7 @@ service KVService {
   rpc GetMetadata(KVGetMetadataInput) returns (KVGetMetadataOutput);
   rpc Set(KVSetInput) returns (KVSetOutput);
   rpc Delete(KVDeleteInput) returns (KVDeleteOutput);
+  rpc List(KVListInput) returns (KVListOutput);
 }
 message KVStateTransitionSet {
   repeated KVStateTransition events = 1;

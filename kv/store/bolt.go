@@ -332,3 +332,35 @@ func (b *BoltStore) ListExpiredKeys(from uint64, until uint64) ([]*pb.KVMetadata
 	}
 	return out, err
 }
+
+func (b *BoltStore) ListKeys(prefix []byte) ([]*pb.KVMetadata, error) {
+	tx, err := b.conn.Begin(false)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+	mdBucket := tx.Bucket(metadatasBucketName)
+	if mdBucket == nil {
+		return nil, ErrMDBucketNotFound
+	}
+	out := []*pb.KVMetadata{}
+	cursor := mdBucket.Cursor()
+	if len(prefix) > 0 {
+		for itemKey, itemValue := cursor.Seek(prefix); itemKey != nil && bytes.HasPrefix(prefix, itemKey); itemKey, itemValue = cursor.Next() {
+			md := &pb.KVMetadata{}
+			err := proto.Unmarshal(itemValue, md)
+			if err == nil {
+				out = append(out, md)
+			}
+		}
+	} else {
+		for itemKey, itemValue := cursor.First(); itemKey != nil; itemKey, itemValue = cursor.Next() {
+			md := &pb.KVMetadata{}
+			err := proto.Unmarshal(itemValue, md)
+			if err == nil {
+				out = append(out, md)
+			}
+		}
+	}
+	return out, err
+}
