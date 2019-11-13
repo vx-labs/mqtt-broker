@@ -111,7 +111,12 @@ func (s *raftlayer) Start(name string, state types.RaftState) error {
 	if err != nil {
 		return fmt.Errorf("failed to create boltdb store: %s", err)
 	}
-	logStore := boltDB
+	cacheStore, err := raft.NewLogCache(512, boltDB)
+	if err != nil {
+		boltDB.Close()
+		return err
+	}
+	logStore := cacheStore
 	stableStore := boltDB
 	ra, err := raft.NewRaft(raftConfig, s, logStore, stableStore, snapshots, transport)
 	if err != nil {
