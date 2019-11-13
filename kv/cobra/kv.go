@@ -3,6 +3,7 @@ package cobra
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -20,6 +21,7 @@ func KV(ctx context.Context, config *viper.Viper) *cobra.Command {
 	c.AddCommand(GetWithMetadata(ctx, config))
 	c.AddCommand(Set(ctx, config))
 	c.AddCommand(Delete(ctx, config))
+	c.AddCommand(Benchmark(ctx, config))
 	return c
 }
 
@@ -42,6 +44,53 @@ func Get(ctx context.Context, config *viper.Viper) *cobra.Command {
 	}
 	return c
 }
+func Benchmark(ctx context.Context, config *viper.Viper) *cobra.Command {
+	c := &cobra.Command{
+		Use: "benchmark",
+		PreRun: func(c *cobra.Command, _ []string) {
+		},
+		Run: func(cmd *cobra.Command, argv []string) {
+			client := getClient(config)
+
+			count := 0
+			total := 1000
+			start := time.Now()
+			for count < total {
+				key := []byte{byte(count)}
+				err := client.Set(ctx, key, []byte("benchmark"))
+				if err != nil {
+					logrus.Errorf("failed to write key %q: %v", string(key), err)
+					return
+				}
+				count++
+				if count%(total/3) == 0 {
+					logrus.Infof("written %d key in %s", count, time.Since(start).String())
+				}
+			}
+			timer := time.Since(start)
+			logrus.Infof("written %d key in %s", count, timer.String())
+
+			count = 0
+			start = time.Now()
+			for count < total {
+				key := []byte{byte(count)}
+				_, err := client.Get(ctx, key)
+				if err != nil {
+					logrus.Errorf("failed to read key %q: %v", string(key), err)
+					break
+				}
+				count++
+				if count%(total/3) == 0 {
+					logrus.Infof("read %d key in %s", count, time.Since(start).String())
+				}
+			}
+			timer = time.Since(start)
+			logrus.Infof("read %d key in %s", count, timer.String())
+		},
+	}
+	return c
+}
+
 func GetMetadata(ctx context.Context, config *viper.Viper) *cobra.Command {
 	c := &cobra.Command{
 		Use:     "get-metadata",
