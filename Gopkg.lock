@@ -42,12 +42,12 @@
   version = "v1.3.1"
 
 [[projects]]
-  digest = "1:8561fc011218ed9821f6d73057154e692cdfd0f37e929ef6c4a574b6299136cb"
+  digest = "1:f11885665d7cedde53a06ceca3cc1deb8b430c7d3030f42b12e6a7d59695c616"
   name = "github.com/cenkalti/backoff"
   packages = ["."]
   pruneopts = ""
-  revision = "4b4cebaf850ec58f1bb1fec5bdebdf8501c2bc3f"
-  version = "v3.0.0"
+  revision = "1ff1c09ea627d2be64cea605afa999c582c7cd01"
+  version = "v3.1.1"
 
 [[projects]]
   branch = "master"
@@ -56,17 +56,6 @@
   packages = ["."]
   pruneopts = ""
   revision = "2972be24d48e78746da79ba8e24e8b488c9880de"
-
-[[projects]]
-  digest = "1:dbf28ceee27335219701dd4c6639c767eee31e2abb61485cdb1044587a04c077"
-  name = "github.com/client9/misspell"
-  packages = [
-    ".",
-    "cmd/misspell",
-  ]
-  pruneopts = ""
-  revision = "b90dc15cfd220ecf8bbc9043ecb928cef381f011"
-  version = "v0.3.4"
 
 [[projects]]
   digest = "1:0deddd908b6b4b768cfc272c16ee61e7088a60f7fe2f06c547bd3d8e1f8b8e77"
