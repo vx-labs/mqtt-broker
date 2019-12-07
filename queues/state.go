@@ -30,9 +30,12 @@ func (m *server) Restore(r io.Reader) error {
 	m.logger.Info("restored snapshot")
 	return nil
 }
-func (m *server) Snapshot() io.Reader {
+func (m *server) Snapshot() io.ReadCloser {
 	r, w := io.Pipe()
-	go m.store.WriteTo(w)
+	go func() {
+		defer w.Close()
+		m.store.WriteTo(w)
+	}()
 	return r
 }
 

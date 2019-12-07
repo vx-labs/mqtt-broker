@@ -196,14 +196,19 @@ func unlockShard(ctx context.Context, client *kv.Client, streamID, groupID, shar
 	return client.DeleteWithVersion(ctx, key, md.Version)
 
 }
-func lockShard(ctx context.Context, client *kv.Client, streamID, groupID, shardID, consumerID string, duration time.Duration) error {
+
+func lockShard(ctx context.Context, client *kv.Client, streamID, groupID, shardID, consumerID string, duration time.Duration) (uint64, error) {
 	key := []byte(fmt.Sprintf("stream/%s/%s/%s/lock", streamID, shardID, groupID))
 	value, md, err := client.GetWithMetadata(ctx, key)
 	if err != nil {
-		return err
+		return 0, err
 	}
 	if len(value) != 0 {
-		return ErrShardAlreadyLocked
+		return 0, ErrShardAlreadyLocked
 	}
-	return client.SetWithVersion(ctx, key, []byte(consumerID), md.Version, kv.WithTimeToLive(duration))
+	return md.Version + 1, client.SetWithVersion(ctx, key, []byte(consumerID), md.Version, kv.WithTimeToLive(duration))
+}
+func renewShardlock(ctx context.Context, client *kv.Client, streamID, groupID, shardID, consumerID string, duration time.Duration, version uint64) error {
+	key := []byte(fmt.Sprintf("stream/%s/%s/%s/lock", streamID, shardID, groupID))
+	return client.SetWithVersion(ctx, key, []byte(consumerID), version, kv.WithTimeToLive(duration))
 }

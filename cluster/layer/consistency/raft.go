@@ -315,7 +315,7 @@ func (s *raftlayer) Apply(log *raft.Log) interface{} {
 }
 
 type snapshot struct {
-	src io.Reader
+	src io.ReadCloser
 }
 
 func (s *snapshot) Persist(sink raft.SnapshotSink) error {
@@ -327,7 +327,9 @@ func (s *snapshot) Persist(sink raft.SnapshotSink) error {
 	return sink.Close()
 }
 
-func (s *snapshot) Release() {}
+func (s *snapshot) Release() {
+	s.src.Close()
+}
 
 func (s *raftlayer) Snapshot() (raft.FSMSnapshot, error) {
 	src := s.state.Snapshot()

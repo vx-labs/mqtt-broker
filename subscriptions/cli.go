@@ -69,7 +69,7 @@ func (m *server) Restore(r io.Reader) error {
 	m.logger.Info("restored snapshot", zap.Int("size", len(payload)))
 	return nil
 }
-func (m *server) Snapshot() io.Reader {
+func (m *server) Snapshot() io.ReadCloser {
 	dump, err := m.store.All()
 	if err != nil {
 		m.logger.Error("failed to snapshot store", zap.Error(err))
@@ -81,7 +81,7 @@ func (m *server) Snapshot() io.Reader {
 		return nil
 	}
 	m.logger.Info("snapshotted store", zap.Int("size", len(payload)))
-	return bytes.NewReader(payload)
+	return ioutil.NopCloser(bytes.NewReader(payload))
 }
 func (m *server) Health() string {
 	return m.state.Health()

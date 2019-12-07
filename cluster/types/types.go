@@ -20,7 +20,7 @@ type ServiceLayer interface {
 
 type RaftState interface {
 	Apply(event []byte) error
-	Snapshot() io.Reader
+	Snapshot() io.ReadCloser
 	Restore(io.Reader) error
 }
 

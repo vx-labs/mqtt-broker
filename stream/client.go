@@ -219,8 +219,91 @@ func (c *streamClient) Consume(ctx context.Context, cancel chan struct{}, stream
 		}
 	}
 }
+
+type shardSession struct {
+	cancel      chan struct{}
+	shardID     string
+	session     streamSession
+	lockVersion uint64
+	messages    *messages.Client
+}
+
+func newShardSession(shardID string, session streamSession) *shardSession {
+	return &shardSession{
+		cancel:  make(chan struct{}),
+		shardID: shardID,
+		session: session,
+	}
+}
+
+func (shardSession *shardSession) Consume(ctx context.Context, logger *zap.Logger) error {
+	lockVersion, err := lockShard(ctx, shardSession.session.kv, shardSession.session.StreamID, shardSession.session.GroupID, shardSession.shardID, shardSession.session.ConsumerID, 20*time.Second)
+	if err != nil {
+		return errors.New("unable to lock shard")
+	}
+	defer unlockShard(ctx, shardSession.session.kv, shardSession.session.StreamID, shardSession.session.GroupID, shardSession.shardID, shardSession.session.ConsumerID)
+
+	logger = logger.WithOptions(zap.Fields(zap.String("shard_id", shardSession.shardID)))
+
+	ticker := time.NewTicker(200 * time.Millisecond)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ticker.C:
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-shardSession.cancel:
+			return nil
+		}
+		err := renewShardlock(ctx, shardSession.session.kv, shardSession.session.StreamID, shardSession.session.GroupID, shardSession.shardID, shardSession.session.ConsumerID, 20*time.Second, lockVersion)
+		if err != nil {
+			logger.Info("unable to renew lock shard")
+			return err
+		}
+		err = shardSession.run(ctx, logger)
+		if err != nil {
+			logger.Error("failed to consume messages in shard", zap.Error(err))
+		}
+	}
+}
+func (shardSession *shardSession) run(ctx context.Context, logger *zap.Logger) error {
+	offset, err := shardSession.session.getOffset(ctx, shardSession.shardID)
+	if err != nil {
+		logger.Error("failed to get offset for shard", zap.Error(err))
+		return err
+	}
+	next, messages, err := shardSession.messages.GetMessages(ctx, shardSession.session.StreamID, shardSession.shardID, offset, 20)
+	if err != nil {
+		logger.Error("failed to get messages for shard", zap.Error(err))
+		return err
+	}
+	if len(messages) == 0 {
+		return nil
+	}
+	start := time.Now()
+	idx, err := shardSession.session.Consumer(messages)
+	if err != nil {
+		logger.Error("failed to consume shard", zap.Uint64("shard_offset", messages[idx].Offset), zap.Error(err))
+		err = shardSession.session.saveOffset(ctx, shardSession.shardID, offset)
+		if err != nil {
+			logger.Error("failed to save offset", zap.Uint64("shard_offset", messages[idx].Offset), zap.Error(err))
+			return err
+		}
+		return err
+	}
+	iteratorAge := time.Since(time.Unix(0, int64(next)))
+	logger.Info("shard messages consumed",
+		zap.Uint64("shard_offset", offset),
+		zap.Int("shard_message_count", len(messages)),
+		zap.Duration("shard_iterator_age", iteratorAge),
+		zap.Duration("shard_consumption_time", time.Since(start)),
+	)
+	return shardSession.session.saveOffset(ctx, shardSession.shardID, next)
+}
+
 func (b *streamClient) consumeShard(ctx context.Context, shardId string, session streamSession) error {
-	err := lockShard(ctx, b.kv, session.StreamID, session.GroupID, shardId, session.ConsumerID, 20*time.Second)
+	_, err := lockShard(ctx, b.kv, session.StreamID, session.GroupID, shardId, session.ConsumerID, 20*time.Second)
 	if err != nil {
 		return errors.New("unable to lock shard")
 	}
