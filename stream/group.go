@@ -203,7 +203,7 @@ func lockShard(ctx context.Context, client *kv.Client, streamID, groupID, shardI
 	if err != nil {
 		return 0, err
 	}
-	if len(value) != 0 {
+	if len(value) != 0 && string(value) != consumerID {
 		return 0, ErrShardAlreadyLocked
 	}
 	return md.Version + 1, client.SetWithVersion(ctx, key, []byte(consumerID), md.Version, kv.WithTimeToLive(duration))

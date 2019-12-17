@@ -3,7 +3,6 @@ package stream
 import (
 	"context"
 	"encoding/binary"
-	"errors"
 	"fmt"
 	"sync"
 	"time"
@@ -130,11 +129,16 @@ func (c *streamClient) Consume(ctx context.Context, cancel chan struct{}, stream
 	for _, opt := range opts {
 		session = opt(session)
 	}
-	err := registerConsumer(ctx, session.kv, streamID, session.GroupID, session.ConsumerID)
-	if err != nil {
-		panic("failed to setup consumer group")
-
+	retryTick := time.NewTicker(5 * time.Second)
+	for {
+		err := registerConsumer(ctx, session.kv, streamID, session.GroupID, session.ConsumerID)
+		if err == nil {
+			break
+		}
+		c.logger.Error("failed to setup consumer group", zap.Error(err))
+		<-retryTick.C
 	}
+	retryTick.Stop()
 	defer unregisterConsumer(ctx, session.kv, streamID, session.GroupID, session.ConsumerID)
 	wg.Add(1)
 	go func() {
@@ -147,7 +151,7 @@ func (c *streamClient) Consume(ctx context.Context, cancel chan struct{}, stream
 			case <-ctx.Done():
 				return
 			case <-heartbeatTicker.C:
-				err = heartbeatConsumer(ctx, session.kv, streamID, session.GroupID, session.ConsumerID)
+				err := heartbeatConsumer(ctx, session.kv, streamID, session.GroupID, session.ConsumerID)
 				if err != nil {
 					c.logger.Error("failed to heartbeat group", zap.Error(err))
 				}
@@ -160,7 +164,7 @@ func (c *streamClient) Consume(ctx context.Context, cancel chan struct{}, stream
 		defer purgeTicker.Stop()
 
 		for {
-			err = purgeDeadConsumers(ctx, session.kv, streamID, session.GroupID)
+			err := purgeDeadConsumers(ctx, session.kv, streamID, session.GroupID)
 			if err != nil {
 				c.logger.Error("failed to purge dead consumers", zap.Error(err))
 			}
@@ -190,7 +194,16 @@ func (c *streamClient) Consume(ctx context.Context, cancel chan struct{}, stream
 				c.logger.Error("failed to list shards", zap.Error(err))
 				continue
 			}
-			assignedShards = getAssignedShard(shards, consumers, session.ConsumerID)
+			newAssignedShard := []string{}
+			for _, shard := range getAssignedShard(shards, consumers, session.ConsumerID) {
+				_, err := lockShard(ctx, session.kv, streamID, session.GroupID, shard, session.ConsumerID, 10*time.Second)
+				if err != nil {
+					c.logger.Warn("failed to lock shard", zap.Error(err))
+				} else {
+					newAssignedShard = append(newAssignedShard, shard)
+				}
+			}
+			assignedShards = newAssignedShard
 			select {
 			case <-cancel:
 				return
@@ -222,12 +235,6 @@ func (c *streamClient) Consume(ctx context.Context, cancel chan struct{}, stream
 
 func (b *streamClient) consumeShard(ctx context.Context, shardId string, session streamSession) error {
 	consumptionStart := time.Now()
-	_, err := lockShard(ctx, b.kv, session.StreamID, session.GroupID, shardId, session.ConsumerID, 20*time.Second)
-	if err != nil {
-		return errors.New("unable to lock shard")
-	}
-	defer unlockShard(ctx, b.kv, session.StreamID, session.GroupID, shardId, session.ConsumerID)
-
 	logger := b.logger.WithOptions(zap.Fields(zap.String("shard_id", shardId)))
 	offset, err := session.getOffset(ctx, shardId)
 	if err != nil {
