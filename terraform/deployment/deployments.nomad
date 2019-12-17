@@ -38,7 +38,7 @@ job "deployments" {
       env {
         TLS_CN           = "deployments.iot.cloud.vx-labs.net"
         CONSUL_HTTP_ADDR = "${NOMAD_IP_service}:8500"
-        VAULT_ADDR       = "http://${NOMAD_IP_service}:8200"
+        VAULT_ADDR       = "http://active.vault.service.consul:8200/"
         NOMAD_ADDR       = "http://servers.nomad.discovery.par1.vx-labs.net:4646"
       }
 
@@ -50,7 +50,7 @@ job "deployments" {
 http_proxy="{{.Data.http_proxy}}"
 https_proxy="{{.Data.http_proxy}}"
 LE_EMAIL="{{.Data.acme_email}}"
-no_proxy="10.0.0.0/8,172.16.0.0/12"
+no_proxy="10.0.0.0/8,172.16.0.0/12,*.service.consul"
 {{end}}
         EOH
       }

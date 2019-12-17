@@ -85,7 +85,12 @@ job "mqtt-listener" {
       service {
         name = "tcp-listener"
         port = "mqtt"
-        tags = ["urlprefix-:1883 proto=tcp"]
+        tags = [
+          "traefik.enable=true",
+          "traefik.tcp.routers.mqtt.rule=HostSNI(`*`)",
+          "traefik.tcp.routers.mqtt.entrypoints=mqtt",
+          "traefik.tcp.routers.mqtt.service=tcp-listener"
+        ]
 
         check {
           type     = "http"
@@ -119,13 +124,13 @@ job "mqtt-listener" {
       size = 300
     }
 
-    task "tcp-listener" {
+    task "tls-listener" {
       driver = "docker"
 
       env {
         TLS_CN           = "broker.iot.cloud.vx-labs.net"
         CONSUL_HTTP_ADDR = "$${NOMAD_IP_health}:8500"
-        VAULT_ADDR       = "http://$${NOMAD_IP_health}:8200"
+        VAULT_ADDR       = "http://active.vault.service.consul:8200/"
       }
 
       template {
@@ -137,7 +142,7 @@ job "mqtt-listener" {
 http_proxy="{{.Data.http_proxy}}"
 https_proxy="{{.Data.http_proxy}}"
 LE_EMAIL="{{.Data.acme_email}}"
-no_proxy="10.0.0.0/8,172.16.0.0/12"
+no_proxy="10.0.0.0/8,172.16.0.0/12,*.service.consul"
 {{end}}
         EOH
       }
@@ -195,7 +200,14 @@ no_proxy="10.0.0.0/8,172.16.0.0/12"
       service {
         name = "tls-listener"
         port = "mqtts"
-        tags = ["urlprefix-:8883 proto=tcp"]
+        tags = [
+          "traefik.enable=true",
+          "traefik.tcp.routers.mqtts.rule=HostSNI(`broker.iot.cloud.vx-labs.net`)",
+          "traefik.tcp.routers.mqtts.entrypoints=mqtts",
+          "traefik.tcp.routers.mqtts.service=tls-listener",
+          "traefik.tcp.routers.mqtts.tls",
+          "traefik.tcp.routers.mqtts.tls.passthrough=true"
+        ]
 
         check {
           type     = "http"
@@ -248,7 +260,7 @@ no_proxy="10.0.0.0/8,172.16.0.0/12"
       env {
         TLS_CN           = "broker.iot.cloud.vx-labs.net"
         CONSUL_HTTP_ADDR = "$${NOMAD_IP_health}:8500"
-        VAULT_ADDR       = "http://$${NOMAD_IP_health}:8200"
+        VAULT_ADDR       = "http://active.vault.service.consul:8200/"
       }
 
       template {
@@ -260,7 +272,7 @@ no_proxy="10.0.0.0/8,172.16.0.0/12"
 http_proxy="{{.Data.http_proxy}}"
 https_proxy="{{.Data.http_proxy}}"
 LE_EMAIL="{{.Data.acme_email}}"
-no_proxy="10.0.0.0/8,172.16.0.0/12"
+no_proxy="10.0.0.0/8,172.16.0.0/12,*.consul"
 {{end}}
         EOH
       }
@@ -331,7 +343,14 @@ no_proxy="10.0.0.0/8,172.16.0.0/12"
       service {
         name = "wss-listener"
         port = "wss"
-        tags = ["urlprefix-broker.iot.cloud.vx-labs.net/ proto=tcp+sni"]
+        tags = [
+          "traefik.enable=true",
+          "traefik.tcp.routers.wss.rule=HostSNI(`broker.iot.cloud.vx-labs.net`)",
+          "traefik.tcp.routers.wss.entrypoints=https",
+          "traefik.tcp.routers.wss.service=wss-listener",
+          "traefik.tcp.routers.wss.tls",
+          "traefik.tcp.routers.wss.tls.passthrough=true"
+        ]
 
         check {
           type     = "http"

@@ -38,7 +38,7 @@ job "mqtt-api" {
       env {
         TLS_CN           = "broker-api.iot.cloud.vx-labs.net"
         CONSUL_HTTP_ADDR = "$${NOMAD_IP_health}:8500"
-        VAULT_ADDR       = "http://$${NOMAD_IP_health}:8200"
+        VAULT_ADDR       = "http://active.vault.service.consul:8200/"
       }
 
       template {
@@ -49,7 +49,7 @@ job "mqtt-api" {
 http_proxy="{{.Data.http_proxy}}"
 https_proxy="{{.Data.http_proxy}}"
 LE_EMAIL="{{.Data.acme_email}}"
-no_proxy="10.0.0.0/8,172.16.0.0/12"
+no_proxy="10.0.0.0/8,172.16.0.0/12,*.service.consul"
 {{end}}
         EOH
       }
@@ -111,7 +111,13 @@ no_proxy="10.0.0.0/8,172.16.0.0/12"
       service {
         name = "tls-api"
         port = "https"
-        tags = ["urlprefix-broker-api.iot.cloud.vx-labs.net/ proto=tcp+sni"]
+        tags = [
+          "traefik.enable=true",
+          "traefik.tcp.routers.api.rule=HostSNI(`broker-api.iot.cloud.vx-labs.net`)",
+          "traefik.tcp.routers.api.entrypoints=https",
+          "traefik.tcp.routers.api.tls",
+          "traefik.tcp.routers.api.tls.passthrough=true"
+        ]
 
         check {
           type     = "http"

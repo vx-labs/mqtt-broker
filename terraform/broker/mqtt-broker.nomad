@@ -51,7 +51,7 @@ job "mqtt-broker" {
 http_proxy="{{ .Data.http_proxy }}"
 https_proxy="{{ .Data.http_proxy }}"
 JWT_SIGN_KEY="{{ .Data.jwt_sign_key }}"
-no_proxy="10.0.0.0/8,172.16.0.0/12"
+no_proxy="10.0.0.0/8,172.16.0.0/12,*.service.consul"
 {{ end }}
 EOH
       }
