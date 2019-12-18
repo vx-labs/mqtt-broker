@@ -38,6 +38,18 @@ func (c *Client) GetStream(ctx context.Context, streamId string) (*StreamConfig,
 	}
 	return out.Config, nil
 }
+func (c *Client) GetStreamStatistics(ctx context.Context, streamId string) (*StreamStatistics, error) {
+	if len(streamId) == 0 {
+		return nil, errors.New("invalid stream id")
+	}
+	out, err := c.api.GetStreamStatistics(ctx, &MessageGetStreamStatisticsInput{
+		ID: streamId,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return out.Statistics, nil
+}
 func (c *Client) ListStreams(ctx context.Context) ([]*StreamConfig, error) {
 	out, err := c.api.ListStreams(ctx, &MessageListStreamInput{})
 	if err != nil {

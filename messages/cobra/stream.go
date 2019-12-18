@@ -16,6 +16,14 @@ const streamTemplate = `  • {{ .ID | bold | green }}
     {{ "Shards" | faint }}:
 {{ range $id := .ShardIDs }}      • {{ $id }}
 {{end}}`
+const streamStatisticsTemplate = `  • {{ .ID | bold | green }}
+    {{ "Shards" | faint }}:
+{{- range .ShardStatistics }}
+    • {{ .ShardID }}
+        {{ "Stored bytes" |faint}}: {{ .StoredBytes }}
+        {{ "Stored record count" |faint}}: {{ .StoredRecordCount }}
+        {{ "Current offset" |faint}}: {{ .CurrentOffset }}{{end}}
+`
 
 func Stream(ctx context.Context, config *viper.Viper) *cobra.Command {
 	c := &cobra.Command{
@@ -23,6 +31,7 @@ func Stream(ctx context.Context, config *viper.Viper) *cobra.Command {
 	}
 	c.AddCommand(CreateStream(ctx, config))
 	c.AddCommand(ReadStream(ctx, config))
+	c.AddCommand(ReadStreamStatistics(ctx, config))
 	c.AddCommand(ListStreams(ctx, config))
 	c.AddCommand(PutMessageInStream(ctx, config))
 	c.AddCommand(ConsumeStream(ctx, config))
@@ -147,6 +156,31 @@ func ReadStream(ctx context.Context, config *viper.Viper) *cobra.Command {
 	}
 	return c
 }
+func ReadStreamStatistics(ctx context.Context, config *viper.Viper) *cobra.Command {
+	c := &cobra.Command{
+		Use: "statistics",
+		Run: func(cmd *cobra.Command, argv []string) {
+			client := getClient(config)
+			tpl, err := template.New("").Funcs(promptui.FuncMap).Parse(streamStatisticsTemplate)
+			if err != nil {
+				panic(err)
+			}
+			for _, id := range argv {
+				statistics, err := client.GetStreamStatistics(ctx, id)
+				if err != nil {
+					logrus.Errorf("failed to read stream %q: %v", id, err)
+					continue
+				}
+				err = tpl.Execute(cmd.OutOrStdout(), statistics)
+				if err != nil {
+					logrus.Errorf("failed to display stream %q: %v", id, err)
+					continue
+				}
+			}
+		},
+	}
+	return c
+}
 func ListStreams(ctx context.Context, config *viper.Viper) *cobra.Command {
 	c := &cobra.Command{
 		Use:     "list",
@@ -157,18 +191,15 @@ func ListStreams(ctx context.Context, config *viper.Viper) *cobra.Command {
 			if err != nil {
 				panic(err)
 			}
-			for _, id := range argv {
-				streams, err := client.ListStreams(ctx)
+			streams, err := client.ListStreams(ctx)
+			if err != nil {
+				logrus.Errorf("failed to list streams: %v", err)
+				return
+			}
+			for _, stream := range streams {
+				err = tpl.Execute(cmd.OutOrStdout(), stream)
 				if err != nil {
-					logrus.Errorf("failed to list streams: %v", err)
-					continue
-				}
-				for _, stream := range streams {
-					err = tpl.Execute(cmd.OutOrStdout(), stream)
-					if err != nil {
-						logrus.Errorf("failed to display stream %q: %v", id, err)
-						continue
-					}
+					logrus.Errorf("failed to display stream %q: %v", stream.ID, err)
 				}
 			}
 		},

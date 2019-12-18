@@ -181,7 +181,7 @@ func (b *BoltStore) ListStreams() []*pb.StreamConfig {
 	}
 	defer tx.Rollback()
 	out := []*pb.StreamConfig{}
-	err = tx.ForEach(func(_ []byte, bucket *bolt.Bucket) error {
+	err = tx.ForEach(func(k []byte, bucket *bolt.Bucket) error {
 		config := b.getConfig(bucket)
 		if config != nil {
 			out = append(out, config)
@@ -192,6 +192,35 @@ func (b *BoltStore) ListStreams() []*pb.StreamConfig {
 		return nil
 	}
 	return out
+}
+
+func (b *BoltStore) GetStreamStatistics(id string) (*pb.StreamStatistics, error) {
+	bucketName := getStreamName(id)
+	tx, err := b.conn.Begin(false)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+	bucket := tx.Bucket(bucketName)
+	if bucket == nil {
+		return nil, ErrStreamNotFound
+	}
+	config := b.getConfig(bucket)
+	statistics := []*pb.ShardStatistics{}
+	for _, shardID := range config.ShardIDs {
+		shard := bucket.Bucket([]byte(shardID))
+		if shard == nil {
+			return nil, ErrShardNotFound
+		}
+		stats := b.statistics(shard)
+		stats.StreamID = id
+		stats.ShardID = shardID
+		statistics = append(statistics, stats)
+	}
+	return &pb.StreamStatistics{
+		ID:              id,
+		ShardStatistics: statistics,
+	}, nil
 }
 
 func (b *BoltStore) GetRange(id string, shardID string, from uint64, buff []*pb.StoredMessage) (int, uint64, error) {

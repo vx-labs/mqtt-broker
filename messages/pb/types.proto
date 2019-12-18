@@ -6,6 +6,18 @@ message StreamConfig {
   string ID = 1;
   repeated string ShardIDs = 2;
 }
+message StreamStatistics {
+  string ID = 1;
+  repeated ShardStatistics ShardStatistics = 2;
+}
+
+message ShardStatistics {
+  string StreamID = 1;
+  string ShardID = 2;
+  int64 StoredBytes = 3;
+  int64 StoredRecordCount = 4;
+  uint64 CurrentOffset = 5;
+}
 
 message StoredMessage {
   uint64 Offset = 1;
@@ -18,6 +30,14 @@ message MessageGetStreamInput {
 message MessageGetStreamOutput {
   string ID = 1;
   StreamConfig config =2;
+}
+
+message MessageGetStreamStatisticsInput {
+  string ID = 1;
+}
+message MessageGetStreamStatisticsOutput {
+  string ID = 1;
+  StreamStatistics statistics =2;
 }
 
 message MessageCreateStreamInput {
@@ -72,6 +92,7 @@ service MessagesService {
   rpc DeleteStream(MessageDeleteStreamInput) returns (MessageDeleteStreamOutput);
   rpc ListStreams(MessageListStreamInput) returns (MessageListStreamOutput);
   rpc GetStream(MessageGetStreamInput) returns (MessageGetStreamOutput);
+  rpc GetStreamStatistics(MessageGetStreamStatisticsInput) returns (MessageGetStreamStatisticsOutput);
   rpc GetMessages(MessageGetMessagesInput) returns (MessageGetMessagesOutput);
   rpc PutMessage(MessagePutMessageInput) returns (MessagePutMessageOutput);
   rpc PutMessageBatch(MessagePutMessageBatchInput) returns (MessagePutMessageBatchOutput);

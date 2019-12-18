@@ -126,6 +126,19 @@ func (s *server) GetStream(ctx context.Context, input *pb.MessageGetStreamInput)
 	}
 	return &pb.MessageGetStreamOutput{ID: input.ID, Config: config}, nil
 }
+func (s *server) GetStreamStatistics(ctx context.Context, input *pb.MessageGetStreamStatisticsInput) (*pb.MessageGetStreamStatisticsOutput, error) {
+	if s.state == nil || s.leaderRPC == nil {
+		return nil, status.Error(codes.Unavailable, "node is not ready")
+	}
+	stats, err := s.store.GetStreamStatistics(input.ID)
+	if err == store.ErrStreamNotFound {
+		return nil, ErrNotFound("stream not found")
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &pb.MessageGetStreamStatisticsOutput{ID: input.ID, Statistics: stats}, nil
+}
 func (s *server) ListStreams(ctx context.Context, input *pb.MessageListStreamInput) (*pb.MessageListStreamOutput, error) {
 	if s.state == nil || s.leaderRPC == nil {
 		return nil, status.Error(codes.Unavailable, "node is not ready")

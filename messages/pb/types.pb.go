@@ -72,6 +72,124 @@ func (m *StreamConfig) GetShardIDs() []string {
 	return nil
 }
 
+type StreamStatistics struct {
+	ID                   string             `protobuf:"bytes,1,opt,name=ID,proto3" json:"ID,omitempty"`
+	ShardStatistics      []*ShardStatistics `protobuf:"bytes,2,rep,name=ShardStatistics,proto3" json:"ShardStatistics,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}           `json:"-"`
+	XXX_unrecognized     []byte             `json:"-"`
+	XXX_sizecache        int32              `json:"-"`
+}
+
+func (m *StreamStatistics) Reset()         { *m = StreamStatistics{} }
+func (m *StreamStatistics) String() string { return proto.CompactTextString(m) }
+func (*StreamStatistics) ProtoMessage()    {}
+func (*StreamStatistics) Descriptor() ([]byte, []int) {
+	return fileDescriptor_d938547f84707355, []int{1}
+}
+
+func (m *StreamStatistics) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_StreamStatistics.Unmarshal(m, b)
+}
+func (m *StreamStatistics) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_StreamStatistics.Marshal(b, m, deterministic)
+}
+func (m *StreamStatistics) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_StreamStatistics.Merge(m, src)
+}
+func (m *StreamStatistics) XXX_Size() int {
+	return xxx_messageInfo_StreamStatistics.Size(m)
+}
+func (m *StreamStatistics) XXX_DiscardUnknown() {
+	xxx_messageInfo_StreamStatistics.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_StreamStatistics proto.InternalMessageInfo
+
+func (m *StreamStatistics) GetID() string {
+	if m != nil {
+		return m.ID
+	}
+	return ""
+}
+
+func (m *StreamStatistics) GetShardStatistics() []*ShardStatistics {
+	if m != nil {
+		return m.ShardStatistics
+	}
+	return nil
+}
+
+type ShardStatistics struct {
+	StreamID             string   `protobuf:"bytes,1,opt,name=StreamID,proto3" json:"StreamID,omitempty"`
+	ShardID              string   `protobuf:"bytes,2,opt,name=ShardID,proto3" json:"ShardID,omitempty"`
+	StoredBytes          int64    `protobuf:"varint,3,opt,name=StoredBytes,proto3" json:"StoredBytes,omitempty"`
+	StoredRecordCount    int64    `protobuf:"varint,4,opt,name=StoredRecordCount,proto3" json:"StoredRecordCount,omitempty"`
+	CurrentOffset        uint64   `protobuf:"varint,5,opt,name=CurrentOffset,proto3" json:"CurrentOffset,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *ShardStatistics) Reset()         { *m = ShardStatistics{} }
+func (m *ShardStatistics) String() string { return proto.CompactTextString(m) }
+func (*ShardStatistics) ProtoMessage()    {}
+func (*ShardStatistics) Descriptor() ([]byte, []int) {
+	return fileDescriptor_d938547f84707355, []int{2}
+}
+
+func (m *ShardStatistics) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_ShardStatistics.Unmarshal(m, b)
+}
+func (m *ShardStatistics) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_ShardStatistics.Marshal(b, m, deterministic)
+}
+func (m *ShardStatistics) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ShardStatistics.Merge(m, src)
+}
+func (m *ShardStatistics) XXX_Size() int {
+	return xxx_messageInfo_ShardStatistics.Size(m)
+}
+func (m *ShardStatistics) XXX_DiscardUnknown() {
+	xxx_messageInfo_ShardStatistics.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_ShardStatistics proto.InternalMessageInfo
+
+func (m *ShardStatistics) GetStreamID() string {
+	if m != nil {
+		return m.StreamID
+	}
+	return ""
+}
+
+func (m *ShardStatistics) GetShardID() string {
+	if m != nil {
+		return m.ShardID
+	}
+	return ""
+}
+
+func (m *ShardStatistics) GetStoredBytes() int64 {
+	if m != nil {
+		return m.StoredBytes
+	}
+	return 0
+}
+
+func (m *ShardStatistics) GetStoredRecordCount() int64 {
+	if m != nil {
+		return m.StoredRecordCount
+	}
+	return 0
+}
+
+func (m *ShardStatistics) GetCurrentOffset() uint64 {
+	if m != nil {
+		return m.CurrentOffset
+	}
+	return 0
+}
+
 type StoredMessage struct {
 	Offset               uint64   `protobuf:"varint,1,opt,name=Offset,proto3" json:"Offset,omitempty"`
 	Payload              []byte   `protobuf:"bytes,2,opt,name=Payload,proto3" json:"Payload,omitempty"`
@@ -84,7 +202,7 @@ func (m *StoredMessage) Reset()         { *m = StoredMessage{} }
 func (m *StoredMessage) String() string { return proto.CompactTextString(m) }
 func (*StoredMessage) ProtoMessage()    {}
 func (*StoredMessage) Descriptor() ([]byte, []int) {
-	return fileDescriptor_d938547f84707355, []int{1}
+	return fileDescriptor_d938547f84707355, []int{3}
 }
 
 func (m *StoredMessage) XXX_Unmarshal(b []byte) error {
@@ -130,7 +248,7 @@ func (m *MessageGetStreamInput) Reset()         { *m = MessageGetStreamInput{} }
 func (m *MessageGetStreamInput) String() string { return proto.CompactTextString(m) }
 func (*MessageGetStreamInput) ProtoMessage()    {}
 func (*MessageGetStreamInput) Descriptor() ([]byte, []int) {
-	return fileDescriptor_d938547f84707355, []int{2}
+	return fileDescriptor_d938547f84707355, []int{4}
 }
 
 func (m *MessageGetStreamInput) XXX_Unmarshal(b []byte) error {
@@ -170,7 +288,7 @@ func (m *MessageGetStreamOutput) Reset()         { *m = MessageGetStreamOutput{}
 func (m *MessageGetStreamOutput) String() string { return proto.CompactTextString(m) }
 func (*MessageGetStreamOutput) ProtoMessage()    {}
 func (*MessageGetStreamOutput) Descriptor() ([]byte, []int) {
-	return fileDescriptor_d938547f84707355, []int{3}
+	return fileDescriptor_d938547f84707355, []int{5}
 }
 
 func (m *MessageGetStreamOutput) XXX_Unmarshal(b []byte) error {
@@ -205,6 +323,92 @@ func (m *MessageGetStreamOutput) GetConfig() *StreamConfig {
 	return nil
 }
 
+type MessageGetStreamStatisticsInput struct {
+	ID                   string   `protobuf:"bytes,1,opt,name=ID,proto3" json:"ID,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *MessageGetStreamStatisticsInput) Reset()         { *m = MessageGetStreamStatisticsInput{} }
+func (m *MessageGetStreamStatisticsInput) String() string { return proto.CompactTextString(m) }
+func (*MessageGetStreamStatisticsInput) ProtoMessage()    {}
+func (*MessageGetStreamStatisticsInput) Descriptor() ([]byte, []int) {
+	return fileDescriptor_d938547f84707355, []int{6}
+}
+
+func (m *MessageGetStreamStatisticsInput) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_MessageGetStreamStatisticsInput.Unmarshal(m, b)
+}
+func (m *MessageGetStreamStatisticsInput) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_MessageGetStreamStatisticsInput.Marshal(b, m, deterministic)
+}
+func (m *MessageGetStreamStatisticsInput) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_MessageGetStreamStatisticsInput.Merge(m, src)
+}
+func (m *MessageGetStreamStatisticsInput) XXX_Size() int {
+	return xxx_messageInfo_MessageGetStreamStatisticsInput.Size(m)
+}
+func (m *MessageGetStreamStatisticsInput) XXX_DiscardUnknown() {
+	xxx_messageInfo_MessageGetStreamStatisticsInput.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_MessageGetStreamStatisticsInput proto.InternalMessageInfo
+
+func (m *MessageGetStreamStatisticsInput) GetID() string {
+	if m != nil {
+		return m.ID
+	}
+	return ""
+}
+
+type MessageGetStreamStatisticsOutput struct {
+	ID                   string            `protobuf:"bytes,1,opt,name=ID,proto3" json:"ID,omitempty"`
+	Statistics           *StreamStatistics `protobuf:"bytes,2,opt,name=statistics,proto3" json:"statistics,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}          `json:"-"`
+	XXX_unrecognized     []byte            `json:"-"`
+	XXX_sizecache        int32             `json:"-"`
+}
+
+func (m *MessageGetStreamStatisticsOutput) Reset()         { *m = MessageGetStreamStatisticsOutput{} }
+func (m *MessageGetStreamStatisticsOutput) String() string { return proto.CompactTextString(m) }
+func (*MessageGetStreamStatisticsOutput) ProtoMessage()    {}
+func (*MessageGetStreamStatisticsOutput) Descriptor() ([]byte, []int) {
+	return fileDescriptor_d938547f84707355, []int{7}
+}
+
+func (m *MessageGetStreamStatisticsOutput) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_MessageGetStreamStatisticsOutput.Unmarshal(m, b)
+}
+func (m *MessageGetStreamStatisticsOutput) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_MessageGetStreamStatisticsOutput.Marshal(b, m, deterministic)
+}
+func (m *MessageGetStreamStatisticsOutput) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_MessageGetStreamStatisticsOutput.Merge(m, src)
+}
+func (m *MessageGetStreamStatisticsOutput) XXX_Size() int {
+	return xxx_messageInfo_MessageGetStreamStatisticsOutput.Size(m)
+}
+func (m *MessageGetStreamStatisticsOutput) XXX_DiscardUnknown() {
+	xxx_messageInfo_MessageGetStreamStatisticsOutput.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_MessageGetStreamStatisticsOutput proto.InternalMessageInfo
+
+func (m *MessageGetStreamStatisticsOutput) GetID() string {
+	if m != nil {
+		return m.ID
+	}
+	return ""
+}
+
+func (m *MessageGetStreamStatisticsOutput) GetStatistics() *StreamStatistics {
+	if m != nil {
+		return m.Statistics
+	}
+	return nil
+}
+
 type MessageCreateStreamInput struct {
 	ID                   string   `protobuf:"bytes,1,opt,name=ID,proto3" json:"ID,omitempty"`
 	ShardCount           int64    `protobuf:"varint,2,opt,name=ShardCount,proto3" json:"ShardCount,omitempty"`
@@ -217,7 +421,7 @@ func (m *MessageCreateStreamInput) Reset()         { *m = MessageCreateStreamInp
 func (m *MessageCreateStreamInput) String() string { return proto.CompactTextString(m) }
 func (*MessageCreateStreamInput) ProtoMessage()    {}
 func (*MessageCreateStreamInput) Descriptor() ([]byte, []int) {
-	return fileDescriptor_d938547f84707355, []int{4}
+	return fileDescriptor_d938547f84707355, []int{8}
 }
 
 func (m *MessageCreateStreamInput) XXX_Unmarshal(b []byte) error {
@@ -262,7 +466,7 @@ func (m *MessageCreateStreamOutput) Reset()         { *m = MessageCreateStreamOu
 func (m *MessageCreateStreamOutput) String() string { return proto.CompactTextString(m) }
 func (*MessageCreateStreamOutput) ProtoMessage()    {}
 func (*MessageCreateStreamOutput) Descriptor() ([]byte, []int) {
-	return fileDescriptor_d938547f84707355, []int{5}
+	return fileDescriptor_d938547f84707355, []int{9}
 }
 
 func (m *MessageCreateStreamOutput) XXX_Unmarshal(b []byte) error {
@@ -294,7 +498,7 @@ func (m *MessageDeleteStreamInput) Reset()         { *m = MessageDeleteStreamInp
 func (m *MessageDeleteStreamInput) String() string { return proto.CompactTextString(m) }
 func (*MessageDeleteStreamInput) ProtoMessage()    {}
 func (*MessageDeleteStreamInput) Descriptor() ([]byte, []int) {
-	return fileDescriptor_d938547f84707355, []int{6}
+	return fileDescriptor_d938547f84707355, []int{10}
 }
 
 func (m *MessageDeleteStreamInput) XXX_Unmarshal(b []byte) error {
@@ -332,7 +536,7 @@ func (m *MessageDeleteStreamOutput) Reset()         { *m = MessageDeleteStreamOu
 func (m *MessageDeleteStreamOutput) String() string { return proto.CompactTextString(m) }
 func (*MessageDeleteStreamOutput) ProtoMessage()    {}
 func (*MessageDeleteStreamOutput) Descriptor() ([]byte, []int) {
-	return fileDescriptor_d938547f84707355, []int{7}
+	return fileDescriptor_d938547f84707355, []int{11}
 }
 
 func (m *MessageDeleteStreamOutput) XXX_Unmarshal(b []byte) error {
@@ -363,7 +567,7 @@ func (m *MessageListStreamInput) Reset()         { *m = MessageListStreamInput{}
 func (m *MessageListStreamInput) String() string { return proto.CompactTextString(m) }
 func (*MessageListStreamInput) ProtoMessage()    {}
 func (*MessageListStreamInput) Descriptor() ([]byte, []int) {
-	return fileDescriptor_d938547f84707355, []int{8}
+	return fileDescriptor_d938547f84707355, []int{12}
 }
 
 func (m *MessageListStreamInput) XXX_Unmarshal(b []byte) error {
@@ -395,7 +599,7 @@ func (m *MessageListStreamOutput) Reset()         { *m = MessageListStreamOutput
 func (m *MessageListStreamOutput) String() string { return proto.CompactTextString(m) }
 func (*MessageListStreamOutput) ProtoMessage()    {}
 func (*MessageListStreamOutput) Descriptor() ([]byte, []int) {
-	return fileDescriptor_d938547f84707355, []int{9}
+	return fileDescriptor_d938547f84707355, []int{13}
 }
 
 func (m *MessageListStreamOutput) XXX_Unmarshal(b []byte) error {
@@ -437,7 +641,7 @@ func (m *MessageGetMessagesInput) Reset()         { *m = MessageGetMessagesInput
 func (m *MessageGetMessagesInput) String() string { return proto.CompactTextString(m) }
 func (*MessageGetMessagesInput) ProtoMessage()    {}
 func (*MessageGetMessagesInput) Descriptor() ([]byte, []int) {
-	return fileDescriptor_d938547f84707355, []int{10}
+	return fileDescriptor_d938547f84707355, []int{14}
 }
 
 func (m *MessageGetMessagesInput) XXX_Unmarshal(b []byte) error {
@@ -500,7 +704,7 @@ func (m *MessageGetMessagesOutput) Reset()         { *m = MessageGetMessagesOutp
 func (m *MessageGetMessagesOutput) String() string { return proto.CompactTextString(m) }
 func (*MessageGetMessagesOutput) ProtoMessage()    {}
 func (*MessageGetMessagesOutput) Descriptor() ([]byte, []int) {
-	return fileDescriptor_d938547f84707355, []int{11}
+	return fileDescriptor_d938547f84707355, []int{15}
 }
 
 func (m *MessageGetMessagesOutput) XXX_Unmarshal(b []byte) error {
@@ -562,7 +766,7 @@ func (m *MessagePutMessageInput) Reset()         { *m = MessagePutMessageInput{}
 func (m *MessagePutMessageInput) String() string { return proto.CompactTextString(m) }
 func (*MessagePutMessageInput) ProtoMessage()    {}
 func (*MessagePutMessageInput) Descriptor() ([]byte, []int) {
-	return fileDescriptor_d938547f84707355, []int{12}
+	return fileDescriptor_d938547f84707355, []int{16}
 }
 
 func (m *MessagePutMessageInput) XXX_Unmarshal(b []byte) error {
@@ -617,7 +821,7 @@ func (m *MessagePutMessageOutput) Reset()         { *m = MessagePutMessageOutput
 func (m *MessagePutMessageOutput) String() string { return proto.CompactTextString(m) }
 func (*MessagePutMessageOutput) ProtoMessage()    {}
 func (*MessagePutMessageOutput) Descriptor() ([]byte, []int) {
-	return fileDescriptor_d938547f84707355, []int{13}
+	return fileDescriptor_d938547f84707355, []int{17}
 }
 
 func (m *MessagePutMessageOutput) XXX_Unmarshal(b []byte) error {
@@ -670,7 +874,7 @@ func (m *MessagePutMessageBatchInput) Reset()         { *m = MessagePutMessageBa
 func (m *MessagePutMessageBatchInput) String() string { return proto.CompactTextString(m) }
 func (*MessagePutMessageBatchInput) ProtoMessage()    {}
 func (*MessagePutMessageBatchInput) Descriptor() ([]byte, []int) {
-	return fileDescriptor_d938547f84707355, []int{14}
+	return fileDescriptor_d938547f84707355, []int{18}
 }
 
 func (m *MessagePutMessageBatchInput) XXX_Unmarshal(b []byte) error {
@@ -708,7 +912,7 @@ func (m *MessagePutMessageBatchOutput) Reset()         { *m = MessagePutMessageB
 func (m *MessagePutMessageBatchOutput) String() string { return proto.CompactTextString(m) }
 func (*MessagePutMessageBatchOutput) ProtoMessage()    {}
 func (*MessagePutMessageBatchOutput) Descriptor() ([]byte, []int) {
-	return fileDescriptor_d938547f84707355, []int{15}
+	return fileDescriptor_d938547f84707355, []int{19}
 }
 
 func (m *MessagePutMessageBatchOutput) XXX_Unmarshal(b []byte) error {
@@ -740,7 +944,7 @@ func (m *MessagesStateTransitionSet) Reset()         { *m = MessagesStateTransit
 func (m *MessagesStateTransitionSet) String() string { return proto.CompactTextString(m) }
 func (*MessagesStateTransitionSet) ProtoMessage()    {}
 func (*MessagesStateTransitionSet) Descriptor() ([]byte, []int) {
-	return fileDescriptor_d938547f84707355, []int{16}
+	return fileDescriptor_d938547f84707355, []int{20}
 }
 
 func (m *MessagesStateTransitionSet) XXX_Unmarshal(b []byte) error {
@@ -783,7 +987,7 @@ func (m *MessagesStateTransition) Reset()         { *m = MessagesStateTransition
 func (m *MessagesStateTransition) String() string { return proto.CompactTextString(m) }
 func (*MessagesStateTransition) ProtoMessage()    {}
 func (*MessagesStateTransition) Descriptor() ([]byte, []int) {
-	return fileDescriptor_d938547f84707355, []int{17}
+	return fileDescriptor_d938547f84707355, []int{21}
 }
 
 func (m *MessagesStateTransition) XXX_Unmarshal(b []byte) error {
@@ -874,7 +1078,7 @@ func (m *MessagesStateTransitionStreamCreated) Reset()         { *m = MessagesSt
 func (m *MessagesStateTransitionStreamCreated) String() string { return proto.CompactTextString(m) }
 func (*MessagesStateTransitionStreamCreated) ProtoMessage()    {}
 func (*MessagesStateTransitionStreamCreated) Descriptor() ([]byte, []int) {
-	return fileDescriptor_d938547f84707355, []int{18}
+	return fileDescriptor_d938547f84707355, []int{22}
 }
 
 func (m *MessagesStateTransitionStreamCreated) XXX_Unmarshal(b []byte) error {
@@ -913,7 +1117,7 @@ func (m *MessagesStateTransitionStreamDeleted) Reset()         { *m = MessagesSt
 func (m *MessagesStateTransitionStreamDeleted) String() string { return proto.CompactTextString(m) }
 func (*MessagesStateTransitionStreamDeleted) ProtoMessage()    {}
 func (*MessagesStateTransitionStreamDeleted) Descriptor() ([]byte, []int) {
-	return fileDescriptor_d938547f84707355, []int{19}
+	return fileDescriptor_d938547f84707355, []int{23}
 }
 
 func (m *MessagesStateTransitionStreamDeleted) XXX_Unmarshal(b []byte) error {
@@ -955,7 +1159,7 @@ func (m *MessagesStateTransitionMessagePut) Reset()         { *m = MessagesState
 func (m *MessagesStateTransitionMessagePut) String() string { return proto.CompactTextString(m) }
 func (*MessagesStateTransitionMessagePut) ProtoMessage()    {}
 func (*MessagesStateTransitionMessagePut) Descriptor() ([]byte, []int) {
-	return fileDescriptor_d938547f84707355, []int{20}
+	return fileDescriptor_d938547f84707355, []int{24}
 }
 
 func (m *MessagesStateTransitionMessagePut) XXX_Unmarshal(b []byte) error {
@@ -1006,9 +1210,13 @@ func (m *MessagesStateTransitionMessagePut) GetPayload() []byte {
 
 func init() {
 	proto.RegisterType((*StreamConfig)(nil), "pb.StreamConfig")
+	proto.RegisterType((*StreamStatistics)(nil), "pb.StreamStatistics")
+	proto.RegisterType((*ShardStatistics)(nil), "pb.ShardStatistics")
 	proto.RegisterType((*StoredMessage)(nil), "pb.StoredMessage")
 	proto.RegisterType((*MessageGetStreamInput)(nil), "pb.MessageGetStreamInput")
 	proto.RegisterType((*MessageGetStreamOutput)(nil), "pb.MessageGetStreamOutput")
+	proto.RegisterType((*MessageGetStreamStatisticsInput)(nil), "pb.MessageGetStreamStatisticsInput")
+	proto.RegisterType((*MessageGetStreamStatisticsOutput)(nil), "pb.MessageGetStreamStatisticsOutput")
 	proto.RegisterType((*MessageCreateStreamInput)(nil), "pb.MessageCreateStreamInput")
 	proto.RegisterType((*MessageCreateStreamOutput)(nil), "pb.MessageCreateStreamOutput")
 	proto.RegisterType((*MessageDeleteStreamInput)(nil), "pb.MessageDeleteStreamInput")
@@ -1031,54 +1239,63 @@ func init() {
 func init() { proto.RegisterFile("types.proto", fileDescriptor_d938547f84707355) }
 
 var fileDescriptor_d938547f84707355 = []byte{
-	// 748 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xac, 0x56, 0x5d, 0x73, 0x12, 0x31,
-	0x14, 0xed, 0x02, 0x42, 0xb9, 0xa0, 0xd5, 0xcc, 0x58, 0xb7, 0x4b, 0xad, 0x98, 0xd1, 0x91, 0xe9,
-	0x4c, 0xc1, 0x69, 0x7d, 0xf2, 0x4d, 0x4a, 0x6d, 0xb1, 0xd6, 0x62, 0xe8, 0x1f, 0x08, 0x90, 0x52,
-	0x94, 0xb2, 0xeb, 0x6e, 0xe8, 0xb4, 0xcf, 0x3e, 0xfa, 0xe0, 0x3f, 0xd0, 0xbf, 0xea, 0x90, 0x64,
-	0xb3, 0x59, 0xd8, 0x2e, 0x1d, 0xf5, 0xad, 0x97, 0x9c, 0x3d, 0xf7, 0xe4, 0xe4, 0x7e, 0x14, 0x4a,
-	0xfc, 0xc6, 0x63, 0x41, 0xdd, 0xf3, 0x5d, 0xee, 0xa2, 0x8c, 0xd7, 0x73, 0x5e, 0x0f, 0x47, 0xfc,
-	0x62, 0xda, 0xab, 0xf7, 0xdd, 0xcb, 0xc6, 0xd5, 0xf5, 0xce, 0x98, 0xf6, 0x82, 0xc6, 0xe5, 0x37,
-	0xce, 0x77, 0x04, 0xa4, 0xef, 0x8e, 0x1b, 0x1e, 0xed, 0x7f, 0x65, 0xbc, 0xe1, 0xf5, 0xe4, 0x57,
-	0xf8, 0x2d, 0x94, 0xbb, 0xdc, 0x67, 0xf4, 0x72, 0xdf, 0x9d, 0x9c, 0x8f, 0x86, 0xe8, 0x01, 0x64,
-	0xda, 0x2d, 0xdb, 0xaa, 0x5a, 0xb5, 0x22, 0xc9, 0xb4, 0x5b, 0xc8, 0x81, 0xd5, 0xee, 0x05, 0xf5,
-	0x07, 0xed, 0x56, 0x60, 0x67, 0xaa, 0xd9, 0x5a, 0x91, 0xe8, 0x18, 0xbf, 0x83, 0xfb, 0x5d, 0xee,
-	0xfa, 0x6c, 0x70, 0xc2, 0x82, 0x80, 0x0e, 0x19, 0x5a, 0x87, 0xfc, 0xe9, 0xf9, 0x79, 0xc0, 0xb8,
-	0x20, 0xc8, 0x11, 0x15, 0x21, 0x1b, 0x0a, 0x1d, 0x7a, 0x33, 0x76, 0xe9, 0xc0, 0xce, 0x54, 0xad,
-	0x5a, 0x99, 0x84, 0x21, 0x7e, 0x05, 0x8f, 0xd5, 0xc7, 0x87, 0x8c, 0x4b, 0x21, 0xed, 0x89, 0x37,
-	0xe5, 0xf3, 0x3a, 0x30, 0x81, 0xf5, 0x79, 0xe0, 0xe9, 0x94, 0x27, 0x20, 0x51, 0x0d, 0xf2, 0x7d,
-	0x71, 0x17, 0x91, 0xab, 0xb4, 0xfb, 0xb0, 0xee, 0xf5, 0xea, 0xe6, 0x1d, 0x89, 0x3a, 0xc7, 0x1f,
-	0xc0, 0x56, 0x9c, 0xfb, 0x3e, 0xa3, 0x9c, 0xa5, 0xe4, 0x47, 0x5b, 0x00, 0xe2, 0xde, 0xfb, 0xee,
-	0x74, 0xc2, 0x05, 0x73, 0x96, 0x18, 0xbf, 0xe0, 0x0a, 0x6c, 0x24, 0x70, 0x49, 0x89, 0x78, 0x5b,
-	0x27, 0x6a, 0xb1, 0x31, 0x4b, 0x4d, 0x64, 0x10, 0x99, 0x58, 0x45, 0x64, 0x6b, 0x17, 0x3e, 0x8e,
-	0x02, 0xd3, 0x2f, 0x7c, 0x00, 0x4f, 0x16, 0x4e, 0x94, 0x41, 0xdb, 0x50, 0x90, 0x71, 0x60, 0x5b,
-	0xd5, 0x6c, 0xa2, 0x23, 0x21, 0x00, 0x7f, 0xb7, 0x34, 0xcf, 0x21, 0xe3, 0xea, 0xaf, 0x40, 0x2a,
-	0x9d, 0x95, 0x82, 0xcc, 0x18, 0xea, 0xd5, 0xf1, 0xec, 0x85, 0x55, 0x59, 0x08, 0x6f, 0x8a, 0x24,
-	0x0c, 0x8d, 0x9a, 0xc8, 0xc6, 0x6a, 0xc2, 0x81, 0xd5, 0x13, 0x7a, 0x2d, 0xed, 0xcc, 0x89, 0x13,
-	0x1d, 0xe3, 0xdf, 0x96, 0x36, 0xcc, 0x50, 0xa1, 0xae, 0xf3, 0x77, 0x32, 0xb6, 0x00, 0x3e, 0xb1,
-	0x6b, 0x1e, 0x93, 0x62, 0xfc, 0x82, 0x76, 0x60, 0x35, 0xcc, 0x63, 0xe7, 0x84, 0x4b, 0x8f, 0xa4,
-	0x4b, 0x46, 0x7d, 0x13, 0x0d, 0xc1, 0x5f, 0xf4, 0x43, 0x74, 0xa6, 0xa1, 0xc0, 0xe5, 0x2e, 0x85,
-	0xcd, 0x74, 0xcc, 0x6e, 0x94, 0x3e, 0x1d, 0xcf, 0xa4, 0x7b, 0xaa, 0x47, 0xb2, 0xb2, 0x47, 0x54,
-	0x88, 0x87, 0xfa, 0x49, 0xa2, 0x5c, 0xff, 0xe4, 0xc5, 0x2d, 0x4f, 0x82, 0xbb, 0x50, 0x59, 0x48,
-	0xd4, 0xa4, 0xbc, 0x7f, 0x21, 0x6f, 0xf6, 0x06, 0x0a, 0x22, 0x62, 0x61, 0x1d, 0x39, 0x33, 0x87,
-	0x92, 0x6d, 0x20, 0x21, 0x14, 0x6f, 0xc1, 0x66, 0x32, 0xa9, 0x2a, 0xe9, 0xcf, 0xe0, 0x84, 0xae,
-	0x76, 0x39, 0xe5, 0xec, 0xcc, 0xa7, 0x93, 0x60, 0xc4, 0x47, 0xee, 0xa4, 0xcb, 0x38, 0xda, 0x83,
-	0x3c, 0xbb, 0x62, 0x13, 0x1e, 0xa6, 0xac, 0x18, 0x29, 0xe7, 0xf1, 0x44, 0x41, 0xf1, 0xcf, 0x8c,
-	0x76, 0x6c, 0x1e, 0x83, 0x0e, 0x01, 0x22, 0x39, 0x6a, 0x42, 0xbc, 0x4c, 0x21, 0x8d, 0xc0, 0x47,
-	0x2b, 0xc4, 0xf8, 0x14, 0x75, 0x66, 0xc3, 0x4f, 0xb4, 0x90, 0xe8, 0x77, 0xf9, 0x6a, 0xa5, 0xdd,
-	0x5a, 0x0a, 0x57, 0x0c, 0x7f, 0xb4, 0x42, 0xe2, 0x04, 0x11, 0xa3, 0x6c, 0xfc, 0x81, 0x68, 0x8b,
-	0xbb, 0x30, 0x2a, 0x7c, 0xc4, 0xa8, 0x7e, 0x68, 0x16, 0xe0, 0xde, 0xc1, 0xcc, 0x12, 0xdc, 0x81,
-	0x17, 0x77, 0xd1, 0x64, 0xcc, 0x4e, 0x6b, 0xc9, 0xec, 0x6c, 0x2e, 0x61, 0x54, 0x12, 0xd2, 0x2a,
-	0x14, 0xff, 0xb0, 0xe0, 0xf9, 0x52, 0xdb, 0xff, 0xf3, 0xd8, 0x31, 0x56, 0x51, 0x2e, 0xb6, 0x8a,
-	0x76, 0x7f, 0xe5, 0x60, 0x4d, 0xab, 0x61, 0xfe, 0xd5, 0xa8, 0xcf, 0xd0, 0x31, 0x94, 0xcd, 0x71,
-	0x8e, 0x36, 0x8d, 0xb7, 0x58, 0xd8, 0x19, 0xce, 0xd3, 0x5b, 0x4e, 0x55, 0xb3, 0x1e, 0x43, 0xd9,
-	0x1c, 0xe9, 0x31, 0xb2, 0x85, 0xbd, 0x10, 0x23, 0x5b, 0xdc, 0x04, 0xe8, 0x3d, 0x94, 0xa2, 0x41,
-	0x1f, 0x20, 0xb3, 0x15, 0xe7, 0x56, 0x83, 0x53, 0x49, 0x3c, 0x53, 0x3c, 0x4d, 0x28, 0xea, 0x85,
-	0x8a, 0x36, 0x0c, 0x64, 0x7c, 0x1f, 0x3b, 0x4e, 0xd2, 0x91, 0xe2, 0x38, 0x82, 0x92, 0x31, 0xa6,
-	0x51, 0x25, 0x0e, 0x8d, 0x2d, 0x11, 0x67, 0x33, 0xf9, 0x50, 0x31, 0x1d, 0x00, 0x44, 0x53, 0x02,
-	0xa5, 0xcc, 0x97, 0xd8, 0xa5, 0x16, 0xc6, 0xe2, 0x19, 0xac, 0xcd, 0x0d, 0x1b, 0xf4, 0x2c, 0x11,
-	0x1f, 0x4d, 0x37, 0xa7, 0x7a, 0x3b, 0x40, 0xb2, 0xf6, 0xf2, 0xe2, 0x3f, 0xa6, 0xbd, 0x3f, 0x01,
-	0x00, 0x00, 0xff, 0xff, 0xb2, 0xba, 0x7a, 0x9f, 0x76, 0x09, 0x00, 0x00,
+	// 887 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xac, 0x56, 0x5f, 0x53, 0xda, 0x4a,
+	0x14, 0x37, 0x80, 0xa0, 0x07, 0xbc, 0xea, 0x7a, 0xaf, 0x37, 0x06, 0xaf, 0x72, 0xb7, 0x76, 0xca,
+	0x38, 0x15, 0x5a, 0xf4, 0xa9, 0x33, 0x7d, 0x28, 0x60, 0xd5, 0x5a, 0x2b, 0x0d, 0x7e, 0x80, 0x86,
+	0xb0, 0x42, 0x5a, 0x24, 0x69, 0xb2, 0x38, 0xf2, 0xd6, 0x99, 0x3e, 0xf6, 0xa1, 0x1f, 0xa1, 0x9f,
+	0xa4, 0xdf, 0xad, 0xc3, 0x66, 0x93, 0x6c, 0xfe, 0x00, 0x8e, 0xed, 0x1b, 0x67, 0xf7, 0x77, 0x7e,
+	0xe7, 0x97, 0x73, 0xf6, 0x9c, 0x03, 0xe4, 0xe9, 0xd8, 0x22, 0x4e, 0xc5, 0xb2, 0x4d, 0x6a, 0xa2,
+	0x94, 0xd5, 0x51, 0x9e, 0xf5, 0x0c, 0xda, 0x1f, 0x75, 0x2a, 0xba, 0x79, 0x53, 0xbd, 0xbd, 0x3b,
+	0x18, 0x68, 0x1d, 0xa7, 0x7a, 0xf3, 0x99, 0xd2, 0x03, 0x06, 0xd1, 0xcd, 0x41, 0xd5, 0xd2, 0xf4,
+	0x4f, 0x84, 0x56, 0xad, 0x8e, 0xeb, 0x85, 0x5f, 0x40, 0xa1, 0x4d, 0x6d, 0xa2, 0xdd, 0x34, 0xcc,
+	0xe1, 0xb5, 0xd1, 0x43, 0x7f, 0x41, 0xea, 0xac, 0x29, 0x4b, 0x25, 0xa9, 0xbc, 0xac, 0xa6, 0xce,
+	0x9a, 0x48, 0x81, 0xa5, 0x76, 0x5f, 0xb3, 0xbb, 0x67, 0x4d, 0x47, 0x4e, 0x95, 0xd2, 0xe5, 0x65,
+	0xd5, 0xb7, 0xb1, 0x06, 0x6b, 0xae, 0x6f, 0x9b, 0x6a, 0xd4, 0x70, 0xa8, 0xa1, 0x3b, 0x31, 0xff,
+	0x97, 0xb0, 0xca, 0xf0, 0x01, 0x84, 0xd1, 0xe4, 0x6b, 0x1b, 0x15, 0xab, 0x53, 0x89, 0x5c, 0xa9,
+	0x51, 0x2c, 0xfe, 0x29, 0xc5, 0xfc, 0x99, 0x24, 0x16, 0xd6, 0x0f, 0xe4, 0xdb, 0x48, 0x86, 0x1c,
+	0x97, 0x27, 0xa7, 0xd8, 0x95, 0x67, 0xa2, 0x12, 0xe4, 0xdb, 0xd4, 0xb4, 0x49, 0xb7, 0x3e, 0xa6,
+	0xc4, 0x91, 0xd3, 0x25, 0xa9, 0x9c, 0x56, 0xc5, 0x23, 0xf4, 0x14, 0xd6, 0x5d, 0x53, 0x25, 0xba,
+	0x69, 0x77, 0x1b, 0xe6, 0x68, 0x48, 0xe5, 0x0c, 0xc3, 0xc5, 0x2f, 0xd0, 0x1e, 0xac, 0x34, 0x46,
+	0xb6, 0x4d, 0x86, 0xf4, 0xf2, 0xfa, 0xda, 0x21, 0x54, 0x5e, 0x2c, 0x49, 0xe5, 0x8c, 0x1a, 0x3e,
+	0xc4, 0xaf, 0x60, 0xc5, 0x75, 0xbd, 0x20, 0x8e, 0xa3, 0xf5, 0x08, 0xda, 0x84, 0x2c, 0xc7, 0x4b,
+	0x0c, 0xcf, 0xad, 0x89, 0xf0, 0x96, 0x36, 0x1e, 0x98, 0x5a, 0x97, 0x09, 0x2f, 0xa8, 0x9e, 0x89,
+	0x9f, 0xc0, 0x3f, 0xdc, 0xf9, 0x84, 0x50, 0xfe, 0xa1, 0x43, 0x6b, 0x44, 0xa3, 0xa9, 0xc6, 0x2a,
+	0x6c, 0x46, 0x81, 0x97, 0x23, 0x9a, 0x80, 0x44, 0x65, 0xc8, 0xea, 0xac, 0xdc, 0x2c, 0x56, 0xbe,
+	0xb6, 0xc6, 0x6a, 0x21, 0x3c, 0x03, 0x95, 0xdf, 0xe3, 0xe7, 0xb0, 0x1b, 0xe5, 0x0c, 0x2a, 0x91,
+	0x2c, 0xa3, 0x0f, 0xa5, 0xe9, 0x2e, 0x53, 0x04, 0x1d, 0x01, 0x38, 0xe2, 0x03, 0x99, 0x88, 0xfa,
+	0x3b, 0x10, 0x25, 0xbc, 0x10, 0x01, 0x87, 0xdf, 0x80, 0xcc, 0x23, 0x35, 0x6c, 0xa2, 0x51, 0x32,
+	0x23, 0x39, 0x68, 0x07, 0x80, 0xbd, 0x04, 0xb7, 0xaa, 0x29, 0x56, 0x55, 0xe1, 0x04, 0x17, 0x61,
+	0x2b, 0x81, 0xcb, 0x95, 0x8b, 0xf7, 0xfd, 0x40, 0x4d, 0x32, 0x20, 0x33, 0x03, 0x09, 0x44, 0x22,
+	0x96, 0x13, 0xc9, 0x7e, 0x89, 0xde, 0x1a, 0x8e, 0x58, 0x4c, 0x7c, 0x0c, 0xff, 0xc6, 0x6e, 0x78,
+	0xb2, 0xf6, 0x21, 0xe7, 0xda, 0x8e, 0x2c, 0xb1, 0xd6, 0x89, 0x97, 0xcb, 0x03, 0xe0, 0xaf, 0x92,
+	0xcf, 0x73, 0x42, 0x28, 0xff, 0xc5, 0x0b, 0xf5, 0xb0, 0xbe, 0x09, 0x1e, 0x6c, 0x3a, 0xf4, 0x60,
+	0x15, 0x58, 0xba, 0xd0, 0xee, 0x82, 0x26, 0xc9, 0xa8, 0xbe, 0x8d, 0x7f, 0x48, 0x7e, 0xc2, 0x04,
+	0x15, 0xfc, 0x73, 0x1e, 0x26, 0x63, 0x07, 0xe0, 0x1d, 0xb9, 0xa3, 0x21, 0x29, 0xc2, 0x09, 0x3a,
+	0x80, 0x25, 0x2f, 0x8e, 0x9c, 0x61, 0x59, 0x5a, 0x77, 0xb3, 0x24, 0x34, 0x9f, 0xea, 0x43, 0xf0,
+	0x47, 0xbf, 0x10, 0xad, 0x91, 0x27, 0x70, 0x7e, 0x96, 0xbc, 0x61, 0x78, 0x4e, 0xc6, 0x5c, 0x9f,
+	0x6f, 0x4f, 0xa4, 0x5b, 0xbc, 0x81, 0xd3, 0x6e, 0x03, 0x73, 0x13, 0xf7, 0xfc, 0x92, 0x04, 0xb1,
+	0x7e, 0x2b, 0x17, 0x53, 0x4a, 0x82, 0xdb, 0x50, 0x8c, 0x05, 0xaa, 0x6b, 0x54, 0xef, 0xbb, 0x5f,
+	0x76, 0x04, 0x39, 0x66, 0x11, 0xef, 0x1d, 0x29, 0x93, 0x0c, 0x25, 0xa7, 0x41, 0xf5, 0xa0, 0x78,
+	0x07, 0xb6, 0x93, 0x49, 0xf9, 0x93, 0x7e, 0x0f, 0x8a, 0x97, 0xd5, 0x49, 0x9b, 0x92, 0x2b, 0x5b,
+	0x1b, 0x3a, 0x06, 0x35, 0xcc, 0x61, 0x9b, 0x50, 0x74, 0x08, 0x59, 0x72, 0x4b, 0x86, 0xd4, 0x0b,
+	0x59, 0x14, 0x42, 0x46, 0xf1, 0x2a, 0x87, 0xe2, 0xef, 0x29, 0x3f, 0x63, 0x51, 0x0c, 0x3a, 0x01,
+	0x08, 0xe4, 0xf0, 0x49, 0xf1, 0x78, 0x06, 0x69, 0x00, 0x3e, 0x5d, 0x50, 0x05, 0x57, 0xd4, 0x9a,
+	0x4c, 0x66, 0xd6, 0x42, 0xac, 0xdf, 0xdd, 0xaa, 0xe5, 0x6b, 0xe5, 0x19, 0x5c, 0x21, 0xfc, 0xe9,
+	0x82, 0x1a, 0x26, 0x08, 0x18, 0xdd, 0xc6, 0xef, 0xb2, 0xb6, 0xb8, 0x0f, 0x23, 0xc7, 0x07, 0x8c,
+	0xfc, 0xa0, 0x9e, 0x83, 0xc5, 0xe3, 0x49, 0x4a, 0x70, 0x0b, 0xf6, 0xee, 0xa3, 0x49, 0x18, 0xec,
+	0xd2, 0x9c, 0xc1, 0x5e, 0x9f, 0xc3, 0xc8, 0x25, 0xcc, 0x7a, 0xa1, 0xf8, 0x9b, 0x04, 0xff, 0xcf,
+	0x4d, 0xfb, 0x1f, 0x1e, 0x3b, 0xc2, 0x9e, 0xcc, 0x84, 0xf6, 0x64, 0xed, 0xcb, 0x22, 0xac, 0xfa,
+	0x6a, 0x88, 0x7d, 0x6b, 0xe8, 0x04, 0x9d, 0x43, 0x41, 0x1c, 0xe7, 0x68, 0x5b, 0xa8, 0x45, 0x6c,
+	0x67, 0x28, 0xff, 0x4d, 0xb9, 0xe5, 0xcd, 0x7a, 0x0e, 0x05, 0x71, 0xa4, 0x87, 0xc8, 0x62, 0x7b,
+	0x21, 0x44, 0x16, 0xdf, 0x04, 0xe8, 0x35, 0xe4, 0x83, 0x41, 0xef, 0x20, 0xb1, 0x15, 0x23, 0xab,
+	0x41, 0x29, 0x26, 0xde, 0x71, 0x9e, 0x3a, 0x2c, 0xfb, 0x6b, 0x16, 0x6d, 0x09, 0xc8, 0xf0, 0x9f,
+	0x05, 0x45, 0x49, 0xba, 0xe2, 0x1c, 0x1f, 0x60, 0x23, 0x61, 0x55, 0xa3, 0x47, 0x49, 0x2e, 0x91,
+	0xed, 0xaf, 0xec, 0xcd, 0x06, 0xf1, 0x08, 0xa7, 0x90, 0x17, 0x16, 0x01, 0x2a, 0x86, 0x9d, 0x42,
+	0x6b, 0x4a, 0xd9, 0x4e, 0xbe, 0xe4, 0x4c, 0xc7, 0x00, 0xc1, 0x1c, 0x42, 0x33, 0x26, 0x58, 0x28,
+	0x6d, 0xb1, 0xc1, 0x7b, 0x05, 0xab, 0x91, 0x71, 0x86, 0x76, 0x13, 0xf1, 0xc1, 0xfc, 0x54, 0x4a,
+	0xd3, 0x01, 0x2e, 0x6b, 0x27, 0xcb, 0xfe, 0x53, 0x1f, 0xfe, 0x0a, 0x00, 0x00, 0xff, 0xff, 0xc0,
+	0xa4, 0xae, 0xe2, 0x98, 0x0b, 0x00, 0x00,
 }
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -1097,6 +1314,7 @@ type MessagesServiceClient interface {
 	DeleteStream(ctx context.Context, in *MessageDeleteStreamInput, opts ...grpc.CallOption) (*MessageDeleteStreamOutput, error)
 	ListStreams(ctx context.Context, in *MessageListStreamInput, opts ...grpc.CallOption) (*MessageListStreamOutput, error)
 	GetStream(ctx context.Context, in *MessageGetStreamInput, opts ...grpc.CallOption) (*MessageGetStreamOutput, error)
+	GetStreamStatistics(ctx context.Context, in *MessageGetStreamStatisticsInput, opts ...grpc.CallOption) (*MessageGetStreamStatisticsOutput, error)
 	GetMessages(ctx context.Context, in *MessageGetMessagesInput, opts ...grpc.CallOption) (*MessageGetMessagesOutput, error)
 	PutMessage(ctx context.Context, in *MessagePutMessageInput, opts ...grpc.CallOption) (*MessagePutMessageOutput, error)
 	PutMessageBatch(ctx context.Context, in *MessagePutMessageBatchInput, opts ...grpc.CallOption) (*MessagePutMessageBatchOutput, error)
@@ -1146,6 +1364,15 @@ func (c *messagesServiceClient) GetStream(ctx context.Context, in *MessageGetStr
 	return out, nil
 }
 
+func (c *messagesServiceClient) GetStreamStatistics(ctx context.Context, in *MessageGetStreamStatisticsInput, opts ...grpc.CallOption) (*MessageGetStreamStatisticsOutput, error) {
+	out := new(MessageGetStreamStatisticsOutput)
+	err := c.cc.Invoke(ctx, "/pb.MessagesService/GetStreamStatistics", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *messagesServiceClient) GetMessages(ctx context.Context, in *MessageGetMessagesInput, opts ...grpc.CallOption) (*MessageGetMessagesOutput, error) {
 	out := new(MessageGetMessagesOutput)
 	err := c.cc.Invoke(ctx, "/pb.MessagesService/GetMessages", in, out, opts...)
@@ -1179,6 +1406,7 @@ type MessagesServiceServer interface {
 	DeleteStream(context.Context, *MessageDeleteStreamInput) (*MessageDeleteStreamOutput, error)
 	ListStreams(context.Context, *MessageListStreamInput) (*MessageListStreamOutput, error)
 	GetStream(context.Context, *MessageGetStreamInput) (*MessageGetStreamOutput, error)
+	GetStreamStatistics(context.Context, *MessageGetStreamStatisticsInput) (*MessageGetStreamStatisticsOutput, error)
 	GetMessages(context.Context, *MessageGetMessagesInput) (*MessageGetMessagesOutput, error)
 	PutMessage(context.Context, *MessagePutMessageInput) (*MessagePutMessageOutput, error)
 	PutMessageBatch(context.Context, *MessagePutMessageBatchInput) (*MessagePutMessageBatchOutput, error)
@@ -1199,6 +1427,9 @@ func (*UnimplementedMessagesServiceServer) ListStreams(ctx context.Context, req 
 }
 func (*UnimplementedMessagesServiceServer) GetStream(ctx context.Context, req *MessageGetStreamInput) (*MessageGetStreamOutput, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetStream not implemented")
+}
+func (*UnimplementedMessagesServiceServer) GetStreamStatistics(ctx context.Context, req *MessageGetStreamStatisticsInput) (*MessageGetStreamStatisticsOutput, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetStreamStatistics not implemented")
 }
 func (*UnimplementedMessagesServiceServer) GetMessages(ctx context.Context, req *MessageGetMessagesInput) (*MessageGetMessagesOutput, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetMessages not implemented")
@@ -1286,6 +1517,24 @@ func _MessagesService_GetStream_Handler(srv interface{}, ctx context.Context, de
 	return interceptor(ctx, in, info, handler)
 }
 
+func _MessagesService_GetStreamStatistics_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(MessageGetStreamStatisticsInput)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(MessagesServiceServer).GetStreamStatistics(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/pb.MessagesService/GetStreamStatistics",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(MessagesServiceServer).GetStreamStatistics(ctx, req.(*MessageGetStreamStatisticsInput))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _MessagesService_GetMessages_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(MessageGetMessagesInput)
 	if err := dec(in); err != nil {
@@ -1359,6 +1608,10 @@ var _MessagesService_serviceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetStream",
 			Handler:    _MessagesService_GetStream_Handler,
+		},
+		{
+			MethodName: "GetStreamStatistics",
+			Handler:    _MessagesService_GetStreamStatistics_Handler,
 		},
 		{
 			MethodName: "GetMessages",
