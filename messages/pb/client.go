@@ -38,6 +38,13 @@ func (c *Client) GetStream(ctx context.Context, streamId string) (*StreamConfig,
 	}
 	return out.Config, nil
 }
+func (c *Client) ListStreams(ctx context.Context) ([]*StreamConfig, error) {
+	out, err := c.api.ListStreams(ctx, &MessageListStreamInput{})
+	if err != nil {
+		return nil, err
+	}
+	return out.Streams, nil
+}
 func (c *Client) Put(ctx context.Context, streamId string, shardKey string, payload []byte) error {
 	if len(streamId) == 0 {
 		return errors.New("invalid stream id")

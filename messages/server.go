@@ -126,6 +126,13 @@ func (s *server) GetStream(ctx context.Context, input *pb.MessageGetStreamInput)
 	}
 	return &pb.MessageGetStreamOutput{ID: input.ID, Config: config}, nil
 }
+func (s *server) ListStreams(ctx context.Context, input *pb.MessageListStreamInput) (*pb.MessageListStreamOutput, error) {
+	if s.state == nil || s.leaderRPC == nil {
+		return nil, status.Error(codes.Unavailable, "node is not ready")
+	}
+	streams := s.store.ListStreams()
+	return &pb.MessageListStreamOutput{Streams: streams}, nil
+}
 func (s *server) GetMessages(ctx context.Context, input *pb.MessageGetMessagesInput) (*pb.MessageGetMessagesOutput, error) {
 	if s.state == nil || s.leaderRPC == nil {
 		return nil, status.Error(codes.Unavailable, "node is not ready")

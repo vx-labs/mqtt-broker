@@ -31,6 +31,12 @@ message MessageDeleteStreamInput {
 }
 message MessageDeleteStreamOutput {
 }
+
+message MessageListStreamInput {}
+message MessageListStreamOutput {
+  repeated StreamConfig Streams = 1;
+}
+
 message MessageGetMessagesInput {
   string StreamID = 1;
   string ShardID = 2;
@@ -64,6 +70,7 @@ message MessagePutMessageBatchOutput {}
 service MessagesService {
   rpc CreateStream(MessageCreateStreamInput) returns (MessageCreateStreamOutput);
   rpc DeleteStream(MessageDeleteStreamInput) returns (MessageDeleteStreamOutput);
+  rpc ListStreams(MessageListStreamInput) returns (MessageListStreamOutput);
   rpc GetStream(MessageGetStreamInput) returns (MessageGetStreamOutput);
   rpc GetMessages(MessageGetMessagesInput) returns (MessageGetMessagesOutput);
   rpc PutMessage(MessagePutMessageInput) returns (MessagePutMessageOutput);

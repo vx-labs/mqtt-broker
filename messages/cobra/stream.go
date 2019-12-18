@@ -23,6 +23,7 @@ func Stream(ctx context.Context, config *viper.Viper) *cobra.Command {
 	}
 	c.AddCommand(CreateStream(ctx, config))
 	c.AddCommand(ReadStream(ctx, config))
+	c.AddCommand(ListStreams(ctx, config))
 	c.AddCommand(PutMessageInStream(ctx, config))
 	c.AddCommand(ConsumeStream(ctx, config))
 	return c
@@ -140,6 +141,34 @@ func ReadStream(ctx context.Context, config *viper.Viper) *cobra.Command {
 				if err != nil {
 					logrus.Errorf("failed to display stream %q: %v", id, err)
 					continue
+				}
+			}
+		},
+	}
+	return c
+}
+func ListStreams(ctx context.Context, config *viper.Viper) *cobra.Command {
+	c := &cobra.Command{
+		Use:     "list",
+		Aliases: []string{"ls"},
+		Run: func(cmd *cobra.Command, argv []string) {
+			client := getClient(config)
+			tpl, err := template.New("").Funcs(promptui.FuncMap).Parse(streamTemplate)
+			if err != nil {
+				panic(err)
+			}
+			for _, id := range argv {
+				streams, err := client.ListStreams(ctx)
+				if err != nil {
+					logrus.Errorf("failed to list streams: %v", err)
+					continue
+				}
+				for _, stream := range streams {
+					err = tpl.Execute(cmd.OutOrStdout(), stream)
+					if err != nil {
+						logrus.Errorf("failed to display stream %q: %v", id, err)
+						continue
+					}
 				}
 			}
 		},
