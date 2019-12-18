@@ -112,7 +112,7 @@ func WithInitialOffsetBehaviour(b offsetBehaviour) consumeOpt {
 }
 
 func (c *streamClient) Consume(ctx context.Context, cancel chan struct{}, streamID string, f ShardConsumer, opts ...consumeOpt) {
-	ticker := time.NewTicker(200 * time.Millisecond)
+	ticker := time.NewTicker(100 * time.Millisecond)
 	heartbeatTicker := time.NewTicker(2 * time.Second)
 	purgeTicker := time.NewTicker(20 * time.Second)
 	rebalanceTicker := time.NewTicker(5 * time.Second)
