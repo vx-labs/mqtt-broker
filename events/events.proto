@@ -1,0 +1,53 @@
+syntax = "proto3";
+package events;
+
+message SessionCreated {
+  string ID = 1;
+  string Tenant = 2;
+  string Peer = 3;
+  bytes WillTopic = 4;
+  int32 WillQoS = 5;
+  bytes WillPayload = 6;
+  bool WillRetain = 7;
+  string ClientID = 9;
+  string Transport = 10;
+  string RemoteAddress = 11;
+  int32 KeepaliveInterval = 12;
+  int64 Timestamp = 13;
+}
+message SessionClosed {
+  string ID = 1;
+  string Tenant = 2;
+}
+message SessionLost {
+  string ID = 1;
+  string Tenant = 2;
+}
+message PeerLost {
+  string ID = 1;
+}
+message SessionSubscribed {
+  string SessionID = 1;
+  string Tenant = 2;
+  bytes Pattern = 3;
+  int32 Qos = 4;
+}
+message SessionUnsubscribed {
+  string SessionID = 1;
+  string Tenant = 2;
+  bytes Pattern = 3;
+}
+
+message StateTransitionSet {
+  repeated StateTransition events = 1;
+}
+
+message StateTransition {
+  oneof Event {
+    SessionCreated SessionCreated = 2;
+    SessionClosed SessionClosed = 3;
+    SessionLost SessionLost = 4;
+    SessionSubscribed SessionSubscribed = 5;
+    SessionUnsubscribed SessionUnsubscribed = 6;
+  }
+}
