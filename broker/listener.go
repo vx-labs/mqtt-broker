@@ -133,34 +133,6 @@ func (b *Broker) Subscribe(ctx context.Context, token string, p *packet.Subscrib
 			zap.Int32("qos", p.Qos[idx]),
 			zap.Binary("topic_pattern", pattern))
 
-		// go func(packetQoS int32, pattern []byte) {
-		// 	set, err := b.Topics.ByTopicPattern(b.ctx, sess.SessionTenant, pattern)
-		// 	if err != nil {
-		// 		b.logger.Error("failed to look for retained messages",
-		// 			zap.Error(err),
-		// 			zap.String("session_id", sess.SessionID))
-		// 		return
-		// 	}
-		// 	for _, message := range set {
-		// 		qos := getLowerQoS(message.Qos, packetQoS)
-		// 		err := b.sendToSession(b.ctx, sess.SessionID, &packet.Publish{
-		// 			Header: &packet.Header{
-		// 				Qos:    qos,
-		// 				Retain: true,
-		// 			},
-		// 			MessageId: 1,
-		// 			Payload:   message.Payload,
-		// 			Topic:     message.Topic,
-		// 		})
-		// 		if err != nil {
-		// 			b.logger.Error("failed to publish retained message",
-		// 				zap.Error(err),
-		// 				zap.String("session_id", sess.SessionID),
-		// 				zap.String("subscription_id", subID),
-		// 				zap.Binary("topic_pattern", message.Topic))
-		// 		}
-		// 	}
-		// }(p.Qos[idx], pattern)
 	}
 	err = events.Commit(ctx, b.Messages, sess.SessionID, transition...)
 	if err != nil {

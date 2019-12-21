@@ -10,6 +10,7 @@ import (
 	messages "github.com/vx-labs/mqtt-broker/messages/pb"
 	queues "github.com/vx-labs/mqtt-broker/queues/pb"
 	subscriptions "github.com/vx-labs/mqtt-broker/subscriptions/pb"
+	"github.com/vx-labs/mqtt-protocol/packet"
 
 	"github.com/gogo/protobuf/proto"
 )
@@ -77,7 +78,18 @@ func (b *server) v2ConsumePayload(messages []*messages.StoredMessage) (int, erro
 		p.Header.Retain = false
 		recipients := topics.Recipients(p.Topic)
 		for idx := range recipients {
-			payload[offset] = queues.MessageBatch{ID: recipients[idx].SessionID, Publish: p}
+			m := &packet.Publish{
+				Payload: p.Payload,
+				Topic:   p.Topic,
+				Header: &packet.Header{
+					Dup: p.Header.Dup,
+					Qos: p.Header.Qos,
+				},
+			}
+			if m.Header.Qos > recipients[idx].Qos {
+				m.Header.Qos = recipients[idx].Qos
+			}
+			payload[offset] = queues.MessageBatch{ID: recipients[idx].SessionID, Publish: m}
 			offset++
 		}
 	}
