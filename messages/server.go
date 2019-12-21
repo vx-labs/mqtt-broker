@@ -29,7 +29,16 @@ type server struct {
 	ctx        context.Context
 	gprcServer *grpc.Server
 	logger     *zap.Logger
+	config     ServerConfig
 	leaderRPC  pb.MessagesServiceClient
+}
+
+type ServerStreamConfig struct {
+	ID         string
+	ShardCount int64
+}
+type ServerConfig struct {
+	InitialsStreams []ServerStreamConfig
 }
 
 func hashShardKey(key string, shardCount int) int {
@@ -38,7 +47,7 @@ func hashShardKey(key string, shardCount int) int {
 	return int(hash.Sum32()) % shardCount
 }
 
-func New(id string, logger *zap.Logger) *server {
+func New(id string, config ServerConfig, logger *zap.Logger) *server {
 	logger.Debug("opening messages durable store")
 	boltstore, err := store.New(store.Options{
 		NoSync: false,
@@ -52,6 +61,7 @@ func New(id string, logger *zap.Logger) *server {
 		ctx:    context.Background(),
 		store:  boltstore,
 		logger: logger,
+		config: config,
 	}
 	return b
 }

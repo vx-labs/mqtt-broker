@@ -16,6 +16,8 @@ message Session {
   int32 KeepaliveInterval = 15;
   int64 Started = 16;
   int64 LastKeepAlive = 17;
+  int64 LastAdded = 18;
+  int64 LastDeleted = 19;
 }
 
 message SessionMetadataList {
@@ -68,18 +70,4 @@ service SessionsService {
   rpc ByPeer(SessionByPeerInput) returns (SessionMetadataList);
   rpc All(SessionFilterInput) returns (SessionMetadataList);
   rpc RefreshKeepAlive(RefreshKeepAliveInput) returns (RefreshKeepAliveOutput);
-}
-
-message SessionStateTransition {
-  string Kind = 1;
-  SessionStateTransitionSessionCreated SessionCreated = 2;
-  SessionStateTransitionSessionDeleted SessionDeleted = 3;
-}
-
-message SessionStateTransitionSessionCreated {
-  Session Input = 1;
-}
-
-message SessionStateTransitionSessionDeleted {
-  string ID = 1;
 }

@@ -1,8 +1,10 @@
 package messages
 
 import (
+	"context"
 	fmt "fmt"
 	"net"
+	"time"
 
 	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
 	"github.com/vx-labs/mqtt-broker/cluster"
@@ -33,7 +35,28 @@ func (b *server) JoinServiceLayer(name string, logger *zap.Logger, config cluste
 		panic(err)
 	}
 	b.leaderRPC = pb.NewMessagesServiceClient(leaderConn)
-
+	go func() {
+		ticker := time.NewTicker(5 * time.Second)
+		defer ticker.Stop()
+		for range ticker.C {
+			if b.state.IsLeader() {
+				ctx, cancel := context.WithCancel(context.Background())
+				defer cancel()
+				for _, streamConfig := range b.config.InitialsStreams {
+					if !b.store.Exists(streamConfig.ID) {
+						_, err := b.CreateStream(ctx, &pb.MessageCreateStreamInput{
+							ID:         streamConfig.ID,
+							ShardCount: streamConfig.ShardCount,
+						})
+						if err != nil {
+							logger.Error("failed to create initial streams", zap.Error(err))
+						}
+					}
+				}
+				return
+			}
+		}
+	}()
 }
 func (m *server) Health() string {
 	return m.state.Health()

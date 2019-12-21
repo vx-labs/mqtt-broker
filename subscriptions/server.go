@@ -44,9 +44,6 @@ func (m *server) BySession(ctx context.Context, input *pb.SubscriptionBySessionI
 func (m *server) ByTopic(ctx context.Context, input *pb.SubscriptionByTopicInput) (*pb.SubscriptionMetadataList, error) {
 	return m.store.ByTopic(input.Tenant, input.Topic)
 }
-func (m *server) ByPeer(ctx context.Context, input *pb.SubscriptionByPeerInput) (*pb.SubscriptionMetadataList, error) {
-	return m.store.ByPeer(input.PeerID)
-}
 func (m *server) All(ctx context.Context, input *pb.SubscriptionFilterInput) (*pb.SubscriptionMetadataList, error) {
 	return m.store.All()
 }

@@ -25,7 +25,7 @@ func (b *server) Shutdown() {
 }
 func (b *server) JoinServiceLayer(name string, logger *zap.Logger, config cluster.ServiceConfig, rpcConfig cluster.ServiceConfig, mesh cluster.DiscoveryLayer) {
 	var err error
-	sessionConn, err := mesh.DialService("sessions?raft_status=leader")
+	sessionConn, err := mesh.DialService("sessions")
 	if err != nil {
 		logger.Fatal("failed to dial session service")
 	}

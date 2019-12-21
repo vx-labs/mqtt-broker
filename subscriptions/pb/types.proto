@@ -29,9 +29,6 @@ message SubscriptionByIDInput {
 message SubscriptionBySessionInput {
   string SessionID = 1;
 }
-message SubscriptionByPeerInput {
-  string PeerID = 1;
-}
 message SubscriptionByTopicInput {
   bytes Topic = 1;
   string Tenant = 2;
@@ -47,7 +44,6 @@ service SubscriptionsService {
   rpc Delete(SubscriptionDeleteInput) returns (SubscriptionDeleteOutput);
   rpc ByID(SubscriptionByIDInput) returns (Metadata);
   rpc BySession(SubscriptionBySessionInput) returns (SubscriptionMetadataList);
-  rpc ByPeer(SubscriptionByPeerInput) returns (SubscriptionMetadataList);
   rpc ByTopic(SubscriptionByTopicInput) returns (SubscriptionMetadataList);
   rpc All(SubscriptionFilterInput) returns (SubscriptionMetadataList);
 }

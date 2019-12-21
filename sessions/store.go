@@ -1,6 +1,13 @@
 package sessions
 
 import (
+	"log"
+	"time"
+
+	"github.com/vx-labs/mqtt-broker/crdt"
+
+	"github.com/golang/protobuf/proto"
+	"github.com/vx-labs/mqtt-broker/cluster/types"
 	"github.com/vx-labs/mqtt-broker/sessions/pb"
 	"go.uber.org/zap"
 
@@ -10,10 +17,10 @@ import (
 const (
 	memdbTable = "sessions"
 )
-const (
-	SessionCreated string = "session_created"
-	SessionDeleted string = "session_deleted"
-)
+
+type Channel interface {
+	Broadcast([]byte)
+}
 
 type SessionStore interface {
 	ByID(id string) (*pb.Session, error)
@@ -27,11 +34,12 @@ type SessionStore interface {
 }
 
 type memDBStore struct {
-	db     *memdb.MemDB
-	logger *zap.Logger
+	db      *memdb.MemDB
+	logger  *zap.Logger
+	channel Channel
 }
 
-func NewSessionStore(logger *zap.Logger) SessionStore {
+func NewSessionStore(mesh types.GossipServiceLayer, logger *zap.Logger) SessionStore {
 	db, err := memdb.NewMemDB(&memdb.DBSchema{
 		Tables: map[string]*memdb.TableSchema{
 			memdbTable: {
@@ -78,6 +86,15 @@ func NewSessionStore(logger *zap.Logger) SessionStore {
 		db:     db,
 		logger: logger,
 	}
+	s.channel, err = mesh.AddState("mqtt-sessions", s)
+	go func() {
+		for range time.Tick(1 * time.Hour) {
+			err := s.runGC()
+			if err != nil {
+				log.Printf("WARN: failed to GC sessions: %v", err)
+			}
+		}
+	}()
 	return s
 }
 func (s *memDBStore) all(filter *pb.SessionFilterInput) *pb.SessionMetadataList {
@@ -93,6 +110,9 @@ func (s *memDBStore) all(filter *pb.SessionFilterInput) *pb.SessionMetadataList 
 				return nil
 			}
 			sess := payload.(*pb.Session)
+			if crdt.IsEntryRemoved(sess) {
+				continue
+			}
 			if filter != nil {
 				filterMatched := false
 				if filter.ID != nil {
@@ -125,6 +145,9 @@ func (s *memDBStore) ByID(id string) (*pb.Session, error) {
 			return err
 		}
 		session = sess
+		if crdt.IsEntryRemoved(sess) {
+			return pb.ErrSessionNotFound
+		}
 		return nil
 	})
 }
@@ -141,6 +164,9 @@ func (s *memDBStore) ByClientID(id string) (*pb.SessionMetadataList, error) {
 				return nil
 			}
 			sess := payload.(*pb.Session)
+			if crdt.IsEntryRemoved(sess) {
+				continue
+			}
 			sessionList.Sessions = append(sessionList.Sessions, sess)
 		}
 	})
@@ -162,37 +188,79 @@ func (s *memDBStore) ByPeer(peer string) (*pb.SessionMetadataList, error) {
 				return nil
 			}
 			sess := payload.(*pb.Session)
+			if crdt.IsEntryRemoved(sess) {
+				continue
+			}
 			sessionList.Sessions = append(sessionList.Sessions, sess)
 		}
 	})
 }
 
 func (s *memDBStore) Create(sess *pb.Session) error {
-	return s.insert(sess)
-}
-func (s *memDBStore) Update(id string, op func(pb.Session) *pb.Session) error {
-	return s.write(func(tx *memdb.Txn) error {
-		session, err := s.first(tx, "id", id)
-		if err != nil {
-			return err
-		}
-		return tx.Insert(memdbTable, op(*session))
-	})
-}
-func (s *memDBStore) insert(sess *pb.Session) error {
+	sess.LastAdded = time.Now().UnixNano()
 	err := s.write(func(tx *memdb.Txn) error {
 		return tx.Insert(memdbTable, sess)
 	})
+	if err == nil {
+		buf, err := proto.Marshal(&pb.SessionMetadataList{
+			Sessions: []*pb.Session{
+				sess,
+			},
+		})
+		if err != nil {
+			return err
+		}
+		s.channel.Broadcast(buf)
+	}
 	return err
 }
-func (s *memDBStore) Delete(id string) error {
+func (s *memDBStore) Update(id string, op func(pb.Session) *pb.Session) error {
+	var session *pb.Session
 	err := s.write(func(tx *memdb.Txn) error {
-		sess, err := s.first(tx, "id", id)
+		var err error
+		session, err = s.first(tx, "id", id)
 		if err != nil {
-			return nil
+			return err
 		}
-		return tx.Delete(memdbTable, sess)
+		session.LastAdded = time.Now().UnixNano()
+		return tx.Insert(memdbTable, op(*session))
 	})
+	if err == nil {
+		buf, err := proto.Marshal(&pb.SessionMetadataList{
+			Sessions: []*pb.Session{
+				session,
+			},
+		})
+		if err != nil {
+			return err
+		}
+		s.channel.Broadcast(buf)
+	}
+	return err
+}
+
+func (s *memDBStore) Delete(id string) error {
+	var session *pb.Session
+	err := s.write(func(tx *memdb.Txn) error {
+		var err error
+		session, err = s.first(tx, "id", id)
+		if err != nil {
+			return err
+		}
+		session.LastDeleted = time.Now().UnixNano()
+		return tx.Insert(memdbTable, session)
+	})
+	if err == nil {
+		buf, err := proto.Marshal(&pb.SessionMetadataList{
+			Sessions: []*pb.Session{
+				session,
+			},
+		})
+		if err != nil {
+			return err
+		}
+		s.channel.Broadcast(buf)
+	}
 	return err
 }
 

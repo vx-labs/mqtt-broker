@@ -106,7 +106,12 @@ func main() {
 				return queues.New(id, logger)
 			})
 			ctx.AddService(cmd, "messages", func(id string, logger *zap.Logger, mesh cluster.DiscoveryLayer) cli.Service {
-				return messages.New(id, logger)
+				return messages.New(id, messages.ServerConfig{
+					InitialsStreams: []messages.ServerStreamConfig{
+						messages.ServerStreamConfig{ShardCount: 3, ID: "messages"},
+						messages.ServerStreamConfig{ShardCount: 3, ID: "events"},
+					},
+				}, logger)
 			})
 			ctx.AddService(cmd, "kv", func(id string, logger *zap.Logger, mesh cluster.DiscoveryLayer) cli.Service {
 				return kv.New(id, logger)

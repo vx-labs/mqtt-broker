@@ -3,6 +3,8 @@ package sessions
 import (
 	"testing"
 
+	"github.com/vx-labs/mqtt-broker/cluster"
+
 	"go.uber.org/zap"
 
 	"github.com/stretchr/testify/require"
@@ -17,7 +19,7 @@ func returnNilErr() error {
 	return nil
 }
 func TestSessionStore(t *testing.T) {
-	store := NewSessionStore(zap.NewNop())
+	store := NewSessionStore(cluster.MockedMesh(), zap.NewNop())
 
 	t.Run("create", func(t *testing.T) {
 		err := store.Create(&pb.Session{

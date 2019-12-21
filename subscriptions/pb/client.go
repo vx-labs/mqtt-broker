@@ -41,13 +41,6 @@ func (c *Client) BySession(ctx context.Context, id string) ([]*Metadata, error) 
 	}
 	return emptyArrayIfNull(out.Metadatas), nil
 }
-func (c *Client) ByPeer(ctx context.Context, id string) ([]*Metadata, error) {
-	out, err := c.api.ByPeer(ctx, &SubscriptionByPeerInput{PeerID: id})
-	if err != nil {
-		return nil, err
-	}
-	return emptyArrayIfNull(out.Metadatas), nil
-}
 func (c *Client) ByTopic(ctx context.Context, tenant string, pattern []byte) ([]*Metadata, error) {
 	out, err := c.api.ByTopic(ctx, &SubscriptionByTopicInput{Tenant: tenant, Topic: pattern})
 	if err != nil {

@@ -20,7 +20,6 @@ type Store interface {
 	ByTopic(tenant string, pattern []byte) (*pb.SubscriptionMetadataList, error)
 	ByID(id string) (*pb.Metadata, error)
 	All() (*pb.SubscriptionMetadataList, error)
-	ByPeer(peer string) (*pb.SubscriptionMetadataList, error)
 	BySession(id string) (*pb.SubscriptionMetadataList, error)
 	Create(message *pb.Metadata) error
 	Delete(id string) error
@@ -56,12 +55,6 @@ func NewMemDBStore() Store {
 						AllowMissing: false,
 						Unique:       false,
 						Indexer:      &memdb.StringFieldIndex{Field: "SessionID"},
-					},
-					"peer": &memdb.IndexSchema{
-						Name:         "peer",
-						AllowMissing: false,
-						Unique:       false,
-						Indexer:      &memdb.StringFieldIndex{Field: "Peer"},
 					},
 				},
 			},
@@ -136,13 +129,6 @@ func (m *memDBStore) BySession(session string) (*pb.SubscriptionMetadataList, er
 	var res *pb.SubscriptionMetadataList
 	return res, m.read(func(tx *memdb.Txn) (err error) {
 		res, err = m.all(tx, "session", session)
-		return
-	})
-}
-func (m *memDBStore) ByPeer(peer string) (*pb.SubscriptionMetadataList, error) {
-	var res *pb.SubscriptionMetadataList
-	return res, m.read(func(tx *memdb.Txn) (err error) {
-		res, err = m.all(tx, "peer", peer)
 		return
 	})
 }

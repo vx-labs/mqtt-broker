@@ -4,7 +4,6 @@ import (
 	"context"
 	"time"
 
-	"github.com/gogo/protobuf/proto"
 	"github.com/vx-labs/mqtt-broker/cluster/types"
 	"github.com/vx-labs/mqtt-broker/sessions/pb"
 	"go.uber.org/zap"
@@ -14,7 +13,7 @@ import (
 type server struct {
 	id         string
 	store      SessionStore
-	state      types.RaftServiceLayer
+	state      types.GossipServiceLayer
 	ctx        context.Context
 	gprcServer *grpc.Server
 	logger     *zap.Logger
@@ -25,7 +24,6 @@ func New(id string, logger *zap.Logger) *server {
 	return &server{
 		id:     id,
 		ctx:    context.Background(),
-		store:  NewSessionStore(logger),
 		logger: logger,
 	}
 }
@@ -43,50 +41,30 @@ func (m *server) All(ctx context.Context, input *pb.SessionFilterInput) (*pb.Ses
 	return m.store.All(input)
 }
 func (m *server) RefreshKeepAlive(ctx context.Context, input *pb.RefreshKeepAliveInput) (*pb.RefreshKeepAliveOutput, error) {
-	session, err := m.store.ByID(input.ID)
-	if err != nil {
-		return nil, err
-	}
-	copy := *session
-	copy.LastKeepAlive = input.Timestamp
-	ev := pb.SessionStateTransition{
-		Kind: transitionSessionCreated,
-		SessionCreated: &pb.SessionStateTransitionSessionCreated{
-			Input: &copy,
-		},
-	}
-	payload, err := proto.Marshal(&ev)
-	if err != nil {
-		return nil, err
-	}
-	return &pb.RefreshKeepAliveOutput{}, m.state.ApplyEvent(payload)
+	err := m.store.Update(input.ID, func(session pb.Session) *pb.Session {
+		session.LastKeepAlive = input.Timestamp
+		return &session
+	})
+
+	return &pb.RefreshKeepAliveOutput{}, err
 }
 func (m *server) Create(ctx context.Context, input *pb.SessionCreateInput) (*pb.SessionCreateOutput, error) {
-	ev := pb.SessionStateTransition{
-		Kind: transitionSessionCreated,
-		SessionCreated: &pb.SessionStateTransitionSessionCreated{
-			Input: &pb.Session{
-				ClientID:          input.ClientID,
-				ID:                input.ID,
-				KeepaliveInterval: input.KeepaliveInterval,
-				Peer:              input.Peer,
-				RemoteAddress:     input.RemoteAddress,
-				Tenant:            input.Tenant,
-				Transport:         input.Transport,
-				WillPayload:       input.WillPayload,
-				WillTopic:         input.WillTopic,
-				WillRetain:        input.WillRetain,
-				WillQoS:           input.WillQoS,
-				Created:           input.Timestamp,
-				LastKeepAlive:     input.Timestamp,
-			},
-		},
+	session := &pb.Session{
+		ClientID:          input.ClientID,
+		ID:                input.ID,
+		KeepaliveInterval: input.KeepaliveInterval,
+		Peer:              input.Peer,
+		RemoteAddress:     input.RemoteAddress,
+		Tenant:            input.Tenant,
+		Transport:         input.Transport,
+		WillPayload:       input.WillPayload,
+		WillTopic:         input.WillTopic,
+		WillRetain:        input.WillRetain,
+		WillQoS:           input.WillQoS,
+		Created:           input.Timestamp,
+		LastKeepAlive:     input.Timestamp,
 	}
-	payload, err := proto.Marshal(&ev)
-	if err != nil {
-		return nil, err
-	}
-	return &pb.SessionCreateOutput{}, m.state.ApplyEvent(payload)
+	return &pb.SessionCreateOutput{}, m.store.Create(session)
 }
 func (m *server) Delete(ctx context.Context, input *pb.SessionDeleteInput) (*pb.SessionDeleteOutput, error) {
 	return &pb.SessionDeleteOutput{}, m.deleteSession(input.ID)
@@ -98,22 +76,9 @@ func isSessionExpired(session *pb.Session, now int64) bool {
 		now-session.LastKeepAlive > 2*int64(session.KeepaliveInterval)
 }
 func (m *server) deleteSession(id string) error {
-	ev := pb.SessionStateTransition{
-		Kind: transitionSessionDeleted,
-		SessionDeleted: &pb.SessionStateTransitionSessionDeleted{
-			ID: id,
-		},
-	}
-	payload, err := proto.Marshal(&ev)
-	if err != nil {
-		return err
-	}
-	return m.state.ApplyEvent(payload)
+	return m.store.Delete(id)
 }
 func (m *server) gcExpiredSessions() {
-	if !m.state.IsLeader() {
-		return
-	}
 	sessions, err := m.store.All(nil)
 	if err != nil {
 		m.logger.Error("failed to gc sessions", zap.Error(err))

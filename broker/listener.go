@@ -98,12 +98,7 @@ func (b *Broker) Connect(ctx context.Context, metadata transport.Metadata, p *pa
 		logger.Error("failed to create queue", zap.Error(err))
 		return "", "", nil, err
 	}
-	sess, err := b.Sessions.ByID(b.ctx, input.ID)
-	if err != nil {
-		logger.Error("failed to read session", zap.Error(err))
-		return "", "", nil, err
-	}
-	token, err := EncodeSessionToken(b.SigningKey(), sess)
+	token, err := EncodeSessionToken(b.SigningKey(), input.Tenant, input.ID)
 	if err != nil {
 		logger.Error("failed to encode session JWT", zap.Error(err))
 		return "", "", nil, err
@@ -129,7 +124,6 @@ func (b *Broker) Subscribe(ctx context.Context, token string, p *packet.Subscrib
 			Qos:       p.Qos[idx],
 			Tenant:    sess.SessionTenant,
 			SessionID: sess.SessionID,
-			Peer:      sess.PeerID,
 		}
 		err := b.Subscriptions.Create(b.ctx, event)
 		if err != nil {

@@ -35,7 +35,7 @@ func (b *server) Shutdown() {
 	b.gprcServer.GracefulStop()
 }
 func (b *server) JoinServiceLayer(name string, logger *zap.Logger, config cluster.ServiceConfig, rpcConfig cluster.ServiceConfig, mesh cluster.DiscoveryLayer) {
-	sessionsConn, err := mesh.DialService("sessions?raft_status=leader")
+	sessionsConn, err := mesh.DialService("sessions")
 	if err != nil {
 		panic(err)
 	}

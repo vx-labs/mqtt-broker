@@ -16,7 +16,6 @@ import (
 
 	"github.com/vx-labs/mqtt-protocol/packet"
 
-	messages "github.com/vx-labs/mqtt-broker/messages/pb"
 	queues "github.com/vx-labs/mqtt-broker/queues/pb"
 	subscriptions "github.com/vx-labs/mqtt-broker/subscriptions/pb"
 )
@@ -49,15 +48,12 @@ type SubscriptionStore interface {
 	ByTopic(ctx context.Context, tenant string, pattern []byte) ([]*subscriptions.Metadata, error)
 	ByID(ctx context.Context, id string) (*subscriptions.Metadata, error)
 	All(ctx context.Context) ([]*subscriptions.Metadata, error)
-	ByPeer(ctx context.Context, peer string) ([]*subscriptions.Metadata, error)
 	BySession(ctx context.Context, id string) ([]*subscriptions.Metadata, error)
 	Create(ctx context.Context, message subscriptions.SubscriptionCreateInput) error
 	Delete(ctx context.Context, id string) error
 }
 type MessagesStore interface {
 	Put(ctx context.Context, streamId string, shardKey string, payload []byte) error
-	CreateStream(ctx context.Context, streamId string, shardCount int) error
-	GetStream(ctx context.Context, streamId string) (*messages.StreamConfig, error)
 }
 type Broker struct {
 	ID            string
@@ -76,7 +72,7 @@ type Broker struct {
 
 func New(id string, logger *zap.Logger, mesh cluster.DiscoveryLayer, config Config) *Broker {
 	ctx := context.Background()
-	sessionsConn, err := mesh.DialService("sessions?raft_status=leader")
+	sessionsConn, err := mesh.DialService("sessions")
 	if err != nil {
 		panic(err)
 	}
@@ -106,37 +102,4 @@ func New(id string, logger *zap.Logger, mesh cluster.DiscoveryLayer, config Conf
 	}
 
 	return broker
-}
-
-func (b *Broker) onPeerDown(name string) {
-	set, err := b.Subscriptions.ByPeer(b.ctx, name)
-	if err != nil {
-		b.logger.Error("failed to remove subscriptions from old peer", zap.String("peer_id", name), zap.Error(err))
-		return
-	}
-	if len(set) > 0 {
-		for _, sub := range set {
-			b.Subscriptions.Delete(b.ctx, sub.ID)
-		}
-		b.logger.Info("removed subscriptions from old peer", zap.String("peer_id", name), zap.Int("count", len(set)))
-	}
-	sessionSet, err := b.Sessions.ByPeer(b.ctx, name)
-	if err != nil {
-		b.logger.Error("failed to remove sessions from old peer", zap.String("peer_id", name), zap.Error(err))
-		return
-	}
-	for _, s := range sessionSet {
-		b.Sessions.Delete(b.ctx, s.ID)
-		if len(s.WillTopic) > 0 {
-			lwt := &packet.Publish{
-				Payload: s.WillPayload,
-				Topic:   s.WillTopic,
-				Header: &packet.Header{
-					Qos:    s.WillQoS,
-					Retain: s.WillRetain,
-				},
-			}
-			b.enqueuePublish(s.Tenant, s.ID, lwt)
-		}
-	}
 }

@@ -4,25 +4,22 @@ import (
 	"time"
 
 	"github.com/dgrijalva/jwt-go"
-	sessions "github.com/vx-labs/mqtt-broker/sessions/pb"
 )
 
 type Token struct {
 	SessionID     string `json:"session_id"`
-	PeerID        string `json:"peer_id"`
 	SessionTenant string `json:"session_tenant"`
 	jwt.StandardClaims
 }
 
-func EncodeSessionToken(signKey string, session *sessions.Session) (string, error) {
+func EncodeSessionToken(signKey string, tenant string, id string) (string, error) {
 	t := Token{
-		SessionID:     session.ID,
-		PeerID:        session.Peer,
-		SessionTenant: session.Tenant,
+		SessionID:     id,
+		SessionTenant: tenant,
 		StandardClaims: jwt.StandardClaims{
 			ExpiresAt: time.Now().Add(72 * time.Hour).Unix(),
 			Issuer:    "mqtt-broker",
-			Subject:   session.ID,
+			Subject:   id,
 		},
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, t)
