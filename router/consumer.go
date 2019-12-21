@@ -3,6 +3,8 @@ package router
 import (
 	"bytes"
 
+	"go.uber.org/zap"
+
 	"github.com/pkg/errors"
 	"github.com/vx-labs/mqtt-broker/broker/pb"
 	messages "github.com/vx-labs/mqtt-broker/messages/pb"
@@ -63,19 +65,28 @@ func (b *server) v2ConsumePayload(messages []*messages.StoredMessage) (int, erro
 			})
 		}
 	}
+	count := 0
+	for idx := range messages {
+		p := publishes[idx].Publish
+		count += len(topics.Recipients(p.Topic))
+	}
+	payload := make([]queues.MessageBatch, count)
+	offset := 0
 	for idx := range messages {
 		p := publishes[idx].Publish
 		p.Header.Retain = false
 		recipients := topics.Recipients(p.Topic)
-
-		payload := make([]queues.MessageBatch, len(recipients))
 		for idx := range recipients {
-			payload[idx] = queues.MessageBatch{ID: recipients[idx].SessionID, Publish: p}
+			payload[offset] = queues.MessageBatch{ID: recipients[idx].SessionID, Publish: p}
+			offset++
 		}
+	}
+	if len(payload) > 0 {
 		err := b.Queues.PutMessageBatch(b.ctx, payload)
 		if err != nil {
-			return idx, errors.Wrap(err, "failed to enqueue message")
+			return 0, errors.Wrap(err, "failed to enqueue message")
 		}
+		b.logger.Info("enqueued messages", zap.Int("message_count", len(payload)))
 	}
 	return 0, nil
 }

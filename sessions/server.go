@@ -2,7 +2,6 @@ package sessions
 
 import (
 	"context"
-	"time"
 
 	"github.com/vx-labs/mqtt-broker/cluster/types"
 	"github.com/vx-labs/mqtt-broker/sessions/pb"
@@ -27,6 +26,8 @@ func New(id string, logger *zap.Logger) *server {
 		id:     id,
 		ctx:    context.Background(),
 		logger: logger,
+		cancel: make(chan struct{}),
+		done:   make(chan struct{}),
 	}
 }
 
@@ -64,21 +65,4 @@ func isSessionExpired(session *pb.Session, now int64) bool {
 }
 func (m *server) deleteSession(id string) error {
 	return m.store.Delete(id)
-}
-func (m *server) gcExpiredSessions() {
-	sessions, err := m.store.All(nil)
-	if err != nil {
-		m.logger.Error("failed to gc sessions", zap.Error(err))
-	}
-	now := time.Now().Unix()
-	for _, session := range sessions.Sessions {
-		if isSessionExpired(session, now) {
-			err := m.deleteSession(session.ID)
-			if err != nil {
-				m.logger.Error("failed to gc session", zap.String("session_id", session.ID), zap.Error(err))
-			} else {
-				m.logger.Info("deleted expired session", zap.String("session_id", session.ID))
-			}
-		}
-	}
 }

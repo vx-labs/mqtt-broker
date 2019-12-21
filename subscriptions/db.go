@@ -3,6 +3,8 @@ package subscriptions
 import (
 	"errors"
 
+	"go.uber.org/zap"
+
 	"github.com/vx-labs/mqtt-broker/crdt"
 	"github.com/vx-labs/mqtt-broker/subscriptions/pb"
 
@@ -13,10 +15,14 @@ func (m *memDBStore) do(write bool, f func(*memdb.Txn) error) error {
 	tx := m.db.Txn(write)
 	defer tx.Abort()
 	err := f(tx)
-	if write && err == nil {
+	if err != nil {
+		m.logger.Error("db transaction failed", zap.Error(err))
+		return err
+	}
+	if write {
 		tx.Commit()
 	}
-	return err
+	return nil
 }
 func (m *memDBStore) read(f func(*memdb.Txn) error) error {
 	return m.do(false, f)

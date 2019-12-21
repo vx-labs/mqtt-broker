@@ -227,30 +227,3 @@ func contains(needle string, slice []string) bool {
 	}
 	return false
 }
-func (m *server) gcExpiredQueues() {
-	if m.Health() != "ok" {
-		return
-	}
-	queues := m.store.All()
-	validSessions, err := m.sessions.All(m.ctx)
-	if err != nil {
-		m.logger.Error("failed to contact sessions service to check queues validity", zap.Error(err))
-		return
-	}
-	validSessionIDs := make([]string, len(validSessions))
-	for idx := range validSessions {
-		validSessionIDs[idx] = validSessions[idx].ID
-	}
-	event := []*pb.QueuesStateTransition{}
-	for _, queue := range queues {
-		if !contains(queue, validSessionIDs) {
-			event = append(event, &pb.QueuesStateTransition{
-				Kind: QueueDeleted,
-				QueueDeleted: &pb.QueueStateTransitionQueueDeleted{
-					ID: queue,
-				},
-			})
-		}
-	}
-	err = m.commitEvent(event...)
-}

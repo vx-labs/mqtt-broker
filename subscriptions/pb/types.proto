@@ -16,15 +16,6 @@ message SubscriptionMetadataList {
   repeated Subscription Subscriptions = 1;
 }
 
-message SubscriptionCreateInput {
-  string ID = 1;
-  string SessionID = 2;
-  string Tenant = 3;
-  bytes Pattern = 4;
-  int32 Qos = 5;
-  string Peer = 6;
-}
-message SubscriptionCreateOutput {}
 message SubscriptionByIDInput {
   string ID = 1;
 }
@@ -36,14 +27,8 @@ message SubscriptionByTopicInput {
   string Tenant = 2;
 }
 message SubscriptionFilterInput {}
-message SubscriptionDeleteInput {
-  string ID = 1;
-}
-message SubscriptionDeleteOutput {}
 
 service SubscriptionsService {
-  rpc Create(SubscriptionCreateInput) returns (SubscriptionCreateOutput);
-  rpc Delete(SubscriptionDeleteInput) returns (SubscriptionDeleteOutput);
   rpc ByID(SubscriptionByIDInput) returns (Subscription);
   rpc BySession(SubscriptionBySessionInput) returns (SubscriptionMetadataList);
   rpc ByTopic(SubscriptionByTopicInput) returns (SubscriptionMetadataList);

@@ -5,6 +5,7 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	eventsCommand "github.com/vx-labs/mqtt-broker/events/cobra"
 	kvCommand "github.com/vx-labs/mqtt-broker/kv/cobra"
 	messagesCommand "github.com/vx-labs/mqtt-broker/messages/cobra"
 )
@@ -17,5 +18,6 @@ func main() {
 	ctx := context.Background()
 	messagesCommand.Register(ctx, rootCmd, config)
 	kvCommand.Register(ctx, rootCmd, config)
+	eventsCommand.Register(ctx, rootCmd, config)
 	rootCmd.Execute()
 }

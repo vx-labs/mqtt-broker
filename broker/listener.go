@@ -1,7 +1,6 @@
 package broker
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"os"
@@ -13,7 +12,6 @@ import (
 	"go.uber.org/zap"
 
 	sessions "github.com/vx-labs/mqtt-broker/sessions/pb"
-	subscriptions "github.com/vx-labs/mqtt-broker/subscriptions/pb"
 	"github.com/vx-labs/mqtt-broker/transport"
 	"github.com/vx-labs/mqtt-protocol/packet"
 )
@@ -110,10 +108,6 @@ func (b *Broker) Connect(ctx context.Context, metadata transport.Metadata, p *pa
 	logger.Info("session connected")
 	return sessionID, token, connack(packet.CONNACK_CONNECTION_ACCEPTED), nil
 }
-func (b *Broker) sendToSession(ctx context.Context, id string, p *packet.Publish) error {
-	return b.Queues.PutMessage(ctx, id, p)
-}
-
 func (b *Broker) Subscribe(ctx context.Context, token string, p *packet.Subscribe) (*packet.SubAck, error) {
 	sess, err := DecodeSessionToken(b.SigningKey(), token)
 	if err != nil {
@@ -123,63 +117,56 @@ func (b *Broker) Subscribe(ctx context.Context, token string, p *packet.Subscrib
 	transition := []*events.StateTransition{}
 	for idx, pattern := range p.Topic {
 		subID := makeSubID(sess.SessionID, pattern)
-		event := subscriptions.SubscriptionCreateInput{
-			ID:        subID,
-			Pattern:   pattern,
-			Qos:       p.Qos[idx],
-			Tenant:    sess.SessionTenant,
-			SessionID: sess.SessionID,
-		}
 		transition = append(transition, &events.StateTransition{
 			Event: &events.StateTransition_SessionSubscribed{
 				SessionSubscribed: &events.SessionSubscribed{
-					SessionID: sess.Id,
+					SessionID: sess.SessionID,
 					Qos:       p.Qos[idx],
 					Tenant:    sess.SessionTenant,
 					Pattern:   pattern,
 				},
 			},
 		})
-		err := b.Subscriptions.Create(b.ctx, event)
-		if err != nil {
-			return nil, err
-		}
 		b.logger.Info("session subscribed",
 			zap.String("session_id", sess.SessionID),
 			zap.String("subscription_id", subID),
 			zap.Int32("qos", p.Qos[idx]),
-			zap.Binary("topic_pattern", event.Pattern))
+			zap.Binary("topic_pattern", pattern))
 
-		go func(packetQoS int32, pattern []byte) {
-			set, err := b.Topics.ByTopicPattern(b.ctx, sess.SessionTenant, pattern)
-			if err != nil {
-				b.logger.Error("failed to look for retained messages",
-					zap.Error(err),
-					zap.String("session_id", sess.SessionID))
-				return
-			}
-			for _, message := range set {
-				qos := getLowerQoS(message.Qos, packetQoS)
-				err := b.sendToSession(b.ctx, sess.SessionID, &packet.Publish{
-					Header: &packet.Header{
-						Qos:    qos,
-						Retain: true,
-					},
-					MessageId: 1,
-					Payload:   message.Payload,
-					Topic:     message.Topic,
-				})
-				if err != nil {
-					b.logger.Error("failed to publish retained message",
-						zap.Error(err),
-						zap.String("session_id", sess.SessionID),
-						zap.String("subscription_id", subID),
-						zap.Binary("topic_pattern", message.Topic))
-				}
-			}
-		}(p.Qos[idx], pattern)
+		// go func(packetQoS int32, pattern []byte) {
+		// 	set, err := b.Topics.ByTopicPattern(b.ctx, sess.SessionTenant, pattern)
+		// 	if err != nil {
+		// 		b.logger.Error("failed to look for retained messages",
+		// 			zap.Error(err),
+		// 			zap.String("session_id", sess.SessionID))
+		// 		return
+		// 	}
+		// 	for _, message := range set {
+		// 		qos := getLowerQoS(message.Qos, packetQoS)
+		// 		err := b.sendToSession(b.ctx, sess.SessionID, &packet.Publish{
+		// 			Header: &packet.Header{
+		// 				Qos:    qos,
+		// 				Retain: true,
+		// 			},
+		// 			MessageId: 1,
+		// 			Payload:   message.Payload,
+		// 			Topic:     message.Topic,
+		// 		})
+		// 		if err != nil {
+		// 			b.logger.Error("failed to publish retained message",
+		// 				zap.Error(err),
+		// 				zap.String("session_id", sess.SessionID),
+		// 				zap.String("subscription_id", subID),
+		// 				zap.Binary("topic_pattern", message.Topic))
+		// 		}
+		// 	}
+		// }(p.Qos[idx], pattern)
 	}
-	events.Commit(ctx, b.Messages, sess.Id, transition...)
+	err = events.Commit(ctx, b.Messages, sess.SessionID, transition...)
+	if err != nil {
+		b.logger.Error("failed to commit session subscription event", zap.Error(err))
+		return nil, err
+	}
 	qos := make([]int32, len(p.Qos))
 
 	// QoS2 is not supported for now
@@ -232,24 +219,17 @@ func (b *Broker) Unsubscribe(ctx context.Context, token string, p *packet.Unsubs
 		transition = append(transition, &events.StateTransition{
 			Event: &events.StateTransition_SessionUnsubscribed{
 				SessionUnsubscribed: &events.SessionUnsubscribed{
-					SessionID: sess.Id,
+					SessionID: sess.SessionID,
 					Tenant:    sess.SessionTenant,
 					Pattern:   pattern,
 				},
 			},
 		})
 	}
-	events.Commit(ctx, b.Messages, sess.Id, transition...)
-	userSubscriptions, err := b.Subscriptions.BySession(b.ctx, sess.SessionID)
+	err = events.Commit(ctx, b.Messages, sess.SessionID, transition...)
 	if err != nil {
+		b.logger.Error("failed to commit session subscription event", zap.Error(err))
 		return nil, err
-	}
-	for _, subscription := range userSubscriptions {
-		for _, topic := range p.Topic {
-			if bytes.Compare(topic, subscription.Pattern) == 0 {
-				b.Subscriptions.Delete(b.ctx, subscription.ID)
-			}
-		}
 	}
 	return &packet.UnsubAck{
 		MessageId: p.MessageId,
@@ -262,10 +242,10 @@ func (b *Broker) Disconnect(ctx context.Context, token string, p *packet.Disconn
 		b.logger.Warn("received packet from an unknown session", zap.String("session_id", sess.SessionID), zap.String("packet", "disconnect"))
 		return err
 	}
-	return events.Commit(ctx, b.Messages, sess.Id, &events.StateTransition{
+	return events.Commit(ctx, b.Messages, sess.SessionID, &events.StateTransition{
 		Event: &events.StateTransition_SessionClosed{
 			SessionClosed: &events.SessionClosed{
-				ID:     sess.Id,
+				ID:     sess.SessionID,
 				Tenant: sess.SessionTenant,
 			},
 		},
@@ -277,10 +257,10 @@ func (b *Broker) CloseSession(ctx context.Context, token string) error {
 	if err != nil {
 		return err
 	}
-	return events.Commit(ctx, b.Messages, decodedToken.Id, &events.StateTransition{
+	return events.Commit(ctx, b.Messages, decodedToken.SessionID, &events.StateTransition{
 		Event: &events.StateTransition_SessionLost{
 			SessionLost: &events.SessionLost{
-				ID:     decodedToken.Id,
+				ID:     decodedToken.SessionID,
 				Tenant: decodedToken.SessionTenant,
 			},
 		},

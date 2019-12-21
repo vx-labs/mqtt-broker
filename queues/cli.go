@@ -39,7 +39,6 @@ func (b *server) JoinServiceLayer(name string, logger *zap.Logger, config cluste
 		ticker := time.NewTicker(30 * time.Second)
 		for range ticker.C {
 			if b.state.IsLeader() {
-				b.gcExpiredQueues()
 				err := b.store.TickInflights(time.Now())
 				if err != nil {
 					b.logger.Error("failed to expire inflight messages", zap.Error(err))

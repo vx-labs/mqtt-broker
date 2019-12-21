@@ -69,13 +69,13 @@ func (b *server) consumeStream(messages []*messages.StoredMessage) (int, error) 
 				input := event.SessionClosed
 				err := b.store.Delete(input.ID)
 				if err != nil {
-					return idx, err
+					b.logger.Warn("failed to delete session", zap.Error(err))
 				}
 			case *events.StateTransition_SessionLost:
 				input := event.SessionLost
 				err := b.store.Delete(input.ID)
 				if err != nil {
-					return idx, err
+					b.logger.Warn("failed to delete session", zap.Error(err))
 				}
 			case *events.StateTransition_SessionCreated:
 				input := event.SessionCreated
@@ -95,6 +95,7 @@ func (b *server) consumeStream(messages []*messages.StoredMessage) (int, error) 
 					LastKeepAlive:     input.Timestamp,
 				})
 				if err != nil {
+					b.logger.Error("failed to create session", zap.Error(err))
 					return idx, err
 				}
 			}

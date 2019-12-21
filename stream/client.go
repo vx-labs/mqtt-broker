@@ -43,6 +43,7 @@ type streamSession struct {
 	GroupID       string
 	StreamID      string
 	Consumer      ShardConsumer
+	MaxBatchSize  int
 	DefaultOffset uint64
 }
 
@@ -91,6 +92,12 @@ func WithConsumerID(id string) consumeOpt {
 		return s
 	}
 }
+func WithMaxBatchSize(size int) consumeOpt {
+	return func(s streamSession) streamSession {
+		s.MaxBatchSize = size
+		return s
+	}
+}
 
 type offsetBehaviour byte
 
@@ -118,11 +125,12 @@ func (c *streamClient) Consume(ctx context.Context, cancel chan struct{}, stream
 	rebalanceTicker := time.NewTicker(5 * time.Second)
 	defaultID := uuid.New().String()
 	session := streamSession{
-		StreamID:   streamID,
-		kv:         c.kv,
-		Consumer:   f,
-		ConsumerID: defaultID,
-		GroupID:    defaultID,
+		StreamID:     streamID,
+		kv:           c.kv,
+		Consumer:     f,
+		ConsumerID:   defaultID,
+		GroupID:      defaultID,
+		MaxBatchSize: 20,
 	}
 	wg := sync.WaitGroup{}
 
@@ -203,7 +211,7 @@ func (c *streamClient) Consume(ctx context.Context, cancel chan struct{}, stream
 				_, err := lockShard(ctx, session.kv, streamID, session.GroupID, shard, session.ConsumerID, 10*time.Second)
 				if err != nil {
 					c.logger.Warn("failed to lock shard", zap.Error(err))
-					<-retryTicker.C
+					continue
 				} else {
 					newAssignedShard = append(newAssignedShard, shard)
 				}
@@ -246,7 +254,7 @@ func (b *streamClient) consumeShard(ctx context.Context, shardId string, session
 		logger.Error("failed to get offset for shard", zap.Error(err))
 		return err
 	}
-	next, messages, err := b.messages.GetMessages(ctx, session.StreamID, shardId, offset, 20)
+	next, messages, err := b.messages.GetMessages(ctx, session.StreamID, shardId, offset, session.MaxBatchSize)
 	if err != nil {
 		logger.Error("failed to get messages for shard", zap.Error(err))
 		return err

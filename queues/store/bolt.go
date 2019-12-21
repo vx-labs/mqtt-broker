@@ -8,6 +8,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/vx-labs/mqtt-broker/queues/pb"
+
 	"github.com/boltdb/bolt"
 	"github.com/vx-labs/mqtt-broker/events"
 )
@@ -167,6 +169,33 @@ func (b *BoltStore) Put(id string, index uint64, payload []byte) error {
 		b.eventBus.Emit(events.Event{
 			Key: fmt.Sprintf("%s/message_put", id),
 		})
+	}
+	return err
+}
+func (b *BoltStore) PutBatch(batches []*pb.QueueStateTransitionMessagePut) error {
+	tx, err := b.conn.Begin(true)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	for _, batch := range batches {
+		bucket := tx.Bucket(getBucketName(batch.QueueID))
+		if bucket == nil {
+			return ErrQueueNotFound
+		}
+		err = b.put(bucket, batch.Offset, batch.Payload)
+		if err != nil {
+			return err
+		}
+		return err
+	}
+	err = tx.Commit()
+	if err == nil {
+		for _, batch := range batches {
+			b.eventBus.Emit(events.Event{
+				Key: fmt.Sprintf("%s/message_put", batch.QueueID),
+			})
+		}
 	}
 	return err
 }

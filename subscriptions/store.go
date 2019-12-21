@@ -10,6 +10,7 @@ import (
 	"github.com/vx-labs/mqtt-broker/subscriptions/pb"
 	"github.com/vx-labs/mqtt-broker/subscriptions/topic"
 	"github.com/vx-labs/mqtt-broker/subscriptions/tree"
+	"go.uber.org/zap"
 
 	"github.com/hashicorp/go-memdb"
 )
@@ -36,9 +37,10 @@ type memDBStore struct {
 	db           *memdb.MemDB
 	patternIndex *topicIndexer
 	channel      Channel
+	logger       *zap.Logger
 }
 
-func NewSubscriptionStore(mesh types.GossipServiceLayer) Store {
+func NewSubscriptionStore(mesh types.GossipServiceLayer, logger *zap.Logger) Store {
 	db, err := memdb.NewMemDB(&memdb.DBSchema{
 		Tables: map[string]*memdb.TableSchema{
 			table: &memdb.TableSchema{
@@ -75,8 +77,12 @@ func NewSubscriptionStore(mesh types.GossipServiceLayer) Store {
 	s := &memDBStore{
 		db:           db,
 		patternIndex: TenantTopicIndexer(),
+		logger:       logger,
 	}
-	s.channel, err = mesh.AddState("mqtt-sessions", s)
+	s.channel, err = mesh.AddState("mqtt-subscriptions", s)
+	if err != nil {
+		panic(err)
+	}
 	go func() {
 		for range time.Tick(1 * time.Hour) {
 			err := s.runGC()
@@ -193,8 +199,8 @@ func (s *memDBStore) Delete(id string) error {
 	return err
 }
 func (s *memDBStore) Create(sess *pb.Subscription) error {
-	sess.LastAdded = time.Now().UnixNano()
 	err := s.write(func(tx *memdb.Txn) error {
+		sess.LastAdded = time.Now().UnixNano()
 		return tx.Insert(table, sess)
 	})
 	if err == nil {
@@ -205,6 +211,7 @@ func (s *memDBStore) Create(sess *pb.Subscription) error {
 			},
 		})
 		if err != nil {
+			s.logger.Error("failed to marshal subscription in distributed state")
 			return err
 		}
 		s.channel.Broadcast(buf)

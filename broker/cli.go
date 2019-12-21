@@ -35,13 +35,11 @@ func (b *Broker) Shutdown() {
 }
 func (b *Broker) JoinServiceLayer(name string, logger *zap.Logger, config cluster.ServiceConfig, rpcConfig cluster.ServiceConfig, mesh cluster.DiscoveryLayer) {
 	mesh.RegisterService(name, fmt.Sprintf("%s:%d", config.AdvertiseAddr, config.ServicePort))
-	go func() {
-		messagesConn, err := mesh.DialService("messages?raft_status=leader")
-		if err != nil {
-			panic(err)
-		}
-		b.Messages = messages.NewClient(messagesConn)
-	}()
+	messagesConn, err := mesh.DialService("messages?raft_status=leader")
+	if err != nil {
+		panic(err)
+	}
+	b.Messages = messages.NewClient(messagesConn)
 }
 
 func (b *Broker) Health() string {

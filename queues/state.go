@@ -66,11 +66,9 @@ func (m *server) applyEvent(event *pb.QueuesStateTransition) error {
 		}
 		return err
 	case QueueMessagePutBatch:
-		for _, input := range event.QueueMessagePutBatch.Batches {
-			err := m.store.Put(input.QueueID, input.Offset, input.Payload)
-			if err != nil {
-				m.logger.Error("failed to put message in queue", zap.Error(err))
-			}
+		err := m.store.PutBatch(event.QueueMessagePutBatch.Batches)
+		if err != nil {
+			m.logger.Error("failed to put message in queue", zap.Error(err))
 		}
 		return nil
 	case QueueMessageAcked:

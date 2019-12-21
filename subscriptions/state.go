@@ -2,7 +2,8 @@ package subscriptions
 
 import (
 	"io"
-	"log"
+
+	"go.uber.org/zap"
 
 	proto "github.com/golang/protobuf/proto"
 	memdb "github.com/hashicorp/go-memdb"
@@ -11,7 +12,9 @@ import (
 )
 
 func (m memDBStore) dumpSubscriptions() *pb.SubscriptionMetadataList {
-	RetainedMessageList := pb.SubscriptionMetadataList{}
+	RetainedMessageList := pb.SubscriptionMetadataList{
+		Subscriptions: []*pb.Subscription{},
+	}
 	m.read(func(tx *memdb.Txn) error {
 		iterator, err := tx.Get(table, "id")
 		if err != nil || iterator == nil {
@@ -33,7 +36,7 @@ func (m memDBStore) MarshalBinary() []byte {
 	set := m.dumpSubscriptions()
 	payload, err := proto.Marshal(set)
 	if err != nil {
-		log.Printf("ERR: failed to marshal state: %v", err)
+		m.logger.Error("failed to marshal local state", zap.Error(err))
 		return nil
 	}
 	return payload
@@ -64,30 +67,54 @@ func (m *memDBStore) Merge(inc []byte, _ bool) error {
 	set := &pb.SubscriptionMetadataList{}
 	err := proto.Unmarshal(inc, set)
 	if err != nil {
+		m.logger.Error("failed to unmarshal remote state", zap.Error(err))
 		return err
 	}
-	return m.write(func(tx *memdb.Txn) error {
+	added := []*pb.Subscription{}
+	deleted := []*pb.Subscription{}
+	err = m.write(func(tx *memdb.Txn) error {
 		for _, remote := range set.Subscriptions {
 			localData, err := tx.First(table, "id", remote.ID)
 			if err != nil || localData == nil {
 				err := m.insertPBRemoteSubscription(remote, tx)
 				if err != nil {
+					m.logger.Error("failed to insert remote subscription in local state", zap.Error(err))
 					return err
+				}
+				if crdt.IsEntryAdded(remote) {
+					added = append(added, remote)
+				} else {
+					deleted = append(deleted, remote)
 				}
 				continue
 			}
 			local, ok := localData.(*pb.Subscription)
 			if !ok {
-				log.Printf("WARN: invalid data found in store")
+				m.logger.Error("invalid data found in local state")
 				continue
 			}
 			if crdt.IsEntryOutdated(local, remote) {
 				err := m.insertPBRemoteSubscription(remote, tx)
 				if err != nil {
+					m.logger.Error("failed to insert remote subscription in local state", zap.Error(err))
 					return err
+				}
+				if crdt.IsEntryAdded(remote) {
+					added = append(added, remote)
+				} else {
+					deleted = append(deleted, remote)
 				}
 			}
 		}
 		return nil
 	})
+	if err == nil {
+		for _, e := range added {
+			m.patternIndex.Index(e)
+		}
+		for _, e := range deleted {
+			m.patternIndex.Remove(e.Tenant, e.SessionID, e.Pattern)
+		}
+	}
+	return err
 }

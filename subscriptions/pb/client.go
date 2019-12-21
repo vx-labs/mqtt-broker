@@ -21,16 +21,6 @@ func emptyArrayIfNull(in []*Subscription) []*Subscription {
 	}
 	return in
 }
-func (c *Client) Create(ctx context.Context, input SubscriptionCreateInput) error {
-	_, err := c.api.Create(ctx, &input)
-	return err
-}
-func (c *Client) Delete(ctx context.Context, id string) error {
-	_, err := c.api.Delete(ctx, &SubscriptionDeleteInput{
-		ID: id,
-	})
-	return err
-}
 func (c *Client) ByID(ctx context.Context, id string) (*Subscription, error) {
 	return c.api.ByID(ctx, &SubscriptionByIDInput{ID: id})
 }

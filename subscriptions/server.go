@@ -22,6 +22,8 @@ type server struct {
 	gprcServer *grpc.Server
 	logger     *zap.Logger
 	sessions   SessionStore
+	cancel     chan struct{}
+	done       chan struct{}
 }
 
 func New(id string, logger *zap.Logger) *server {
@@ -30,6 +32,8 @@ func New(id string, logger *zap.Logger) *server {
 		id:     id,
 		ctx:    context.Background(),
 		logger: logger,
+		cancel: make(chan struct{}),
+		done:   make(chan struct{}),
 	}
 }
 
@@ -44,21 +48,4 @@ func (m *server) ByTopic(ctx context.Context, input *pb.SubscriptionByTopicInput
 }
 func (m *server) All(ctx context.Context, input *pb.SubscriptionFilterInput) (*pb.SubscriptionMetadataList, error) {
 	return m.store.All()
-}
-func (m *server) Create(ctx context.Context, input *pb.SubscriptionCreateInput) (*pb.SubscriptionCreateOutput, error) {
-	m.logger.Debug("creating subscription", zap.String("subscription_id", input.ID))
-	return &pb.SubscriptionCreateOutput{}, m.store.Create(&pb.Subscription{
-		ID:        input.ID,
-		Pattern:   input.Pattern,
-		Qos:       input.Qos,
-		SessionID: input.SessionID,
-		Tenant:    input.Tenant,
-	})
-}
-func (m *server) Delete(ctx context.Context, input *pb.SubscriptionDeleteInput) (*pb.SubscriptionDeleteOutput, error) {
-	return &pb.SubscriptionDeleteOutput{}, m.deleteSubscription(input.ID)
-}
-func (m *server) deleteSubscription(id string) error {
-	m.logger.Debug("deleting subscription", zap.String("subscription_id", id))
-	return m.store.Delete(id)
 }

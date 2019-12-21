@@ -67,6 +67,7 @@ func New(id string, logger *zap.Logger, mesh cluster.DiscoveryLayer) *server {
 		streamClient.Consume(ctx, b.cancel, "messages", b.v2ConsumePayload,
 			stream.WithConsumerID(b.id),
 			stream.WithConsumerGroupID("router"),
+			stream.WithMaxBatchSize(200),
 			stream.WithInitialOffsetBehaviour(stream.OFFSET_BEHAVIOUR_FROM_START),
 		)
 	}()
