@@ -17,6 +17,8 @@ type server struct {
 	ctx        context.Context
 	gprcServer *grpc.Server
 	logger     *zap.Logger
+	cancel     chan struct{}
+	done       chan struct{}
 }
 
 func New(id string, logger *zap.Logger) *server {
@@ -49,25 +51,10 @@ func (m *server) RefreshKeepAlive(ctx context.Context, input *pb.RefreshKeepAliv
 	return &pb.RefreshKeepAliveOutput{}, err
 }
 func (m *server) Create(ctx context.Context, input *pb.SessionCreateInput) (*pb.SessionCreateOutput, error) {
-	session := &pb.Session{
-		ClientID:          input.ClientID,
-		ID:                input.ID,
-		KeepaliveInterval: input.KeepaliveInterval,
-		Peer:              input.Peer,
-		RemoteAddress:     input.RemoteAddress,
-		Tenant:            input.Tenant,
-		Transport:         input.Transport,
-		WillPayload:       input.WillPayload,
-		WillTopic:         input.WillTopic,
-		WillRetain:        input.WillRetain,
-		WillQoS:           input.WillQoS,
-		Created:           input.Timestamp,
-		LastKeepAlive:     input.Timestamp,
-	}
-	return &pb.SessionCreateOutput{}, m.store.Create(session)
+	return &pb.SessionCreateOutput{}, nil
 }
 func (m *server) Delete(ctx context.Context, input *pb.SessionDeleteInput) (*pb.SessionDeleteOutput, error) {
-	return &pb.SessionDeleteOutput{}, m.deleteSession(input.ID)
+	return &pb.SessionDeleteOutput{}, nil
 }
 
 func isSessionExpired(session *pb.Session, now int64) bool {

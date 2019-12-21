@@ -7,6 +7,8 @@ import (
 	"os"
 	"time"
 
+	"github.com/vx-labs/mqtt-broker/events"
+
 	"github.com/vx-labs/mqtt-broker/cluster"
 	"go.uber.org/zap"
 
@@ -62,18 +64,6 @@ func (b *Broker) Connect(ctx context.Context, metadata transport.Metadata, p *pa
 		logger.Info("authentication failed", zap.Error(err))
 		return "", "", connack(packet.CONNACK_REFUSED_BAD_USERNAME_OR_PASSWORD), nil
 	}
-	if enforceClientIDUniqueness {
-		set, err := b.Sessions.ByClientID(b.ctx, clientIDstr)
-		if err != nil {
-			logger.Error("failed to lookup for other sessions using same client id", zap.Error(err))
-			return "", "", nil, err
-		}
-		if len(set) > 0 {
-			for _, session := range set {
-				b.Sessions.Delete(b.ctx, session.ID)
-			}
-		}
-	}
 	input := sessions.SessionCreateInput{
 		ID:                sessionID,
 		ClientID:          clientIDstr,
@@ -88,11 +78,25 @@ func (b *Broker) Connect(ctx context.Context, metadata transport.Metadata, p *pa
 		KeepaliveInterval: p.KeepaliveTimer,
 		Timestamp:         time.Now().Unix(),
 	}
-	err = b.Sessions.Create(b.ctx, input)
-	if err != nil {
-		logger.Error("failed to create session", zap.Error(err))
-		return "", "", nil, err
-	}
+	events.Commit(ctx, b.Messages, sessionID, &events.StateTransition{
+		Event: &events.StateTransition_SessionCreated{
+			SessionCreated: &events.SessionCreated{
+				ID:                input.ID,
+				Tenant:            input.Tenant,
+				ClientID:          input.ClientID,
+				KeepaliveInterval: input.KeepaliveInterval,
+				Peer:              metadata.Endpoint,
+				WillPayload:       p.WillPayload,
+				WillQoS:           p.WillQos,
+				WillRetain:        p.WillRetain,
+				WillTopic:         p.WillTopic,
+				Transport:         metadata.Name,
+				RemoteAddress:     metadata.RemoteAddress,
+				Timestamp:         time.Now().Unix(),
+			},
+		},
+	})
+
 	err = b.Queues.Create(b.ctx, sessionID)
 	if err != nil {
 		logger.Error("failed to create queue", zap.Error(err))
@@ -116,6 +120,7 @@ func (b *Broker) Subscribe(ctx context.Context, token string, p *packet.Subscrib
 		b.logger.Warn("received packet from an unknown session", zap.String("session_id", sess.SessionID), zap.String("packet", "subscribe"))
 		return nil, err
 	}
+	transition := []*events.StateTransition{}
 	for idx, pattern := range p.Topic {
 		subID := makeSubID(sess.SessionID, pattern)
 		event := subscriptions.SubscriptionCreateInput{
@@ -125,6 +130,16 @@ func (b *Broker) Subscribe(ctx context.Context, token string, p *packet.Subscrib
 			Tenant:    sess.SessionTenant,
 			SessionID: sess.SessionID,
 		}
+		transition = append(transition, &events.StateTransition{
+			Event: &events.StateTransition_SessionSubscribed{
+				SessionSubscribed: &events.SessionSubscribed{
+					SessionID: sess.Id,
+					Qos:       p.Qos[idx],
+					Tenant:    sess.SessionTenant,
+					Pattern:   pattern,
+				},
+			},
+		})
 		err := b.Subscriptions.Create(b.ctx, event)
 		if err != nil {
 			return nil, err
@@ -164,6 +179,7 @@ func (b *Broker) Subscribe(ctx context.Context, token string, p *packet.Subscrib
 			}
 		}(p.Qos[idx], pattern)
 	}
+	events.Commit(ctx, b.Messages, sess.Id, transition...)
 	qos := make([]int32, len(p.Qos))
 
 	// QoS2 is not supported for now
@@ -211,6 +227,19 @@ func (b *Broker) Unsubscribe(ctx context.Context, token string, p *packet.Unsubs
 		b.logger.Warn("received packet from an unknown session", zap.String("session_id", sess.SessionID), zap.String("packet", "unsubscribe"))
 		return nil, err
 	}
+	transition := []*events.StateTransition{}
+	for _, pattern := range p.Topic {
+		transition = append(transition, &events.StateTransition{
+			Event: &events.StateTransition_SessionUnsubscribed{
+				SessionUnsubscribed: &events.SessionUnsubscribed{
+					SessionID: sess.Id,
+					Tenant:    sess.SessionTenant,
+					Pattern:   pattern,
+				},
+			},
+		})
+	}
+	events.Commit(ctx, b.Messages, sess.Id, transition...)
 	userSubscriptions, err := b.Subscriptions.BySession(b.ctx, sess.SessionID)
 	if err != nil {
 		return nil, err
@@ -233,12 +262,14 @@ func (b *Broker) Disconnect(ctx context.Context, token string, p *packet.Disconn
 		b.logger.Warn("received packet from an unknown session", zap.String("session_id", sess.SessionID), zap.String("packet", "disconnect"))
 		return err
 	}
-	err = b.Sessions.Delete(b.ctx, sess.SessionID)
-	if err != nil {
-		b.logger.Error("failed to delete session when disconnecting", zap.String("session_id", sess.SessionID), zap.Error(err))
-	}
-	b.logger.Info("session disconnected", zap.String("session_id", sess.SessionID))
-	return nil
+	return events.Commit(ctx, b.Messages, sess.Id, &events.StateTransition{
+		Event: &events.StateTransition_SessionClosed{
+			SessionClosed: &events.SessionClosed{
+				ID:     sess.Id,
+				Tenant: sess.SessionTenant,
+			},
+		},
+	})
 }
 
 func (b *Broker) CloseSession(ctx context.Context, token string) error {
@@ -246,25 +277,14 @@ func (b *Broker) CloseSession(ctx context.Context, token string) error {
 	if err != nil {
 		return err
 	}
-	sess, err := b.Sessions.ByID(b.ctx, decodedToken.SessionID)
-	if err != nil {
-		return nil
-	}
-	if len(sess.WillTopic) > 0 {
-		b.logger.Info("sending LWT", zap.String("session_id", sess.ID), zap.Error(err))
-		b.enqueuePublish(sess.Tenant, sess.ID, &packet.Publish{
-			Header: &packet.Header{
-				Dup:    false,
-				Retain: sess.WillRetain,
-				Qos:    sess.WillQoS,
+	return events.Commit(ctx, b.Messages, decodedToken.Id, &events.StateTransition{
+		Event: &events.StateTransition_SessionLost{
+			SessionLost: &events.SessionLost{
+				ID:     decodedToken.Id,
+				Tenant: decodedToken.SessionTenant,
 			},
-			Payload: sess.WillPayload,
-			Topic:   sess.WillTopic,
-		})
-	}
-	b.Sessions.Delete(b.ctx, decodedToken.SessionID)
-	b.logger.Info("session lost", zap.String("session_id", decodedToken.SessionID))
-	return nil
+		},
+	})
 }
 
 func (b *Broker) PingReq(ctx context.Context, id string, _ *packet.PingReq) (*packet.PingResp, error) {

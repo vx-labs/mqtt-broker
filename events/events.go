@@ -1,6 +1,11 @@
 package events
 
-import "github.com/gogo/protobuf/proto"
+import (
+	"context"
+
+	"github.com/gogo/protobuf/proto"
+	"github.com/vx-labs/mqtt-broker/messages/pb"
+)
 
 //go:generate protoc -I${GOPATH}/src -I${GOPATH}/src/github.com/vx-labs/mqtt-broker/events/ --go_out=plugins=grpc:. events.proto
 
@@ -17,4 +22,12 @@ func Encode(events ...*StateTransition) ([]byte, error) {
 		Events: events,
 	}
 	return proto.Marshal(&format)
+}
+
+func Commit(ctx context.Context, client *pb.Client, shardKey string, events ...*StateTransition) error {
+	payload, err := Encode(events...)
+	if err != nil {
+		return err
+	}
+	return client.Put(ctx, "events", shardKey, payload)
 }

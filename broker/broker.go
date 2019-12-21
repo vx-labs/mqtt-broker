@@ -16,6 +16,7 @@ import (
 
 	"github.com/vx-labs/mqtt-protocol/packet"
 
+	messages "github.com/vx-labs/mqtt-broker/messages/pb"
 	queues "github.com/vx-labs/mqtt-broker/queues/pb"
 	subscriptions "github.com/vx-labs/mqtt-broker/subscriptions/pb"
 )
@@ -64,7 +65,7 @@ type Broker struct {
 	Sessions      SessionStore
 	Topics        TopicStore
 	Queues        QueuesStore
-	Messages      MessagesStore
+	Messages      *messages.Client
 	workers       *pool.Pool
 	grpcServer    *grpc.Server
 	ctx           context.Context
