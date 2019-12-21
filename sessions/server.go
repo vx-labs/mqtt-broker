@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/vx-labs/mqtt-broker/cluster/types"
+	messages "github.com/vx-labs/mqtt-broker/messages/pb"
 	"github.com/vx-labs/mqtt-broker/sessions/pb"
 	"go.uber.org/zap"
 	grpc "google.golang.org/grpc"
@@ -16,6 +17,7 @@ type server struct {
 	ctx        context.Context
 	gprcServer *grpc.Server
 	logger     *zap.Logger
+	Messages   *messages.Client
 	cancel     chan struct{}
 	done       chan struct{}
 }

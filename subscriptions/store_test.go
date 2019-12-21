@@ -4,6 +4,8 @@ import (
 	"context"
 	"testing"
 
+	"go.uber.org/zap"
+
 	"github.com/vx-labs/mqtt-broker/cluster"
 	"github.com/vx-labs/mqtt-broker/subscriptions/pb"
 	"github.com/vx-labs/mqtt-protocol/packet"
@@ -15,7 +17,7 @@ func returnNilErr(context.Context, packet.Publish) error {
 	return nil
 }
 func TestStore(t *testing.T) {
-	s := NewSubscriptionStore(cluster.MockedMesh())
+	s := NewSubscriptionStore(cluster.MockedMesh(), zap.NewNop())
 	err := s.Create(&pb.Subscription{
 		ID:        "1",
 		Tenant:    "_default",

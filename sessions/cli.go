@@ -5,8 +5,10 @@ import (
 	fmt "fmt"
 	"net"
 
+	proto "github.com/golang/protobuf/proto"
 	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
 	"github.com/pkg/errors"
+	broker "github.com/vx-labs/mqtt-broker/broker/pb"
 	"github.com/vx-labs/mqtt-broker/cluster"
 	"github.com/vx-labs/mqtt-broker/events"
 	kv "github.com/vx-labs/mqtt-broker/kv/pb"
@@ -14,6 +16,7 @@ import (
 	"github.com/vx-labs/mqtt-broker/network"
 	"github.com/vx-labs/mqtt-broker/sessions/pb"
 	"github.com/vx-labs/mqtt-broker/stream"
+	"github.com/vx-labs/mqtt-protocol/packet"
 
 	grpc "google.golang.org/grpc"
 
@@ -39,7 +42,7 @@ func (b *server) JoinServiceLayer(name string, logger *zap.Logger, config cluste
 	k := kv.NewClient(kvConn)
 	m := messages.NewClient(messagesConn)
 	streamClient := stream.NewClient(k, m, logger)
-
+	b.Messages = m
 	ctx := context.Background()
 	b.cancel = make(chan struct{})
 	b.done = make(chan struct{})
@@ -67,15 +70,24 @@ func (b *server) consumeStream(messages []*messages.StoredMessage) (int, error) 
 			switch event := eventPayload.GetEvent().(type) {
 			case *events.StateTransition_SessionClosed:
 				input := event.SessionClosed
-				err := b.store.Delete(input.ID)
+				err = b.store.Delete(input.ID)
 				if err != nil {
 					b.logger.Warn("failed to delete session", zap.Error(err))
 				}
 			case *events.StateTransition_SessionLost:
 				input := event.SessionLost
-				err := b.store.Delete(input.ID)
+				oldSession, err := b.store.ByID(input.ID)
+				if err != nil {
+					continue
+				}
+				err = b.store.Delete(input.ID)
 				if err != nil {
 					b.logger.Warn("failed to delete session", zap.Error(err))
+				}
+				err = b.maybeSendWill(oldSession)
+				if err != nil {
+					b.logger.Error("failed to enqueue LWT message in message store", zap.Error(err))
+					return idx, err
 				}
 			case *events.StateTransition_SessionCreated:
 				input := event.SessionCreated
@@ -105,6 +117,31 @@ func (b *server) consumeStream(messages []*messages.StoredMessage) (int, error) 
 	return len(messages), nil
 }
 
+func (b *server) maybeSendWill(oldSession *pb.Session) error {
+	if len(oldSession.WillTopic) > 0 {
+		payload := &broker.MessagePublished{
+			Tenant: oldSession.Tenant,
+			Publish: &packet.Publish{
+				Header: &packet.Header{
+					Retain: oldSession.WillRetain,
+					Qos:    oldSession.WillQoS,
+				},
+				Topic:   oldSession.WillTopic,
+				Payload: oldSession.WillPayload,
+			},
+		}
+		data, err := proto.Marshal(payload)
+		if err != nil {
+			return err
+		}
+		err = b.Messages.Put(b.ctx, "messages", oldSession.ID, data)
+		if err != nil {
+			b.logger.Error("failed to enqueue LWT message in message store", zap.Error(err))
+			return err
+		}
+	}
+	return nil
+}
 func (m *server) Health() string {
 	if m.state == nil {
 		return "warning"

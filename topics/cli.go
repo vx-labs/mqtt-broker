@@ -12,10 +12,14 @@ import (
 	broker "github.com/vx-labs/mqtt-broker/broker/pb"
 	"github.com/vx-labs/mqtt-broker/cluster"
 	"github.com/vx-labs/mqtt-broker/cluster/types"
+	"github.com/vx-labs/mqtt-broker/events"
 	kv "github.com/vx-labs/mqtt-broker/kv/pb"
 	messages "github.com/vx-labs/mqtt-broker/messages/pb"
 	"github.com/vx-labs/mqtt-broker/network"
+	queues "github.com/vx-labs/mqtt-broker/queues/pb"
 	"github.com/vx-labs/mqtt-broker/stream"
+	"github.com/vx-labs/mqtt-protocol/packet"
+
 	"github.com/vx-labs/mqtt-broker/topics/pb"
 
 	"go.uber.org/zap"
@@ -26,7 +30,9 @@ type server struct {
 	id         string
 	store      *memDBStore
 	state      types.GossipServiceLayer
+	Queues     *queues.Client
 	logger     *zap.Logger
+	ctx        context.Context
 	gprcServer *grpc.Server
 	cancel     chan struct{}
 	done       chan struct{}
@@ -56,21 +62,36 @@ func (b *server) JoinServiceLayer(name string, logger *zap.Logger, config cluste
 	if err != nil {
 		panic(err)
 	}
+
 	messagesConn, err := mesh.DialService("messages")
 	if err != nil {
 		panic(err)
 	}
+	queuesConn, err := mesh.DialService("queues?raft_status=leader")
+	if err != nil {
+		panic(err)
+	}
+
 	k := kv.NewClient(kvConn)
 	m := messages.NewClient(messagesConn)
+	b.Queues = queues.NewClient(queuesConn)
 	streamClient := stream.NewClient(k, m, logger)
 
 	ctx := context.Background()
+	b.ctx = ctx
 	b.cancel = make(chan struct{})
 	b.done = make(chan struct{})
 
 	go func() {
 		defer close(b.done)
 		streamClient.Consume(ctx, b.cancel, "messages", b.consumeStream,
+			stream.WithConsumerID(b.id),
+			stream.WithConsumerGroupID("topics"),
+			stream.WithInitialOffsetBehaviour(stream.OFFSET_BEHAVIOUR_FROM_START),
+		)
+	}()
+	go func() {
+		streamClient.Consume(ctx, b.cancel, "events", b.consumeEventStream,
 			stream.WithConsumerID(b.id),
 			stream.WithConsumerGroupID("topics"),
 			stream.WithInitialOffsetBehaviour(stream.OFFSET_BEHAVIOUR_FROM_START),
@@ -136,4 +157,46 @@ func (m *server) ByTopicPattern(ctx context.Context, input *pb.ByTopicPatternInp
 		out.Messages[idx] = &messages[idx]
 	}
 	return out, nil
+}
+
+func (b *server) consumeEventStream(messages []*messages.StoredMessage) (int, error) {
+	if b.store == nil {
+		return 0, errors.New("store not ready")
+	}
+	for idx := range messages {
+		eventSet, err := events.Decode(messages[idx].Payload)
+		if err != nil {
+			return idx, errors.Wrap(err, "failed to decode message for shard")
+		}
+		for _, eventPayload := range eventSet {
+			switch event := eventPayload.GetEvent().(type) {
+			case *events.StateTransition_SessionSubscribed:
+				input := event.SessionSubscribed
+				messages, err := b.store.ByTopicPattern(input.Tenant, input.Pattern)
+				if err != nil {
+					b.logger.Error("failed to lookup store for retained messages")
+					return idx, err
+				}
+				batches := make([]queues.MessageBatch, len(messages))
+				for idx := range batches {
+					batches[idx] = queues.MessageBatch{
+						ID: input.SessionID,
+						Publish: &packet.Publish{
+							Header: &packet.Header{
+								Retain: true,
+							},
+							Payload: messages[idx].Payload,
+							Topic:   messages[idx].Topic,
+						},
+					}
+				}
+				err = b.Queues.PutMessageBatch(b.ctx, batches)
+				if err != nil {
+					b.logger.Error("failed to store retained messages in queue")
+					return idx, err
+				}
+			}
+		}
+	}
+	return len(messages), nil
 }
