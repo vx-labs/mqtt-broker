@@ -2,7 +2,11 @@ package subscriptions
 
 import (
 	"errors"
+	"log"
+	"time"
 
+	proto "github.com/golang/protobuf/proto"
+	"github.com/vx-labs/mqtt-broker/cluster/types"
 	"github.com/vx-labs/mqtt-broker/subscriptions/pb"
 	"github.com/vx-labs/mqtt-broker/subscriptions/topic"
 	"github.com/vx-labs/mqtt-broker/subscriptions/tree"
@@ -18,19 +22,23 @@ var (
 
 type Store interface {
 	ByTopic(tenant string, pattern []byte) (*pb.SubscriptionMetadataList, error)
-	ByID(id string) (*pb.Metadata, error)
+	ByID(id string) (*pb.Subscription, error)
 	All() (*pb.SubscriptionMetadataList, error)
 	BySession(id string) (*pb.SubscriptionMetadataList, error)
-	Create(message *pb.Metadata) error
+	Create(message *pb.Subscription) error
 	Delete(id string) error
+}
+type Channel interface {
+	Broadcast([]byte)
 }
 
 type memDBStore struct {
 	db           *memdb.MemDB
 	patternIndex *topicIndexer
+	channel      Channel
 }
 
-func NewMemDBStore() Store {
+func NewSubscriptionStore(mesh types.GossipServiceLayer) Store {
 	db, err := memdb.NewMemDB(&memdb.DBSchema{
 		Tables: map[string]*memdb.TableSchema{
 			table: &memdb.TableSchema{
@@ -68,6 +76,15 @@ func NewMemDBStore() Store {
 		db:           db,
 		patternIndex: TenantTopicIndexer(),
 	}
+	s.channel, err = mesh.AddState("mqtt-sessions", s)
+	go func() {
+		for range time.Tick(1 * time.Hour) {
+			err := s.runGC()
+			if err != nil {
+				log.Printf("WARN: failed to GC sessions: %v", err)
+			}
+		}
+	}()
 	return s
 }
 
@@ -86,11 +103,11 @@ func (t *topicIndexer) Remove(tenant, id string, pattern []byte) error {
 func (t *topicIndexer) Lookup(tenant string, pattern []byte) (*pb.SubscriptionMetadataList, error) {
 	set := t.root.Select(tenant, nil, topic.Topic(pattern))
 	return &pb.SubscriptionMetadataList{
-		Metadatas: set,
+		Subscriptions: set,
 	}, nil
 }
 
-func (s *topicIndexer) Index(subscription *pb.Metadata) error {
+func (s *topicIndexer) Index(subscription *pb.Subscription) error {
 	s.root.Insert(
 		topic.Topic(subscription.Pattern),
 		subscription.Tenant,
@@ -111,8 +128,8 @@ func (m *memDBStore) All() (*pb.SubscriptionMetadataList, error) {
 	})
 }
 
-func (m *memDBStore) ByID(id string) (*pb.Metadata, error) {
-	var res *pb.Metadata
+func (m *memDBStore) ByID(id string) (*pb.Subscription, error) {
+	var res *pb.Subscription
 	return res, m.read(func(tx *memdb.Txn) (err error) {
 		res, err = m.first(tx, "id", id)
 		return
@@ -136,7 +153,7 @@ func (m *memDBStore) ByTopic(tenant string, pattern []byte) (*pb.SubscriptionMet
 	return m.patternIndex.Lookup(tenant, pattern)
 }
 
-func (m *memDBStore) insert(message *pb.Metadata) error {
+func (m *memDBStore) insert(message *pb.Subscription) error {
 	err := m.write(func(tx *memdb.Txn) error {
 		err := tx.Insert(table, message)
 		if err != nil {
@@ -151,23 +168,47 @@ func (m *memDBStore) insert(message *pb.Metadata) error {
 	return err
 }
 func (s *memDBStore) Delete(id string) error {
-	var oldSub *pb.Metadata
+	var subscription *pb.Subscription
 	err := s.write(func(tx *memdb.Txn) error {
-		sub, err := tx.First(table, "id", id)
+		var err error
+		subscription, err = s.first(tx, "id", id)
 		if err != nil {
 			return err
 		}
-		if sub == nil {
-			return nil
-		}
-		oldSub = sub.(*pb.Metadata)
-		return tx.Delete(table, oldSub)
+		subscription.LastDeleted = time.Now().UnixNano()
+		return tx.Insert(table, subscription)
 	})
-	if err == nil && oldSub != nil {
-		return s.patternIndex.Remove(oldSub.Tenant, oldSub.ID, oldSub.Pattern)
+	if err == nil {
+		s.patternIndex.Index(subscription)
+		buf, err := proto.Marshal(&pb.SubscriptionMetadataList{
+			Subscriptions: []*pb.Subscription{
+				subscription,
+			},
+		})
+		if err != nil {
+			return err
+		}
+		s.channel.Broadcast(buf)
 	}
 	return err
 }
-func (s *memDBStore) Create(sess *pb.Metadata) error {
-	return s.insert(sess)
+func (s *memDBStore) Create(sess *pb.Subscription) error {
+	sess.LastAdded = time.Now().UnixNano()
+	err := s.write(func(tx *memdb.Txn) error {
+		return tx.Insert(table, sess)
+	})
+	if err == nil {
+		s.patternIndex.Index(sess)
+		buf, err := proto.Marshal(&pb.SubscriptionMetadataList{
+			Subscriptions: []*pb.Subscription{
+				sess,
+			},
+		})
+		if err != nil {
+			return err
+		}
+		s.channel.Broadcast(buf)
+	}
+	return err
+
 }

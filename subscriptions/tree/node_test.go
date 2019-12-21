@@ -9,10 +9,10 @@ import (
 )
 
 var (
-	sub_1 = &pb.Metadata{ID: "1", Pattern: []byte("devices/+/degrees")}
-	sub_2 = &pb.Metadata{ID: "2"}
-	sub_3 = &pb.Metadata{ID: "3"}
-	sub_4 = &pb.Metadata{ID: "4"}
+	sub_1 = &pb.Subscription{ID: "1", LastAdded: 1, Pattern: []byte("devices/+/degrees")}
+	sub_2 = &pb.Subscription{ID: "2", LastAdded: 1}
+	sub_3 = &pb.Subscription{ID: "3", LastAdded: 1}
+	sub_4 = &pb.Subscription{ID: "4", LastAdded: 1}
 )
 
 func TestNode(t *testing.T) {
@@ -27,7 +27,7 @@ func TestNode(t *testing.T) {
 	})
 	t.Run("del subscription", func(t *testing.T) {
 		a := NewNode(tenant, []byte("test"))
-		a.data = []*pb.Metadata{sub_1, sub_2, sub_3}
+		a.data = []*pb.Subscription{sub_1, sub_2, sub_3}
 		a = a.DelSubscription("2")
 		require.Equal(t, 2, len(a.data))
 	})

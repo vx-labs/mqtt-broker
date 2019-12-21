@@ -183,15 +183,19 @@ func (c *streamClient) Consume(ctx context.Context, cancel chan struct{}, stream
 	go func() {
 		defer wg.Done()
 		defer rebalanceTicker.Stop()
+		retryTicker := time.NewTicker(5 * time.Second)
+		defer retryTicker.Stop()
 		for {
 			consumers, err := listConsumers(ctx, session.kv, streamID, session.GroupID)
 			if err != nil {
 				c.logger.Error("failed to list other consumers", zap.Error(err))
+				<-retryTicker.C
 				continue
 			}
 			shards, err := c.getShards(ctx, streamID)
 			if err != nil {
 				c.logger.Error("failed to list shards", zap.Error(err))
+				<-retryTicker.C
 				continue
 			}
 			newAssignedShard := []string{}
@@ -199,6 +203,7 @@ func (c *streamClient) Consume(ctx context.Context, cancel chan struct{}, stream
 				_, err := lockShard(ctx, session.kv, streamID, session.GroupID, shard, session.ConsumerID, 10*time.Second)
 				if err != nil {
 					c.logger.Warn("failed to lock shard", zap.Error(err))
+					<-retryTicker.C
 				} else {
 					newAssignedShard = append(newAssignedShard, shard)
 				}

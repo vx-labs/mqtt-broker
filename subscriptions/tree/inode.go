@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"errors"
 
+	"github.com/vx-labs/mqtt-broker/crdt"
+
 	"github.com/vx-labs/mqtt-broker/subscriptions/pb"
 	"github.com/vx-labs/mqtt-broker/subscriptions/topic"
 )
@@ -31,7 +33,7 @@ func findChild(d *INode, tenant string, pattern []byte) *Node {
 	return node
 }
 
-func (d *INode) Insert(topic topic.Topic, tenant string, subscription *pb.Metadata) {
+func (d *INode) Insert(topic topic.Topic, tenant string, subscription *pb.Subscription) {
 	inode := d
 	var (
 		token []byte
@@ -60,7 +62,7 @@ func (d *INode) Remove(tenant, id string, topic topic.Topic) error {
 	for idx, node := range d.nodes {
 		if bytes.Equal(token, node.pattern) {
 			if !ok {
-				target := []*pb.Metadata{}
+				target := []*pb.Subscription{}
 				for _, sub := range node.data {
 					if sub.ID == id {
 						target = append(target, sub)
@@ -79,15 +81,19 @@ func (d *INode) Remove(tenant, id string, topic topic.Topic) error {
 	return errors.New("subscription not found in index")
 }
 
-func (d *INode) Select(tenant string, set []*pb.Metadata, topic topic.Topic) []*pb.Metadata {
+func (d *INode) Select(tenant string, set []*pb.Subscription, topic topic.Topic) []*pb.Subscription {
 	if set == nil {
-		set = []*pb.Metadata{}
+		set = []*pb.Subscription{}
 	}
 	topic, token, ok := topic.Chop()
 	for _, node := range d.nodes {
 		if node.tenant == tenant && matchPattern(token, node.pattern) {
 			if !ok || (len(node.pattern) == 1 && node.pattern[0] == '#') {
-				set = append(set, node.data...)
+				for _, sub := range node.data {
+					if crdt.IsEntryAdded(sub) {
+						set = append(set, node.data...)
+					}
+				}
 			} else {
 				set = node.inode.Select(tenant, set, topic)
 			}

@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/vx-labs/mqtt-broker/cluster"
 	"github.com/vx-labs/mqtt-broker/subscriptions/pb"
 	"github.com/vx-labs/mqtt-protocol/packet"
 
@@ -14,8 +15,8 @@ func returnNilErr(context.Context, packet.Publish) error {
 	return nil
 }
 func TestStore(t *testing.T) {
-	s := NewMemDBStore()
-	err := s.Create(&pb.Metadata{
+	s := NewSubscriptionStore(cluster.MockedMesh())
+	err := s.Create(&pb.Subscription{
 		ID:        "1",
 		Tenant:    "_default",
 		Peer:      "1",
@@ -29,6 +30,6 @@ func TestStore(t *testing.T) {
 	require.Equal(t, sub.SessionID, "1")
 	set, err := s.ByTopic("_default", []byte("devices/a/degrees"))
 	require.NoError(t, err)
-	require.Equal(t, 1, len(set.Metadatas))
-	require.Equal(t, "1", set.Metadatas[0].SessionID)
+	require.Equal(t, 1, len(set.Subscriptions))
+	require.Equal(t, "1", set.Subscriptions[0].SessionID)
 }

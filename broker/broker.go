@@ -46,10 +46,10 @@ type TopicStore interface {
 	ByTopicPattern(ctx context.Context, tenant string, pattern []byte) ([]*topics.RetainedMessage, error)
 }
 type SubscriptionStore interface {
-	ByTopic(ctx context.Context, tenant string, pattern []byte) ([]*subscriptions.Metadata, error)
-	ByID(ctx context.Context, id string) (*subscriptions.Metadata, error)
-	All(ctx context.Context) ([]*subscriptions.Metadata, error)
-	BySession(ctx context.Context, id string) ([]*subscriptions.Metadata, error)
+	ByTopic(ctx context.Context, tenant string, pattern []byte) ([]*subscriptions.Subscription, error)
+	ByID(ctx context.Context, id string) (*subscriptions.Subscription, error)
+	All(ctx context.Context) ([]*subscriptions.Subscription, error)
+	BySession(ctx context.Context, id string) ([]*subscriptions.Subscription, error)
 	Create(ctx context.Context, message subscriptions.SubscriptionCreateInput) error
 	Delete(ctx context.Context, id string) error
 }
@@ -77,7 +77,7 @@ func New(id string, logger *zap.Logger, mesh cluster.DiscoveryLayer, config Conf
 	if err != nil {
 		panic(err)
 	}
-	subscriptionsConn, err := mesh.DialService("subscriptions?raft_status=leader")
+	subscriptionsConn, err := mesh.DialService("subscriptions")
 	if err != nil {
 		panic(err)
 	}

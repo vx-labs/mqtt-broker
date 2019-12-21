@@ -3,6 +3,7 @@ package subscriptions
 import (
 	"errors"
 
+	"github.com/vx-labs/mqtt-broker/crdt"
 	"github.com/vx-labs/mqtt-broker/subscriptions/pb"
 
 	memdb "github.com/hashicorp/go-memdb"
@@ -24,21 +25,21 @@ func (m *memDBStore) write(f func(*memdb.Txn) error) error {
 	return m.do(true, f)
 }
 
-func (m *memDBStore) first(tx *memdb.Txn, index string, value ...interface{}) (*pb.Metadata, error) {
+func (m *memDBStore) first(tx *memdb.Txn, index string, value ...interface{}) (*pb.Subscription, error) {
 	var ok bool
-	var res *pb.Metadata
+	var res *pb.Subscription
 	data, err := tx.First(table, index, value...)
 	if err != nil {
 		return res, err
 	}
-	res, ok = data.(*pb.Metadata)
+	res, ok = data.(*pb.Subscription)
 	if !ok {
 		return res, errors.New("invalid type fetched")
 	}
 	return res, nil
 }
 func (m *memDBStore) all(tx *memdb.Txn, index string, value ...interface{}) (*pb.SubscriptionMetadataList, error) {
-	set := &pb.SubscriptionMetadataList{Metadatas: make([]*pb.Metadata, 0)}
+	set := &pb.SubscriptionMetadataList{Subscriptions: make([]*pb.Subscription, 0)}
 	iterator, err := tx.Get(table, index, value...)
 	if err != nil {
 		return set, err
@@ -48,10 +49,13 @@ func (m *memDBStore) all(tx *memdb.Txn, index string, value ...interface{}) (*pb
 		if data == nil {
 			return set, nil
 		}
-		res, ok := data.(*pb.Metadata)
+		res, ok := data.(*pb.Subscription)
 		if !ok {
 			return set, errors.New("invalid type fetched")
 		}
-		set.Metadatas = append(set.Metadatas, res)
+		if crdt.IsEntryRemoved(res) {
+			continue
+		}
+		set.Subscriptions = append(set.Subscriptions, res)
 	}
 }

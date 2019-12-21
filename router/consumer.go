@@ -14,7 +14,7 @@ import (
 
 type RouteSet []Route
 
-func (r RouteSet) Recipients(topic []byte) []*subscriptions.Metadata {
+func (r RouteSet) Recipients(topic []byte) []*subscriptions.Subscription {
 	for _, route := range r {
 		if bytes.Compare(route.Topic, topic) == 0 {
 			return route.Recipients
@@ -25,7 +25,7 @@ func (r RouteSet) Recipients(topic []byte) []*subscriptions.Metadata {
 
 type Route struct {
 	Topic      []byte
-	Recipients []*subscriptions.Metadata
+	Recipients []*subscriptions.Subscription
 }
 
 func contains(needle []byte, slice []Route) bool {
