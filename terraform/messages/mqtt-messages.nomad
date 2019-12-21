@@ -51,6 +51,8 @@ job "mqtt-messages" {
           "--messages_gossip-bind-port=3100",
           "--messages-bind-port=4000",
           "--messages_gossip_rpc-bind-port=3200",
+          "--initial-stream-config=messages:3",
+          "--initial-stream-config=events:3"
         ]
         force_pull = true
 

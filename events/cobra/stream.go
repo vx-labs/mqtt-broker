@@ -2,7 +2,7 @@ package cobra
 
 import (
 	"context"
-	"fmt"
+	"encoding/json"
 	"sync"
 	"time"
 
@@ -54,6 +54,7 @@ func Stream(ctx context.Context, config *viper.Viper) *cobra.Command {
 				logrus.Error(err)
 				return
 			}
+			encoder := json.NewEncoder(cmd.OutOrStdout())
 			wg := sync.WaitGroup{}
 			for _, shard := range streamConfig.ShardIDs {
 				wg.Add(1)
@@ -75,7 +76,7 @@ func Stream(ctx context.Context, config *viper.Viper) *cobra.Command {
 								continue
 							}
 							for _, event := range events {
-								fmt.Printf("%v\n", event)
+								encoder.Encode(event)
 							}
 						}
 						offset = next
