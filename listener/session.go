@@ -140,18 +140,27 @@ func (local *endpoint) handleSessionPackets(ctx context.Context, session *localS
 				cancelReqCtx()
 				return ErrConnectNotDone
 			}
-			ack, err := local.broker.Publish(packetCtx, session.token, p)
+			decodedToken, err := DecodeSessionToken(SigningKey(), session.token)
+			if err != nil {
+				cancelReqCtx()
+				session.logger.Error("failed to validate session token", zap.Error(err))
+				return err
+			}
+			err = local.enqueuePublish(packetCtx, decodedToken.SessionTenant, decodedToken.SessionID, p)
 			if err != nil {
 				cancelReqCtx()
 				session.logger.Error("failed to publish packet", zap.Error(err))
 				continue
 			}
-			if ack != nil {
-				err = enc.PubAck(ack)
+			switch p.Header.Qos {
+			case 1:
+				err = enc.PubAck(&packet.PubAck{Header: &packet.Header{}, MessageId: p.MessageId})
 				if err != nil {
 					cancelReqCtx()
 					return err
 				}
+			default:
+				continue
 			}
 		case *packet.Subscribe:
 			if session.token == "" {

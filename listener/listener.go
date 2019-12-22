@@ -5,19 +5,45 @@ import (
 	"errors"
 	"io"
 	"net"
+	"os"
 	"strings"
 	"sync"
 
+	"github.com/dgrijalva/jwt-go"
 	"github.com/google/btree"
 	brokerpb "github.com/vx-labs/mqtt-broker/broker/pb"
 	queues "github.com/vx-labs/mqtt-broker/queues/pb"
 
 	"github.com/vx-labs/mqtt-broker/cluster"
+	messages "github.com/vx-labs/mqtt-broker/messages/pb"
 	"github.com/vx-labs/mqtt-broker/transport"
 	"github.com/vx-labs/mqtt-protocol/encoder"
 	"github.com/vx-labs/mqtt-protocol/packet"
 	"go.uber.org/zap"
 )
+
+func SigningKey() string {
+	return os.Getenv("JWT_SIGN_KEY")
+}
+
+type Token struct {
+	SessionID     string `json:"session_id"`
+	SessionTenant string `json:"session_tenant"`
+	jwt.StandardClaims
+}
+
+func DecodeSessionToken(signKey string, signedToken string) (Token, error) {
+	token, err := jwt.ParseWithClaims(signedToken, &Token{}, func(token *jwt.Token) (interface{}, error) {
+		return []byte(signKey), nil
+	})
+	if err != nil {
+		return Token{}, err
+	}
+	if claims, ok := token.Claims.(*Token); ok && token.Valid {
+		return *claims, nil
+	}
+	return Token{}, err
+}
 
 var (
 	ErrSessionNotFound = errors.New("session not found on this endpoint")
@@ -52,6 +78,7 @@ type endpoint struct {
 	transports []net.Listener
 	broker     Broker
 	mesh       cluster.Mesh
+	messages   *messages.Client
 	logger     *zap.Logger
 }
 
@@ -97,10 +124,15 @@ func New(id string, logger *zap.Logger, mesh cluster.Mesh, config Config) *endpo
 	if err != nil {
 		panic(err)
 	}
+	messagesConn, err := mesh.DialService("messages?raft_status=leader")
+	if err != nil {
+		panic(err)
+	}
 	local := &endpoint{
 		broker:   brokerpb.NewClient(brokerConn),
 		sessions: btree.New(2),
 		queues:   queues.NewClient(queuesConn),
+		messages: messages.NewClient(messagesConn),
 		id:       id,
 		mesh:     mesh,
 		logger:   logger,

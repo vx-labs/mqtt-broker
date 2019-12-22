@@ -35,6 +35,7 @@ func Stream(ctx context.Context, config *viper.Viper) *cobra.Command {
 	c.AddCommand(ListStreams(ctx, config))
 	c.AddCommand(PutMessageInStream(ctx, config))
 	c.AddCommand(ConsumeStream(ctx, config))
+	c.AddCommand(Benchmark(ctx, config))
 	return c
 }
 
@@ -204,5 +205,37 @@ func ListStreams(ctx context.Context, config *viper.Viper) *cobra.Command {
 			}
 		},
 	}
+	return c
+}
+func Benchmark(ctx context.Context, config *viper.Viper) *cobra.Command {
+	c := &cobra.Command{
+		Use: "benchmark",
+		PreRun: func(c *cobra.Command, _ []string) {
+			config.BindPFlag("stream-id", c.Flags().Lookup("stream-id"))
+		},
+		Run: func(cmd *cobra.Command, argv []string) {
+			client := getClient(config)
+
+			count := 0
+			total := 1000
+			start := time.Now()
+			for count < total {
+				key := []byte{byte(count)}
+				err := client.Put(ctx, config.GetString("stream-id"), "benchmark", []byte("benchmark"))
+				if err != nil {
+					logrus.Errorf("failed to write record %q: %v", string(key), err)
+					return
+				}
+				count++
+				if count%(total/3) == 0 {
+					logrus.Infof("written %d key in %s", count, time.Since(start).String())
+				}
+			}
+			timer := time.Since(start)
+			logrus.Infof("written %d key in %s", count, timer.String())
+		},
+	}
+	c.Flags().StringP("stream-id", "i", "", "Stream unique ID to write in")
+	c.MarkFlagRequired("stream-id")
 	return c
 }
