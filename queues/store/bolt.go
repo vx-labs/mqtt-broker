@@ -132,6 +132,36 @@ func (b *BoltStore) CreateQueue(id string) error {
 	}
 	return tx.Commit()
 }
+func (b *BoltStore) GetStatistics(id string) (*pb.QueueStatistics, error) {
+	bucketName := getBucketName(id)
+	inflightBucketName := getInflightBucketName(id)
+
+	tx, err := b.conn.Begin(false)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+	return &pb.QueueStatistics{
+		ID:            id,
+		MessageCount:  int64(tx.Bucket(bucketName).Stats().KeyN),
+		InflightCount: int64(tx.Bucket(inflightBucketName).Stats().KeyN),
+	}, nil
+}
+func (b *BoltStore) ListQueues() ([]string, error) {
+	tx, err := b.conn.Begin(false)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+	out := []string{}
+	tx.ForEach(func(bucketName []byte, bucket *bolt.Bucket) error {
+		if !bytes.HasSuffix(bucketName, []byte(".inflight")) {
+			out = append(out, string(bucketName))
+		}
+		return nil
+	})
+	return out, nil
+}
 func (b *BoltStore) Delete(id string, index uint64) error {
 	bucketName := getBucketName(id)
 	tx, err := b.conn.Begin(true)
@@ -200,13 +230,13 @@ func (b *BoltStore) PutBatch(batches []*pb.QueueStateTransitionMessagePut) error
 	return err
 }
 func (b *BoltStore) AckInflight(id string, index uint64) error {
-	bucketName := getInflightBucketName(id)
+	inflightBucketName := getInflightBucketName(id)
 	tx, err := b.conn.Begin(true)
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback()
-	bucket := tx.Bucket(bucketName)
+	bucket := tx.Bucket(inflightBucketName)
 	if bucket == nil {
 		return ErrQueueNotFound
 	}
@@ -238,65 +268,76 @@ func (b *BoltStore) SetInflight(id string, index uint64, deadline uint64) error 
 	if err != nil {
 		return err
 	}
+	err = bucket.Delete(uint64ToBytes(index))
+	if err != nil {
+		return err
+	}
 	err = tx.Commit()
 	return err
 }
-func (b *BoltStore) TickInflights(currentTime time.Time) error {
-	now := currentTime.UnixNano()
+func (b *BoltStore) TickExpiredMessages(messages []*pb.ExpiredInflights) error {
 	tx, err := b.conn.Begin(true)
 	if err != nil {
 		return nil
 	}
 	defer tx.Rollback()
-	queues := []string{}
-	err = tx.ForEach(func(bucketName []byte, bucket *bolt.Bucket) error {
-		if bytes.HasSuffix(bucketName, []byte(".inflight")) {
-			queueBucketName := bytes.TrimSuffix(bucketName, []byte(".inflight"))
-			queueBucket := tx.Bucket(queueBucketName)
-			err := b.tickInflight(tx, queueBucket, bucket, uint64(now))
-			if err == nil {
-				queues = append(queues, string(queueBucketName))
+	for _, message := range messages {
+		bucket := tx.Bucket([]byte(message.QueueID))
+		inflightBucket := tx.Bucket(getInflightBucketName(message.QueueID))
+		for _, offset := range message.Offsets {
+			key := uint64ToBytes(offset)
+			inflightMessage := inflightBucket.Get(key)
+			if inflightMessage != nil {
+				err := bucket.Put(key, inflightMessage)
+				if err != nil {
+					return err
+				}
 			}
-			return err
 		}
-		return nil
-	})
-	if err != nil {
-		return err
 	}
 	err = tx.Commit()
 	if err == nil {
-		for _, id := range queues {
+		for _, message := range messages {
 			b.eventBus.Emit(events.Event{
-				Key: fmt.Sprintf("%s/message_put", id),
+				Key: fmt.Sprintf("%s/message_put", message.QueueID),
 			})
 		}
 	}
-	return nil
+	return err
 }
-func (b *BoltStore) tickInflight(tx *bolt.Tx, queueBucket *bolt.Bucket, bucket *bolt.Bucket, now uint64) error {
-	err := b.walk(bucket, func(key []byte, payload []byte) error {
+func (b *BoltStore) GetExpiredInflights(currentTime time.Time) []*pb.ExpiredInflights {
+	now := currentTime.UnixNano()
+	tx, err := b.conn.Begin(false)
+	if err != nil {
+		return nil
+	}
+	defer tx.Rollback()
+	expiredInflights := []*pb.ExpiredInflights{}
+	tx.ForEach(func(bucketName []byte, bucket *bolt.Bucket) error {
+		if bytes.HasSuffix(bucketName, []byte(".inflight")) {
+			queueBucketName := bytes.TrimSuffix(bucketName, []byte(".inflight"))
+			queueBucket := tx.Bucket(queueBucketName)
+			expiredInflights = append(expiredInflights, &pb.ExpiredInflights{
+				QueueID: string(queueBucketName),
+				Offsets: b.getExpiredInflight(tx, queueBucket, bucket, uint64(now)),
+			})
+			return nil
+		}
+		return nil
+	})
+	return expiredInflights
+}
+func (b *BoltStore) getExpiredInflight(tx *bolt.Tx, queueBucket *bolt.Bucket, bucket *bolt.Bucket, now uint64) []uint64 {
+	out := make([]uint64, 0)
+	b.walk(bucket, func(key []byte, payload []byte) error {
 		deadline := bytesToUint64(key)
 		if deadline < now {
-			err := bucket.Delete(key)
-			if err != nil {
-				return err
-			}
-			offset, err := queueBucket.NextSequence()
-			if err != nil {
-				return err
-			}
-			return queueBucket.Put(uint64ToBytes(offset), payload)
+			out = append(out, bytesToUint64(key))
+			return nil
 		}
 		return io.EOF
 	})
-	if err != nil {
-		if err == io.EOF {
-			return nil
-		}
-		return err
-	}
-	return nil
+	return out
 }
 func (b *BoltStore) All() []string {
 	tx, err := b.conn.Begin(false)

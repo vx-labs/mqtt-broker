@@ -55,9 +55,30 @@ message StreamMessageOutput {
   uint64 offset = 1;
   repeated QueueGetMessagesOutput batches = 2;
 }
+
+message QueuesListInput {}
+message QueuesListOutput {
+  repeated string QueueIDs = 1;
+}
+
+
+message QueueStatistics {
+  string ID = 1;
+  int64 MessageCount = 2;
+  int64 InflightCount = 3;
+}
+message QueueGetStatisticsInput {
+  string ID = 1;
+}
+message QueueGetStatisticsOutput {
+  QueueStatistics Statistics = 1;
+}
+
 service QueuesService {
   rpc Create(QueueCreateInput) returns (QueueCreateOutput);
   rpc Delete(QueueDeleteInput) returns (QueueDeleteOutput);
+  rpc List(QueuesListInput) returns (QueuesListOutput);
+  rpc GetStatistics(QueueGetStatisticsInput) returns (QueueGetStatisticsOutput);
   rpc PutMessage(QueuePutMessageInput) returns (QueuePutMessageOutput);
   rpc PutMessageBatch(QueuePutMessageBatchInput) returns (QueuePutMessageBatchOutput);
   rpc AckMessage(AckMessageInput) returns (AckMessageOutput);
@@ -75,6 +96,7 @@ message QueuesStateTransition {
   QueueStateTransitionMessageInflightSet MessageInflightSet = 6;
   QueueStateTransitionMessageDeleted MessageDeleted = 7;
   QueueStateTransitionMessageAcked MessageAcked = 8;
+  QueueStateTransitionMessageInflightExpired MessageInflightExpired = 9;
 }
 message QueueStateTransitionQueueCreated {
   QueueMetadata Input = 1;
@@ -95,6 +117,13 @@ message QueueStateTransitionMessageInflightSet {
 message QueueStateTransitionMessageAcked {
   string QueueID = 1;
   uint64 Offset = 2;
+}
+message ExpiredInflights {
+  string QueueID = 1;
+  repeated uint64 Offsets = 2;
+}
+message QueueStateTransitionMessageInflightExpired {
+ repeated ExpiredInflights ExpiredInflights = 1;
 }
 message QueueStateTransitionMessageDeleted {
   string QueueID = 1;

@@ -39,9 +39,17 @@ func (b *server) JoinServiceLayer(name string, logger *zap.Logger, config cluste
 		ticker := time.NewTicker(30 * time.Second)
 		for range ticker.C {
 			if b.state.IsLeader() {
-				err := b.store.TickInflights(time.Now())
-				if err != nil {
-					b.logger.Error("failed to expire inflight messages", zap.Error(err))
+				expiredInflights := b.store.GetExpiredInflights(time.Now())
+				if len(expiredInflights) > 0 {
+					err := b.commitEvent(&pb.QueuesStateTransition{
+						Kind: MessageInflightExpired,
+						MessageInflightExpired: &pb.QueueStateTransitionMessageInflightExpired{
+							ExpiredInflights: expiredInflights,
+						},
+					})
+					if err != nil {
+						b.logger.Error("failed to commit expired inflight message", zap.Error(err))
+					}
 				}
 			}
 		}

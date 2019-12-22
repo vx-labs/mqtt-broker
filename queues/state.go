@@ -18,6 +18,7 @@ const (
 	QueueMessagePutBatch    string = "queue_message_put_batch"
 	QueueMessageDeleted     string = "queue_message_deleted"
 	QueueMessageSetInflight string = "queue_message_set_inflight"
+	MessageInflightExpired  string = "queue_message_inflight_expired"
 	QueueMessageAcked       string = "queue_message_acked"
 )
 
@@ -90,6 +91,13 @@ func (m *server) applyEvent(event *pb.QueuesStateTransition) error {
 		err := m.store.Delete(input.QueueID, input.Offset)
 		if err != nil {
 			m.logger.Error("failed to delete message in queue", zap.Error(err))
+		}
+		return nil
+	case MessageInflightExpired:
+		input := event.MessageInflightExpired
+		err := m.store.TickExpiredMessages(input.ExpiredInflights)
+		if err != nil {
+			m.logger.Error("failed to tick expired inflight messages in queue", zap.Error(err))
 		}
 		return nil
 	default:

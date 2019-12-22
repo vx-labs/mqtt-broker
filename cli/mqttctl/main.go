@@ -8,6 +8,7 @@ import (
 	eventsCommand "github.com/vx-labs/mqtt-broker/events/cobra"
 	kvCommand "github.com/vx-labs/mqtt-broker/kv/cobra"
 	messagesCommand "github.com/vx-labs/mqtt-broker/messages/cobra"
+	queuesCommand "github.com/vx-labs/mqtt-broker/queues/cobra"
 )
 
 func main() {
@@ -19,5 +20,6 @@ func main() {
 	messagesCommand.Register(ctx, rootCmd, config)
 	kvCommand.Register(ctx, rootCmd, config)
 	eventsCommand.Register(ctx, rootCmd, config)
+	queuesCommand.Register(ctx, rootCmd, config)
 	rootCmd.Execute()
 }

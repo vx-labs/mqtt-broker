@@ -152,7 +152,7 @@ func (s *server) StreamMessages(input *pb.QueueGetMessagesInput, stream pb.Queue
 	items := make([]store.StoredMessage, batchSize)
 	count := 0
 	for {
-		count, offset, err = s.store.GetRange(input.Id, offset, items)
+		count, offset, err = s.store.GetRange(input.Id, 0, items)
 		if err != nil {
 			return err
 		}
@@ -205,12 +205,10 @@ func (s *server) StreamMessages(input *pb.QueueGetMessagesInput, stream pb.Queue
 	}
 }
 func (s *server) AckMessage(ctx context.Context, input *pb.AckMessageInput) (*pb.AckMessageOutput, error) {
-	idx := time.Now().UnixNano()
-
 	err := s.commitEvent(&pb.QueuesStateTransition{
 		Kind: QueueMessageAcked,
 		MessageAcked: &pb.QueueStateTransitionMessageAcked{
-			Offset:  uint64(idx),
+			Offset:  input.Offset,
 			QueueID: input.Id,
 		},
 	})
@@ -218,6 +216,20 @@ func (s *server) AckMessage(ctx context.Context, input *pb.AckMessageInput) (*pb
 		s.logger.Error("failed to commit message ack event", zap.Error(err))
 	}
 	return &pb.AckMessageOutput{}, err
+}
+func (s *server) List(ctx context.Context, input *pb.QueuesListInput) (*pb.QueuesListOutput, error) {
+	queues, err := s.store.ListQueues()
+	if err != nil {
+		return nil, err
+	}
+	return &pb.QueuesListOutput{QueueIDs: queues}, nil
+}
+func (s *server) GetStatistics(ctx context.Context, input *pb.QueueGetStatisticsInput) (*pb.QueueGetStatisticsOutput, error) {
+	stats, err := s.store.GetStatistics(input.ID)
+	if err != nil {
+		return nil, err
+	}
+	return &pb.QueueGetStatisticsOutput{Statistics: stats}, nil
 }
 func contains(needle string, slice []string) bool {
 	for _, s := range slice {

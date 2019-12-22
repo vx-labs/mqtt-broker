@@ -80,3 +80,19 @@ func (c *Client) StreamMessages(ctx context.Context, id string, f func(uint64, *
 		}
 	}
 }
+func (c *Client) ListQueues(ctx context.Context) ([]string, error) {
+	out, err := c.api.List(ctx, &QueuesListInput{})
+	if err != nil {
+		return nil, err
+	}
+	return out.QueueIDs, nil
+}
+func (c *Client) GetQueueStatistics(ctx context.Context, queueID string) (*QueueStatistics, error) {
+	out, err := c.api.GetStatistics(ctx, &QueueGetStatisticsInput{
+		ID: queueID,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return out.Statistics, nil
+}
