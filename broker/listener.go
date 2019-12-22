@@ -214,6 +214,7 @@ func (b *Broker) Disconnect(ctx context.Context, token string, p *packet.Disconn
 		b.logger.Warn("received packet from an unknown session", zap.String("session_id", sess.SessionID), zap.String("packet", "disconnect"))
 		return err
 	}
+	b.Queues.Delete(b.ctx, sess.SessionID)
 	return events.Commit(ctx, b.Messages, sess.SessionID, &events.StateTransition{
 		Event: &events.StateTransition_SessionClosed{
 			SessionClosed: &events.SessionClosed{
@@ -229,6 +230,7 @@ func (b *Broker) CloseSession(ctx context.Context, token string) error {
 	if err != nil {
 		return err
 	}
+	b.Queues.Delete(b.ctx, decodedToken.SessionID)
 	return events.Commit(ctx, b.Messages, decodedToken.SessionID, &events.StateTransition{
 		Event: &events.StateTransition_SessionLost{
 			SessionLost: &events.SessionLost{

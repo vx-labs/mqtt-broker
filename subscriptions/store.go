@@ -159,20 +159,6 @@ func (m *memDBStore) ByTopic(tenant string, pattern []byte) (*pb.SubscriptionMet
 	return m.patternIndex.Lookup(tenant, pattern)
 }
 
-func (m *memDBStore) insert(message *pb.Subscription) error {
-	err := m.write(func(tx *memdb.Txn) error {
-		err := tx.Insert(table, message)
-		if err != nil {
-			return err
-		}
-		tx.Commit()
-		return nil
-	})
-	if err == nil {
-		return m.patternIndex.Index(message)
-	}
-	return err
-}
 func (s *memDBStore) Delete(id string) error {
 	var subscription *pb.Subscription
 	err := s.write(func(tx *memdb.Txn) error {
@@ -185,7 +171,7 @@ func (s *memDBStore) Delete(id string) error {
 		return tx.Insert(table, subscription)
 	})
 	if err == nil {
-		s.patternIndex.Index(subscription)
+		s.patternIndex.Remove(subscription.Tenant, subscription.ID, subscription.Pattern)
 		buf, err := proto.Marshal(&pb.SubscriptionMetadataList{
 			Subscriptions: []*pb.Subscription{
 				subscription,
@@ -199,8 +185,8 @@ func (s *memDBStore) Delete(id string) error {
 	return err
 }
 func (s *memDBStore) Create(sess *pb.Subscription) error {
+	sess.LastAdded = time.Now().UnixNano()
 	err := s.write(func(tx *memdb.Txn) error {
-		sess.LastAdded = time.Now().UnixNano()
 		return tx.Insert(table, sess)
 	})
 	if err == nil {

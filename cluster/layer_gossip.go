@@ -35,6 +35,9 @@ func NewGossipServiceLayer(name string, logger *zap.Logger, serviceConfig Servic
 	discovery.Peers().On(peers.PeerCreated, func(peers.Peer) {
 		layer.DiscoverPeers(store)
 	})
+	discovery.Peers().On(peers.PeerUpdated, func(peers.Peer) {
+		layer.DiscoverPeers(store)
+	})
 	layer.DiscoverPeers(store)
 	discovery.RegisterService(name, fmt.Sprintf("%s:%d", userConfig.AdvertiseAddr, serviceConfig.ServicePort))
 	discovery.RegisterService(fmt.Sprintf("%s_cluster", name), fmt.Sprintf("%s:%d", userConfig.AdvertiseAddr, userConfig.AdvertisePort))

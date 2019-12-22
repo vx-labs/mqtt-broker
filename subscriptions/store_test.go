@@ -34,4 +34,5 @@ func TestStore(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, 1, len(set.Subscriptions))
 	require.Equal(t, "1", set.Subscriptions[0].SessionID)
+
 }

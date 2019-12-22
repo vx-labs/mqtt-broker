@@ -42,6 +42,9 @@ func (m *memDBStore) first(tx *memdb.Txn, index string, value ...interface{}) (*
 	if !ok {
 		return res, errors.New("invalid type fetched")
 	}
+	if !crdt.IsEntryAdded(res) {
+		return nil, ErrSubscriptionNotFound
+	}
 	return res, nil
 }
 func (m *memDBStore) all(tx *memdb.Txn, index string, value ...interface{}) (*pb.SubscriptionMetadataList, error) {
@@ -59,9 +62,8 @@ func (m *memDBStore) all(tx *memdb.Txn, index string, value ...interface{}) (*pb
 		if !ok {
 			return set, errors.New("invalid type fetched")
 		}
-		if crdt.IsEntryRemoved(res) {
-			continue
+		if crdt.IsEntryAdded(res) {
+			set.Subscriptions = append(set.Subscriptions, res)
 		}
-		set.Subscriptions = append(set.Subscriptions, res)
 	}
 }

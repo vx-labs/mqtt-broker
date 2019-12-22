@@ -56,6 +56,12 @@ func (m *memDBStore) runGC() error {
 			sess := payload.(*pb.Subscription)
 			return sess, nil
 		}, func(id string) error {
+			v, err := tx.First(table, "id", id)
+			if err != nil {
+				return err
+			}
+			sess := v.(*pb.Subscription)
+			m.patternIndex.Remove(sess.Tenant, sess.ID, sess.Pattern)
 			return tx.Delete(table, &pb.Subscription{ID: id})
 		})
 	})
@@ -70,8 +76,7 @@ func (m *memDBStore) Merge(inc []byte, _ bool) error {
 		m.logger.Error("failed to unmarshal remote state", zap.Error(err))
 		return err
 	}
-	added := []*pb.Subscription{}
-	deleted := []*pb.Subscription{}
+	updated := []*pb.Subscription{}
 	err = m.write(func(tx *memdb.Txn) error {
 		for _, remote := range set.Subscriptions {
 			localData, err := tx.First(table, "id", remote.ID)
@@ -81,11 +86,7 @@ func (m *memDBStore) Merge(inc []byte, _ bool) error {
 					m.logger.Error("failed to insert remote subscription in local state", zap.Error(err))
 					return err
 				}
-				if crdt.IsEntryAdded(remote) {
-					added = append(added, remote)
-				} else {
-					deleted = append(deleted, remote)
-				}
+				updated = append(updated, remote)
 				continue
 			}
 			local, ok := localData.(*pb.Subscription)
@@ -99,21 +100,14 @@ func (m *memDBStore) Merge(inc []byte, _ bool) error {
 					m.logger.Error("failed to insert remote subscription in local state", zap.Error(err))
 					return err
 				}
-				if crdt.IsEntryAdded(remote) {
-					added = append(added, remote)
-				} else {
-					deleted = append(deleted, remote)
-				}
+				updated = append(updated, remote)
 			}
 		}
 		return nil
 	})
 	if err == nil {
-		for _, e := range added {
-			m.patternIndex.Index(e)
-		}
-		for _, e := range deleted {
-			m.patternIndex.Remove(e.Tenant, e.SessionID, e.Pattern)
+		for idx := range updated {
+			m.patternIndex.Index(updated[idx])
 		}
 	}
 	return err

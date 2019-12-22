@@ -13,7 +13,7 @@ import (
 
 func main() {
 	root := &cobra.Command{
-		Use: "sessions",
+		Use: "subscriptions",
 		Run: func(cmd *cobra.Command, args []string) {
 			ctx := cli.Bootstrap(cmd)
 			ctx.AddService(cmd, "subscriptions", func(id string, logger *zap.Logger, mesh cluster.DiscoveryLayer) cli.Service {

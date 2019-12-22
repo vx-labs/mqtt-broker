@@ -116,15 +116,17 @@ func main() {
 			ctx.AddService(cmd, "kv", func(id string, logger *zap.Logger, mesh cluster.DiscoveryLayer) cli.Service {
 				return kv.New(id, logger)
 			})
-			ctx.AddService(cmd, "subscriptions", func(id string, logger *zap.Logger, mesh cluster.DiscoveryLayer) cli.Service {
-				return subscriptions.New(id, logger)
-			})
-			if withTopics, _ := cmd.Flags().GetBool("with-topics"); withTopics {
+			if ok, _ := cmd.Flags().GetBool("with-subscriptions"); ok {
+				ctx.AddService(cmd, "subscriptions", func(id string, logger *zap.Logger, mesh cluster.DiscoveryLayer) cli.Service {
+					return subscriptions.New(id, logger)
+				})
+			}
+			if ok, _ := cmd.Flags().GetBool("with-topics"); ok {
 				ctx.AddService(cmd, "topics", func(id string, logger *zap.Logger, mesh cluster.DiscoveryLayer) cli.Service {
 					return topics.New(id, logger)
 				})
 			}
-			if withRouter, _ := cmd.Flags().GetBool("with-router"); withRouter {
+			if ok, _ := cmd.Flags().GetBool("with-router"); ok {
 				ctx.AddService(cmd, "router", func(id string, logger *zap.Logger, mesh cluster.DiscoveryLayer) cli.Service {
 					return router.New(id, logger, mesh)
 				})
@@ -151,6 +153,7 @@ func main() {
 	root.Flags().IntP("wss-port", "w", 0, "Start Secure WS listener on this port. Specify 0 to disable the listener")
 	root.Flags().IntP("ws-port", "", 0, "Start WS listener on this port. Specify 0 to disable the listener")
 	root.Flags().StringP("tls-cn", "", "localhost", "Get ACME certificat for this CN")
+	root.Flags().BoolP("with-subscriptions", "", true, "Start the subscriptions message consumer")
 	root.Flags().BoolP("with-router", "", false, "Start the router message consumer")
 	root.Flags().BoolP("with-topics", "", false, "Start the topics message consumer")
 	root.Execute()

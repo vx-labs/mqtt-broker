@@ -24,6 +24,7 @@ func Queues(ctx context.Context, config *viper.Viper) *cobra.Command {
 	}
 	c.AddCommand(ListQueues(ctx, config))
 	c.AddCommand(ReadQueueStatistics(ctx, config))
+	c.AddCommand(DeleteQueue(ctx, config))
 	return c
 }
 
@@ -62,15 +63,41 @@ func ReadQueueStatistics(ctx context.Context, config *viper.Viper) *cobra.Comman
 			if err != nil {
 				panic(err)
 			}
+			if ok, _ := cmd.Flags().GetBool("all"); ok {
+				queues, err := client.ListQueues(ctx)
+				if err != nil {
+					logrus.Errorf("failed to list queues: %v", err)
+					return
+				}
+				argv = queues
+			}
 			for _, id := range argv {
 				statistics, err := client.GetQueueStatistics(ctx, id)
 				if err != nil {
-					logrus.Errorf("failed to read stream %q: %v", id, err)
+					logrus.Errorf("failed to read queue statistics %q: %v", id, err)
 					continue
 				}
 				err = tpl.Execute(cmd.OutOrStdout(), statistics)
 				if err != nil {
 					logrus.Errorf("failed to display stream %q: %v", id, err)
+					continue
+				}
+			}
+		},
+	}
+	c.Flags().BoolP("all", "a", false, "list statistics for all queues")
+	return c
+}
+func DeleteQueue(ctx context.Context, config *viper.Viper) *cobra.Command {
+	c := &cobra.Command{
+		Use:     "delete",
+		Aliases: []string{"rm"},
+		Run: func(cmd *cobra.Command, argv []string) {
+			client := getClient(config)
+			for _, id := range argv {
+				err := client.Delete(ctx, id)
+				if err != nil {
+					logrus.Errorf("failed to delete queue %q: %v", id, err)
 					continue
 				}
 			}

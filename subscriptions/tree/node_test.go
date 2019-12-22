@@ -9,6 +9,7 @@ import (
 )
 
 var (
+	sub_0 = &pb.Subscription{ID: "0", LastAdded: 1, Pattern: []byte("devices/a/degrees")}
 	sub_1 = &pb.Subscription{ID: "1", LastAdded: 1, Pattern: []byte("devices/+/degrees")}
 	sub_2 = &pb.Subscription{ID: "2", LastAdded: 1}
 	sub_3 = &pb.Subscription{ID: "3", LastAdded: 1}
@@ -93,6 +94,15 @@ func TestNode(t *testing.T) {
 			a (devices) -> b (#)
 		*/
 		set := root.Select(tenant, nil, topic)
+		require.Equal(t, 1, len(set))
+
+		// Deduplication
+		b = b.AddSubscription(tenant, sub_1)
+		a.inode.nodes[0] = b
+		/*
+			a (devices) -> b (#)
+		*/
+		set = root.Select(tenant, nil, topic)
 		require.Equal(t, 1, len(set))
 	})
 

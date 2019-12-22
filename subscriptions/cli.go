@@ -33,8 +33,8 @@ func (b *server) Shutdown() {
 }
 func (b *server) JoinServiceLayer(name string, logger *zap.Logger, config cluster.ServiceConfig, rpcConfig cluster.ServiceConfig, mesh cluster.DiscoveryLayer) {
 	l := cluster.NewGossipServiceLayer(name, logger, config, mesh)
-	b.store = NewSubscriptionStore(l, logger)
 	b.state = l
+	b.store = NewSubscriptionStore(l, logger)
 	kvConn, err := mesh.DialService("kv?raft_status=leader")
 	if err != nil {
 		panic(err)

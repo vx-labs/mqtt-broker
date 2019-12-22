@@ -98,7 +98,7 @@ func (b *server) v2ConsumePayload(messages []*messages.StoredMessage) (int, erro
 		if err != nil {
 			return 0, errors.Wrap(err, "failed to enqueue message")
 		}
-		b.logger.Info("enqueued messages", zap.Int("message_count", len(payload)))
+		b.logger.Info("enqueued messages", zap.Int("message_count", count))
 	}
 	return 0, nil
 }

@@ -89,9 +89,9 @@ func (d *INode) Select(tenant string, set []*pb.Subscription, topic topic.Topic)
 	for _, node := range d.nodes {
 		if node.tenant == tenant && matchPattern(token, node.pattern) {
 			if !ok || (len(node.pattern) == 1 && node.pattern[0] == '#') {
-				for _, sub := range node.data {
-					if crdt.IsEntryAdded(sub) {
-						set = append(set, node.data...)
+				for _, s := range node.data {
+					if crdt.IsEntryAdded(s) {
+						set = append(set, s)
 					}
 				}
 			} else {

@@ -41,6 +41,9 @@ func AddClusterFlags(root *cobra.Command) {
 	root.Flags().StringSliceP("join", "j", []string{}, "Join this node")
 	viper.BindPFlag("join", root.Flags().Lookup("join"))
 
+	root.Flags().IntP("healthcheck-port", "", 9000, "Run healthcheck http server on this port")
+	viper.BindPFlag("healthcheck-port", root.Flags().Lookup("healthcheck-port"))
+
 	root.Flags().BoolP("pprof", "", false, "Enable pprof endpoint")
 	root.Flags().BoolP("debug", "", false, "Enable debug logs and fancy log printing")
 	viper.BindPFlag("pprof", root.Flags().Lookup("pprof"))
@@ -167,10 +170,23 @@ func (ctx *Context) Run() error {
 	for _, service := range ctx.Services {
 		sensors = append(sensors, service)
 	}
-	go serveHTTPHealth(logger, sensors)
+	go serveHTTPHealth(viper.GetInt("healthcheck-port"), logger, sensors)
 	nodes := viper.GetStringSlice("join")
 	if len(nodes) > 0 {
-		mesh.Join(nodes)
+		go func() {
+			joinTicker := time.NewTicker(5 * time.Second)
+			defer joinTicker.Stop()
+			retries := 5
+			for retries > 0 {
+				err := mesh.Join(nodes)
+				if err == nil {
+					return
+				}
+				logger.Warn("failed to join provided cluster node", zap.Error(err))
+				retries--
+				<-joinTicker.C
+			}
+		}()
 	}
 	for _, service := range ctx.Services {
 		logger := ctx.Logger.WithOptions(zap.Fields(zap.String("service_name", service.ID)))
@@ -293,7 +309,7 @@ var serviceHealthMap = map[string]int{
 	"critical": 2,
 }
 
-func serveHTTPHealth(logger *zap.Logger, sensors []healthChecker) {
+func serveHTTPHealth(port int, logger *zap.Logger, sensors []healthChecker) {
 	mux := http.NewServeMux()
 	mux.Handle("/metrics", promhttp.Handler())
 	mux.HandleFunc("/health", func(w http.ResponseWriter, _ *http.Request) {
@@ -322,7 +338,7 @@ func serveHTTPHealth(logger *zap.Logger, sensors []healthChecker) {
 		}
 		json.NewEncoder(w).Encode(report)
 	})
-	err := http.ListenAndServe("[::]:9000", mux)
+	err := http.ListenAndServe(fmt.Sprintf("[::]:%d", port), mux)
 	if err != nil {
 		logger.Warn("failed to run healthcheck endpoint", zap.Error(err))
 	}

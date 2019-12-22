@@ -29,15 +29,40 @@ func (n *Node) casINode(old, cur unsafe.Pointer) bool {
 
 func (n *Node) AddSubscription(tenant string, subscription *pb.Subscription) *Node {
 	newNode := NewNode(tenant, n.pattern)
-	newNode.data = append(n.data, subscription)
+	size := 1
+	for _, s := range n.data {
+		if s.ID != subscription.ID {
+			size++
+		}
+	}
+	newNode.data = make([]*pb.Subscription, size)
+	idx := 0
+	for curIdx := range n.data {
+		s := n.data[curIdx]
+		if s.ID != subscription.ID {
+			newNode.data[idx] = s
+			idx++
+		}
+	}
+	newNode.data[idx] = subscription
 	newNode.inode = n.inode
 	return newNode
 }
 func (n *Node) DelSubscription(id string) *Node {
 	newNode := NewNode(n.tenant, n.pattern)
-	for _, subscription := range n.data {
-		if subscription.ID != id {
-			newNode.data = append(newNode.data, subscription)
+	size := 0
+	for _, s := range n.data {
+		if s.ID != id {
+			size++
+		}
+	}
+	newNode.data = make([]*pb.Subscription, size)
+	idx := 0
+	for curIdx := range n.data {
+		s := n.data[curIdx]
+		if s.ID != id {
+			newNode.data[idx] = s
+			idx++
 		}
 	}
 	newNode.inode = n.inode
