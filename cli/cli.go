@@ -161,7 +161,7 @@ func (ctx *Context) Run() error {
 		consulConfig.HttpClient = http.DefaultClient
 		consulAPI, err := consul.NewClient(consulConfig)
 		if err != nil {
-			logger.Fatal("failed to connect to consul")
+			logger.Error("failed to connect to consul", zap.Error(err))
 		}
 		go JoinConsulPeers(consulAPI, "cluster", clusterNetConf.AdvertisedAddress, clusterNetConf.AdvertisedPort, mesh, logger)
 	}
@@ -221,7 +221,7 @@ func (ctx *Context) Run() error {
 				gossipRPCConfig.ServicePort = port
 			}
 			logService(logger, service.ID, service.Network)
-			service.Service.JoinServiceLayer(service.ID, logger, serviceConfig, gossipRPCConfig, ctx.Discovery)
+			go service.Service.JoinServiceLayer(service.ID, logger, serviceConfig, gossipRPCConfig, ctx.Discovery)
 		}
 	}
 	quit := make(chan struct{})
@@ -248,6 +248,9 @@ func (ctx *Context) Run() error {
 
 func Bootstrap(cmd *cobra.Command) *Context {
 	id := uuid.New().String()
+	if allocID := os.Getenv("NOMAD_ALLOC_ID"); allocID != "" {
+		id = os.Getenv("NOMAD_ALLOC_ID")
+	}
 	ctx := &Context{
 		ID: id,
 	}
@@ -275,6 +278,7 @@ func Bootstrap(cmd *cobra.Command) *Context {
 	if err != nil {
 		panic(err)
 	}
+	logger.Info("starting node")
 	ctx.Logger = logger
 	if viper.GetBool("pprof") {
 		go func() {
@@ -286,6 +290,7 @@ func Bootstrap(cmd *cobra.Command) *Context {
 	ctx.MeshNetConf = &clusterNetConf
 	mesh := createMesh(id, logger, clusterNetConf)
 	ctx.Discovery = mesh
+	logger.Info("mesh created")
 	return ctx
 }
 

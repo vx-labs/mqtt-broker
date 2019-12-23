@@ -49,12 +49,47 @@ http_proxy="{{.Data.http_proxy}}"
 https_proxy="{{.Data.http_proxy}}"
 LE_EMAIL="{{.Data.acme_email}}"
 JWT_SIGN_KEY="{{ .Data.jwt_sign_key }}"
+TLS_CERTIFICATE="{{ env "NOMAD_TASK_DIR" }}//cert.pem"
+TLS_PRIVATE_KEY="{{ env "NOMAD_TASK_DIR" }}//key.pem"
+TLS_CA_CERTIFICATE="{{ env "NOMAD_TASK_DIR" }}//ca.pem"
 no_proxy="10.0.0.0/8,172.16.0.0/12,*.service.consul"
 {{end}}
         EOH
       }
 
-
+      template {
+        change_mode   = "restart"
+        destination = "local/cert.pem"
+        splay = "1h"
+        data = <<EOH
+{{- $cn := printf "common_name=%s" (env "NOMAD_ALLOC_ID") -}}
+{{- $ipsans := printf "ip_sans=%s" (env "NOMAD_IP_health") -}}
+{{- $path := printf "pki/issue/grpc" -}}
+{{ with secret $path $cn $ipsans }}{{ .Data.certificate }}{{ end }}
+EOH
+      }
+      template {
+        change_mode   = "restart"
+        destination = "local/key.pem"
+        splay = "1h"
+        data = <<EOH
+{{- $cn := printf "common_name=%s" (env "NOMAD_ALLOC_ID") -}}
+{{- $ipsans := printf "ip_sans=%s" (env "NOMAD_IP_health") -}}
+{{- $path := printf "pki/issue/grpc" -}}
+{{ with secret $path $cn $ipsans }}{{ .Data.private_key }}{{ end }}
+EOH
+      }
+      template {
+        change_mode   = "restart"
+        destination = "local/ca.pem"
+        splay = "1h"
+        data = <<EOH
+{{- $cn := printf "common_name=%s" (env "NOMAD_ALLOC_ID") -}}
+{{- $ipsans := printf "ip_sans=%s" (env "NOMAD_IP_health") -}}
+{{- $path := printf "pki/issue/grpc" -}}
+{{ with secret $path $cn $ipsans }}{{ .Data.issuing_ca }}{{ end }}
+EOH
+      }
       config {
         logging {
           type = "fluentd"
@@ -166,11 +201,47 @@ http_proxy="{{.Data.http_proxy}}"
 https_proxy="{{.Data.http_proxy}}"
 LE_EMAIL="{{.Data.acme_email}}"
 JWT_SIGN_KEY="{{ .Data.jwt_sign_key }}"
+TLS_CERTIFICATE="{{ env "NOMAD_TASK_DIR" }}//cert.pem"
+TLS_PRIVATE_KEY="{{ env "NOMAD_TASK_DIR" }}//key.pem"
+TLS_CA_CERTIFICATE="{{ env "NOMAD_TASK_DIR" }}//ca.pem"
 no_proxy="10.0.0.0/8,172.16.0.0/12,*.service.consul"
 {{end}}
         EOH
       }
 
+      template {
+        change_mode   = "restart"
+        destination = "local/cert.pem"
+        splay = "1h"
+        data = <<EOH
+{{- $cn := printf "common_name=%s" (env "NOMAD_ALLOC_ID") -}}
+{{- $ipsans := printf "ip_sans=%s" (env "NOMAD_IP_health") -}}
+{{- $path := printf "pki/issue/grpc" -}}
+{{ with secret $path $cn $ipsans }}{{ .Data.certificate }}{{ end }}
+EOH
+      }
+      template {
+        change_mode   = "restart"
+        destination = "local/key.pem"
+        splay = "1h"
+        data = <<EOH
+{{- $cn := printf "common_name=%s" (env "NOMAD_ALLOC_ID") -}}
+{{- $ipsans := printf "ip_sans=%s" (env "NOMAD_IP_health") -}}
+{{- $path := printf "pki/issue/grpc" -}}
+{{ with secret $path $cn $ipsans }}{{ .Data.private_key }}{{ end }}
+EOH
+      }
+      template {
+        change_mode   = "restart"
+        destination = "local/ca.pem"
+        splay = "1h"
+        data = <<EOH
+{{- $cn := printf "common_name=%s" (env "NOMAD_ALLOC_ID") -}}
+{{- $ipsans := printf "ip_sans=%s" (env "NOMAD_IP_health") -}}
+{{- $path := printf "pki/issue/grpc" -}}
+{{ with secret $path $cn $ipsans }}{{ .Data.issuing_ca }}{{ end }}
+EOH
+      }
       config {
         logging {
           type = "fluentd"
@@ -297,11 +368,47 @@ http_proxy="{{.Data.http_proxy}}"
 https_proxy="{{.Data.http_proxy}}"
 LE_EMAIL="{{.Data.acme_email}}"
 JWT_SIGN_KEY="{{ .Data.jwt_sign_key }}"
-no_proxy="10.0.0.0/8,172.16.0.0/12,*.consul"
+TLS_CERTIFICATE="{{ env "NOMAD_TASK_DIR" }}//cert.pem"
+TLS_PRIVATE_KEY="{{ env "NOMAD_TASK_DIR" }}//key.pem"
+TLS_CA_CERTIFICATE="{{ env "NOMAD_TASK_DIR" }}//ca.pem"
+no_proxy="10.0.0.0/8,172.16.0.0/12,*.service.consul"
 {{end}}
         EOH
       }
 
+      template {
+        change_mode   = "restart"
+        destination = "local/cert.pem"
+        splay = "1h"
+        data = <<EOH
+{{- $cn := printf "common_name=%s" (env "NOMAD_ALLOC_ID") -}}
+{{- $ipsans := printf "ip_sans=%s" (env "NOMAD_IP_health") -}}
+{{- $path := printf "pki/issue/grpc" -}}
+{{ with secret $path $cn $ipsans }}{{ .Data.certificate }}{{ end }}
+EOH
+      }
+      template {
+        change_mode   = "restart"
+        destination = "local/key.pem"
+        splay = "1h"
+        data = <<EOH
+{{- $cn := printf "common_name=%s" (env "NOMAD_ALLOC_ID") -}}
+{{- $ipsans := printf "ip_sans=%s" (env "NOMAD_IP_health") -}}
+{{- $path := printf "pki/issue/grpc" -}}
+{{ with secret $path $cn $ipsans }}{{ .Data.private_key }}{{ end }}
+EOH
+      }
+      template {
+        change_mode   = "restart"
+        destination = "local/ca.pem"
+        splay = "1h"
+        data = <<EOH
+{{- $cn := printf "common_name=%s" (env "NOMAD_ALLOC_ID") -}}
+{{- $ipsans := printf "ip_sans=%s" (env "NOMAD_IP_health") -}}
+{{- $path := printf "pki/issue/grpc" -}}
+{{ with secret $path $cn $ipsans }}{{ .Data.issuing_ca }}{{ end }}
+EOH
+      }
       config {
         logging {
           type = "fluentd"

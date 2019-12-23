@@ -12,6 +12,12 @@ job "mqtt-messages" {
   }
 
   group "messages" {
+     vault {
+      policies      = ["nomad-tls-storer"]
+      change_mode   = "signal"
+      change_signal = "SIGUSR1"
+      env           = false
+    }
     count = 3
     constraint {
         distinct_hosts = true
@@ -32,9 +38,61 @@ job "mqtt-messages" {
       driver = "docker"
 
       env {
-        CONSUL_HTTP_ADDR          = "172.17.0.1:8500"
+        CONSUL_HTTP_ADDR = "$${NOMAD_IP_health}:8500"
+        VAULT_ADDR       = "http://active.vault.service.consul:8200/"
       }
 
+      template {
+        destination = "local/proxy.conf"
+        env         = true
+
+        data = <<EOH
+TLS_CERTIFICATE="{{ env "NOMAD_TASK_DIR" }}//cert.pem"
+TLS_PRIVATE_KEY="{{ env "NOMAD_TASK_DIR" }}//key.pem"
+TLS_CA_CERTIFICATE="{{ env "NOMAD_TASK_DIR" }}//ca.pem"
+{{with secret "secret/data/vx/mqtt"}}
+http_proxy="{{.Data.http_proxy}}"
+https_proxy="{{.Data.http_proxy}}"
+LE_EMAIL="{{.Data.acme_email}}"
+JWT_SIGN_KEY="{{ .Data.jwt_sign_key }}"
+no_proxy="10.0.0.0/8,172.16.0.0/12,*.service.consul"
+{{end}}
+        EOH
+      }
+
+      template {
+        change_mode   = "restart"
+        destination = "local/cert.pem"
+        splay = "1h"
+        data = <<EOH
+{{- $cn := printf "common_name=%s" (env "NOMAD_ALLOC_ID") -}}
+{{- $ipsans := printf "ip_sans=%s" (env "NOMAD_IP_health") -}}
+{{- $path := printf "pki/issue/grpc" -}}
+{{ with secret $path $cn $ipsans }}{{ .Data.certificate }}{{ end }}
+EOH
+      }
+      template {
+        change_mode   = "restart"
+        destination = "local/key.pem"
+        splay = "1h"
+        data = <<EOH
+{{- $cn := printf "common_name=%s" (env "NOMAD_ALLOC_ID") -}}
+{{- $ipsans := printf "ip_sans=%s" (env "NOMAD_IP_health") -}}
+{{- $path := printf "pki/issue/grpc" -}}
+{{ with secret $path $cn $ipsans }}{{ .Data.private_key }}{{ end }}
+EOH
+      }
+      template {
+        change_mode   = "restart"
+        destination = "local/ca.pem"
+        splay = "1h"
+        data = <<EOH
+{{- $cn := printf "common_name=%s" (env "NOMAD_ALLOC_ID") -}}
+{{- $ipsans := printf "ip_sans=%s" (env "NOMAD_IP_health") -}}
+{{- $path := printf "pki/issue/grpc" -}}
+{{ with secret $path $cn $ipsans }}{{ .Data.issuing_ca }}{{ end }}
+EOH
+      }
       config {
         logging {
           type = "fluentd"

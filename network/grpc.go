@@ -1,7 +1,10 @@
 package network
 
 import (
+	"os"
 	"time"
+
+	"google.golang.org/grpc/credentials"
 
 	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
 	"google.golang.org/grpc"
@@ -31,22 +34,29 @@ var kacp = keepalive.ClientParameters{
 }
 
 func GRPCServerOptions() []grpc.ServerOption {
+	tlsCreds, err := credentials.NewServerTLSFromFile(os.Getenv("TLS_CERTIFICATE"), os.Getenv("TLS_PRIVATE_KEY"))
+	if err != nil {
+		panic(err)
+	}
 	return []grpc.ServerOption{
 		grpc.StreamInterceptor(grpc_prometheus.StreamServerInterceptor),
 		grpc.UnaryInterceptor(grpc_prometheus.UnaryServerInterceptor),
+		grpc.Creds(tlsCreds),
 		/*		grpc.KeepaliveEnforcementPolicy(kaep),
 				grpc.KeepaliveParams(kasp),*/
 	}
 }
 func GRPCClientOptions() []grpc.DialOption {
+	tlsConfig, err := credentials.NewClientTLSFromFile(os.Getenv("TLS_CA_CERTIFICATE"), "")
+	if err != nil {
+		panic(err)
+	}
 	return []grpc.DialOption{
-		grpc.WithInsecure(),
+		grpc.WithTransportCredentials(tlsConfig),
 		//	grpc.WithKeepaliveParams(kacp),
+		grpc.WithConnectParams(grpc.ConnectParams{MinConnectTimeout: 300 * time.Millisecond}),
 		grpc.WithStreamInterceptor(grpc_prometheus.StreamClientInterceptor),
 		grpc.WithUnaryInterceptor(grpc_prometheus.UnaryClientInterceptor),
 		grpc.WithBalancerName(roundrobin.Name),
-		grpc.WithDefaultCallOptions(
-			grpc.WaitForReady(true),
-		),
 	}
 }

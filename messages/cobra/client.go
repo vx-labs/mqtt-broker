@@ -4,6 +4,8 @@ import (
 	"log"
 	"time"
 
+	"github.com/vx-labs/mqtt-broker/network"
+
 	"github.com/spf13/viper"
 	"github.com/vx-labs/mqtt-broker/messages/pb"
 	"google.golang.org/grpc"
@@ -11,8 +13,9 @@ import (
 
 func getClient(config *viper.Viper) *pb.Client {
 	host := config.GetString("host")
+	opts := network.GRPCClientOptions()
 	conn, err := grpc.Dial(host,
-		grpc.WithInsecure(), grpc.WithBlock(), grpc.WithTimeout(300*time.Millisecond))
+		append(opts, grpc.WithTimeout(800*time.Millisecond))...)
 	if err != nil {
 		log.Fatalf("failed to connect %s: %v", host, err)
 	}
