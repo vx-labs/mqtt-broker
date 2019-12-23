@@ -95,4 +95,4 @@ build-common::
 	docker build ${DOCKER_BUILD_ARGS} --target builder .
 
 dockerfiles::
-	for svc in api listener subscriptions sessions broker queues messages kv router; do sed "s/###/$$svc/g" Dockerfile > Dockerfile.$$svc; done
+	for svc in api listener subscriptions sessions broker queues messages kv router topics; do sed "s/###/$$svc/g" Dockerfile > Dockerfile.$$svc; done

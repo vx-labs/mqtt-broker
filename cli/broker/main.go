@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"log"
 	"os"
 
 	"github.com/vx-labs/mqtt-broker/cli"
@@ -16,8 +15,6 @@ import (
 
 	_ "net/http/pprof"
 
-	auth "github.com/vx-labs/iot-mqtt-auth/api"
-
 	"github.com/spf13/cobra"
 )
 
@@ -27,25 +24,11 @@ func authHelper(ctx context.Context) func(transport transport.Metadata, sessionI
 			return "_default", nil
 		}
 	}
-	api, err := auth.New(os.Getenv("AUTH_HOST"))
-	if err != nil {
-		panic(err)
-	}
 	return func(transport transport.Metadata, sessionID []byte, username string, password string) (tenant string, err error) {
-		success, tenant, err := api.Authenticate(
-			ctx,
-			auth.WithProtocolContext(
-				username,
-				password,
-			),
-			auth.WithTransportContext(transport.Encrypted, transport.RemoteAddress, nil),
-		)
-		if err != nil {
-			log.Printf("ERROR: auth failed: %v", err)
-			return "", fmt.Errorf("bad_username_or_password")
-		}
-		if success {
-			return tenant, nil
+		if username == "vx:psk" || username == "vx-psk" {
+			if password == os.Getenv("PSK_PASSWORD") {
+				return "_default", nil
+			}
 		}
 		return "", fmt.Errorf("bad_username_or_password")
 	}
