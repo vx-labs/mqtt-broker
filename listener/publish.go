@@ -25,3 +25,22 @@ func (b *endpoint) enqueuePublish(ctx context.Context, tenant string, sender str
 	}
 	return nil
 }
+
+func (local *endpoint) PublishHandler(ctx context.Context, session *localSession, p *packet.Publish) error {
+	decodedToken, err := DecodeSessionToken(SigningKey(), session.token)
+	if err != nil {
+		session.logger.Error("failed to validate session token", zap.Error(err))
+		return err
+	}
+	err = local.enqueuePublish(ctx, decodedToken.SessionTenant, decodedToken.SessionID, p)
+	if err != nil {
+		session.logger.Error("failed to publish packet", zap.Error(err))
+		return err
+	}
+	switch p.Header.Qos {
+	case 1:
+		return session.encoder.PubAck(&packet.PubAck{Header: &packet.Header{}, MessageId: p.MessageId})
+	default:
+		return nil
+	}
+}

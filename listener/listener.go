@@ -3,11 +3,12 @@ package listener
 import (
 	"context"
 	"errors"
-	"io"
 	"net"
 	"os"
 	"strings"
 	"sync"
+
+	"github.com/vx-labs/mqtt-broker/struct/queues/inflight"
 
 	"github.com/dgrijalva/jwt-go"
 	"github.com/google/btree"
@@ -98,8 +99,10 @@ type localSession struct {
 	id        string
 	token     string
 	encoder   *encoder.Encoder
+	timer     int32
+	inflights *inflight.Queue
 	logger    *zap.Logger
-	transport io.Closer
+	transport transport.Metadata
 }
 
 func (local *localSession) Less(remote btree.Item) bool {

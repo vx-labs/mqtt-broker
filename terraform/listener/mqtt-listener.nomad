@@ -12,6 +12,12 @@ job "mqtt-listener" {
   }
 
   group "tcp-listener" {
+    vault {
+      policies      = ["nomad-tls-storer"]
+      change_mode   = "signal"
+      change_signal = "SIGUSR1"
+      env           = false
+    }
     count = 2
 
     restart {
@@ -29,8 +35,25 @@ job "mqtt-listener" {
       driver = "docker"
 
       env {
-        CONSUL_HTTP_ADDR = "172.17.0.1:8500"
+        CONSUL_HTTP_ADDR = "$${NOMAD_IP_health}:8500"
+        VAULT_ADDR       = "http://active.vault.service.consul:8200/"
       }
+
+      template {
+        destination = "local/proxy.conf"
+        env         = true
+
+        data = <<EOH
+{{with secret "secret/data/vx/mqtt"}}
+http_proxy="{{.Data.http_proxy}}"
+https_proxy="{{.Data.http_proxy}}"
+LE_EMAIL="{{.Data.acme_email}}"
+JWT_SIGN_KEY="{{ .Data.jwt_sign_key }}"
+no_proxy="10.0.0.0/8,172.16.0.0/12,*.service.consul"
+{{end}}
+        EOH
+      }
+
 
       config {
         logging {
@@ -142,6 +165,7 @@ job "mqtt-listener" {
 http_proxy="{{.Data.http_proxy}}"
 https_proxy="{{.Data.http_proxy}}"
 LE_EMAIL="{{.Data.acme_email}}"
+JWT_SIGN_KEY="{{ .Data.jwt_sign_key }}"
 no_proxy="10.0.0.0/8,172.16.0.0/12,*.service.consul"
 {{end}}
         EOH
@@ -272,6 +296,7 @@ no_proxy="10.0.0.0/8,172.16.0.0/12,*.service.consul"
 http_proxy="{{.Data.http_proxy}}"
 https_proxy="{{.Data.http_proxy}}"
 LE_EMAIL="{{.Data.acme_email}}"
+JWT_SIGN_KEY="{{ .Data.jwt_sign_key }}"
 no_proxy="10.0.0.0/8,172.16.0.0/12,*.consul"
 {{end}}
         EOH
