@@ -1,5 +1,6 @@
 vendor
 Docker*
+Procfile
 .dockerignore
 Makefile
 release
@@ -12,3 +13,5 @@ README.md
 docker-compose.yml
 run
 terraform/
+.git/
+run_config

@@ -16,10 +16,10 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	eventsCommand "github.com/vx-labs/mqtt-broker/events/cobra"
-	kvCommand "github.com/vx-labs/mqtt-broker/kv/cobra"
-	messagesCommand "github.com/vx-labs/mqtt-broker/messages/cobra"
-	queuesCommand "github.com/vx-labs/mqtt-broker/queues/cobra"
-	subscriptionsCommand "github.com/vx-labs/mqtt-broker/subscriptions/cobra"
+	kvCommand "github.com/vx-labs/mqtt-broker/services/kv/cobra"
+	messagesCommand "github.com/vx-labs/mqtt-broker/services/messages/cobra"
+	queuesCommand "github.com/vx-labs/mqtt-broker/services/queues/cobra"
+	subscriptionsCommand "github.com/vx-labs/mqtt-broker/services/subscriptions/cobra"
 )
 
 func listLocalIP() []net.IP {

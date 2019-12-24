@@ -82,7 +82,6 @@ func NewDiscoveryLayer(logger *zap.Logger, userConfig config.Config) *discoveryL
 		if err != nil {
 			logger.Warn("failed to update peer in local store", zap.Error(err))
 		}
-		logger.Info("node joined", zap.String("remote_node_id", id[:8]))
 	}
 	userConfig.OnNodeLeave = func(id string, _ []byte) {
 		if id == userConfig.ID {
@@ -92,7 +91,6 @@ func NewDiscoveryLayer(logger *zap.Logger, userConfig config.Config) *discoveryL
 		if err != nil {
 			logger.Warn("failed to delete peer in local store", zap.Error(err))
 		}
-		logger.Info("node left", zap.String("remote_node_id", id[:8]))
 	}
 	userConfig.OnNodeUpdate = func(id string, meta []byte) {
 		if id == userConfig.ID {

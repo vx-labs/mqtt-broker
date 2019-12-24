@@ -1,63 +1,25 @@
 VERSION = $(shell git rev-parse --short HEAD)
 DOCKER_BUILD_ARGS = --network host --build-arg https_proxy=${https_proxy} --build-arg BUILT_VERSION=${VERSION}
 
-build:: build-api build-broker build-listener build-sessions build-subscriptions build-queues build-messages build-kv build-router build-topics
-release:: release-api release-broker release-listener release-sessions release-subscriptions release-queues release-messages release-kv release-router release-topics
-deploy: deploy-api deploy-broker deploy-listener deploy-sessions deploy-subscriptions deploy-queues deploy-messages deploy-kv deploy-router deploy-topics
+build::
+	docker build ${DOCKER_BUILD_ARGS} -t quay.io/vxlabs/mqtt-broker:${VERSION} .
+release:: build release-nodep
+deploy: release deploy-nodep
 deploy-nodep: deploy-api-nodep deploy-broker-nodep deploy-listener-nodep deploy-sessions-nodep deploy-subscriptions-nodep deploy-queues-nodep deploy-messages-nodep deploy-kv-nodep deploy-router-nodep deploy-topics-nodep
 
-build-api:: build-common
-	docker build ${DOCKER_BUILD_ARGS} --build-arg ARTIFACT=api -t quay.io/vxlabs/mqtt-api:${VERSION} .
-build-broker:: build-common
-	docker build ${DOCKER_BUILD_ARGS} --build-arg ARTIFACT=broker -t quay.io/vxlabs/mqtt-broker:${VERSION} .
-build-listener:: build-common
-	docker build ${DOCKER_BUILD_ARGS} --build-arg ARTIFACT=listener -t quay.io/vxlabs/mqtt-listener:${VERSION} .
-build-sessions:: build-common
-	docker build ${DOCKER_BUILD_ARGS} --build-arg ARTIFACT=sessions -t quay.io/vxlabs/mqtt-sessions:${VERSION} .
-build-subscriptions:: build-common
-	docker build ${DOCKER_BUILD_ARGS} --build-arg ARTIFACT=subscriptions -t quay.io/vxlabs/mqtt-subscriptions:${VERSION} .
-build-queues:: build-common
-	docker build ${DOCKER_BUILD_ARGS} --build-arg ARTIFACT=queues -t quay.io/vxlabs/mqtt-queues:${VERSION} .
-build-messages:: build-common
-	docker build ${DOCKER_BUILD_ARGS} --build-arg ARTIFACT=messages -t quay.io/vxlabs/mqtt-messages:${VERSION} .
-build-kv:: build-common
-	docker build ${DOCKER_BUILD_ARGS} --build-arg ARTIFACT=kv -t quay.io/vxlabs/mqtt-kv:${VERSION} .
-build-router:: build-common
-	docker build ${DOCKER_BUILD_ARGS} --build-arg ARTIFACT=router -t quay.io/vxlabs/mqtt-router:${VERSION} .
-build-topics:: build-common
-	docker build ${DOCKER_BUILD_ARGS} --build-arg ARTIFACT=topics -t quay.io/vxlabs/mqtt-topics:${VERSION} .
-
-release-api:: build-api
-	docker push quay.io/vxlabs/mqtt-api:${VERSION}
-release-broker:: build-broker
+release-nodep:
 	docker push quay.io/vxlabs/mqtt-broker:${VERSION}
-release-listener:: build-listener
-	docker push quay.io/vxlabs/mqtt-listener:${VERSION}
-release-sessions:: build-sessions
-	docker push quay.io/vxlabs/mqtt-sessions:${VERSION}
-release-subscriptions:: build-subscriptions
-	docker push quay.io/vxlabs/mqtt-subscriptions:${VERSION}
-release-queues:: build-queues
-	docker push quay.io/vxlabs/mqtt-queues:${VERSION}
-release-messages:: build-messages
-	docker push quay.io/vxlabs/mqtt-messages:${VERSION}
-release-kv:: build-kv
-	docker push quay.io/vxlabs/mqtt-kv:${VERSION}
-release-router:: build-router
-	docker push quay.io/vxlabs/mqtt-router:${VERSION}
-release-topics:: build-topics
-	docker push quay.io/vxlabs/mqtt-topics:${VERSION}
 
-deploy-api:: release-api deploy-api-nodep
-deploy-broker:: release-broker deploy-broker-nodep
-deploy-listener:: release-listener deploy-listener-nodep
-deploy-sessions:: release-sessions deploy-sessions-nodep
-deploy-subscriptions:: release-subscriptions deploy-subscriptions-nodep
-deploy-queues:: release-queues deploy-queues-nodep
-deploy-messages:: release-messages deploy-messages-nodep
-deploy-kv:: release-kv deploy-kv-nodep
-deploy-router:: release-router deploy-router-nodep
-deploy-topics:: release-topics deploy-topics-nodep
+deploy-api:: release deploy-api-nodep
+deploy-broker:: release deploy-broker-nodep
+deploy-listener:: release deploy-listener-nodep
+deploy-sessions:: release deploy-sessions-nodep
+deploy-subscriptions:: release deploy-subscriptions-nodep
+deploy-queues:: release deploy-queues-nodep
+deploy-messages:: release deploy-messages-nodep
+deploy-kv:: release deploy-kv-nodep
+deploy-router:: release deploy-router-nodep
+deploy-topics:: release deploy-topics-nodep
 
 deploy-api-nodep::
 	cd terraform/api && terraform init      && terraform apply -auto-approve -var api_version=${VERSION}
@@ -90,9 +52,3 @@ nuke:
 	cd terraform/kv && terraform init && terraform destroy -auto-approve -var kv_version=${VERSION}
 	cd terraform/router && terraform init && terraform destroy -auto-approve -var router_version=${VERSION}
 	cd terraform/topics && terraform init && terraform destroy -auto-approve -var topics_version=${VERSION}
-
-build-common::
-	docker build ${DOCKER_BUILD_ARGS} --target builder .
-
-dockerfiles::
-	for svc in api listener subscriptions sessions broker queues messages kv router topics; do sed "s/###/$$svc/g" Dockerfile > Dockerfile.$$svc; done

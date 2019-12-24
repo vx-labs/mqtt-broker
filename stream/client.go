@@ -8,8 +8,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	kv "github.com/vx-labs/mqtt-broker/kv/pb"
-	messages "github.com/vx-labs/mqtt-broker/messages/pb"
+	kv "github.com/vx-labs/mqtt-broker/services/kv/pb"
+	messages "github.com/vx-labs/mqtt-broker/services/messages/pb"
 	"go.uber.org/zap"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"

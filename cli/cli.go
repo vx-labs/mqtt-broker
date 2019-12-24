@@ -37,23 +37,33 @@ type Service interface {
 	Health() string
 }
 
-func AddClusterFlags(root *cobra.Command) {
+func AddClusterFlags(root *cobra.Command, config *viper.Viper) {
 	root.Flags().StringSliceP("join", "j", []string{}, "Join this node")
-	viper.BindPFlag("join", root.Flags().Lookup("join"))
+	config.BindPFlag("join", root.Flags().Lookup("join"))
+	root.Flags().StringP("grpc-tls-certificate", "", "./run_config/cert.pem", "TLS certificate to use")
+	config.BindPFlag("grpc-tls-certificate", root.Flags().Lookup("grpc-tls-certificate"))
+	root.Flags().StringP("grpc-tls-private-key", "", "./run_config/privkey.pem", "TLS private key to use")
+	config.BindPFlag("grpc-tls-private-key", root.Flags().Lookup("grpc-tls-private-key"))
+	root.Flags().StringP("grpc-tls-certificate-authority", "", "./run_config/cert.pem", "TLS CA to use")
+	config.BindPFlag("grpc-tls-certificate-authority", root.Flags().Lookup("grpc-tls-certificate-authority"))
 
 	root.Flags().IntP("healthcheck-port", "", 9000, "Run healthcheck http server on this port")
-	viper.BindPFlag("healthcheck-port", root.Flags().Lookup("healthcheck-port"))
+	config.BindPFlag("healthcheck-port", root.Flags().Lookup("healthcheck-port"))
 
 	root.Flags().BoolP("pprof", "", false, "Enable pprof endpoint")
 	root.Flags().BoolP("debug", "", false, "Enable debug logs and fancy log printing")
-	viper.BindPFlag("pprof", root.Flags().Lookup("pprof"))
-	viper.BindPFlag("debug", root.Flags().Lookup("debug"))
-	network.RegisterFlagsForService(root, FLAG_NAME_CLUSTER, 3500)
+	config.BindPFlag("pprof", root.Flags().Lookup("pprof"))
+	config.BindPFlag("debug", root.Flags().Lookup("debug"))
+	network.RegisterFlagsForService(root, config, FLAG_NAME_CLUSTER, 3500)
 }
-func AddServiceFlags(root *cobra.Command, name string) {
-	network.RegisterFlagsForService(root, fmt.Sprintf("%s_gossip_rpc", name), 0)
-	network.RegisterFlagsForService(root, fmt.Sprintf("%s_gossip", name), 0)
-	network.RegisterFlagsForService(root, name, 0)
+func AddServiceFlags(root *cobra.Command, config *viper.Viper, name string) {
+	startServiceFlagName := fmt.Sprintf("start-%s", name)
+	root.Flags().BoolP(startServiceFlagName, "", true, fmt.Sprintf("Start the %s service", name))
+	config.BindPFlag(startServiceFlagName, root.Flags().Lookup(startServiceFlagName))
+
+	network.RegisterFlagsForService(root, config, fmt.Sprintf("%s_gossip_rpc", name), 0)
+	network.RegisterFlagsForService(root, config, fmt.Sprintf("%s_gossip", name), 0)
+	network.RegisterFlagsForService(root, config, name, 0)
 }
 
 func JoinConsulPeers(api *consul.Client, service string, selfAddress string, selfPort int, mesh cluster.Mesh, logger *zap.Logger) error {
@@ -126,13 +136,13 @@ type Context struct {
 	Services    []*serviceRunConfig
 }
 
-func (ctx *Context) AddService(cmd *cobra.Command, name string, f func(id string, logger *zap.Logger, mesh cluster.DiscoveryLayer) Service) {
+func (ctx *Context) AddService(cmd *cobra.Command, config *viper.Viper, name string, f func(id string, config *viper.Viper, logger *zap.Logger, mesh cluster.DiscoveryLayer) Service) {
 	id := ctx.ID
 	logger := ctx.Logger.WithOptions(zap.Fields(zap.String("service_name", name)))
-	serviceNetConf := network.ConfigurationFromFlags(cmd, name)
-	serviceGossipNetConf := network.ConfigurationFromFlags(cmd, fmt.Sprintf("%s_gossip", name))
-	serviceGossipRPCNetConf := network.ConfigurationFromFlags(cmd, fmt.Sprintf("%s_gossip_rpc", name))
-	service := f(id, logger, ctx.Discovery)
+	serviceNetConf := network.ConfigurationFromFlags(cmd, config, name)
+	serviceGossipNetConf := network.ConfigurationFromFlags(cmd, config, fmt.Sprintf("%s_gossip", name))
+	serviceGossipRPCNetConf := network.ConfigurationFromFlags(cmd, config, fmt.Sprintf("%s_gossip_rpc", name))
+	service := f(id, config, logger, ctx.Discovery)
 
 	ctx.Services = append(ctx.Services, &serviceRunConfig{
 		Gossip:    serviceGossipNetConf,
@@ -143,7 +153,7 @@ func (ctx *Context) AddService(cmd *cobra.Command, name string, f func(id string
 	})
 }
 
-func (ctx *Context) Run() error {
+func (ctx *Context) Run(v *viper.Viper) error {
 	defer func() {
 		if r := recover(); r != nil {
 			ctx.Logger.Error("panic", zap.String("panic_log", fmt.Sprint(r)))
@@ -170,8 +180,8 @@ func (ctx *Context) Run() error {
 	for _, service := range ctx.Services {
 		sensors = append(sensors, service)
 	}
-	go serveHTTPHealth(viper.GetInt("healthcheck-port"), logger, sensors)
-	nodes := viper.GetStringSlice("join")
+	go serveHTTPHealth(v.GetInt("healthcheck-port"), logger, sensors)
+	nodes := v.GetStringSlice("join")
 	if len(nodes) > 0 {
 		go func() {
 			joinTicker := time.NewTicker(5 * time.Second)
@@ -246,7 +256,7 @@ func (ctx *Context) Run() error {
 	return nil
 }
 
-func Bootstrap(cmd *cobra.Command) *Context {
+func Bootstrap(cmd *cobra.Command, v *viper.Viper) *Context {
 	id := uuid.New().String()
 	if allocID := os.Getenv("NOMAD_ALLOC_ID"); allocID != "" {
 		id = os.Getenv("NOMAD_ALLOC_ID")
@@ -269,7 +279,7 @@ func Bootstrap(cmd *cobra.Command) *Context {
 	opts := []zap.Option{
 		zap.Fields(fields...),
 	}
-	if viper.GetBool("debug") {
+	if v.GetBool("debug") {
 		logger, err = zap.NewDevelopment(opts...)
 		logger.Debug("started debug logger")
 	} else {
@@ -280,13 +290,13 @@ func Bootstrap(cmd *cobra.Command) *Context {
 	}
 	logger.Info("starting node")
 	ctx.Logger = logger
-	if viper.GetBool("pprof") {
+	if v.GetBool("pprof") {
 		go func() {
 			fmt.Println("pprof endpoint is running on port 8080")
 			http.ListenAndServe(":8080", nil)
 		}()
 	}
-	clusterNetConf := network.ConfigurationFromFlags(cmd, FLAG_NAME_CLUSTER)
+	clusterNetConf := network.ConfigurationFromFlags(cmd, v, FLAG_NAME_CLUSTER)
 	ctx.MeshNetConf = &clusterNetConf
 	mesh := createMesh(id, logger, clusterNetConf)
 	ctx.Discovery = mesh

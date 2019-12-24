@@ -1,6 +1,8 @@
 .env*
 vendor/
 .vscode
+terraform/.terraform
+terraform/terraform.tfstate*
 terraform/*/.terraform
 terraform/*/terraform.tfstate
 terraform/*/terraform.tfstate*

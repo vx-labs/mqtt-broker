@@ -79,12 +79,12 @@ func (c Configuration) Describe(name string) string {
 	)
 }
 
-func ConfigurationFromFlags(cmd *cobra.Command, name string) Configuration {
+func ConfigurationFromFlags(cmd *cobra.Command, v *viper.Viper, name string) Configuration {
 	config := Configuration{
-		AdvertisedAddress: viper.GetString(advertisedAddressFlagName(name)),
-		AdvertisedPort:    viper.GetInt(advertisedPortFlagName(name)),
-		BindAddress:       viper.GetString(bindAddressFlagName(name)),
-		BindPort:          viper.GetInt(bindPortFlagName(name)),
+		AdvertisedAddress: v.GetString(advertisedAddressFlagName(name)),
+		AdvertisedPort:    v.GetInt(advertisedPortFlagName(name)),
+		BindAddress:       v.GetString(bindAddressFlagName(name)),
+		BindPort:          v.GetInt(bindPortFlagName(name)),
 	}
 
 	if len(config.AdvertisedAddress) == 0 {
@@ -114,7 +114,7 @@ func ConfigurationFromFlags(cmd *cobra.Command, name string) Configuration {
 	}
 	return config
 }
-func RegisterFlagsForService(cmd *cobra.Command, name string, defaultPort int) {
+func RegisterFlagsForService(cmd *cobra.Command, config *viper.Viper, name string, defaultPort int) {
 	long := bindPortFlagName(name)
 	longAddr := bindAddressFlagName(name)
 	advLong := advertisedPortFlagName(name)
@@ -123,18 +123,18 @@ func RegisterFlagsForService(cmd *cobra.Command, name string, defaultPort int) {
 	defaultAddr := localPrivateHost()
 
 	cmd.Flags().IntP(long, "", defaultPort, fmt.Sprintf("Start %s listener on this port", name))
-	viper.BindPFlag(long, cmd.Flags().Lookup(long))
-	viper.BindEnv(long, fmt.Sprintf("NOMAD_PORT_%s", name))
+	config.BindPFlag(long, cmd.Flags().Lookup(long))
+	config.BindEnv(long, fmt.Sprintf("NOMAD_PORT_%s", name))
 
 	cmd.Flags().StringP(longAddr, "", defaultAddr, fmt.Sprintf("Start %s listener on this address", name))
-	viper.BindPFlag(longAddr, cmd.Flags().Lookup(longAddr))
+	config.BindPFlag(longAddr, cmd.Flags().Lookup(longAddr))
 
 	cmd.Flags().StringP(advLongAddr, "", defaultAddr, fmt.Sprintf("Advertise %s listener on this address", name))
-	viper.BindPFlag(advLongAddr, cmd.Flags().Lookup(advLongAddr))
-	viper.BindEnv(advLongAddr, fmt.Sprintf("NOMAD_IP_%s", name))
+	config.BindPFlag(advLongAddr, cmd.Flags().Lookup(advLongAddr))
+	config.BindEnv(advLongAddr, fmt.Sprintf("NOMAD_IP_%s", name))
 
 	cmd.Flags().IntP(advLong, "", 0, fmt.Sprintf("Advertise %s listener on this port", name))
-	viper.BindPFlag(advLong, cmd.Flags().Lookup(advLong))
-	viper.BindEnv(advLong, fmt.Sprintf("NOMAD_HOST_PORT_%s", name))
+	config.BindPFlag(advLong, cmd.Flags().Lookup(advLong))
+	config.BindEnv(advLong, fmt.Sprintf("NOMAD_HOST_PORT_%s", name))
 
 }
