@@ -1,6 +1,7 @@
 package network
 
 import (
+	"crypto/tls"
 	"os"
 	"time"
 
@@ -47,9 +48,17 @@ func GRPCServerOptions() []grpc.ServerOption {
 	}
 }
 func GRPCClientOptions() []grpc.DialOption {
-	tlsConfig, err := credentials.NewClientTLSFromFile(os.Getenv("TLS_CA_CERTIFICATE"), "")
-	if err != nil {
-		panic(err)
+	var tlsConfig credentials.TransportCredentials
+	var err error
+	if caCertificate := os.Getenv("TLS_CA_CERTIFICATE"); caCertificate != "" {
+		tlsConfig, err = credentials.NewClientTLSFromFile(os.Getenv("TLS_CA_CERTIFICATE"), "")
+		if err != nil {
+			panic(err)
+		}
+	} else {
+		tlsConfig = credentials.NewTLS(&tls.Config{
+			InsecureSkipVerify: os.Getenv("TLS_INSECURE_SKIP_VERIFY") == "true",
+		})
 	}
 	return []grpc.DialOption{
 		grpc.WithTransportCredentials(tlsConfig),
