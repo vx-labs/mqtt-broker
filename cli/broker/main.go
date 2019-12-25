@@ -1,55 +1,89 @@
 package main
 
 import (
-	"context"
 	"fmt"
+
+	"github.com/spf13/viper"
+
+	_ "net/http/pprof"
 	"os"
 
 	"github.com/vx-labs/mqtt-broker/cli"
-	"github.com/vx-labs/mqtt-broker/transport"
-	"go.uber.org/zap"
-
-	"github.com/vx-labs/mqtt-broker/broker"
-
-	"github.com/vx-labs/mqtt-broker/cluster"
-
-	_ "net/http/pprof"
 
 	"github.com/spf13/cobra"
 )
 
-func authHelper(ctx context.Context) func(transport transport.Metadata, sessionID []byte, username string, password string) (tenant string, err error) {
-	if os.Getenv("BYPASS_AUTH") == "true" {
-		return func(transport transport.Metadata, sessionID []byte, username string, password string) (tenant string, err error) {
-			return "_default", nil
-		}
-	}
-	return func(transport transport.Metadata, sessionID []byte, username string, password string) (tenant string, err error) {
-		if username == "vx:psk" || username == "vx-psk" {
-			if password == os.Getenv("PSK_PASSWORD") {
-				return "_default", nil
-			}
-		}
-		return "", fmt.Errorf("bad_username_or_password")
-	}
-}
-
 func main() {
+	config := viper.New()
 	root := &cobra.Command{
 		Use: "broker",
+	}
+	dev := &cobra.Command{
+		Use: "dev",
+		PreRun: func(c *cobra.Command, _ []string) {
+			config.BindPFlag("certificate-file", c.Flags().Lookup("certificate-file"))
+			config.BindPFlag("private-key-file", c.Flags().Lookup("private-key-file"))
+		},
+		Short: "Start all services",
 		Run: func(cmd *cobra.Command, args []string) {
-			ctx := cli.Bootstrap(cmd)
-			ctx.AddService(cmd, "broker", func(id string, logger *zap.Logger, mesh cluster.DiscoveryLayer) cli.Service {
-				config := broker.DefaultConfig()
-				if os.Getenv("NOMAD_ALLOC_ID") != "" {
-					config.AuthHelper = authHelper(context.Background())
+			ctx := cli.Bootstrap(cmd, config)
+			for _, service := range Services() {
+				if config.GetBool(fmt.Sprintf("start-%s", service.Name())) {
+					ctx.AddService(cmd, config, service.Name(), service.Run)
 				}
-				return broker.New(id, logger, mesh, config)
-			})
-			ctx.Run()
+			}
+			ctx.Run(config)
 		},
 	}
-	cli.AddClusterFlags(root)
-	cli.AddServiceFlags(root, "broker")
+	dev.Flags().StringP("certificate-file", "c", "./run_config/cert.pem", "Write certificate to this file")
+	dev.Flags().StringP("private-key-file", "k", "./run_config/privkey.pem", "Write private key to this file")
+	for _, service := range Services() {
+		cli.AddServiceFlags(dev, config, service.Name())
+		err := service.Register(dev, config)
+		if err != nil {
+			panic(err)
+		}
+	}
+
+	cli.AddClusterFlags(dev, config)
+
+	services := &cobra.Command{
+		Use:     "service",
+		Aliases: []string{"services"},
+	}
+	serviceList := Services()
+	for idx := range serviceList {
+		service := serviceList[idx]
+		serviceConfig := viper.New()
+		serviceCommand := &cobra.Command{
+			Use: service.Name(),
+			PreRun: func(cmd *cobra.Command, _ []string) {
+				if os.Getenv("TLS_PRIVATE_KEY") == "" {
+					os.Setenv("TLS_PRIVATE_KEY", serviceConfig.GetString("grpc-tls-private-key"))
+				}
+				if os.Getenv("TLS_CERTIFICATE") == "" {
+					os.Setenv("TLS_CERTIFICATE", serviceConfig.GetString("grpc-tls-certificate"))
+				}
+				if os.Getenv("TLS_CA_CERTIFICATE") == "" {
+					os.Setenv("TLS_CA_CERTIFICATE", serviceConfig.GetString("grpc-tls-certificate-authority"))
+				}
+			},
+			Run: func(cmd *cobra.Command, _ []string) {
+				ctx := cli.Bootstrap(cmd, serviceConfig)
+				ctx.AddService(cmd, serviceConfig, service.Name(), service.Run)
+				ctx.Run(serviceConfig)
+			},
+		}
+		err := service.Register(serviceCommand, serviceConfig)
+		if err != nil {
+			panic(err)
+		}
+		cli.AddClusterFlags(serviceCommand, serviceConfig)
+		cli.AddServiceFlags(serviceCommand, serviceConfig, service.Name())
+		services.AddCommand(serviceCommand)
+	}
+
+	root.AddCommand(dev)
+	root.AddCommand(services)
 	root.Execute()
 }

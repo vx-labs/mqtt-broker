@@ -5,7 +5,6 @@ import (
 	"errors"
 
 	"github.com/gogo/protobuf/proto"
-	"github.com/vx-labs/mqtt-broker/messages/pb"
 )
 
 //go:generate protoc -I${GOPATH}/src -I${GOPATH}/src/github.com/vx-labs/mqtt-broker/events/ --go_out=plugins=grpc:. events.proto
@@ -29,7 +28,11 @@ func Encode(events ...*StateTransition) ([]byte, error) {
 	return proto.Marshal(&format)
 }
 
-func Commit(ctx context.Context, client *pb.Client, shardKey string, events ...*StateTransition) error {
+type StreamPublisher interface {
+	Put(ctx context.Context, steam string, shardKey string, payload []byte) error
+}
+
+func Commit(ctx context.Context, client StreamPublisher, shardKey string, events ...*StateTransition) error {
 	if client == nil {
 		return ErrNodeNotReady
 	}

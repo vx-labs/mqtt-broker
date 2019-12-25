@@ -11,15 +11,12 @@ WORKDIR $GOPATH/src/github.com/vx-labs/mqtt-broker
 COPY --from=deps $GOPATH/src/github.com/vx-labs/mqtt-broker/vendor/ ./vendor/
 COPY . ./
 RUN go test ./...
-
-FROM builder as binary-builder
-ARG ARTIFACT="###"
-RUN apk -U add git
-RUN BUILD_VERSION=$(git rev-parse --short HEAD) && go build -buildmode=exe -ldflags="-s -w -X github.com/vx-labs/mqtt-broker/cli.BuiltVersion=${BUILT_VERSION}" -a -o /bin/${ARTIFACT} ./cli/${ARTIFACT}
+ARG BUILT_VERSION="snapshot"
+RUN go build -buildmode=exe -ldflags="-s -w -X github.com/vx-labs/mqtt-broker/cli.BuiltVersion=${BUILT_VERSION}" \
+       -a -o /bin/broker ./cli/broker
 
 FROM alpine as prod
-ARG ARTIFACT="###"
-ENTRYPOINT ["/usr/bin/server"]
+ENTRYPOINT ["/usr/bin/broker"]
 RUN apk -U add ca-certificates && \
     rm -rf /var/cache/apk/*
-COPY --from=binary-builder /bin/${ARTIFACT} /usr/bin/server
+COPY --from=builder /bin/broker /usr/bin/broker

@@ -14,7 +14,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
-	kv "github.com/vx-labs/mqtt-broker/kv/pb"
+	kv "github.com/vx-labs/mqtt-broker/services/kv/pb"
 )
 
 var (

@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/spf13/viper"
-	"github.com/vx-labs/mqtt-broker/messages/pb"
+	"github.com/vx-labs/mqtt-broker/services/messages/pb"
 	"google.golang.org/grpc"
 )
 
