@@ -8,6 +8,7 @@ import (
 
 	"github.com/gogo/protobuf/proto"
 	"github.com/vx-labs/mqtt-broker/cluster/types"
+	messages "github.com/vx-labs/mqtt-broker/services/messages/pb"
 	"github.com/vx-labs/mqtt-broker/services/queues/pb"
 	"github.com/vx-labs/mqtt-broker/services/queues/store"
 	sessions "github.com/vx-labs/mqtt-broker/services/sessions/pb"
@@ -33,6 +34,9 @@ type server struct {
 	gprcServer *grpc.Server
 	logger     *zap.Logger
 	sessions   SessionStore
+	Messages   *messages.Client
+	cancel     chan struct{}
+	done       chan struct{}
 }
 
 func New(id string, logger *zap.Logger) *server {
@@ -49,6 +53,8 @@ func New(id string, logger *zap.Logger) *server {
 		ctx:    context.Background(),
 		store:  boltstore,
 		logger: logger,
+		cancel: make(chan struct{}),
+		done:   make(chan struct{}),
 	}
 	return b
 }
@@ -82,49 +88,66 @@ func (s *server) clusterDeleteQueue(id string) error {
 		},
 	})
 }
-func (s *server) PutMessage(ctx context.Context, input *pb.QueuePutMessageInput) (*pb.QueuePutMessageOutput, error) {
-	// FIXME: do not use time as a key generator
+func (s *server) clusterPutMessage(id string, payload []byte) error {
+	if !s.store.Exists(id) {
+		return store.ErrQueueNotFound
+	}
 	idx := time.Now().UnixNano()
+
+	return s.commitEvent(&pb.QueuesStateTransition{
+		Kind: QueueMessagePut,
+		QueueMessagePut: &pb.QueueStateTransitionMessagePut{
+			Offset:  uint64(idx),
+			Payload: payload,
+			QueueID: id,
+		},
+	})
+}
+func (s *server) clusterPutMessageBatch(ids []string, payloads [][]byte) error {
+	event := []*pb.QueuesStateTransition{}
+	for idx := range ids {
+		offset := time.Now().UnixNano()
+		if !s.store.Exists(ids[idx]) {
+			return store.ErrQueueNotFound
+		}
+		payload := payloads[idx]
+		event = append(event, &pb.QueuesStateTransition{
+			Kind: QueueMessagePut,
+			QueueMessagePut: &pb.QueueStateTransitionMessagePut{
+				Offset:  uint64(offset),
+				Payload: payload,
+				QueueID: ids[idx],
+			},
+		})
+		idx++
+	}
+	return s.commitEvent(event...)
+}
+func (s *server) PutMessage(ctx context.Context, input *pb.QueuePutMessageInput) (*pb.QueuePutMessageOutput, error) {
 	payload, err := proto.Marshal(input.Publish)
 	if err != nil {
 		s.logger.Error("failed to encode message", zap.Error(err))
 		return nil, err
 	}
-	err = s.commitEvent(&pb.QueuesStateTransition{
-		Kind: QueueMessagePut,
-		QueueMessagePut: &pb.QueueStateTransitionMessagePut{
-			Offset:  uint64(idx),
-			Payload: payload,
-			QueueID: input.Id,
-		},
-	})
+	err = s.clusterPutMessage(input.Id, payload)
 	if err != nil {
 		s.logger.Error("failed to commit queue put event", zap.Error(err))
 	}
 	return &pb.QueuePutMessageOutput{}, err
 }
 func (s *server) PutMessageBatch(ctx context.Context, ev *pb.QueuePutMessageBatchInput) (*pb.QueuePutMessageBatchOutput, error) {
-	// FIXME: do not use time as a key generator
-	now := time.Now().UnixNano()
-	event := []*pb.QueuesStateTransition{}
-	idx := now
-	for _, input := range ev.Batches {
-		payload, err := proto.Marshal(input.Publish)
+	payloads := make([][]byte, len(ev.Batches))
+	ids := make([]string, len(ev.Batches))
+	for idx := range ev.Batches {
+		payload, err := proto.Marshal(ev.Batches[idx].Publish)
 		if err != nil {
 			s.logger.Error("failed to encode message", zap.Error(err))
 			return nil, err
 		}
-		event = append(event, &pb.QueuesStateTransition{
-			Kind: QueueMessagePut,
-			QueueMessagePut: &pb.QueueStateTransitionMessagePut{
-				Offset:  uint64(idx),
-				Payload: payload,
-				QueueID: input.Id,
-			},
-		})
-		idx++
+		payloads[idx] = payload
+		ids[idx] = ev.Batches[idx].Id
 	}
-	err := s.commitEvent(event...)
+	err := s.clusterPutMessageBatch(ids, payloads)
 	if err != nil {
 		s.logger.Error("failed to commit queue put batch event", zap.Error(err))
 	}

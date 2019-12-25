@@ -1,6 +1,7 @@
 package queues
 
 import (
+	"context"
 	fmt "fmt"
 	"net"
 	"time"
@@ -8,8 +9,11 @@ import (
 	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
 	"github.com/vx-labs/mqtt-broker/cluster"
 	"github.com/vx-labs/mqtt-broker/network"
+	kv "github.com/vx-labs/mqtt-broker/services/kv/pb"
+	messages "github.com/vx-labs/mqtt-broker/services/messages/pb"
 	"github.com/vx-labs/mqtt-broker/services/queues/pb"
 	sessions "github.com/vx-labs/mqtt-broker/services/sessions/pb"
+	"github.com/vx-labs/mqtt-broker/stream"
 
 	grpc "google.golang.org/grpc"
 
@@ -17,6 +21,8 @@ import (
 )
 
 func (b *server) Shutdown() {
+	close(b.cancel)
+	<-b.done
 	err := b.state.Shutdown()
 	if err != nil {
 		b.logger.Error("failed to shutdown raft instance cleanly", zap.Error(err))
@@ -54,6 +60,31 @@ func (b *server) JoinServiceLayer(name string, logger *zap.Logger, config cluste
 			}
 		}
 	}()
+	kvConn, err := mesh.DialService("kv?raft_status=leader")
+	if err != nil {
+		panic(err)
+	}
+	messagesConn, err := mesh.DialService("messages")
+	if err != nil {
+		panic(err)
+	}
+	k := kv.NewClient(kvConn)
+	m := messages.NewClient(messagesConn)
+	streamClient := stream.NewClient(k, m, logger)
+	b.Messages = m
+	ctx := context.Background()
+	b.cancel = make(chan struct{})
+	b.done = make(chan struct{})
+
+	go func() {
+		defer close(b.done)
+		streamClient.Consume(ctx, b.cancel, "events", b.consumeStream,
+			stream.WithConsumerID(b.id),
+			stream.WithConsumerGroupID("queues"),
+			stream.WithInitialOffsetBehaviour(stream.OFFSET_BEHAVIOUR_FROM_START),
+		)
+	}()
+
 }
 func (m *server) Health() string {
 	return m.state.Health()

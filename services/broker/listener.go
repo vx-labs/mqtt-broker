@@ -95,11 +95,6 @@ func (b *Broker) Connect(ctx context.Context, metadata transport.Metadata, p *pa
 		},
 	})
 
-	err = b.Queues.Create(b.ctx, sessionID)
-	if err != nil {
-		logger.Error("failed to create queue", zap.Error(err))
-		return "", "", nil, err
-	}
 	token, err := EncodeSessionToken(b.SigningKey(), input.Tenant, input.ID)
 	if err != nil {
 		logger.Error("failed to encode session JWT", zap.Error(err))
@@ -214,7 +209,6 @@ func (b *Broker) Disconnect(ctx context.Context, token string, p *packet.Disconn
 		b.logger.Warn("received packet from an unknown session", zap.String("session_id", sess.SessionID), zap.String("packet", "disconnect"))
 		return err
 	}
-	b.Queues.Delete(b.ctx, sess.SessionID)
 	return events.Commit(ctx, b.Messages, sess.SessionID, &events.StateTransition{
 		Event: &events.StateTransition_SessionClosed{
 			SessionClosed: &events.SessionClosed{
@@ -230,7 +224,6 @@ func (b *Broker) CloseSession(ctx context.Context, token string) error {
 	if err != nil {
 		return err
 	}
-	b.Queues.Delete(b.ctx, decodedToken.SessionID)
 	return events.Commit(ctx, b.Messages, decodedToken.SessionID, &events.StateTransition{
 		Event: &events.StateTransition_SessionLost{
 			SessionLost: &events.SessionLost{

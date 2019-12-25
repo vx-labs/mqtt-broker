@@ -4,7 +4,8 @@ DOCKER_BUILD_ARGS = --network host --build-arg https_proxy=${https_proxy} --buil
 build::
 	docker build ${DOCKER_BUILD_ARGS} -t quay.io/vxlabs/mqtt-broker:${VERSION} .
 release:: build release-nodep
-deploy: release deploy-nodep
+deploy: release
+		cd terraform/ && terraform init && terraform apply -auto-approve -var version=${VERSION}
 deploy-nodep: deploy-api-nodep deploy-broker-nodep deploy-listener-nodep deploy-sessions-nodep deploy-subscriptions-nodep deploy-queues-nodep deploy-messages-nodep deploy-kv-nodep deploy-router-nodep deploy-topics-nodep
 
 release-nodep:
@@ -22,33 +23,24 @@ deploy-router:: release deploy-router-nodep
 deploy-topics:: release deploy-topics-nodep
 
 deploy-api-nodep::
-	cd terraform/api && terraform init      && terraform apply -auto-approve -var api_version=${VERSION}
+	cd terraform/ && terraform init && terraform apply -auto-approve -var version=${VERSION}
 deploy-broker-nodep::
-	cd terraform/broker && terraform init   && terraform apply -auto-approve -var broker_version=${VERSION}
+	cd terraform/ && terraform init && terraform apply -auto-approve -var version=${VERSION}
 deploy-listener-nodep::
-	cd terraform/listener && terraform init && terraform apply -auto-approve -var listener_version=${VERSION}
+	cd terraform/ && terraform init && terraform apply -auto-approve -var version=${VERSION}
 deploy-sessions-nodep::
-	cd terraform/sessions && terraform init && terraform apply -auto-approve -var sessions_version=${VERSION}
+	cd terraform/ && terraform init && terraform apply -auto-approve -var version=${VERSION}
 deploy-subscriptions-nodep::
-	cd terraform/subscriptions && terraform init && terraform apply -auto-approve -var subscriptions_version=${VERSION}
+	cd terraform/ && terraform init && terraform apply -auto-approve -var version=${VERSION}
 deploy-queues-nodep::
-	cd terraform/queues && terraform init && terraform apply -auto-approve -var queues_version=${VERSION}
+	cd terraform/ && terraform init && terraform apply -auto-approve -var version=${VERSION}
 deploy-messages-nodep::
-	cd terraform/messages && terraform init && terraform apply -auto-approve -var messages_version=${VERSION}
+	cd terraform/ && terraform init && terraform apply -auto-approve -var version=${VERSION}
 deploy-kv-nodep::
-	cd terraform/kv && terraform init && terraform apply -auto-approve -var kv_version=${VERSION}
+	cd terraform/ && terraform init && terraform apply -auto-approve -var version=${VERSION}
 deploy-router-nodep::
-	cd terraform/router && terraform init && terraform apply -auto-approve -var router_version=${VERSION}
+	cd terraform/ && terraform init && terraform apply -auto-approve -var version=${VERSION}
 deploy-topics-nodep::
-	cd terraform/topics && terraform init && terraform apply -auto-approve -var topics_version=${VERSION}
+	cd terraform/ && terraform init && terraform apply -auto-approve -var version=${VERSION}
 nuke:
-	cd terraform/api && terraform init && terraform destroy -auto-approve -var api_version=${VERSION}
-	cd terraform/broker && terraform init && terraform destroy -auto-approve -var broker_version=${VERSION}
-	cd terraform/listener && terraform init && terraform destroy -auto-approve -var listener_version=${VERSION}
-	cd terraform/sessions && terraform init && terraform destroy -auto-approve -var sessions_version=${VERSION}
-	cd terraform/subscriptions && terraform init && terraform destroy -auto-approve -var subscriptions_version=${VERSION}
-	cd terraform/queues && terraform init && terraform destroy -auto-approve -var queues_version=${VERSION}
-	cd terraform/messages && terraform init && terraform destroy -auto-approve -var messages_version=${VERSION}
-	cd terraform/kv && terraform init && terraform destroy -auto-approve -var kv_version=${VERSION}
-	cd terraform/router && terraform init && terraform destroy -auto-approve -var router_version=${VERSION}
-	cd terraform/topics && terraform init && terraform destroy -auto-approve -var topics_version=${VERSION}
+	cd terraform/ && terraform init && terraform destroy -auto-approve -var version=${VERSION}

@@ -8,12 +8,12 @@ import (
 	proto "github.com/golang/protobuf/proto"
 	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
 	"github.com/pkg/errors"
-	broker "github.com/vx-labs/mqtt-broker/services/broker/pb"
 	"github.com/vx-labs/mqtt-broker/cluster"
 	"github.com/vx-labs/mqtt-broker/events"
+	"github.com/vx-labs/mqtt-broker/network"
+	broker "github.com/vx-labs/mqtt-broker/services/broker/pb"
 	kv "github.com/vx-labs/mqtt-broker/services/kv/pb"
 	messages "github.com/vx-labs/mqtt-broker/services/messages/pb"
-	"github.com/vx-labs/mqtt-broker/network"
 	"github.com/vx-labs/mqtt-broker/services/sessions/pb"
 	"github.com/vx-labs/mqtt-broker/stream"
 	"github.com/vx-labs/mqtt-protocol/packet"
@@ -24,6 +24,8 @@ import (
 )
 
 func (b *server) Shutdown() {
+	close(b.cancel)
+	<-b.done
 	b.state.Leave()
 	b.gprcServer.GracefulStop()
 }

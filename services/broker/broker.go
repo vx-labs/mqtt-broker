@@ -13,7 +13,6 @@ import (
 	topics "github.com/vx-labs/mqtt-broker/services/topics/pb"
 
 	messages "github.com/vx-labs/mqtt-broker/services/messages/pb"
-	queues "github.com/vx-labs/mqtt-broker/services/queues/pb"
 )
 
 type QueuesStore interface {
@@ -36,7 +35,6 @@ type Broker struct {
 	authHelper func(transport transport.Metadata, sessionID []byte, username string, password string) (tenant string, err error)
 	mesh       cluster.Mesh
 	Sessions   SessionStore
-	Queues     QueuesStore
 	Messages   *messages.Client
 	grpcServer *grpc.Server
 	ctx        context.Context
@@ -48,16 +46,11 @@ func New(id string, logger *zap.Logger, mesh cluster.DiscoveryLayer, config Conf
 	if err != nil {
 		panic(err)
 	}
-	queuesConn, err := mesh.DialService("queues?raft_status=leader")
-	if err != nil {
-		panic(err)
-	}
 	broker := &Broker{
 		ID:         id,
 		authHelper: config.AuthHelper,
 		ctx:        ctx,
 		mesh:       mesh,
-		Queues:     queues.NewClient(queuesConn),
 		logger:     logger,
 		Sessions:   sessions.NewClient(sessionsConn),
 	}
