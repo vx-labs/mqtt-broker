@@ -96,7 +96,7 @@ func (b *server) v2ConsumePayload(messages []*messages.StoredMessage) (int, erro
 	if len(payload) > 0 {
 		err := b.Queues.PutMessageBatch(b.ctx, payload)
 		if err != nil {
-			return 0, errors.Wrap(err, "failed to enqueue message")
+			b.logger.Error("failed to enqueue messages", zap.Error(err))
 		}
 		b.logger.Info("enqueued messages", zap.Int("message_count", count))
 	}
