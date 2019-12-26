@@ -8,8 +8,8 @@ import (
 
 	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
 	"github.com/vx-labs/mqtt-broker/cluster"
-	"github.com/vx-labs/mqtt-broker/services/messages/pb"
 	"github.com/vx-labs/mqtt-broker/network"
+	"github.com/vx-labs/mqtt-broker/services/messages/pb"
 
 	grpc "google.golang.org/grpc"
 

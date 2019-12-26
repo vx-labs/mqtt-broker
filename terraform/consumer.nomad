@@ -68,7 +68,7 @@ no_proxy="10.0.0.0/8,172.16.0.0/12,*.service.consul"
 {{- $cn := printf "common_name=%s" (env "NOMAD_ALLOC_ID") -}}
 {{- $ipsans := printf "ip_sans=%s" (env "NOMAD_IP_health") -}}
 {{- $path := printf "pki/issue/grpc" -}}
-{{ with secret $path $cn $ipsans "ttl=48h" }}{{ .Data.certificate }}{{ end }}
+{{ with secret $path $cn $ipsans "ttl=480h" }}{{ .Data.certificate }}{{ end }}
 EOH
       }
       template {
@@ -79,7 +79,7 @@ EOH
 {{- $cn := printf "common_name=%s" (env "NOMAD_ALLOC_ID") -}}
 {{- $ipsans := printf "ip_sans=%s" (env "NOMAD_IP_health") -}}
 {{- $path := printf "pki/issue/grpc" -}}
-{{ with secret $path $cn $ipsans "ttl=48h" }}{{ .Data.private_key }}{{ end }}
+{{ with secret $path $cn $ipsans "ttl=480h" }}{{ .Data.private_key }}{{ end }}
 EOH
       }
       template {
@@ -90,7 +90,7 @@ EOH
 {{- $cn := printf "common_name=%s" (env "NOMAD_ALLOC_ID") -}}
 {{- $ipsans := printf "ip_sans=%s" (env "NOMAD_IP_health") -}}
 {{- $path := printf "pki/issue/grpc" -}}
-{{ with secret $path $cn $ipsans "ttl=48h" }}{{ .Data.issuing_ca }}{{ end }}
+{{ with secret $path $cn $ipsans "ttl=480h" }}{{ .Data.issuing_ca }}{{ end }}
 EOH
       }
       config {
