@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/spf13/viper"
+	"go.uber.org/zap"
 
 	_ "net/http/pprof"
 	"os"
@@ -71,7 +72,13 @@ func main() {
 			Run: func(cmd *cobra.Command, _ []string) {
 				ctx := cli.Bootstrap(cmd, serviceConfig)
 				ctx.AddService(cmd, serviceConfig, service.Name(), service.Run)
-				ctx.Run(serviceConfig)
+				err := ctx.Run(serviceConfig)
+				if err != nil {
+					ctx.Logger.Fatal("application failed to run", zap.Error(err))
+					ctx.Logger.Sync()
+					os.Exit(1)
+				}
+				os.Exit(0)
 			},
 		}
 		err := service.Register(serviceCommand, serviceConfig)

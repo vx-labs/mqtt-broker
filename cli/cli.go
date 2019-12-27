@@ -157,9 +157,9 @@ func (ctx *Context) Run(v *viper.Viper) error {
 	defer func() {
 		if r := recover(); r != nil {
 			ctx.Logger.Error("panic", zap.String("panic_log", fmt.Sprint(r)))
+			os.Exit(9)
 		}
 		ctx.Logger.Sync()
-		os.Exit(9)
 	}()
 	logger := ctx.Logger
 	clusterNetConf := ctx.MeshNetConf
