@@ -129,7 +129,7 @@ EOH
       }
 
       resources {
-        cpu    = 200
+        cpu    = 100
         memory = 32
 
         network {
