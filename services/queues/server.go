@@ -8,6 +8,7 @@ import (
 
 	"github.com/gogo/protobuf/proto"
 	"github.com/vx-labs/mqtt-broker/cluster/types"
+	"github.com/vx-labs/mqtt-broker/path"
 	messages "github.com/vx-labs/mqtt-broker/services/messages/pb"
 	"github.com/vx-labs/mqtt-broker/services/queues/pb"
 	"github.com/vx-labs/mqtt-broker/services/queues/store"
@@ -15,10 +16,6 @@ import (
 	"github.com/vx-labs/mqtt-protocol/packet"
 	"go.uber.org/zap"
 	grpc "google.golang.org/grpc"
-)
-
-const (
-	dbPath = "/var/tmp/mqtt-broker-queues"
 )
 
 type SessionStore interface {
@@ -43,7 +40,7 @@ func New(id string, logger *zap.Logger) *server {
 	logger.Debug("opening queues durable store")
 	boltstore, err := store.New(store.Options{
 		NoSync: false,
-		Path:   fmt.Sprintf("%s-%s-queues.bolt", dbPath, id),
+		Path:   fmt.Sprintf("%s/db.bolt", path.ServiceDataDir(id, "queues")),
 	})
 	if err != nil {
 		logger.Fatal("failed to open queues durable store", zap.Error(err))

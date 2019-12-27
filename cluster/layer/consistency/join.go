@@ -45,7 +45,7 @@ func waitForToken(ctx context.Context, token string, expectNodeCount int, s stat
 			if count == expectNodeCount {
 				sortMembers(bootstrappingMembers)
 				if token == SyncToken(bootstrappingMembers) {
-					logger.Info("members synchronization done", zap.Int("member_count", count), zap.Duration("member_synchronization_duration", time.Since(now)))
+					logger.Debug("members synchronization done", zap.Int("member_count", count), zap.Duration("member_synchronization_duration", time.Since(now)))
 					return nil
 				}
 			} else {
@@ -103,8 +103,9 @@ func (s *raftlayer) startClusterJoin(ctx context.Context, name string, expectNod
 			if err != nil {
 				return err
 			}
-			s.logger.Info("raft cluster bootstrapped")
+			s.logger.Debug("raft cluster bootstrapped")
 			s.setStatus(raftStatusBootstrapped)
+			s.cancelJoin()
 			return nil
 		})
 		ch <- err
@@ -142,14 +143,14 @@ func (s *raftlayer) joinCluster(ctx context.Context, name string, expectNodeCoun
 			return ctx.Err()
 		}
 	}
-	logger.Info("discovered members", zap.Duration("member_discovery_duration", time.Since(start)))
+	logger.Debug("discovered members", zap.Duration("member_discovery_duration", time.Since(start)))
 	sortMembers(members)
 	err = waitForToken(ctx, SyncToken(members), expectNodeCount, s, ticker, logger)
 	if err != nil {
 		return err
 	}
 	if members[0].Peer != s.id {
-		return nil
+		return ErrBootstrapRaceLost
 	}
 	return done(members)
 }

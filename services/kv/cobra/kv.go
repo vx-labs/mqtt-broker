@@ -15,6 +15,10 @@ func KV(ctx context.Context, config *viper.Viper) *cobra.Command {
 	c := &cobra.Command{
 		Use: "kv",
 	}
+	c.PersistentPreRun = func(_ *cobra.Command, _ []string) {
+		config.BindPFlag("discovery-url", c.PersistentFlags().Lookup("discovery-url"))
+	}
+	c.PersistentFlags().StringP("discovery-url", "d", "http://localhost:8081", "discovery api URL")
 	c.AddCommand(Get(ctx, config))
 	c.AddCommand(List(ctx, config))
 	c.AddCommand(GetMetadata(ctx, config))
@@ -22,14 +26,13 @@ func KV(ctx context.Context, config *viper.Viper) *cobra.Command {
 	c.AddCommand(Set(ctx, config))
 	c.AddCommand(Delete(ctx, config))
 	c.AddCommand(Benchmark(ctx, config))
+	c.AddCommand(Pressure(ctx, config))
 	return c
 }
 
 func Get(ctx context.Context, config *viper.Viper) *cobra.Command {
 	c := &cobra.Command{
 		Use: "get",
-		PreRun: func(c *cobra.Command, _ []string) {
-		},
 		Run: func(cmd *cobra.Command, argv []string) {
 			client := getClient(config)
 			for _, key := range argv {
@@ -47,8 +50,6 @@ func Get(ctx context.Context, config *viper.Viper) *cobra.Command {
 func Benchmark(ctx context.Context, config *viper.Viper) *cobra.Command {
 	c := &cobra.Command{
 		Use: "benchmark",
-		PreRun: func(c *cobra.Command, _ []string) {
-		},
 		Run: func(cmd *cobra.Command, argv []string) {
 			client := getClient(config)
 
@@ -90,13 +91,54 @@ func Benchmark(ctx context.Context, config *viper.Viper) *cobra.Command {
 	}
 	return c
 }
+func Pressure(ctx context.Context, config *viper.Viper) *cobra.Command {
+	c := &cobra.Command{
+		Use:   "pressure",
+		Short: "read and write indefinitely on the kv store",
+		Run: func(cmd *cobra.Command, argv []string) {
+			retries := 5
+			for retries > 0 {
+				retries--
+				client := getClient(config)
+			mainLoop:
+				for {
+					count := 0
+					total := 5
+					for count < total {
+						key := []byte{byte(count)}
+						err := client.Set(ctx, key, []byte("benchmark"))
+						if err != nil {
+							logrus.Errorf("failed to write key %q: %v", string(key), err)
+							<-time.After(5 * time.Second)
+							client = getClient(config)
+							break mainLoop
+						}
+						count++
+					}
+
+					count = 0
+					for count < total {
+						key := []byte{byte(count)}
+						_, err := client.Get(ctx, key)
+						if err != nil {
+							logrus.Errorf("failed to read key %q: %v", string(key), err)
+							<-time.After(5 * time.Second)
+							client = getClient(config)
+							break mainLoop
+						}
+						count++
+					}
+				}
+			}
+		},
+	}
+	return c
+}
 
 func GetMetadata(ctx context.Context, config *viper.Viper) *cobra.Command {
 	c := &cobra.Command{
 		Use:     "get-metadata",
 		Aliases: []string{"md"},
-		PreRun: func(c *cobra.Command, _ []string) {
-		},
 		Run: func(cmd *cobra.Command, argv []string) {
 			client := getClient(config)
 			for _, key := range argv {
@@ -115,8 +157,6 @@ func GetWithMetadata(ctx context.Context, config *viper.Viper) *cobra.Command {
 	c := &cobra.Command{
 		Use:     "get-with-metadata",
 		Aliases: []string{"gmd"},
-		PreRun: func(c *cobra.Command, _ []string) {
-		},
 		Run: func(cmd *cobra.Command, argv []string) {
 			client := getClient(config)
 			for _, key := range argv {
@@ -198,8 +238,6 @@ func List(ctx context.Context, config *viper.Viper) *cobra.Command {
 	c := &cobra.Command{
 		Use:     "list",
 		Aliases: []string{"ls"},
-		PreRun: func(c *cobra.Command, _ []string) {
-		},
 		Run: func(cmd *cobra.Command, argv []string) {
 			client := getClient(config)
 			mds, err := client.List(ctx)

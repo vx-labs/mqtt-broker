@@ -1,9 +1,11 @@
 package consistency
 
 import (
+	"context"
 	fmt "fmt"
 	"time"
 
+	"github.com/vx-labs/mqtt-broker/cluster/pb"
 	"go.uber.org/zap"
 )
 
@@ -11,9 +13,10 @@ func (s *raftlayer) Shutdown() error {
 	if s.raft == nil {
 		return nil
 	}
-	s.logger.Info("shuting down raft layer")
+	s.logger.Debug("shutting down raft layer")
 	err := s.Leave()
 	if err != nil {
+		s.logger.Error("failed to leave raft cluster", zap.Error(err))
 		return err
 	}
 	if s.raftNetwork != nil {
@@ -25,20 +28,27 @@ func (s *raftlayer) Shutdown() error {
 	return nil
 }
 func (s *raftlayer) Leave() error {
-	ticker := time.NewTicker(50 * time.Millisecond)
+	s.raft.DeregisterObserver(s.observer)
+	close(s.observations)
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
+	ticker := time.NewTicker(500 * time.Millisecond)
 	defer ticker.Stop()
 
 	err := s.discovery.UnregisterService(fmt.Sprintf("%s_cluster", s.name))
 	if err != nil {
 		s.logger.Error("failed to unregister raft service from discovery", zap.Error(err))
+		return err
 	}
 	s.logger.Info("unregistered service from discovery")
+	<-time.After(2 * time.Second)
+
 	numPeers := len(s.raftMembers())
 	isLeader := s.IsLeader()
 	if isLeader && numPeers > 1 {
 		if b := s.raft.Barrier(5 * time.Second); b.Error() != nil {
-			s.logger.Error("failed to wait for other members to catch-up log", zap.Error(err))
-			return err
+			s.logger.Error("failed to wait for other members to catch-up log", zap.Error(b.Error()))
+			return b.Error()
 		}
 		err = s.raft.LeadershipTransfer().Error()
 		if err != nil {
@@ -52,10 +62,21 @@ func (s *raftlayer) Leave() error {
 			}
 			<-ticker.C
 		}
-		s.logger.Info("raft leadership transfered")
+		s.logger.Debug("raft leadership transfered")
 	}
 
 	if !isLeader {
+		for {
+			_, err = s.leaderRPC.PrepareShutdown(ctx, &pb.PrepareShutdownInput{
+				ID:    s.id,
+				Index: 0,
+			})
+			if err == nil {
+				break
+			}
+			s.logger.Debug("failed to ask leader to remove us from cluster, retrying", zap.Error(err))
+			<-ticker.C
+		}
 		left := false
 		deadline := time.Now().Add(15 * time.Second)
 		for !left && time.Now().Before(deadline) {
@@ -69,15 +90,17 @@ func (s *raftlayer) Leave() error {
 			for _, server := range future.Configuration().Servers {
 				if server.Address == s.selfRaftAddress {
 					left = false
-					break
 				}
+			}
+			if left {
+				break
 			}
 		}
 		if !left {
 			s.logger.Warn("failed to leave raft configuration gracefully, timeout")
 		} else {
-			s.logger.Info("raft cluster left")
+			s.logger.Debug("raft cluster left")
 		}
 	}
-	return nil
+	return s.raft.Shutdown().Error()
 }

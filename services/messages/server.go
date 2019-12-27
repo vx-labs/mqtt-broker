@@ -13,13 +13,10 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/vx-labs/mqtt-broker/cluster/types"
+	"github.com/vx-labs/mqtt-broker/path"
 	"github.com/vx-labs/mqtt-broker/services/messages/pb"
 	"github.com/vx-labs/mqtt-broker/services/messages/store"
 	"go.uber.org/zap"
-)
-
-const (
-	dbPath = "/var/tmp/mqtt-broker-messages"
 )
 
 type server struct {
@@ -51,7 +48,7 @@ func New(id string, config ServerConfig, logger *zap.Logger) *server {
 	logger.Debug("opening messages durable store")
 	boltstore, err := store.New(store.Options{
 		NoSync: false,
-		Path:   fmt.Sprintf("%s-%s-queues.bolt", dbPath, id),
+		Path:   fmt.Sprintf("%s/db.bolt", path.ServiceDataDir(id, "queues")),
 	})
 	if err != nil {
 		logger.Fatal("failed to open messages durable store", zap.Error(err))

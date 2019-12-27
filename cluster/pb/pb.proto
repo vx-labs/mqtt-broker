@@ -61,8 +61,17 @@ message PrepareShutdownInput{
   string ID = 1;
   uint64 Index = 2;
 }
+
+message RequestAdoptionInput {
+  string ID = 1;
+  string Address = 2;
+}
+message RequestAdoptionOutput {}
+
 message PrepareShutdownOutput{}
+
 service Layer {
   rpc PrepareShutdown(PrepareShutdownInput) returns (PrepareShutdownOutput);
+  rpc RequestAdoption(RequestAdoptionInput) returns (RequestAdoptionOutput);
   rpc SendEvent(SendEventInput) returns (SendEventOutput);
 }

@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"crypto/sha1"
 	"encoding/json"
 	"fmt"
 	"net"
@@ -38,6 +39,10 @@ type Service interface {
 }
 
 func AddClusterFlags(root *cobra.Command, config *viper.Viper) {
+	root.Flags().StringP("node-id", "", uuid.New().String(), "This node cluster-wide unique ID")
+	config.BindPFlag("node-id", root.Flags().Lookup("node-id"))
+	config.BindEnv("node-id", "NOMAD_ALLOC_ID")
+
 	root.Flags().StringSliceP("join", "j", []string{}, "Join this node")
 	config.BindPFlag("join", root.Flags().Lookup("join"))
 	root.Flags().StringP("grpc-tls-certificate", "", "./run_config/cert.pem", "TLS certificate to use")
@@ -161,6 +166,12 @@ func (ctx *Context) Run(v *viper.Viper) error {
 		}
 		ctx.Logger.Sync()
 	}()
+	sigc := make(chan os.Signal, 1)
+	signal.Notify(sigc,
+		syscall.SIGINT,
+		syscall.SIGTERM,
+		syscall.SIGQUIT)
+
 	logger := ctx.Logger
 	clusterNetConf := ctx.MeshNetConf
 	mesh := ctx.Discovery
@@ -184,7 +195,7 @@ func (ctx *Context) Run(v *viper.Viper) error {
 	nodes := v.GetStringSlice("join")
 	if len(nodes) > 0 {
 		go func() {
-			joinTicker := time.NewTicker(5 * time.Second)
+			joinTicker := time.NewTicker(3 * time.Second)
 			defer joinTicker.Stop()
 			retries := 5
 			for retries > 0 {
@@ -231,15 +242,10 @@ func (ctx *Context) Run(v *viper.Viper) error {
 				gossipRPCConfig.ServicePort = port
 			}
 			logService(logger, service.ID, service.Network)
-			go service.Service.JoinServiceLayer(service.ID, logger, serviceConfig, gossipRPCConfig, ctx.Discovery)
+			service.Service.JoinServiceLayer(service.ID, logger, serviceConfig, gossipRPCConfig, ctx.Discovery)
 		}
 	}
 	quit := make(chan struct{})
-	sigc := make(chan os.Signal, 1)
-	signal.Notify(sigc,
-		syscall.SIGINT,
-		syscall.SIGTERM,
-		syscall.SIGQUIT)
 	go func() {
 		defer close(quit)
 		<-sigc
@@ -255,19 +261,28 @@ func (ctx *Context) Run(v *viper.Viper) error {
 	<-quit
 	return nil
 }
+func makeNodeID(id string) string {
+	if len(id) > 8 {
+		return id
+	}
+	hash := sha1.New()
+	_, err := hash.Write([]byte(id))
+	if err != nil {
+		return ""
+	}
+	return fmt.Sprintf("%x", hash.Sum(nil))
+}
 
 func Bootstrap(cmd *cobra.Command, v *viper.Viper) *Context {
-	id := uuid.New().String()
-	if allocID := os.Getenv("NOMAD_ALLOC_ID"); allocID != "" {
-		id = os.Getenv("NOMAD_ALLOC_ID")
-	}
+	nodeID := v.GetString("node-id")
+
 	ctx := &Context{
-		ID: id,
+		ID: makeNodeID(nodeID),
 	}
 	var logger *zap.Logger
 	var err error
 	fields := []zap.Field{
-		zap.String("node_id", id[:8]), zap.String("version", Version()),
+		zap.String("node_id", ctx.ID[:8]), zap.String("version", Version()),
 	}
 	if allocID := os.Getenv("NOMAD_ALLOC_ID"); allocID != "" {
 		fields = append(fields,
@@ -298,7 +313,7 @@ func Bootstrap(cmd *cobra.Command, v *viper.Viper) *Context {
 	}
 	clusterNetConf := network.ConfigurationFromFlags(cmd, v, FLAG_NAME_CLUSTER)
 	ctx.MeshNetConf = &clusterNetConf
-	mesh := createMesh(id, logger, clusterNetConf)
+	mesh := createMesh(ctx.ID, logger, clusterNetConf)
 	ctx.Discovery = mesh
 	logger.Info("mesh created")
 	return ctx
@@ -355,7 +370,7 @@ func serveHTTPHealth(port int, logger *zap.Logger, sensors []healthChecker) {
 	})
 	err := http.ListenAndServe(fmt.Sprintf("[::]:%d", port), mux)
 	if err != nil {
-		logger.Warn("failed to run healthcheck endpoint", zap.Error(err))
+		logger.Debug("failed to run healthcheck endpoint", zap.Error(err))
 	}
 }
 

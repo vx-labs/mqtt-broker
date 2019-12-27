@@ -43,6 +43,9 @@ func (m *mockedMesh) ID() string {
 func (m *mockedMesh) Status(context.Context, *pb.StatusInput) (*pb.StatusOutput, error) {
 	return nil, nil
 }
+func (m *mockedMesh) RequestAdoption(context.Context, *pb.RequestAdoptionInput) (*pb.RequestAdoptionOutput, error) {
+	return nil, nil
+}
 func (m *mockedMesh) Peers() peers.PeerStore {
 	return nil
 }

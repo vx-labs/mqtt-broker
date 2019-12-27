@@ -10,13 +10,10 @@ import (
 	"google.golang.org/grpc/status"
 
 	"github.com/vx-labs/mqtt-broker/cluster/types"
+	"github.com/vx-labs/mqtt-broker/path"
 	"github.com/vx-labs/mqtt-broker/services/kv/pb"
 	"github.com/vx-labs/mqtt-broker/services/kv/store"
 	"go.uber.org/zap"
-)
-
-const (
-	dbPath = "/var/tmp/mqtt-broker-kv"
 )
 
 type server struct {
@@ -33,7 +30,7 @@ func New(id string, logger *zap.Logger) *server {
 	logger.Debug("opening kv durable store")
 	boltstore, err := store.New(store.Options{
 		NoSync: false,
-		Path:   fmt.Sprintf("%s-%s-queues.bolt", dbPath, id),
+		Path:   fmt.Sprintf("%s/db.bolt", path.ServiceDataDir(id, "kv")),
 	})
 	if err != nil {
 		logger.Fatal("failed to open messages durable store", zap.Error(err))

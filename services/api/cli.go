@@ -69,7 +69,7 @@ func (b *api) acceptLoop(listener net.Listener) {
 		w.Header().Set("Content-Type", "application/json")
 		w.Header().Set("Access-Control-Allow-Origin", "*")
 		mux.ServeHTTP(w, r)
-		b.logger.Info("served http request",
+		b.logger.Debug("served http request",
 			zap.String("http_request_method", r.Method),
 			zap.String("http_request_url", r.URL.String()),
 			zap.String("remote_address", r.RemoteAddr),

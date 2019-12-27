@@ -1,5 +1,5 @@
 VERSION = $(shell git rev-parse --short HEAD)
-DOCKER_BUILD_ARGS = --network host --build-arg https_proxy=${https_proxy} --build-arg BUILT_image_tag=${VERSION}
+DOCKER_BUILD_ARGS = --network host --build-arg https_proxy=${https_proxy} --build-arg BUILT_VERSION=${VERSION}
 
 build::
 	docker build ${DOCKER_BUILD_ARGS} -t quay.io/vxlabs/mqtt-broker:${VERSION} .

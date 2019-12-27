@@ -29,6 +29,7 @@ const (
 
 var (
 	ErrBootstrappedNodeFound = errors.New("bootstrapped node found")
+	ErrBootstrapRaceLost     = errors.New("bootstrapped race lost")
 )
 
 type raftlayer struct {
@@ -43,6 +44,8 @@ type raftlayer struct {
 	discovery       DiscoveryProvider
 	cancelJoin      context.CancelFunc
 	leaderRPC       pb.LayerClient
+	observer        *raft.Observer
+	observations    chan raft.Observation
 }
 type DiscoveryProvider interface {
 	UnregisterService(id string) error
@@ -63,6 +66,24 @@ func New(logger *zap.Logger, userConfig config.Config, discovery DiscoveryProvid
 	}
 	return self, nil
 }
+func (s *raftlayer) joinExistingCluster(ctx context.Context) {
+	defer s.cancelJoin()
+	ticker := time.NewTicker(500 * time.Millisecond)
+	defer ticker.Stop()
+	for {
+		_, err := s.leaderRPC.RequestAdoption(ctx, &pb.RequestAdoptionInput{
+			ID:      s.id,
+			Address: fmt.Sprintf("%s:%d", s.config.AdvertiseAddr, s.config.AdvertisePort),
+		})
+		if err == nil {
+			s.setStatus(raftStatusBootstrapped)
+			return
+		}
+		s.logger.Error("failed to request adoption, retrying", zap.Error(err))
+		<-ticker.C
+		continue
+	}
+}
 func (s *raftlayer) Start(name string, state types.RaftState) error {
 	s.name = name
 	leaderConn, err := s.discovery.DialService(fmt.Sprintf("%s_rpc?raft_status=leader", name))
@@ -73,9 +94,9 @@ func (s *raftlayer) Start(name string, state types.RaftState) error {
 	raftConfig := raft.DefaultConfig()
 	s.state = state
 	s.setStatus(raftStatusInit)
-	if os.Getenv("ENABLE_RAFT_LOG") != "true" {
-		raftConfig.LogOutput = ioutil.Discard
-	}
+	// if os.Getenv("ENABLE_RAFT_LOG") != "true" {
+	// 	raftConfig.LogOutput = ioutil.Discard
+	// }
 	raftConfig.LocalID = raft.ServerID(s.config.ID)
 	raftBind := fmt.Sprintf("0.0.0.0:%d", s.config.BindPort)
 	raftAdv := fmt.Sprintf("%s:%d", s.config.AdvertiseAddr, s.config.AdvertisePort)
@@ -127,15 +148,16 @@ func (s *raftlayer) Start(name string, state types.RaftState) error {
 	s.cancelJoin = cancel
 	go s.leaderRoutine()
 	index := s.raft.LastIndex()
-	if index != 0 {
-		return nil
-	}
 	err = s.discovery.RegisterService(fmt.Sprintf("%s_cluster", name), fmt.Sprintf("%s:%d", s.config.AdvertiseAddr, s.config.AdvertisePort))
 	if err != nil {
 		return err
 	}
+	if index != 0 {
+		s.joinExistingCluster(ctx)
+		return nil
+	}
+
 	go func() {
-		defer cancel()
 		for {
 			select {
 			case <-ctx.Done():
@@ -143,14 +165,11 @@ func (s *raftlayer) Start(name string, state types.RaftState) error {
 				return
 			case err := <-s.startClusterJoin(ctx, name, 3):
 				if err != nil {
-					if err == ErrBootstrappedNodeFound {
-						s.logger.Info("found an existing cluster, waiting for adoption")
+					if err == ErrBootstrappedNodeFound || err == ErrBootstrapRaceLost {
+						s.joinExistingCluster(ctx)
 						return
 					}
 					s.logger.Warn("failed to join cluster, retrying", zap.Error(err))
-				} else {
-					s.logger.Debug("join session finished")
-					return
 				}
 			}
 		}
@@ -239,21 +258,14 @@ func (s *raftlayer) syncMembers() {
 		s.logger.Error("failed to discover nodes", zap.Error(err))
 		panic(err)
 	}
-
-	for _, member := range members {
-		if member.Peer != s.id {
-			if !s.isNodeAdopted(member.Peer) {
-				s.addMember(member.Peer, member.NetworkAddress)
-			}
-		}
-	}
 	cProm := s.raft.GetConfiguration()
 	err = cProm.Error()
 	if err != nil {
 		panic(err)
 	}
 	clusterConfig := cProm.Configuration()
-	for _, server := range clusterConfig.Servers {
+	for idx := range cProm.Configuration().Servers {
+		server := clusterConfig.Servers[idx]
 		found := false
 		for _, member := range members {
 			if string(server.ID) == member.Peer {
@@ -266,33 +278,14 @@ func (s *raftlayer) syncMembers() {
 	}
 }
 func (s *raftlayer) leaderRoutine() {
-	ch := make(chan raft.Observation)
-	s.raft.RegisterObserver(raft.NewObserver(ch, true, func(o *raft.Observation) bool {
+	s.observations = make(chan raft.Observation)
+	s.observer = raft.NewObserver(s.observations, true, func(o *raft.Observation) bool {
 		_, ok := o.Data.(raft.LeaderObservation)
 		return ok
-	}))
-	s.discovery.Peers().On(peers.PeerCreated, func(member peers.Peer) {
-		if !s.IsLeader() || member.ID == s.id {
-			return
-		}
-		s.syncMembers()
 	})
-	s.discovery.Peers().On(peers.PeerUpdated, func(member peers.Peer) {
-		if !s.IsLeader() || member.ID == s.id {
-			return
-		}
-		s.syncMembers()
-	})
-	for range ch {
-		if string(s.raft.Leader()) == "" {
-			s.logger.Info("leader lost")
-		}
+	s.raft.RegisterObserver(s.observer)
+	for range s.observations {
 		leader := s.IsLeader()
-		if s.getNodeStatus(s.id) != raftStatusBootstrapped {
-			s.cancelJoin()
-			s.logger.Info("raft cluster joined")
-			s.setStatus(raftStatusBootstrapped)
-		}
 		if !leader {
 			s.discovery.RemoveServiceTag(s.name, "raft_status")
 			s.discovery.RemoveServiceTag(fmt.Sprintf("%s_rpc", s.name), "raft_status")
@@ -301,15 +294,11 @@ func (s *raftlayer) leaderRoutine() {
 		s.logger.Info("raft cluster leadership acquired")
 		s.discovery.AddServiceTag(s.name, "raft_status", "leader")
 		s.discovery.AddServiceTag(fmt.Sprintf("%s_rpc", s.name), "raft_status", "leader")
-		s.syncMembers()
 	}
 }
 func (s *raftlayer) Apply(log *raft.Log) interface{} {
 	if log.Type == raft.LogCommand {
-		err := s.state.Apply(log.Data)
-		if err != nil {
-			return err
-		}
+		return s.state.Apply(log.Data)
 	}
 	return nil
 }
@@ -343,25 +332,34 @@ func (s *raftlayer) Restore(snap io.ReadCloser) error {
 }
 
 func (s *raftlayer) ApplyEvent(event []byte) error {
-	if !s.IsLeader() {
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer cancel()
-		s.logger.Debug("forwarding event to leader")
-		return s.DialLeader(func(client pb.LayerClient) error {
-			_, err := client.SendEvent(ctx, &pb.SendEventInput{Payload: event})
+	retries := 5
+	for retries > 0 {
+		retries--
+		if !s.IsLeader() {
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			s.logger.Debug("forwarding event to leader")
+			return s.DialLeader(func(client pb.LayerClient) error {
+				_, err := client.SendEvent(ctx, &pb.SendEventInput{Payload: event})
+				return err
+			})
+		}
+		promise := s.raft.Apply(event, 30*time.Second)
+		err := promise.Error()
+		if err != nil {
+			if err == raft.ErrLeadershipLost || err == raft.ErrLeadershipTransferInProgress {
+				s.logger.Info("leadership lost while committing log, retrying")
+				continue
+			}
 			return err
-		})
+		}
+		resp := promise.Response()
+		if resp != nil {
+			return resp.(error)
+		}
+		return nil
 	}
-	promise := s.raft.Apply(event, 30*time.Second)
-	err := promise.Error()
-	if err != nil {
-		return err
-	}
-	resp := promise.Response()
-	if resp != nil {
-		return resp.(error)
-	}
-	return nil
+	return errors.New("failed to commit to leader after 5 retries")
 }
 
 func (s *raftlayer) setStatus(status string) {
