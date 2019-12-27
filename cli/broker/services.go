@@ -3,10 +3,11 @@ package main
 import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"github.com/vx-labs/mqtt-broker/services/api"
-	"github.com/vx-labs/mqtt-broker/services/broker"
 	"github.com/vx-labs/mqtt-broker/cli"
 	"github.com/vx-labs/mqtt-broker/cluster"
+	"github.com/vx-labs/mqtt-broker/services/api"
+	"github.com/vx-labs/mqtt-broker/services/auth"
+	"github.com/vx-labs/mqtt-broker/services/broker"
 	"github.com/vx-labs/mqtt-broker/services/kv"
 	"github.com/vx-labs/mqtt-broker/services/listener"
 	"github.com/vx-labs/mqtt-broker/services/messages"
@@ -36,5 +37,6 @@ func Services() []service {
 		&queues.Service{},
 		&api.Service{},
 		&broker.Service{},
+		&auth.Service{},
 	}
 }

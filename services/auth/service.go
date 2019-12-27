@@ -1,4 +1,4 @@
-package broker
+package auth
 
 import (
 	"github.com/spf13/cobra"
@@ -11,12 +11,11 @@ import (
 type Service struct{}
 
 func (s *Service) Name() string {
-	return "broker"
+	return "auth"
 }
 func (s *Service) Register(cmd *cobra.Command, config *viper.Viper) error {
-
 	return nil
 }
 func (s *Service) Run(id string, config *viper.Viper, logger *zap.Logger, mesh cluster.DiscoveryLayer) cli.Service {
-	return New(id, logger, mesh)
+	return New(id, logger)
 }

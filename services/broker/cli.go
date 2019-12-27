@@ -5,10 +5,9 @@ import (
 	"net"
 
 	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
-	"github.com/vx-labs/mqtt-broker/services/broker/pb"
 	"github.com/vx-labs/mqtt-broker/cluster"
-	messages "github.com/vx-labs/mqtt-broker/services/messages/pb"
 	"github.com/vx-labs/mqtt-broker/network"
+	"github.com/vx-labs/mqtt-broker/services/broker/pb"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 )
@@ -35,11 +34,6 @@ func (b *Broker) Shutdown() {
 }
 func (b *Broker) JoinServiceLayer(name string, logger *zap.Logger, config cluster.ServiceConfig, rpcConfig cluster.ServiceConfig, mesh cluster.DiscoveryLayer) {
 	mesh.RegisterService(name, fmt.Sprintf("%s:%d", config.AdvertiseAddr, config.ServicePort))
-	messagesConn, err := mesh.DialService("messages?raft_status=leader")
-	if err != nil {
-		panic(err)
-	}
-	b.Messages = messages.NewClient(messagesConn)
 }
 
 func (b *Broker) Health() string {

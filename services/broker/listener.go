@@ -9,6 +9,7 @@ import (
 	"github.com/vx-labs/mqtt-broker/events"
 
 	"github.com/vx-labs/mqtt-broker/cluster"
+	auth "github.com/vx-labs/mqtt-broker/services/auth/pb"
 	"go.uber.org/zap"
 
 	sessions "github.com/vx-labs/mqtt-broker/services/sessions/pb"
@@ -49,19 +50,28 @@ func connack(code int32) *packet.ConnAck {
 }
 
 func (b *Broker) Connect(ctx context.Context, metadata transport.Metadata, p *packet.Connect) (string, string, *packet.ConnAck, error) {
-	sessionID := newUUID()
 	clientID := p.ClientId
 	clientIDstr := string(clientID)
-	logger := b.logger.With(zap.String("session_id", sessionID), zap.String("client_id", string(clientIDstr)), zap.String("username", string(p.Username)), zap.String("remote_address", metadata.RemoteAddress), zap.String("transport", metadata.Name))
+	logger := b.logger.With(zap.String("client_id", string(clientIDstr)), zap.String("username", string(p.Username)), zap.String("remote_address", metadata.RemoteAddress), zap.String("transport", metadata.Name))
 	if !isClientIDValid(clientID) {
 		logger.Info("connection refused: invalid client id")
 		return "", "", connack(packet.CONNACK_REFUSED_IDENTIFIER_REJECTED), nil
 	}
-	tenant, err := b.Authenticate(metadata, clientID, string(p.Username), string(p.Password))
+	resp, err := b.auth.CreateToken(ctx, auth.ProtocolContext{
+		Username: string(p.Username),
+		Password: string(p.Password),
+	}, auth.TransportContext{
+		Encrypted:       metadata.Encrypted,
+		RemoteAddress:   metadata.RemoteAddress,
+		X509Certificate: nil,
+	})
 	if err != nil {
 		logger.Info("authentication failed", zap.Error(err))
 		return "", "", connack(packet.CONNACK_REFUSED_BAD_USERNAME_OR_PASSWORD), nil
 	}
+	sessionID := resp.SessionID
+	tenant := resp.Tenant
+	logger = logger.With(zap.String("session_id", sessionID))
 	input := sessions.SessionCreateInput{
 		ID:                sessionID,
 		ClientID:          clientIDstr,

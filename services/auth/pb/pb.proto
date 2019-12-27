@@ -1,0 +1,32 @@
+syntax = "proto3";
+
+message TransportContext {
+  bool encrypted = 1;
+  string remoteAddress = 2;
+  bytes x509Certificate = 3;
+}
+
+message ProtocolContext {
+  string username = 1;
+  string password = 2;
+}
+message CreateTokenInput {
+  ProtocolContext protocol  = 1;
+  TransportContext transport  = 2;
+}
+message CreateTokenOutput {
+  string JWT = 1;
+  string Tenant = 2;
+  string EntityID = 3;
+  string SessionID = 4;
+}
+message Entity {
+  string ID = 1;
+  string Tenant = 2;
+  string AuthProvider = 3;
+  repeated string permissions = 4;
+}
+
+service AuthService {
+  rpc CreateToken(CreateTokenInput) returns (CreateTokenOutput);
+}

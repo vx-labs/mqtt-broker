@@ -3,7 +3,6 @@ package broker
 import (
 	"context"
 
-	"github.com/vx-labs/mqtt-broker/transport"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 
@@ -12,6 +11,7 @@ import (
 	sessions "github.com/vx-labs/mqtt-broker/services/sessions/pb"
 	topics "github.com/vx-labs/mqtt-broker/services/topics/pb"
 
+	auth "github.com/vx-labs/mqtt-broker/services/auth/pb"
 	messages "github.com/vx-labs/mqtt-broker/services/messages/pb"
 )
 
@@ -32,27 +32,36 @@ type MessagesStore interface {
 type Broker struct {
 	ID         string
 	logger     *zap.Logger
-	authHelper func(transport transport.Metadata, sessionID []byte, username string, password string) (tenant string, err error)
 	mesh       cluster.Mesh
 	Sessions   SessionStore
 	Messages   *messages.Client
+	auth       *auth.Client
 	grpcServer *grpc.Server
 	ctx        context.Context
 }
 
-func New(id string, logger *zap.Logger, mesh cluster.DiscoveryLayer, config Config) *Broker {
+func New(id string, logger *zap.Logger, mesh cluster.DiscoveryLayer) *Broker {
 	ctx := context.Background()
 	sessionsConn, err := mesh.DialService("sessions")
 	if err != nil {
 		panic(err)
 	}
+	authConn, err := mesh.DialService("auth")
+	if err != nil {
+		panic(err)
+	}
+	messagesConn, err := mesh.DialService("messages?raft_status=leader")
+	if err != nil {
+		panic(err)
+	}
 	broker := &Broker{
-		ID:         id,
-		authHelper: config.AuthHelper,
-		ctx:        ctx,
-		mesh:       mesh,
-		logger:     logger,
-		Sessions:   sessions.NewClient(sessionsConn),
+		ID:       id,
+		ctx:      ctx,
+		mesh:     mesh,
+		logger:   logger,
+		Sessions: sessions.NewClient(sessionsConn),
+		auth:     auth.NewClient(authConn),
+		Messages: messages.NewClient(messagesConn),
 	}
 
 	return broker

@@ -16,6 +16,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	eventsCommand "github.com/vx-labs/mqtt-broker/events/cobra"
+	authCommand "github.com/vx-labs/mqtt-broker/services/auth/cobra"
 	kvCommand "github.com/vx-labs/mqtt-broker/services/kv/cobra"
 	messagesCommand "github.com/vx-labs/mqtt-broker/services/messages/cobra"
 	queuesCommand "github.com/vx-labs/mqtt-broker/services/queues/cobra"
@@ -109,6 +110,7 @@ func main() {
 	eventsCommand.Register(ctx, rootCmd, config)
 	queuesCommand.Register(ctx, rootCmd, config)
 	subscriptionsCommand.Register(ctx, rootCmd, config)
+	authCommand.Register(ctx, rootCmd, config)
 	rootCmd.AddCommand(TLSHelper(config))
 	rootCmd.Execute()
 }

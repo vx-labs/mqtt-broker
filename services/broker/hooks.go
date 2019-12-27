@@ -4,9 +4,6 @@ import (
 	"crypto/rand"
 	"crypto/sha1"
 	"fmt"
-
-	"github.com/vx-labs/mqtt-broker/transport"
-	"go.uber.org/zap"
 )
 
 func newUUID() string {
@@ -40,12 +37,4 @@ func getLowerQoS(a, b int32) int32 {
 		return a
 	}
 	return b
-}
-
-func (b *Broker) Authenticate(transport transport.Metadata, sessionID []byte, username string, password string) (tenant string, err error) {
-	tenant, err = b.authHelper(transport, sessionID, username, password)
-	if err != nil {
-		b.logger.Warn("authentication failed", zap.String("username", username), zap.String("remote_address", transport.RemoteAddress), zap.String("transport", transport.Name), zap.Error(err))
-	}
-	return tenant, err
 }
