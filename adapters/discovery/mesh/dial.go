@@ -1,4 +1,4 @@
-package discovery
+package mesh
 
 import (
 	fmt "fmt"
@@ -8,6 +8,10 @@ import (
 	"google.golang.org/grpc"
 )
 
+func (m *discoveryLayer) Shutdown() error {
+	m.Leave()
+	return nil
+}
 func (m *discoveryLayer) DialService(name string) (*grpc.ClientConn, error) {
 	return grpc.Dial(fmt.Sprintf("mesh:///%s", name),
 		network.GRPCClientOptions()...,

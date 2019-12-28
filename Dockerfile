@@ -1,11 +1,11 @@
 
-FROM quay.io/vxlabs/dep as deps
+FROM golang:alpine as deps
 RUN mkdir -p $GOPATH/src/github.com/vx-labs
 WORKDIR $GOPATH/src/github.com/vx-labs/mqtt-broker
-COPY Gopkg* ./
-RUN dep ensure -vendor-only
+COPY go.* ./
+RUN go mod vendor
 
-FROM quay.io/vxlabs/dep as builder
+FROM golang:alpine as builder
 RUN mkdir -p $GOPATH/src/github.com/vx-labs
 WORKDIR $GOPATH/src/github.com/vx-labs/mqtt-broker
 COPY --from=deps $GOPATH/src/github.com/vx-labs/mqtt-broker/vendor/ ./vendor/

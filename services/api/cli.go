@@ -56,7 +56,7 @@ func (b *api) acceptLoop(listener net.Listener) {
 			w.WriteHeader(http.StatusMethodNotAllowed)
 			return
 		}
-		peers, err := b.mesh.Peers().All()
+		peers, err := b.mesh.Members()
 		if err != nil {
 			httpFail(w, err)
 			return
@@ -112,7 +112,7 @@ func (b *api) Shutdown() {
 		lis.Close()
 	}
 }
-func (b *api) JoinServiceLayer(name string, logger *zap.Logger, config cluster.ServiceConfig, rpcConfig cluster.ServiceConfig, mesh cluster.DiscoveryLayer) {
+func (b *api) JoinServiceLayer(name string, logger *zap.Logger, config cluster.ServiceConfig, rpcConfig cluster.ServiceConfig, mesh cluster.DiscoveryAdapter) {
 }
 func (m *api) Health() string {
 	return "ok"

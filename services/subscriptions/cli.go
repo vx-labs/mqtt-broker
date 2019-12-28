@@ -31,7 +31,7 @@ func (b *server) Shutdown() {
 	b.state.Leave()
 	b.gprcServer.GracefulStop()
 }
-func (b *server) JoinServiceLayer(name string, logger *zap.Logger, config cluster.ServiceConfig, rpcConfig cluster.ServiceConfig, mesh cluster.DiscoveryLayer) {
+func (b *server) JoinServiceLayer(name string, logger *zap.Logger, config cluster.ServiceConfig, rpcConfig cluster.ServiceConfig, mesh cluster.DiscoveryAdapter) {
 	l := cluster.NewGossipServiceLayer(name, logger, config, mesh)
 	b.state = l
 	b.store = NewSubscriptionStore(l, logger)

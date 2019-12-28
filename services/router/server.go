@@ -30,7 +30,7 @@ type server struct {
 	cancel        chan struct{}
 }
 
-func New(id string, logger *zap.Logger, mesh cluster.DiscoveryLayer) *server {
+func New(id string, logger *zap.Logger, mesh cluster.DiscoveryAdapter) *server {
 	ctx := context.Background()
 	b := &server{
 		id:     id,

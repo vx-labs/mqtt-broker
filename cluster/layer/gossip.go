@@ -15,10 +15,13 @@ import (
 	"github.com/hashicorp/memberlist"
 	"github.com/vx-labs/mqtt-broker/cluster/config"
 	"github.com/vx-labs/mqtt-broker/cluster/pb"
-	"github.com/vx-labs/mqtt-broker/cluster/peers"
 	"github.com/vx-labs/mqtt-broker/cluster/types"
 	"go.uber.org/zap"
 )
+
+type DiscoveryAdapter interface {
+	EndpointsByService(name string) ([]*pb.NodeService, error)
+}
 
 type layer struct {
 	id           string
@@ -210,7 +213,7 @@ func (m *layer) Join(newHosts []string) error {
 	}
 	return nil
 }
-func (self *layer) DiscoverPeers(discovery peers.PeerStore) {
+func (self *layer) DiscoverPeers(discovery DiscoveryAdapter) {
 	peers, _ := discovery.EndpointsByService(fmt.Sprintf("%s_cluster", self.name))
 	addresses := []string{}
 	for _, peer := range peers {

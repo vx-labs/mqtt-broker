@@ -32,7 +32,7 @@ func (b *server) Serve(port int) net.Listener {
 func (b *server) Shutdown() {
 	b.grpcServer.GracefulStop()
 }
-func (b *server) JoinServiceLayer(name string, logger *zap.Logger, config cluster.ServiceConfig, rpcConfig cluster.ServiceConfig, mesh cluster.DiscoveryLayer) {
+func (b *server) JoinServiceLayer(name string, logger *zap.Logger, config cluster.ServiceConfig, rpcConfig cluster.ServiceConfig, mesh cluster.DiscoveryAdapter) {
 	err := mesh.RegisterService(name, fmt.Sprintf("%s:%d", config.AdvertiseAddr, config.ServicePort))
 	if err != nil {
 		panic(err)

@@ -1,4 +1,4 @@
-package cluster
+package mesh
 
 import (
 	"log"
@@ -17,7 +17,7 @@ type Discoverer interface {
 	On(event string, handler func(peers.Peer)) func()
 }
 
-func newResolver(d Discoverer, logger *zap.Logger) resolver.Builder {
+func NewMeshResolver(d Discoverer, logger *zap.Logger) resolver.Builder {
 	return &meshResolver{
 		peers:         d,
 		logger:        logger.With(zap.String("emitter", "grpc_mesh_resolver")),

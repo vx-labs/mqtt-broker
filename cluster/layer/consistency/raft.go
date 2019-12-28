@@ -11,7 +11,6 @@ import (
 	"time"
 
 	raftboltdb "github.com/hashicorp/raft-boltdb"
-	"github.com/vx-labs/mqtt-broker/cluster/peers"
 
 	"github.com/hashicorp/raft"
 	"github.com/vx-labs/mqtt-broker/cluster/config"
@@ -53,7 +52,7 @@ type DiscoveryProvider interface {
 	AddServiceTag(service, key, value string) error
 	RemoveServiceTag(name string, tag string) error
 	DialService(id string) (*grpc.ClientConn, error)
-	Peers() peers.PeerStore
+	EndpointsByService(name string) ([]*pb.NodeService, error)
 }
 
 func New(logger *zap.Logger, userConfig config.Config, discovery DiscoveryProvider) (*raftlayer, error) {
@@ -195,7 +194,7 @@ func (s *raftlayer) Health() string {
 
 func (s *raftlayer) discoveredMembers() []string {
 	members := []string{}
-	discovered, err := s.discovery.Peers().EndpointsByService(fmt.Sprintf("%s_cluster", s.name))
+	discovered, err := s.discovery.EndpointsByService(fmt.Sprintf("%s_cluster", s.name))
 	if err != nil {
 		return members
 	}
@@ -253,7 +252,7 @@ func (s *raftlayer) addMember(id, address string) {
 	s.logger.Info("adopted new raft node", zap.String("new_node", id[:8]))
 }
 func (s *raftlayer) syncMembers() {
-	members, err := s.discovery.Peers().EndpointsByService(fmt.Sprintf("%s_cluster", s.name))
+	members, err := s.discovery.EndpointsByService(fmt.Sprintf("%s_cluster", s.name))
 	if err != nil {
 		s.logger.Error("failed to discover nodes", zap.Error(err))
 		panic(err)
@@ -369,10 +368,10 @@ func (s *raftlayer) setStatus(status string) {
 	}
 }
 func (s *raftlayer) getMembers() ([]*pb.NodeService, error) {
-	return s.discovery.Peers().EndpointsByService(fmt.Sprintf("%s_cluster", s.name))
+	return s.discovery.EndpointsByService(fmt.Sprintf("%s_cluster", s.name))
 }
 func (s *raftlayer) getNodeStatus(peer string) string {
-	discovered, err := s.discovery.Peers().EndpointsByService(fmt.Sprintf("%s_cluster", s.name))
+	discovered, err := s.discovery.EndpointsByService(fmt.Sprintf("%s_cluster", s.name))
 	if err != nil {
 		return ""
 	}

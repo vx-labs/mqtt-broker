@@ -24,7 +24,7 @@ func (b *server) Shutdown() {
 	b.gprcServer.GracefulStop()
 	b.store.Close()
 }
-func (b *server) JoinServiceLayer(name string, logger *zap.Logger, config cluster.ServiceConfig, rpcConfig cluster.ServiceConfig, mesh cluster.DiscoveryLayer) {
+func (b *server) JoinServiceLayer(name string, logger *zap.Logger, config cluster.ServiceConfig, rpcConfig cluster.ServiceConfig, mesh cluster.DiscoveryAdapter) {
 	b.state = cluster.NewRaftServiceLayer(name, logger, config, rpcConfig, mesh)
 	err := b.state.Start(name, b)
 	if err != nil {
