@@ -78,7 +78,6 @@ type endpoint struct {
 	queues     QueuesStore
 	transports []net.Listener
 	broker     Broker
-	mesh       cluster.Mesh
 	messages   *messages.Client
 	logger     *zap.Logger
 }
@@ -117,7 +116,7 @@ type Config struct {
 	WSPort        int
 }
 
-func New(id string, logger *zap.Logger, mesh cluster.Mesh, config Config) *endpoint {
+func New(id string, logger *zap.Logger, mesh cluster.DiscoveryAdapter, config Config) *endpoint {
 	ctx := context.Background()
 	brokerConn, err := mesh.DialService("broker")
 	if err != nil {
@@ -137,7 +136,6 @@ func New(id string, logger *zap.Logger, mesh cluster.Mesh, config Config) *endpo
 		queues:   queues.NewClient(queuesConn),
 		messages: messages.NewClient(messagesConn),
 		id:       id,
-		mesh:     mesh,
 		logger:   logger,
 	}
 	if config.TCPPort > 0 {

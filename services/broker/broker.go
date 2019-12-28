@@ -32,7 +32,6 @@ type MessagesStore interface {
 type Broker struct {
 	ID         string
 	logger     *zap.Logger
-	mesh       cluster.Mesh
 	Sessions   SessionStore
 	Messages   *messages.Client
 	auth       *auth.Client
@@ -40,7 +39,7 @@ type Broker struct {
 	ctx        context.Context
 }
 
-func New(id string, logger *zap.Logger, mesh cluster.DiscoveryLayer) *Broker {
+func New(id string, logger *zap.Logger, mesh cluster.DiscoveryAdapter) *Broker {
 	ctx := context.Background()
 	sessionsConn, err := mesh.DialService("sessions")
 	if err != nil {
@@ -57,7 +56,6 @@ func New(id string, logger *zap.Logger, mesh cluster.DiscoveryLayer) *Broker {
 	broker := &Broker{
 		ID:       id,
 		ctx:      ctx,
-		mesh:     mesh,
 		logger:   logger,
 		Sessions: sessions.NewClient(sessionsConn),
 		auth:     auth.NewClient(authConn),

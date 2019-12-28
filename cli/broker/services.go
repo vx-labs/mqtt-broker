@@ -22,7 +22,7 @@ import (
 type service interface {
 	Name() string
 	Register(cmd *cobra.Command, config *viper.Viper) error
-	Run(id string, config *viper.Viper, logger *zap.Logger, mesh cluster.DiscoveryLayer) cli.Service
+	Run(id string, config *viper.Viper, logger *zap.Logger, mesh cluster.DiscoveryAdapter) cli.Service
 }
 
 func Services() []service {

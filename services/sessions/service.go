@@ -16,6 +16,6 @@ func (s *Service) Name() string {
 func (s *Service) Register(cmd *cobra.Command, config *viper.Viper) error {
 	return nil
 }
-func (s *Service) Run(id string, config *viper.Viper, logger *zap.Logger, mesh cluster.DiscoveryLayer) cli.Service {
+func (s *Service) Run(id string, config *viper.Viper, logger *zap.Logger, mesh cluster.DiscoveryAdapter) cli.Service {
 	return New(id, logger)
 }

@@ -9,13 +9,13 @@ import (
 
 	proto "github.com/golang/protobuf/proto"
 	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
-	broker "github.com/vx-labs/mqtt-broker/services/broker/pb"
 	"github.com/vx-labs/mqtt-broker/cluster"
 	"github.com/vx-labs/mqtt-broker/cluster/types"
 	"github.com/vx-labs/mqtt-broker/events"
+	"github.com/vx-labs/mqtt-broker/network"
+	broker "github.com/vx-labs/mqtt-broker/services/broker/pb"
 	kv "github.com/vx-labs/mqtt-broker/services/kv/pb"
 	messages "github.com/vx-labs/mqtt-broker/services/messages/pb"
-	"github.com/vx-labs/mqtt-broker/network"
 	queues "github.com/vx-labs/mqtt-broker/services/queues/pb"
 	"github.com/vx-labs/mqtt-broker/stream"
 	"github.com/vx-labs/mqtt-protocol/packet"
@@ -51,7 +51,7 @@ func (b *server) Shutdown() {
 	b.gprcServer.GracefulStop()
 	<-b.done
 }
-func (b *server) JoinServiceLayer(name string, logger *zap.Logger, config cluster.ServiceConfig, rpcConfig cluster.ServiceConfig, mesh cluster.DiscoveryLayer) {
+func (b *server) JoinServiceLayer(name string, logger *zap.Logger, config cluster.ServiceConfig, rpcConfig cluster.ServiceConfig, mesh cluster.DiscoveryAdapter) {
 	l := cluster.NewGossipServiceLayer(name, logger, config, mesh)
 	db, err := NewMemDBStore(l)
 	if err != nil {

@@ -10,7 +10,7 @@ import (
 	"go.uber.org/zap"
 )
 
-func NewRaftServiceLayer(name string, logger *zap.Logger, serviceConfig ServiceConfig, rpcConfig ServiceConfig, discovery DiscoveryLayer) types.RaftServiceLayer {
+func NewRaftServiceLayer(name string, logger *zap.Logger, serviceConfig ServiceConfig, rpcConfig ServiceConfig, discovery DiscoveryAdapter) types.RaftServiceLayer {
 	userConfig := config.Config{
 		ID:            serviceConfig.ID,
 		AdvertiseAddr: serviceConfig.AdvertiseAddr,

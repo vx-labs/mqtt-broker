@@ -21,7 +21,7 @@ func (s *Service) Register(cmd *cobra.Command, config *viper.Viper) error {
 	config.BindPFlag("initial-stream-config", cmd.Flags().Lookup("initial-stream-config"))
 	return nil
 }
-func (s *Service) Run(id string, config *viper.Viper, logger *zap.Logger, mesh cluster.DiscoveryLayer) cli.Service {
+func (s *Service) Run(id string, config *viper.Viper, logger *zap.Logger, mesh cluster.DiscoveryAdapter) cli.Service {
 	flagConfig := config.GetStringSlice("initial-stream-config")
 	serverConfig := ServerConfig{}
 	for _, element := range flagConfig {

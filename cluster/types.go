@@ -2,6 +2,7 @@ package cluster
 
 import (
 	"github.com/hashicorp/memberlist"
+	"github.com/vx-labs/mqtt-broker/cluster/pb"
 	"github.com/vx-labs/mqtt-broker/cluster/peers"
 	"github.com/vx-labs/mqtt-broker/cluster/types"
 	"google.golang.org/grpc"
@@ -17,6 +18,8 @@ type Mesh interface {
 	Health() string
 }
 type DiscoveryLayer interface {
+	Members() (peers.SubscriptionSet, error)
+	EndpointsByService(name string) ([]*pb.NodeService, error)
 	Peers() peers.PeerStore
 	DialService(name string) (*grpc.ClientConn, error)
 	RegisterService(name, address string) error
@@ -27,6 +30,17 @@ type DiscoveryLayer interface {
 	Join(hosts []string) error
 	Health() string
 	ServiceName() string
+}
+
+type DiscoveryAdapter interface {
+	Members() (peers.SubscriptionSet, error)
+	EndpointsByService(name string) ([]*pb.NodeService, error)
+	DialService(name string) (*grpc.ClientConn, error)
+	RegisterService(name, address string) error
+	UnregisterService(name string) error
+	AddServiceTag(service, key, value string) error
+	RemoveServiceTag(name string, tag string) error
+	Shutdown() error
 }
 
 // Mesh represents the mesh state network, being able to broadcast state across the nodes.

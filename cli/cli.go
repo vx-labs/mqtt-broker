@@ -13,12 +13,12 @@ import (
 
 	"go.uber.org/zap"
 
-	consul "github.com/hashicorp/consul/api"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
 	"github.com/google/uuid"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"github.com/vx-labs/mqtt-broker/adapters/discovery"
 	"github.com/vx-labs/mqtt-broker/cluster"
 	clusterconfig "github.com/vx-labs/mqtt-broker/cluster/config"
 	"github.com/vx-labs/mqtt-broker/network"
@@ -34,7 +34,7 @@ const (
 type Service interface {
 	Serve(port int) net.Listener
 	Shutdown()
-	JoinServiceLayer(string, *zap.Logger, cluster.ServiceConfig, cluster.ServiceConfig, cluster.DiscoveryLayer)
+	JoinServiceLayer(string, *zap.Logger, cluster.ServiceConfig, cluster.ServiceConfig, cluster.DiscoveryAdapter)
 	Health() string
 }
 
@@ -71,43 +71,6 @@ func AddServiceFlags(root *cobra.Command, config *viper.Viper, name string) {
 	network.RegisterFlagsForService(root, config, name, 0)
 }
 
-func JoinConsulPeers(api *consul.Client, service string, selfAddress string, selfPort int, mesh cluster.Mesh, logger *zap.Logger) error {
-	var index uint64
-	ticker := time.NewTicker(5 * time.Second)
-	defer ticker.Stop()
-	for {
-		services, meta, err := api.Health().Service(
-			service,
-			"",
-			false,
-			&consul.QueryOptions{
-				WaitIndex: index,
-				WaitTime:  15 * time.Second,
-			},
-		)
-		if err != nil {
-			<-ticker.C
-			continue
-		}
-		index = meta.LastIndex
-		peers := []string{}
-		for _, service := range services {
-			if service.Checks.AggregatedStatus() == consul.HealthCritical {
-				continue
-			}
-			if service.Service.Address == selfAddress &&
-				service.Service.Port == selfPort {
-				continue
-			}
-			peer := fmt.Sprintf("%s:%d", service.Service.Address, service.Service.Port)
-			peers = append(peers, peer)
-		}
-		if len(peers) > 0 {
-			mesh.Join(peers)
-		}
-	}
-}
-
 func logService(logger *zap.Logger, name string, config network.Configuration) {
 	fmt.Printf("service %s is listening on %s:%d\n", name, config.AdvertisedAddress, config.AdvertisedPort)
 	logger.Debug("loaded service config",
@@ -136,12 +99,12 @@ func (s *serviceRunConfig) ServiceName() string {
 type Context struct {
 	ID          string
 	Logger      *zap.Logger
-	Discovery   cluster.DiscoveryLayer
+	Discovery   cluster.DiscoveryAdapter
 	MeshNetConf *network.Configuration
 	Services    []*serviceRunConfig
 }
 
-func (ctx *Context) AddService(cmd *cobra.Command, config *viper.Viper, name string, f func(id string, config *viper.Viper, logger *zap.Logger, mesh cluster.DiscoveryLayer) Service) {
+func (ctx *Context) AddService(cmd *cobra.Command, config *viper.Viper, name string, f func(id string, config *viper.Viper, logger *zap.Logger, mesh cluster.DiscoveryAdapter) Service) {
 	id := ctx.ID
 	logger := ctx.Logger.WithOptions(zap.Fields(zap.String("service_name", name)))
 	serviceNetConf := network.ConfigurationFromFlags(cmd, config, name)
@@ -173,42 +136,13 @@ func (ctx *Context) Run(v *viper.Viper) error {
 		syscall.SIGQUIT)
 
 	logger := ctx.Logger
-	clusterNetConf := ctx.MeshNetConf
-	mesh := ctx.Discovery
 
-	if allocID := os.Getenv("NOMAD_ALLOC_ID"); allocID != "" {
-		logger.Debug("nomad environment detected, attempting to find peers using Consul discovery API")
-		consulConfig := consul.DefaultConfig()
-		consulConfig.HttpClient = http.DefaultClient
-		consulAPI, err := consul.NewClient(consulConfig)
-		if err != nil {
-			logger.Error("failed to connect to consul", zap.Error(err))
-		}
-		go JoinConsulPeers(consulAPI, "cluster", clusterNetConf.AdvertisedAddress, clusterNetConf.AdvertisedPort, mesh, logger)
-	}
 	sensors := make([]healthChecker, 0, len(ctx.Services)+1)
-	sensors = append(sensors, mesh)
 	for _, service := range ctx.Services {
 		sensors = append(sensors, service)
 	}
 	go serveHTTPHealth(v.GetInt("healthcheck-port"), logger, sensors)
-	nodes := v.GetStringSlice("join")
-	if len(nodes) > 0 {
-		go func() {
-			joinTicker := time.NewTicker(3 * time.Second)
-			defer joinTicker.Stop()
-			retries := 5
-			for retries > 0 {
-				err := mesh.Join(nodes)
-				if err == nil {
-					return
-				}
-				logger.Warn("failed to join provided cluster node", zap.Error(err))
-				retries--
-				<-joinTicker.C
-			}
-		}()
-	}
+
 	for _, service := range ctx.Services {
 		logger := ctx.Logger.WithOptions(zap.Fields(zap.String("service_name", service.ID)))
 		serviceNetConf := service.Network
@@ -255,7 +189,7 @@ func (ctx *Context) Run(v *viper.Viper) error {
 			service.Service.Shutdown()
 			logger.Debug(fmt.Sprintf("stopped service %s", service.ID))
 		}
-		ctx.Discovery.Leave()
+		ctx.Discovery.Shutdown()
 		logger.Info("cluster left")
 	}()
 	<-quit
@@ -313,7 +247,7 @@ func Bootstrap(cmd *cobra.Command, v *viper.Viper) *Context {
 	}
 	clusterNetConf := network.ConfigurationFromFlags(cmd, v, FLAG_NAME_CLUSTER)
 	ctx.MeshNetConf = &clusterNetConf
-	mesh := createMesh(ctx.ID, logger, clusterNetConf)
+	mesh := createMesh(ctx.ID, v, logger, clusterNetConf)
 	ctx.Discovery = mesh
 	logger.Info("mesh created")
 	return ctx
@@ -374,12 +308,13 @@ func serveHTTPHealth(port int, logger *zap.Logger, sensors []healthChecker) {
 	}
 }
 
-func createMesh(id string, logger *zap.Logger, clusterNetConf network.Configuration) cluster.DiscoveryLayer {
-	mesh := cluster.NewDiscoveryLayer(logger, clusterconfig.Config{
+func createMesh(id string, v *viper.Viper, logger *zap.Logger, clusterNetConf network.Configuration) cluster.DiscoveryAdapter {
+	mesh := discovery.Mesh(logger, clusterconfig.Config{
 		BindPort:      clusterNetConf.BindPort,
 		AdvertisePort: clusterNetConf.AdvertisedPort,
 		AdvertiseAddr: clusterNetConf.AdvertisedAddress,
 		ID:            id,
+		JoinList:      v.GetStringSlice("join"),
 	})
 	fmt.Printf("Use the following address to join the cluster: %s:%d\n", clusterNetConf.AdvertisedAddress, clusterNetConf.AdvertisedPort)
 	return mesh

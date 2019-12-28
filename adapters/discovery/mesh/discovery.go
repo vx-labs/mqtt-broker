@@ -1,14 +1,17 @@
-package discovery
+package mesh
 
 import (
 	"errors"
+	"net/http"
 	"os"
 	"runtime"
 	"time"
 
 	"go.uber.org/zap"
+	"google.golang.org/grpc/resolver"
 
 	"github.com/gogo/protobuf/proto"
+	consul "github.com/hashicorp/consul/api"
 	"github.com/vx-labs/mqtt-broker/cluster/config"
 	"github.com/vx-labs/mqtt-broker/cluster/layer"
 	"github.com/vx-labs/mqtt-broker/cluster/pb"
@@ -39,7 +42,7 @@ type Service struct {
 	Address string
 }
 
-func NewDiscoveryLayer(logger *zap.Logger, userConfig config.Config) *discoveryLayer {
+func NewDiscoveryAdapter(logger *zap.Logger, userConfig config.Config) *discoveryLayer {
 	self := &discoveryLayer{
 		id: userConfig.ID,
 	}
@@ -110,6 +113,36 @@ func NewDiscoveryLayer(logger *zap.Logger, userConfig config.Config) *discoveryL
 	}
 	self.layer = layer.NewGossipLayer("cluster", logger, userConfig, payload)
 	go self.oSStatsReporter()
+	nodes := userConfig.JoinList
+	if len(nodes) > 0 {
+		go func() {
+			joinTicker := time.NewTicker(3 * time.Second)
+			defer joinTicker.Stop()
+			retries := 5
+			for retries > 0 {
+				err := self.Join(nodes)
+				if err == nil {
+					return
+				}
+				logger.Warn("failed to join provided cluster node", zap.Error(err))
+				retries--
+				<-joinTicker.C
+			}
+		}()
+	}
+
+	if allocID := os.Getenv("NOMAD_ALLOC_ID"); allocID != "" {
+		logger.Debug("nomad environment detected, attempting to find peers using Consul discovery API")
+		consulConfig := consul.DefaultConfig()
+		consulConfig.HttpClient = http.DefaultClient
+		consulAPI, err := consul.NewClient(consulConfig)
+		if err != nil {
+			logger.Error("failed to connect to consul", zap.Error(err))
+		}
+		go JoinConsulPeers(consulAPI, "cluster", userConfig.AdvertiseAddr, userConfig.AdvertisePort, self, logger)
+	}
+	resolver.Register(NewMeshResolver(self.Peers(), logger))
+
 	return self
 }
 func (m *discoveryLayer) Leave() {
@@ -230,4 +263,10 @@ func (m *discoveryLayer) Health() string {
 		return "ok"
 	}
 	return "warning"
+}
+func (m *discoveryLayer) Members() (peers.SubscriptionSet, error) {
+	return m.peers.All()
+}
+func (m *discoveryLayer) EndpointsByService(name string) ([]*pb.NodeService, error) {
+	return m.peers.EndpointsByService(name)
 }

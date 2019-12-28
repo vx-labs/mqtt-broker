@@ -17,7 +17,7 @@ type api struct {
 	ctx                 context.Context
 	config              Config
 	listeners           []net.Listener
-	mesh                cluster.Mesh
+	mesh                cluster.DiscoveryAdapter
 	brokerClient        *brokerClient.Client
 	sessionsClient      *sessionsClient.Client
 	subscriptionsClient *subscriptionsClient.Client
@@ -30,7 +30,7 @@ type Config struct {
 	logger        *zap.Logger
 }
 
-func New(id string, logger *zap.Logger, mesh cluster.Mesh, config Config) *api {
+func New(id string, logger *zap.Logger, mesh cluster.DiscoveryAdapter, config Config) *api {
 	brokerConn, err := mesh.DialService("broker")
 	if err != nil {
 		panic(err)

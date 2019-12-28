@@ -1,14 +1,9 @@
-
-FROM quay.io/vxlabs/dep as deps
+FROM golang:alpine as builder
+ENV CGO_ENABLED=0
 RUN mkdir -p $GOPATH/src/github.com/vx-labs
 WORKDIR $GOPATH/src/github.com/vx-labs/mqtt-broker
-COPY Gopkg* ./
-RUN dep ensure -vendor-only
-
-FROM quay.io/vxlabs/dep as builder
-RUN mkdir -p $GOPATH/src/github.com/vx-labs
-WORKDIR $GOPATH/src/github.com/vx-labs/mqtt-broker
-COPY --from=deps $GOPATH/src/github.com/vx-labs/mqtt-broker/vendor/ ./vendor/
+COPY go.* ./
+RUN go mod download
 COPY . ./
 RUN go test ./...
 ARG BUILT_VERSION="snapshot"
