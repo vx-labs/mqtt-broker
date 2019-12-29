@@ -13,13 +13,13 @@ func memUsage() runtime.MemStats {
 	return m
 }
 
-func (b *discoveryLayer) oSStatsReporter() {
+func (b *MeshDiscoveryAdapter) oSStatsReporter() {
 	ticker := time.NewTicker(5 * time.Minute)
 	for {
 		m := memUsage()
 		nbRoutines := runtime.NumGoroutine()
 		nbCores := runtime.NumCPU()
-		err := b.Peers().Update(b.id, func(self pb.Peer) pb.Peer {
+		err := b.peers.Update(b.id, func(self pb.Peer) pb.Peer {
 			self.ComputeUsage = &pb.ComputeUsage{
 				Cores:      int64(nbCores),
 				Goroutines: int64(nbRoutines),

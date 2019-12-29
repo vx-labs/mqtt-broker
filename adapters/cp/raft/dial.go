@@ -1,7 +1,7 @@
-package consistency
+package raft
 
 import (
-	"github.com/vx-labs/mqtt-broker/cluster/pb"
+	"github.com/vx-labs/mqtt-broker/adapters/cp/pb"
 )
 
 func (s *raftlayer) DialLeader(f func(pb.LayerClient) error) error {

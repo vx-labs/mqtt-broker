@@ -9,7 +9,7 @@ import (
 )
 
 func (local *endpoint) ConnectHandler(ctx context.Context, session *localSession, p *packet.Connect) error {
-	ctx, cancel := context.WithTimeout(ctx, 15*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
 	id, token, connack, err := local.broker.Connect(ctx, session.transport, p)
 	if err != nil {
@@ -46,10 +46,13 @@ func (local *endpoint) ConnectHandler(ctx context.Context, session *localSession
 	if old != nil {
 		old.(*localSession).transport.Channel.Close()
 	}
-	session.encoder.ConnAck(&packet.ConnAck{
+	err = session.encoder.ConnAck(&packet.ConnAck{
 		ReturnCode: packet.CONNACK_CONNECTION_ACCEPTED,
 		Header:     &packet.Header{},
 	})
+	if err != nil {
+		return err
+	}
 	session.timer = p.KeepaliveTimer
 	session.logger.Info("started session")
 	return nil

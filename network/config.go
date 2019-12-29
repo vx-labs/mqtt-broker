@@ -10,11 +10,33 @@ import (
 )
 
 type Configuration struct {
-	ID                string
-	AdvertisedAddress string
-	AdvertisedPort    int
-	BindAddress       string
-	BindPort          int
+	id                string
+	advertisedAddress string
+	advertisedPort    int
+	bindAddress       string
+	bindPort          int
+}
+
+func (c *Configuration) Name() string {
+	return c.id
+}
+func (c *Configuration) AdvertisedAddress() string {
+	return c.advertisedAddress
+}
+func (c *Configuration) AdvertisedPort() int {
+	if c.bindPort == 0 {
+		panic("invalid advertised port: 0")
+	}
+	return c.advertisedPort
+}
+func (c *Configuration) BindPort() int {
+	if c.bindPort == 0 {
+		panic("invalid bind port: 0")
+	}
+	return c.bindPort
+}
+func (c *Configuration) BindAddress() string {
+	return c.bindAddress
 }
 
 func randomFreePort(host string) (int, error) {
@@ -75,44 +97,44 @@ func bindPortFlagName(name string) string {
 func (c Configuration) Describe(name string) string {
 	return fmt.Sprintf("INFO: service %s is running on %s:%d and exposed on %s:%d",
 		name,
-		c.BindAddress, c.BindPort,
-		c.AdvertisedAddress, c.AdvertisedPort,
+		c.bindAddress, c.bindPort,
+		c.advertisedAddress, c.advertisedPort,
 	)
 }
 
 func ConfigurationFromFlags(cmd *cobra.Command, v *viper.Viper, name string) Configuration {
 	config := Configuration{
-		ID:                name,
-		AdvertisedAddress: v.GetString(advertisedAddressFlagName(name)),
-		AdvertisedPort:    v.GetInt(advertisedPortFlagName(name)),
-		BindAddress:       v.GetString(bindAddressFlagName(name)),
-		BindPort:          v.GetInt(bindPortFlagName(name)),
+		id:                name,
+		advertisedAddress: v.GetString(advertisedAddressFlagName(name)),
+		advertisedPort:    v.GetInt(advertisedPortFlagName(name)),
+		bindAddress:       v.GetString(bindAddressFlagName(name)),
+		bindPort:          v.GetInt(bindPortFlagName(name)),
 	}
 
-	if len(config.AdvertisedAddress) == 0 {
-		config.AdvertisedAddress = config.BindAddress
+	if len(config.advertisedAddress) == 0 {
+		config.advertisedAddress = config.bindAddress
 	}
-	if config.BindPort == 0 {
-		randomPort, err := randomFreePort(config.BindAddress)
+	if config.bindPort == 0 {
+		randomPort, err := randomFreePort(config.bindAddress)
 		if err != nil {
 			panic(err)
 		}
-		config.BindPort = randomPort
+		config.bindPort = randomPort
 	}
-	if config.AdvertisedPort == 0 {
-		config.AdvertisedPort = config.BindPort
+	if config.advertisedPort == 0 {
+		config.advertisedPort = config.bindPort
 	}
-	if net.ParseIP(config.BindAddress) == nil {
-		log.Fatalf("invalid bind address specified for service %s: %q", name, config.BindAddress)
+	if net.ParseIP(config.bindAddress) == nil {
+		log.Fatalf("invalid bind address specified for service %s: %q", name, config.bindAddress)
 	}
-	if net.ParseIP(config.AdvertisedAddress) == nil {
-		log.Fatalf("invalid advertised address specified for service %s: %q", name, config.AdvertisedAddress)
+	if net.ParseIP(config.advertisedAddress) == nil {
+		log.Fatalf("invalid advertised address specified for service %s: %q", name, config.advertisedAddress)
 	}
-	if config.AdvertisedPort < 1024 || config.AdvertisedPort > 65535 {
-		log.Fatalf("invalid advertised port specified for service %s: %d", name, config.AdvertisedPort)
+	if config.advertisedPort < 1024 || config.advertisedPort > 65535 {
+		log.Fatalf("invalid advertised port specified for service %s: %d", name, config.advertisedPort)
 	}
-	if config.BindPort < 1024 || config.BindPort > 65535 {
-		log.Fatalf("invalid bind port specified for service %s: %d", name, config.BindPort)
+	if config.bindPort < 1024 || config.bindPort > 65535 {
+		log.Fatalf("invalid bind port specified for service %s: %d", name, config.bindPort)
 	}
 	return config
 }

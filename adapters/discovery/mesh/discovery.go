@@ -2,7 +2,6 @@ package mesh
 
 import (
 	"errors"
-	"net/http"
 	"os"
 	"runtime"
 	"time"
@@ -11,12 +10,8 @@ import (
 	"google.golang.org/grpc/resolver"
 
 	"github.com/gogo/protobuf/proto"
-	consul "github.com/hashicorp/consul/api"
 	"github.com/vx-labs/mqtt-broker/adapters/discovery/mesh/peers"
 	"github.com/vx-labs/mqtt-broker/adapters/discovery/pb"
-	"github.com/vx-labs/mqtt-broker/cluster/config"
-	"github.com/vx-labs/mqtt-broker/cluster/layer"
-	"github.com/vx-labs/mqtt-broker/cluster/types"
 )
 
 var (
@@ -24,17 +19,14 @@ var (
 	ErrNodeNotFound       = errors.New("specified node not found in mesh")
 )
 
-type discoveryLayer struct {
+type MeshDiscoveryAdapter struct {
 	id    string
-	layer types.GossipServiceLayer
+	layer pb.MembershipAdapter
 	peers peers.PeerStore
 }
 
-func (m *discoveryLayer) ID() string {
+func (m *MeshDiscoveryAdapter) ID() string {
 	return m.id
-}
-func (m *discoveryLayer) Peers() peers.PeerStore {
-	return m.peers
 }
 
 type Service struct {
@@ -42,9 +34,10 @@ type Service struct {
 	Address string
 }
 
-func NewDiscoveryAdapter(logger *zap.Logger, userConfig config.Config) *discoveryLayer {
-	self := &discoveryLayer{
-		id: userConfig.ID,
+func NewDiscoveryAdapter(id string, logger *zap.Logger, members pb.MembershipAdapter) *MeshDiscoveryAdapter {
+	self := &MeshDiscoveryAdapter{
+		id:    id,
+		layer: members,
 	}
 	hostname, err := os.Hostname()
 	if err != nil {
@@ -59,42 +52,18 @@ func NewDiscoveryAdapter(logger *zap.Logger, userConfig config.Config) *discover
 		Runtime:  runtime.Version(),
 		Started:  time.Now().Unix(),
 	}
-	payload, err := proto.Marshal(&peer)
-	if err != nil {
-		panic(err)
-	}
 	store, err := peers.NewPeerStore()
 	if err != nil {
 		panic(err)
 	}
 	self.peers = store
-	self.peers.Upsert(&peer)
-
-	userConfig.OnNodeJoin = func(id string, meta []byte) {
-		if id == userConfig.ID {
-			return
-		}
-		p := &pb.Peer{}
-		err := proto.Unmarshal(meta, p)
-		if err != nil {
-			logger.Warn("failed to unmarshal metadata on node join", zap.Error(err))
-		}
-		err = self.peers.Upsert(p)
-		if err != nil {
-			logger.Warn("failed to update peer in local store", zap.Error(err))
-		}
+	err = self.peers.Upsert(&peer)
+	if err != nil {
+		panic(err)
 	}
-	userConfig.OnNodeLeave = func(id string, _ []byte) {
-		if id == userConfig.ID {
-			return
-		}
-		err := self.peers.Delete(id)
-		if err != nil {
-			logger.Warn("failed to delete peer in local store", zap.Error(err))
-		}
-	}
-	userConfig.OnNodeUpdate = func(id string, meta []byte) {
-		if id == userConfig.ID {
+	self.syncMeta()
+	members.OnNodeJoin(func(remoteID string, meta []byte) {
+		if id == remoteID {
 			return
 		}
 		p := pb.Peer{}
@@ -102,58 +71,50 @@ func NewDiscoveryAdapter(logger *zap.Logger, userConfig config.Config) *discover
 		if err != nil {
 			logger.Warn("failed to unmarshal metadata on node join", zap.Error(err))
 		}
-		err = self.peers.Update(id, func(_ pb.Peer) pb.Peer {
-			return p
-		})
+		err = self.peers.Upsert(&p)
 		if err != nil {
-			logger.Warn("failed to update peer in local store", zap.Error(err))
+			logger.Warn("failed to create peer in local store", zap.Error(err), zap.String("faulty_id", remoteID))
 		}
-	}
-	self.layer = layer.NewGossipLayer("cluster", logger, userConfig, payload)
+	})
+	members.OnNodeLeave(func(remoteID string, _ []byte) {
+		if id == remoteID {
+			return
+		}
+		err := self.peers.Delete(remoteID)
+		if err != nil {
+			logger.Warn("failed to delete peer in local store", zap.Error(err), zap.String("faulty_id", remoteID))
+		}
+	})
+	members.OnNodeUpdate(func(remoteID string, meta []byte) {
+		if id == remoteID {
+			return
+		}
+		p := pb.Peer{}
+		err := proto.Unmarshal(meta, &p)
+		if err != nil {
+			logger.Warn("failed to unmarshal metadata on node join", zap.Error(err))
+		}
+		if self.peers.Exists(remoteID) {
+			err = self.peers.Update(remoteID, func(_ pb.Peer) pb.Peer {
+				return p
+			})
+		} else {
+			err = self.peers.Upsert(&p)
+		}
+		if err != nil {
+			logger.Warn("failed to update peer in local store", zap.Error(err), zap.String("faulty_id", remoteID))
+		}
+	})
 	go self.oSStatsReporter()
-	nodes := userConfig.JoinList
-	if len(nodes) > 0 {
-		go func() {
-			joinTicker := time.NewTicker(3 * time.Second)
-			defer joinTicker.Stop()
-			retries := 5
-			for retries > 0 {
-				err := self.Join(nodes)
-				if err == nil {
-					return
-				}
-				logger.Warn("failed to join provided cluster node", zap.Error(err))
-				retries--
-				<-joinTicker.C
-			}
-		}()
-	}
 
-	if allocID := os.Getenv("NOMAD_ALLOC_ID"); allocID != "" {
-		logger.Debug("nomad environment detected, attempting to find peers using Consul discovery API")
-		consulConfig := consul.DefaultConfig()
-		consulConfig.HttpClient = http.DefaultClient
-		consulAPI, err := consul.NewClient(consulConfig)
-		if err != nil {
-			logger.Error("failed to connect to consul", zap.Error(err))
-		}
-		go JoinConsulPeers(consulAPI, "cluster", userConfig.AdvertiseAddr, userConfig.AdvertisePort, self, logger)
-	}
-	resolver.Register(NewMeshResolver(self.Peers(), logger))
-
+	resolver.Register(NewMeshResolver(self.peers, logger))
 	return self
 }
-func (m *discoveryLayer) Leave() {
-	m.layer.Leave()
-}
-func (m *discoveryLayer) Join(peers []string) error {
-	return m.layer.Join(peers)
+func (m *MeshDiscoveryAdapter) Leave() {
+	m.layer.Shutdown()
 }
 
-func (m *discoveryLayer) ServiceName() string {
-	return "cluster"
-}
-func (m *discoveryLayer) RegisterService(name, address string) error {
+func (m *MeshDiscoveryAdapter) RegisterService(name, address string) error {
 	err := m.peers.Update(m.id, func(self pb.Peer) pb.Peer {
 		self.HostedServices = append(self.HostedServices, &pb.NodeService{
 			ID:             name,
@@ -169,18 +130,18 @@ func (m *discoveryLayer) RegisterService(name, address string) error {
 	return err
 }
 
-func (m *discoveryLayer) syncMeta() error {
+func (m *MeshDiscoveryAdapter) syncMeta() error {
 	self, err := m.peers.ByID(m.id)
 	if err == nil {
 		payload, err := proto.Marshal(self)
 		if err != nil {
 			panic(err)
 		}
-		m.layer.UpdateMeta(payload)
+		m.layer.UpdateMetadata(payload)
 	}
 	return err
 }
-func (m *discoveryLayer) AddServiceTag(service, key, value string) error {
+func (m *MeshDiscoveryAdapter) AddServiceTag(service, key, value string) error {
 	err := m.peers.Update(m.id, func(self pb.Peer) pb.Peer {
 		for idx := range self.HostedServices {
 			if self.HostedServices[idx].ID == service {
@@ -208,7 +169,7 @@ func (m *discoveryLayer) AddServiceTag(service, key, value string) error {
 	}
 	return err
 }
-func (m *discoveryLayer) RemoveServiceTag(name string, tag string) error {
+func (m *MeshDiscoveryAdapter) RemoveServiceTag(name string, tag string) error {
 	err := m.peers.Update(m.id, func(self pb.Peer) pb.Peer {
 		for idx := range self.HostedServices {
 			if self.HostedServices[idx].ID == name {
@@ -233,7 +194,7 @@ func (m *discoveryLayer) RemoveServiceTag(name string, tag string) error {
 	}
 	return err
 }
-func (m *discoveryLayer) UnregisterService(name string) error {
+func (m *MeshDiscoveryAdapter) UnregisterService(name string) error {
 	err := m.peers.Update(m.id, func(self pb.Peer) pb.Peer {
 		newServices := []*pb.NodeService{}
 		newServiceNames := []string{}
@@ -256,19 +217,13 @@ func (m *discoveryLayer) UnregisterService(name string) error {
 	}
 	return err
 }
-func (m *discoveryLayer) Health() string {
-	if len(m.layer.Members()) > 1 {
-		return "ok"
-	}
-	return "warning"
-}
-func (m *discoveryLayer) Members() ([]*pb.Peer, error) {
+func (m *MeshDiscoveryAdapter) Members() ([]*pb.Peer, error) {
 	set, err := m.peers.All()
 	if err != nil {
 		return nil, err
 	}
 	return set.Peers, nil
 }
-func (m *discoveryLayer) EndpointsByService(name string) ([]*pb.NodeService, error) {
+func (m *MeshDiscoveryAdapter) EndpointsByService(name string) ([]*pb.NodeService, error) {
 	return m.peers.EndpointsByService(name)
 }

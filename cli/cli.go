@@ -19,8 +19,8 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"github.com/vx-labs/mqtt-broker/adapters/discovery"
-	"github.com/vx-labs/mqtt-broker/cluster"
-	clusterconfig "github.com/vx-labs/mqtt-broker/cluster/config"
+	"github.com/vx-labs/mqtt-broker/adapters/identity"
+	"github.com/vx-labs/mqtt-broker/adapters/membership"
 	"github.com/vx-labs/mqtt-broker/network"
 )
 
@@ -34,7 +34,7 @@ const (
 type Service interface {
 	Serve(port int) net.Listener
 	Shutdown()
-	JoinServiceLayer(string, *zap.Logger, cluster.ServiceConfig, cluster.ServiceConfig, discovery.DiscoveryAdapter)
+	Start(id, name string, discoveryClient discovery.DiscoveryAdapter, catalog identity.Catalog, logger *zap.Logger) error
 	Health() string
 }
 
@@ -71,22 +71,19 @@ func AddServiceFlags(root *cobra.Command, config *viper.Viper, name string) {
 	network.RegisterFlagsForService(root, config, name, 0)
 }
 
-func logService(logger *zap.Logger, name string, config network.Configuration) {
-	fmt.Printf("service %s is listening on %s:%d\n", name, config.AdvertisedAddress, config.AdvertisedPort)
+func logService(logger *zap.Logger, name string, config identity.Identity) {
+	fmt.Printf("service %s is listening on %s:%d\n", name, config.AdvertisedAddress(), config.AdvertisedPort())
 	logger.Debug("loaded service config",
-		zap.String("bind_address", config.BindAddress),
-		zap.Int("bind_port", config.BindPort),
-		zap.String("advertised_address", config.AdvertisedAddress),
-		zap.Int("advertised_port", config.AdvertisedPort),
+		zap.String("bind_address", config.BindAddress()),
+		zap.Int("bind_port", config.BindPort()),
+		zap.String("advertised_address", config.AdvertisedAddress()),
+		zap.Int("advertised_port", config.AdvertisedPort()),
 	)
 }
 
 type serviceRunConfig struct {
-	Gossip    network.Configuration
-	GossipRPC network.Configuration
-	Network   network.Configuration
-	Service   Service
-	ID        string
+	Service Service
+	ID      string
 }
 
 func (s *serviceRunConfig) Health() string {
@@ -97,11 +94,11 @@ func (s *serviceRunConfig) ServiceName() string {
 }
 
 type Context struct {
-	ID          string
-	Logger      *zap.Logger
-	Discovery   discovery.DiscoveryAdapter
-	MeshNetConf *network.Configuration
-	Services    []*serviceRunConfig
+	ID              string
+	Logger          *zap.Logger
+	Discovery       discovery.DiscoveryAdapter
+	Services        []*serviceRunConfig
+	identityCatalog identity.Catalog
 }
 
 func (ctx *Context) AddService(cmd *cobra.Command, config *viper.Viper, name string, f func(id string, config *viper.Viper, logger *zap.Logger, mesh discovery.DiscoveryAdapter) Service) {
@@ -112,12 +109,13 @@ func (ctx *Context) AddService(cmd *cobra.Command, config *viper.Viper, name str
 	serviceGossipRPCNetConf := network.ConfigurationFromFlags(cmd, config, fmt.Sprintf("%s_gossip_rpc", name))
 	service := f(id, config, logger, ctx.Discovery)
 
+	ctx.identityCatalog.Register(&serviceNetConf)
+	ctx.identityCatalog.Register(&serviceGossipNetConf)
+	ctx.identityCatalog.Register(&serviceGossipRPCNetConf)
+
 	ctx.Services = append(ctx.Services, &serviceRunConfig{
-		Gossip:    serviceGossipNetConf,
-		GossipRPC: serviceGossipRPCNetConf,
-		Network:   serviceNetConf,
-		Service:   service,
-		ID:        name,
+		Service: service,
+		ID:      name,
 	})
 }
 
@@ -145,38 +143,14 @@ func (ctx *Context) Run(v *viper.Viper) error {
 
 	for _, service := range ctx.Services {
 		logger := ctx.Logger.WithOptions(zap.Fields(zap.String("service_name", service.ID)))
-		serviceNetConf := service.Network
-		serviceGossipNetConf := service.Gossip
-		serviceGossipRPCNetConf := service.GossipRPC
-
-		listener := service.Service.Serve(serviceNetConf.BindPort)
+		identity := ctx.identityCatalog.Get(service.ID)
+		err := service.Service.Start(ctx.ID, service.ID, ctx.Discovery, ctx.identityCatalog, logger)
+		if err != nil {
+			logger.Error("failed to start service", zap.Error(err))
+		}
+		listener := service.Service.Serve(identity.BindPort())
 		if listener != nil {
-			port := listener.Addr().(*net.TCPAddr).Port
-
-			serviceConfig := cluster.ServiceConfig{
-				AdvertiseAddr: serviceGossipNetConf.AdvertisedAddress,
-				AdvertisePort: serviceGossipNetConf.AdvertisedPort,
-				BindPort:      serviceGossipNetConf.BindPort,
-				ID:            ctx.ID,
-				ServicePort:   serviceNetConf.AdvertisedPort,
-			}
-			if serviceConfig.AdvertisePort == 0 {
-				serviceConfig.AdvertisePort = serviceConfig.BindPort
-				serviceConfig.ServicePort = port
-			}
-			gossipRPCConfig := cluster.ServiceConfig{
-				AdvertiseAddr: serviceGossipRPCNetConf.AdvertisedAddress,
-				AdvertisePort: serviceGossipRPCNetConf.AdvertisedPort,
-				BindPort:      serviceGossipRPCNetConf.BindPort,
-				ID:            ctx.ID,
-				ServicePort:   serviceGossipRPCNetConf.AdvertisedPort,
-			}
-			if gossipRPCConfig.AdvertisePort == 0 {
-				gossipRPCConfig.AdvertisePort = gossipRPCConfig.BindPort
-				gossipRPCConfig.ServicePort = port
-			}
-			logService(logger, service.ID, service.Network)
-			service.Service.JoinServiceLayer(service.ID, logger, serviceConfig, gossipRPCConfig, ctx.Discovery)
+			logService(logger, service.ID, identity)
 		}
 	}
 	quit := make(chan struct{})
@@ -208,10 +182,10 @@ func makeNodeID(id string) string {
 }
 
 func Bootstrap(cmd *cobra.Command, v *viper.Viper) *Context {
-	nodeID := v.GetString("node-id")
-
+	nodeID := makeNodeID(v.GetString("node-id"))
 	ctx := &Context{
-		ID: makeNodeID(nodeID),
+		ID:              nodeID,
+		identityCatalog: identity.NewCatalog(),
 	}
 	var logger *zap.Logger
 	var err error
@@ -237,7 +211,7 @@ func Bootstrap(cmd *cobra.Command, v *viper.Viper) *Context {
 	if err != nil {
 		panic(err)
 	}
-	logger.Info("starting node")
+	logger.Debug("starting node")
 	ctx.Logger = logger
 	if v.GetBool("pprof") {
 		go func() {
@@ -246,10 +220,10 @@ func Bootstrap(cmd *cobra.Command, v *viper.Viper) *Context {
 		}()
 	}
 	clusterNetConf := network.ConfigurationFromFlags(cmd, v, FLAG_NAME_CLUSTER)
-	ctx.MeshNetConf = &clusterNetConf
-	mesh := createMesh(ctx.ID, v, logger, clusterNetConf)
+	ctx.identityCatalog.Register(&clusterNetConf)
+	mesh := createMesh(ctx.ID, v, logger, &clusterNetConf)
 	ctx.Discovery = mesh
-	logger.Info("mesh created")
+	logger.Debug("mesh created")
 	return ctx
 }
 
@@ -308,14 +282,17 @@ func serveHTTPHealth(port int, logger *zap.Logger, sensors []healthChecker) {
 	}
 }
 
-func createMesh(id string, v *viper.Viper, logger *zap.Logger, clusterNetConf network.Configuration) discovery.DiscoveryAdapter {
-	mesh := discovery.Mesh(logger, clusterconfig.Config{
-		BindPort:      clusterNetConf.BindPort,
-		AdvertisePort: clusterNetConf.AdvertisedPort,
-		AdvertiseAddr: clusterNetConf.AdvertisedAddress,
-		ID:            id,
-		JoinList:      v.GetStringSlice("join"),
-	})
-	fmt.Printf("Use the following address to join the cluster: %s:%d\n", clusterNetConf.AdvertisedAddress, clusterNetConf.AdvertisedPort)
-	return mesh
+func createMesh(id string, v *viper.Viper, logger *zap.Logger, service identity.Identity) discovery.DiscoveryAdapter {
+	var clusterDiscovery discovery.DiscoveryAdapter
+	if allocID := os.Getenv("NOMAD_ALLOC_ID"); allocID != "" {
+		logger.Debug("nomad environment detected, attempting to find peers using Consul discovery API")
+		clusterDiscovery = discovery.Consul(id, logger)
+	} else {
+		nodes := v.GetStringSlice("join")
+		logger.Debug("will attempt to join provided node list", zap.Strings("node_list", nodes))
+		clusterDiscovery = discovery.Static(nodes)
+	}
+
+	membershipAdapter := membership.Mesh(id, logger, discovery.NewServiceFromIdentity(service, clusterDiscovery))
+	return discovery.Mesh(id, logger, membershipAdapter)
 }

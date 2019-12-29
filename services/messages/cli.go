@@ -7,8 +7,9 @@ import (
 	"time"
 
 	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
+	"github.com/vx-labs/mqtt-broker/adapters/cp"
 	"github.com/vx-labs/mqtt-broker/adapters/discovery"
-	"github.com/vx-labs/mqtt-broker/cluster"
+	"github.com/vx-labs/mqtt-broker/adapters/identity"
 	"github.com/vx-labs/mqtt-broker/network"
 	"github.com/vx-labs/mqtt-broker/services/messages/pb"
 
@@ -25,12 +26,17 @@ func (b *server) Shutdown() {
 	b.gprcServer.GracefulStop()
 	b.store.Close()
 }
-func (b *server) JoinServiceLayer(name string, logger *zap.Logger, config cluster.ServiceConfig, rpcConfig cluster.ServiceConfig, mesh discovery.DiscoveryAdapter) {
-	b.state = cluster.NewRaftServiceLayer(name, logger, config, rpcConfig, mesh)
-	err := b.state.Start(name, b)
+func (b *server) Start(id, name string, mesh discovery.DiscoveryAdapter, catalog identity.Catalog, logger *zap.Logger) error {
+	userService := discovery.NewServiceFromIdentity(catalog.Get(name), mesh)
+	raftService := discovery.NewServiceFromIdentity(catalog.Get(fmt.Sprintf("%s_gossip", name)), mesh)
+	raftRPCService := discovery.NewServiceFromIdentity(catalog.Get(fmt.Sprintf("%s_gossip_rpc", name)), mesh)
+	err := userService.Register()
 	if err != nil {
-		panic(err)
+		logger.Error("failed to register service")
+		return err
 	}
+
+	b.state = cp.RaftSynchronizer(id, userService, raftService, raftRPCService, b, logger)
 	leaderConn, err := mesh.DialService("messages?raft_status=leader")
 	if err != nil {
 		panic(err)
@@ -58,6 +64,7 @@ func (b *server) JoinServiceLayer(name string, logger *zap.Logger, config cluste
 			}
 		}
 	}()
+	return nil
 }
 func (m *server) Health() string {
 	return m.state.Health()

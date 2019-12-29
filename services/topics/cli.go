@@ -9,9 +9,9 @@ import (
 
 	proto "github.com/golang/protobuf/proto"
 	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
+	"github.com/vx-labs/mqtt-broker/adapters/ap"
 	"github.com/vx-labs/mqtt-broker/adapters/discovery"
-	"github.com/vx-labs/mqtt-broker/cluster"
-	"github.com/vx-labs/mqtt-broker/cluster/types"
+	"github.com/vx-labs/mqtt-broker/adapters/identity"
 	"github.com/vx-labs/mqtt-broker/events"
 	"github.com/vx-labs/mqtt-broker/network"
 	broker "github.com/vx-labs/mqtt-broker/services/broker/pb"
@@ -30,7 +30,7 @@ import (
 type server struct {
 	id         string
 	store      *memDBStore
-	state      types.GossipServiceLayer
+	state      ap.Distributer
 	Queues     *queues.Client
 	logger     *zap.Logger
 	ctx        context.Context
@@ -52,13 +52,17 @@ func (b *server) Shutdown() {
 	b.gprcServer.GracefulStop()
 	<-b.done
 }
-func (b *server) JoinServiceLayer(name string, logger *zap.Logger, config cluster.ServiceConfig, rpcConfig cluster.ServiceConfig, mesh discovery.DiscoveryAdapter) {
-	l := cluster.NewGossipServiceLayer(name, logger, config, mesh)
-	db, err := NewMemDBStore(l)
+func (b *server) Start(id, name string, mesh discovery.DiscoveryAdapter, catalog identity.Catalog, logger *zap.Logger) error {
+	b.store = NewMemDBStore()
+	service := discovery.NewServiceFromIdentity(catalog.Get(fmt.Sprintf("%s_gossip", name)), mesh)
+	userService := discovery.NewServiceFromIdentity(catalog.Get(name), mesh)
+	err := userService.Register()
 	if err != nil {
-		panic(err)
+		logger.Error("failed to register service")
+		return err
 	}
-	b.store = db
+
+	b.state = ap.GossipDistributer(id, service, b.store, logger)
 	kvConn, err := mesh.DialService("kv?raft_status=leader")
 	if err != nil {
 		panic(err)
@@ -98,6 +102,7 @@ func (b *server) JoinServiceLayer(name string, logger *zap.Logger, config cluste
 			stream.WithInitialOffsetBehaviour(stream.OFFSET_BEHAVIOUR_FROM_START),
 		)
 	}()
+	return nil
 }
 
 func (b *server) consumeStream(messages []*messages.StoredMessage) (int, error) {

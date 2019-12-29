@@ -97,13 +97,8 @@ func (b *Broker) Connect(ctx context.Context, metadata transport.Metadata, p *pa
 		},
 	})
 
-	token, err := EncodeSessionToken(b.SigningKey(), input.Tenant, input.ID)
-	if err != nil {
-		logger.Error("failed to encode session JWT", zap.Error(err))
-		return "", "", nil, err
-	}
 	logger.Info("session connected")
-	return sessionID, token, connack(packet.CONNACK_CONNECTION_ACCEPTED), nil
+	return sessionID, resp.JWT, connack(packet.CONNACK_CONNECTION_ACCEPTED), nil
 }
 func (b *Broker) Subscribe(ctx context.Context, token string, p *packet.Subscribe) (*packet.SubAck, error) {
 	sess, err := DecodeSessionToken(b.SigningKey(), token)

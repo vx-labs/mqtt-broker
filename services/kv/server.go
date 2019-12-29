@@ -9,7 +9,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
-	"github.com/vx-labs/mqtt-broker/cluster/types"
+	"github.com/vx-labs/mqtt-broker/adapters/cp"
 	"github.com/vx-labs/mqtt-broker/path"
 	"github.com/vx-labs/mqtt-broker/services/kv/pb"
 	"github.com/vx-labs/mqtt-broker/services/kv/store"
@@ -19,7 +19,7 @@ import (
 type server struct {
 	id         string
 	store      *store.BoltStore
-	state      types.RaftServiceLayer
+	state      cp.Synchronizer
 	ctx        context.Context
 	gprcServer *grpc.Server
 	logger     *zap.Logger

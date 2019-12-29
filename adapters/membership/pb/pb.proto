@@ -1,0 +1,12 @@
+syntax = "proto3";
+
+package pb;
+
+message Part {
+  string Key = 1;
+  bytes Data = 2;
+}
+
+message FullState {
+  repeated Part parts = 1;
+}

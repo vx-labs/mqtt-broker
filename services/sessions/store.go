@@ -7,7 +7,7 @@ import (
 	"github.com/vx-labs/mqtt-broker/crdt"
 
 	"github.com/golang/protobuf/proto"
-	"github.com/vx-labs/mqtt-broker/cluster/types"
+	ap "github.com/vx-labs/mqtt-broker/adapters/ap/pb"
 	"github.com/vx-labs/mqtt-broker/services/sessions/pb"
 	"go.uber.org/zap"
 
@@ -23,6 +23,7 @@ type Channel interface {
 }
 
 type SessionStore interface {
+	ap.APState
 	ByID(id string) (*pb.Session, error)
 	ByClientID(id string) (*pb.SessionMetadataList, error)
 	ByPeer(peer string) (*pb.SessionMetadataList, error)
@@ -34,12 +35,12 @@ type SessionStore interface {
 }
 
 type memDBStore struct {
-	db      *memdb.MemDB
-	logger  *zap.Logger
-	channel Channel
+	db     *memdb.MemDB
+	logger *zap.Logger
+	events chan []byte
 }
 
-func NewSessionStore(mesh types.GossipServiceLayer, logger *zap.Logger) SessionStore {
+func NewSessionStore(logger *zap.Logger) SessionStore {
 	db, err := memdb.NewMemDB(&memdb.DBSchema{
 		Tables: map[string]*memdb.TableSchema{
 			memdbTable: {
@@ -85,8 +86,8 @@ func NewSessionStore(mesh types.GossipServiceLayer, logger *zap.Logger) SessionS
 	s := &memDBStore{
 		db:     db,
 		logger: logger,
+		events: make(chan []byte),
 	}
-	s.channel, err = mesh.AddState("mqtt-sessions", s)
 	go func() {
 		for range time.Tick(1 * time.Hour) {
 			err := s.runGC()
@@ -96,6 +97,9 @@ func NewSessionStore(mesh types.GossipServiceLayer, logger *zap.Logger) SessionS
 		}
 	}()
 	return s
+}
+func (s *memDBStore) Events() chan []byte {
+	return s.events
 }
 func (s *memDBStore) all(filter *pb.SessionFilterInput) *pb.SessionMetadataList {
 	sessionList := &pb.SessionMetadataList{Sessions: make([]*pb.Session, 0)}
@@ -196,6 +200,12 @@ func (s *memDBStore) ByPeer(peer string) (*pb.SessionMetadataList, error) {
 	})
 }
 
+func (s *memDBStore) notify(b []byte) {
+	select {
+	case s.events <- b:
+	default:
+	}
+}
 func (s *memDBStore) Create(sess *pb.Session) error {
 	sess.LastAdded = time.Now().UnixNano()
 	err := s.write(func(tx *memdb.Txn) error {
@@ -210,7 +220,7 @@ func (s *memDBStore) Create(sess *pb.Session) error {
 		if err != nil {
 			return err
 		}
-		s.channel.Broadcast(buf)
+		s.notify(buf)
 	}
 	return err
 }
@@ -234,7 +244,7 @@ func (s *memDBStore) Update(id string, op func(pb.Session) *pb.Session) error {
 		if err != nil {
 			return err
 		}
-		s.channel.Broadcast(buf)
+		s.notify(buf)
 	}
 	return err
 }
@@ -259,7 +269,7 @@ func (s *memDBStore) Delete(id string) error {
 		if err != nil {
 			return err
 		}
-		s.channel.Broadcast(buf)
+		s.notify(buf)
 	}
 	return err
 }

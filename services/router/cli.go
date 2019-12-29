@@ -4,14 +4,15 @@ import (
 	"net"
 
 	"github.com/vx-labs/mqtt-broker/adapters/discovery"
-	"github.com/vx-labs/mqtt-broker/cluster"
+	"github.com/vx-labs/mqtt-broker/adapters/identity"
 
 	"go.uber.org/zap"
 )
 
 func (b *server) Shutdown() {
 }
-func (b *server) JoinServiceLayer(name string, logger *zap.Logger, config cluster.ServiceConfig, rpcConfig cluster.ServiceConfig, mesh discovery.DiscoveryAdapter) {
+func (b *server) Start(id, name string, mesh discovery.DiscoveryAdapter, catalog identity.Catalog, logger *zap.Logger) error {
+	return nil
 }
 func (m *server) Health() string {
 	return "ok"

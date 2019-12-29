@@ -4,13 +4,11 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/vx-labs/mqtt-broker/cluster"
 	"github.com/vx-labs/mqtt-broker/services/topics/pb"
 )
 
 func TestMemDB(t *testing.T) {
-	db, err := NewMemDBStore(cluster.MockedMesh())
-	assert.Nil(t, err)
+	db := NewMemDBStore()
 	assert.Nil(t, db.Create(pb.RetainedMessage{
 		ID:      "a1",
 		Payload: []byte("bla"),
@@ -46,8 +44,7 @@ func TestMemDB(t *testing.T) {
 }
 
 func TestMemDBDump(t *testing.T) {
-	db, err := NewMemDBStore(cluster.MockedMesh())
-	assert.Nil(t, err)
+	db := NewMemDBStore()
 	assert.Nil(t, db.Create(pb.RetainedMessage{
 		ID:      "a1",
 		Payload: []byte("bla"),

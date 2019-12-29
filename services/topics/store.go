@@ -8,7 +8,6 @@ import (
 	"time"
 
 	proto "github.com/golang/protobuf/proto"
-	"github.com/vx-labs/mqtt-broker/cluster/types"
 	"github.com/vx-labs/mqtt-broker/crdt"
 	"github.com/vx-labs/mqtt-broker/services/topics/pb"
 
@@ -18,10 +17,7 @@ import (
 type memDBStore struct {
 	db         *memdb.MemDB
 	topicIndex *topicIndexer
-	channel    Channel
-}
-type Channel interface {
-	Broadcast([]byte)
+	events     chan []byte
 }
 
 var (
@@ -51,7 +47,7 @@ var now = func() int64 {
 	return time.Now().UnixNano()
 }
 
-func NewMemDBStore(mesh types.GossipServiceLayer) (*memDBStore, error) {
+func NewMemDBStore() *memDBStore {
 	db, err := memdb.NewMemDB(&memdb.DBSchema{
 		Tables: map[string]*memdb.TableSchema{
 			table: &memdb.TableSchema{
@@ -76,13 +72,13 @@ func NewMemDBStore(mesh types.GossipServiceLayer) (*memDBStore, error) {
 		},
 	})
 	if err != nil {
-		return nil, err
+		panic(err)
 	}
 	s := &memDBStore{
 		db:         db,
 		topicIndex: TenantTopicIndexer(),
+		events:     make(chan []byte),
 	}
-	s.channel, err = mesh.AddState("mqtt-topics", s)
 	go func() {
 		for range time.Tick(1 * time.Hour) {
 			err := s.runGC()
@@ -91,7 +87,16 @@ func NewMemDBStore(mesh types.GossipServiceLayer) (*memDBStore, error) {
 			}
 		}
 	}()
-	return s, nil
+	return s
+}
+func (s *memDBStore) Events() chan []byte {
+	return s.events
+}
+func (s *memDBStore) notify(b []byte) {
+	select {
+	case s.events <- b:
+	default:
+	}
 }
 
 func (m *memDBStore) ByID(id string) (pb.RetainedMessage, error) {
@@ -143,7 +148,6 @@ func (s *memDBStore) Create(sess pb.RetainedMessage) error {
 	return s.insert(sess)
 }
 func (m *memDBStore) insert(message pb.RetainedMessage) error {
-	defer m.emitRetainedMessageEvent(message)
 	err := m.write(func(tx *memdb.Txn) error {
 		err := tx.Insert(table, message)
 		if err != nil {
@@ -161,13 +165,7 @@ func (m *memDBStore) insert(message pb.RetainedMessage) error {
 		if err != nil {
 			return err
 		}
-		m.channel.Broadcast(buf)
+		m.notify(buf)
 	}
 	return err
-}
-func (s *memDBStore) emitRetainedMessageEvent(sess pb.RetainedMessage) {
-	if crdt.IsEntryAdded(&sess) {
-	}
-	if crdt.IsEntryRemoved(&sess) {
-	}
 }

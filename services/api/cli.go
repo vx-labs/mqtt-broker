@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/vx-labs/mqtt-broker/adapters/discovery"
-	"github.com/vx-labs/mqtt-broker/cluster"
+	"github.com/vx-labs/mqtt-broker/adapters/identity"
 	"github.com/vx-labs/mqtt-broker/vaultacme"
 
 	"go.uber.org/zap"
@@ -79,6 +79,14 @@ func (b *api) acceptLoop(listener net.Listener) {
 }
 
 func (b *api) Serve(_ int) net.Listener {
+	return nil
+}
+func (b *api) Shutdown() {
+	for _, lis := range b.listeners {
+		lis.Close()
+	}
+}
+func (b *api) Start(id, name string, mesh discovery.DiscoveryAdapter, catalog identity.Catalog, logger *zap.Logger) error {
 	if b.config.TlsPort > 0 {
 		TLSConfig, err := vaultacme.GetConfig(b.ctx, b.config.TlsCommonName, b.logger)
 		if err != nil {
@@ -107,13 +115,6 @@ func (b *api) Serve(_ int) net.Listener {
 		b.acceptLoop(lis)
 	}
 	return nil
-}
-func (b *api) Shutdown() {
-	for _, lis := range b.listeners {
-		lis.Close()
-	}
-}
-func (b *api) JoinServiceLayer(name string, logger *zap.Logger, config cluster.ServiceConfig, rpcConfig cluster.ServiceConfig, mesh discovery.DiscoveryAdapter) {
 }
 func (m *api) Health() string {
 	return "ok"

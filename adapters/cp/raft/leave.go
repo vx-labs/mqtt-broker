@@ -1,11 +1,10 @@
-package consistency
+package raft
 
 import (
 	"context"
-	fmt "fmt"
 	"time"
 
-	"github.com/vx-labs/mqtt-broker/cluster/pb"
+	"github.com/vx-labs/mqtt-broker/adapters/cp/pb"
 	"go.uber.org/zap"
 )
 
@@ -19,6 +18,7 @@ func (s *raftlayer) Shutdown() error {
 		s.logger.Error("failed to leave raft cluster", zap.Error(err))
 		return err
 	}
+	s.grpcServer.GracefulStop()
 	if s.raftNetwork != nil {
 		err := s.raftNetwork.Close()
 		if err != nil {
@@ -35,9 +35,14 @@ func (s *raftlayer) Leave() error {
 	ticker := time.NewTicker(500 * time.Millisecond)
 	defer ticker.Stop()
 
-	err := s.discovery.UnregisterService(fmt.Sprintf("%s_cluster", s.name))
+	err := s.raftService.Unregister()
 	if err != nil {
 		s.logger.Error("failed to unregister raft service from discovery", zap.Error(err))
+		return err
+	}
+	err = s.rpcService.Unregister()
+	if err != nil {
+		s.logger.Error("failed to unregister raft rpc service from discovery", zap.Error(err))
 		return err
 	}
 	s.logger.Info("unregistered service from discovery")

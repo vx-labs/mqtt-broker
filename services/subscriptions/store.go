@@ -6,7 +6,7 @@ import (
 	"time"
 
 	proto "github.com/golang/protobuf/proto"
-	"github.com/vx-labs/mqtt-broker/cluster/types"
+	ap "github.com/vx-labs/mqtt-broker/adapters/ap/pb"
 	"github.com/vx-labs/mqtt-broker/services/subscriptions/pb"
 	"github.com/vx-labs/mqtt-broker/services/subscriptions/topic"
 	"github.com/vx-labs/mqtt-broker/services/subscriptions/tree"
@@ -22,6 +22,7 @@ var (
 )
 
 type Store interface {
+	ap.APState
 	ByTopic(tenant string, pattern []byte) (*pb.SubscriptionMetadataList, error)
 	ByID(id string) (*pb.Subscription, error)
 	All() (*pb.SubscriptionMetadataList, error)
@@ -29,18 +30,14 @@ type Store interface {
 	Create(message *pb.Subscription) error
 	Delete(id string) error
 }
-type Channel interface {
-	Broadcast([]byte)
-}
-
 type memDBStore struct {
 	db           *memdb.MemDB
 	patternIndex *topicIndexer
-	channel      Channel
 	logger       *zap.Logger
+	events       chan []byte
 }
 
-func NewSubscriptionStore(mesh types.GossipServiceLayer, logger *zap.Logger) Store {
+func NewSubscriptionStore(logger *zap.Logger) Store {
 	db, err := memdb.NewMemDB(&memdb.DBSchema{
 		Tables: map[string]*memdb.TableSchema{
 			table: &memdb.TableSchema{
@@ -78,10 +75,7 @@ func NewSubscriptionStore(mesh types.GossipServiceLayer, logger *zap.Logger) Sto
 		db:           db,
 		patternIndex: TenantTopicIndexer(),
 		logger:       logger,
-	}
-	s.channel, err = mesh.AddState("mqtt-subscriptions", s)
-	if err != nil {
-		panic(err)
+		events:       make(chan []byte),
 	}
 	go func() {
 		for range time.Tick(1 * time.Hour) {
@@ -92,6 +86,15 @@ func NewSubscriptionStore(mesh types.GossipServiceLayer, logger *zap.Logger) Sto
 		}
 	}()
 	return s
+}
+func (s *memDBStore) Events() chan []byte {
+	return s.events
+}
+func (s *memDBStore) notify(b []byte) {
+	select {
+	case s.events <- b:
+	default:
+	}
 }
 
 type topicIndexer struct {
@@ -180,7 +183,7 @@ func (s *memDBStore) Delete(id string) error {
 		if err != nil {
 			return err
 		}
-		s.channel.Broadcast(buf)
+		s.notify(buf)
 	}
 	return err
 }
@@ -200,7 +203,7 @@ func (s *memDBStore) Create(sess *pb.Subscription) error {
 			s.logger.Error("failed to marshal subscription in distributed state")
 			return err
 		}
-		s.channel.Broadcast(buf)
+		s.notify(buf)
 	}
 	return err
 

@@ -89,7 +89,7 @@ func (r *meshResolver) updateConn(target resolver.Target, cc resolver.ClientConn
 			})
 		}
 	}
-	//	r.logger.Debug("updated mesh resolver targets", zap.Strings("targets", loggableAddresses), zap.String("grpc_endpoint", service))
+	r.logger.Debug("updated mesh resolver targets", zap.Strings("targets", loggableAddresses), zap.String("grpc_endpoint", service))
 	cc.UpdateState(resolver.State{
 		Addresses:     addresses,
 		ServiceConfig: nil,

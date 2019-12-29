@@ -7,8 +7,9 @@ import (
 	"time"
 
 	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
+	"github.com/vx-labs/mqtt-broker/adapters/cp"
 	"github.com/vx-labs/mqtt-broker/adapters/discovery"
-	"github.com/vx-labs/mqtt-broker/cluster"
+	"github.com/vx-labs/mqtt-broker/adapters/identity"
 	"github.com/vx-labs/mqtt-broker/network"
 	kv "github.com/vx-labs/mqtt-broker/services/kv/pb"
 	messages "github.com/vx-labs/mqtt-broker/services/messages/pb"
@@ -30,18 +31,25 @@ func (b *server) Shutdown() {
 	}
 	b.gprcServer.GracefulStop()
 }
-func (b *server) JoinServiceLayer(name string, logger *zap.Logger, config cluster.ServiceConfig, rpcConfig cluster.ServiceConfig, mesh discovery.DiscoveryAdapter) {
-	var err error
+func (b *server) Start(id, name string, mesh discovery.DiscoveryAdapter, catalog identity.Catalog, logger *zap.Logger) error {
+	userService := discovery.NewServiceFromIdentity(catalog.Get(name), mesh)
+	raftService := discovery.NewServiceFromIdentity(catalog.Get(fmt.Sprintf("%s_gossip", name)), mesh)
+	raftRPCService := discovery.NewServiceFromIdentity(catalog.Get(fmt.Sprintf("%s_gossip_rpc", name)), mesh)
+
+	err := userService.Register()
+	if err != nil {
+		logger.Error("failed to register service")
+		return err
+	}
+	b.state = cp.RaftSynchronizer(id, userService, raftService, raftRPCService, b, logger)
+
 	sessionConn, err := mesh.DialService("sessions")
 	if err != nil {
-		logger.Fatal("failed to dial session service")
+		logger.Error("failed to dial session service")
+		return err
 	}
 	b.sessions = sessions.NewClient(sessionConn)
-	b.state = cluster.NewRaftServiceLayer(name, logger, config, rpcConfig, mesh)
-	err = b.state.Start(name, b)
-	if err != nil {
-		panic(err)
-	}
+
 	go func() {
 		ticker := time.NewTicker(30 * time.Second)
 		for range ticker.C {
@@ -85,7 +93,7 @@ func (b *server) JoinServiceLayer(name string, logger *zap.Logger, config cluste
 			stream.WithInitialOffsetBehaviour(stream.OFFSET_BEHAVIOUR_FROM_START),
 		)
 	}()
-
+	return nil
 }
 func (m *server) Health() string {
 	return m.state.Health()

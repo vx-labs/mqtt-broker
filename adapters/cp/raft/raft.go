@@ -1,4 +1,4 @@
-package consistency
+package raft
 
 import (
 	"context"
@@ -10,15 +10,14 @@ import (
 	"os"
 	"time"
 
+	"google.golang.org/grpc"
+
 	raftboltdb "github.com/hashicorp/raft-boltdb"
 
 	"github.com/hashicorp/raft"
+	"github.com/vx-labs/mqtt-broker/adapters/cp/pb"
 	discovery "github.com/vx-labs/mqtt-broker/adapters/discovery/pb"
-	"github.com/vx-labs/mqtt-broker/cluster/config"
-	"github.com/vx-labs/mqtt-broker/cluster/pb"
-	"github.com/vx-labs/mqtt-broker/cluster/types"
 	"go.uber.org/zap"
-	"google.golang.org/grpc"
 )
 
 const (
@@ -35,72 +34,96 @@ var (
 type raftlayer struct {
 	id              string
 	name            string
+	userService     Service
 	raft            *raft.Raft
 	raftNetwork     *raft.NetworkTransport
 	selfRaftAddress raft.ServerAddress
-	state           types.RaftState
-	config          config.Config
+	state           pb.CPState
 	logger          *zap.Logger
-	discovery       DiscoveryProvider
+	raftService     Service
+	rpcService      Service
 	cancelJoin      context.CancelFunc
 	leaderRPC       pb.LayerClient
 	observer        *raft.Observer
 	observations    chan raft.Observation
+	grpcServer      *grpc.Server
 }
-type DiscoveryProvider interface {
-	UnregisterService(id string) error
-	RegisterService(id string, address string) error
-	AddServiceTag(service, key, value string) error
-	RemoveServiceTag(name string, tag string) error
-	DialService(id string) (*grpc.ClientConn, error)
-	EndpointsByService(name string) ([]*discovery.NodeService, error)
+type Service interface {
+	DiscoverEndpoints() ([]*discovery.NodeService, error)
+	Register() error
+	Unregister() error
+	Address() string
+	Name() string
+	BindPort() int
+	Dial(...string) (*grpc.ClientConn, error)
+	AddTag(key, value string) error
+	RemoveTag(tag string) error
 }
 
-func New(logger *zap.Logger, userConfig config.Config, discovery DiscoveryProvider) (*raftlayer, error) {
+func NewRaftSynchronizer(id string, userService Service, service Service, rpc Service, state pb.CPState, logger *zap.Logger) *raftlayer {
 	self := &raftlayer{
-		id:              userConfig.ID,
-		selfRaftAddress: raft.ServerAddress(fmt.Sprintf("%s:%d", userConfig.AdvertiseAddr, userConfig.AdvertisePort)),
-		discovery:       discovery,
+		id:              id,
+		userService:     userService,
+		name:            service.Name(),
+		selfRaftAddress: raft.ServerAddress(service.Address()),
+		raftService:     service,
+		rpcService:      rpc,
 		logger:          logger,
-		config:          userConfig,
+		state:           state,
 	}
-	return self, nil
+	err := self.raftService.Register()
+	if err != nil {
+		panic(err)
+	}
+	err = self.rpcService.Register()
+	if err != nil {
+		panic(err)
+	}
+
+	err = self.Serve()
+	if err != nil {
+		panic(err)
+	}
+	err = self.start()
+	if err != nil {
+		panic(err)
+	}
+	return self
 }
 func (s *raftlayer) joinExistingCluster(ctx context.Context) {
 	defer s.cancelJoin()
 	ticker := time.NewTicker(500 * time.Millisecond)
 	defer ticker.Stop()
-	for {
+	retries := 100
+	for retries > 0 {
+		retries--
 		_, err := s.leaderRPC.RequestAdoption(ctx, &pb.RequestAdoptionInput{
 			ID:      s.id,
-			Address: fmt.Sprintf("%s:%d", s.config.AdvertiseAddr, s.config.AdvertisePort),
+			Address: s.raftService.Address(),
 		})
 		if err == nil {
 			s.setStatus(raftStatusBootstrapped)
 			return
 		}
-		s.logger.Error("failed to request adoption, retrying", zap.Error(err))
 		<-ticker.C
 		continue
 	}
+	s.logger.Error("failed to request adoption")
 }
-func (s *raftlayer) Start(name string, state types.RaftState) error {
-	s.name = name
-	leaderConn, err := s.discovery.DialService(fmt.Sprintf("%s_rpc?raft_status=leader", name))
+func (s *raftlayer) start() error {
+	leaderConn, err := s.rpcService.Dial("raft_status=leader")
 	if err != nil {
 		panic(err)
 	}
 	s.leaderRPC = pb.NewLayerClient(leaderConn)
 	raftConfig := raft.DefaultConfig()
-	s.state = state
 	s.setStatus(raftStatusInit)
-	// if os.Getenv("ENABLE_RAFT_LOG") != "true" {
-	// 	raftConfig.LogOutput = ioutil.Discard
-	// }
-	raftConfig.LocalID = raft.ServerID(s.config.ID)
-	raftBind := fmt.Sprintf("0.0.0.0:%d", s.config.BindPort)
-	raftAdv := fmt.Sprintf("%s:%d", s.config.AdvertiseAddr, s.config.AdvertisePort)
-	addr, err := net.ResolveTCPAddr("tcp", raftAdv)
+	if os.Getenv("ENABLE_RAFT_LOG") != "true" {
+		raftConfig.LogOutput = ioutil.Discard
+	}
+	raftConfig.LocalID = raft.ServerID(s.id)
+	raftBind := fmt.Sprintf("0.0.0.0:%d", s.raftService.BindPort())
+	addr, err := net.ResolveTCPAddr("tcp", s.raftService.Address())
 	if err != nil {
 		return err
 	}
@@ -118,7 +141,7 @@ func (s *raftlayer) Start(name string, state types.RaftState) error {
 	retries := 3
 	var snapshots raft.SnapshotStore
 	for {
-		snapshots, err = raft.NewFileSnapshotStore(buildDataDir(s.config.ID), 5, os.Stderr)
+		snapshots, err = raft.NewFileSnapshotStore(buildDataDir(s.id), 5, os.Stderr)
 		retries--
 		if err == nil {
 			break
@@ -127,7 +150,7 @@ func (s *raftlayer) Start(name string, state types.RaftState) error {
 			return fmt.Errorf("failed to create snapshot store: %s", err)
 		}
 	}
-	filename := fmt.Sprintf("%s/raft-%s.db", buildDataDir(s.config.ID), s.name)
+	filename := fmt.Sprintf("%s/raft-%s.db", buildDataDir(s.id), s.name)
 	boltDB, err := raftboltdb.NewBoltStore(filename)
 	if err != nil {
 		return fmt.Errorf("failed to create boltdb store: %s", err)
@@ -148,10 +171,6 @@ func (s *raftlayer) Start(name string, state types.RaftState) error {
 	s.cancelJoin = cancel
 	go s.leaderRoutine()
 	index := s.raft.LastIndex()
-	err = s.discovery.RegisterService(fmt.Sprintf("%s_cluster", name), fmt.Sprintf("%s:%d", s.config.AdvertiseAddr, s.config.AdvertisePort))
-	if err != nil {
-		return err
-	}
 	if index != 0 {
 		s.joinExistingCluster(ctx)
 		return nil
@@ -163,13 +182,16 @@ func (s *raftlayer) Start(name string, state types.RaftState) error {
 			case <-ctx.Done():
 				s.logger.Debug("join session canceled")
 				return
-			case err := <-s.startClusterJoin(ctx, name, 3):
+			case err := <-s.startClusterJoin(ctx, s.name, 3):
 				if err != nil {
 					if err == ErrBootstrappedNodeFound || err == ErrBootstrapRaceLost {
 						s.joinExistingCluster(ctx)
 						return
 					}
-					s.logger.Warn("failed to join cluster, retrying", zap.Error(err))
+					s.logger.Warn("failed to join raft cluster, retrying", zap.Error(err))
+				} else {
+					s.setStatus(raftStatusBootstrapped)
+					return
 				}
 			}
 		}
@@ -195,7 +217,7 @@ func (s *raftlayer) Health() string {
 
 func (s *raftlayer) discoveredMembers() []string {
 	members := []string{}
-	discovered, err := s.discovery.EndpointsByService(fmt.Sprintf("%s_cluster", s.name))
+	discovered, err := s.raftService.DiscoverEndpoints()
 	if err != nil {
 		return members
 	}
@@ -253,7 +275,7 @@ func (s *raftlayer) addMember(id, address string) {
 	s.logger.Info("adopted new raft node", zap.String("new_node", id[:8]))
 }
 func (s *raftlayer) syncMembers() {
-	members, err := s.discovery.EndpointsByService(fmt.Sprintf("%s_cluster", s.name))
+	members, err := s.raftService.DiscoverEndpoints()
 	if err != nil {
 		s.logger.Error("failed to discover nodes", zap.Error(err))
 		panic(err)
@@ -287,13 +309,15 @@ func (s *raftlayer) leaderRoutine() {
 	for range s.observations {
 		leader := s.IsLeader()
 		if !leader {
-			s.discovery.RemoveServiceTag(s.name, "raft_status")
-			s.discovery.RemoveServiceTag(fmt.Sprintf("%s_rpc", s.name), "raft_status")
+			s.raftService.RemoveTag("raft_status")
+			s.rpcService.RemoveTag("raft_status")
+			s.userService.RemoveTag("raft_status")
 			continue
 		}
 		s.logger.Info("raft cluster leadership acquired")
-		s.discovery.AddServiceTag(s.name, "raft_status", "leader")
-		s.discovery.AddServiceTag(fmt.Sprintf("%s_rpc", s.name), "raft_status", "leader")
+		s.raftService.AddTag("raft_status", "leader")
+		s.rpcService.AddTag("raft_status", "leader")
+		s.userService.AddTag("raft_status", "leader")
 	}
 }
 func (s *raftlayer) Apply(log *raft.Log) interface{} {
@@ -363,16 +387,16 @@ func (s *raftlayer) ApplyEvent(event []byte) error {
 }
 
 func (s *raftlayer) setStatus(status string) {
-	err := s.discovery.AddServiceTag(fmt.Sprintf("%s_cluster", s.name), "raft_bootstrap_status", status)
+	err := s.raftService.AddTag("raft_bootstrap_status", status)
 	if err != nil {
 		s.logger.Warn("failed to set raft bootstrap tag", zap.Error(err))
 	}
 }
 func (s *raftlayer) getMembers() ([]*discovery.NodeService, error) {
-	return s.discovery.EndpointsByService(fmt.Sprintf("%s_cluster", s.name))
+	return s.raftService.DiscoverEndpoints()
 }
 func (s *raftlayer) getNodeStatus(peer string) string {
-	discovered, err := s.discovery.EndpointsByService(fmt.Sprintf("%s_cluster", s.name))
+	discovered, err := s.raftService.DiscoverEndpoints()
 	if err != nil {
 		return ""
 	}

@@ -1,15 +1,35 @@
-package consistency
+package raft
 
 import (
 	"context"
 	"errors"
+	fmt "fmt"
+	"net"
 	"time"
 
+	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
+	"google.golang.org/grpc"
+
 	"github.com/hashicorp/raft"
-	"github.com/vx-labs/mqtt-broker/cluster/pb"
+	"github.com/vx-labs/mqtt-broker/adapters/cp/pb"
+	"github.com/vx-labs/mqtt-broker/network"
 	"go.uber.org/zap"
 )
 
+func (s *raftlayer) Serve() error {
+	port := s.rpcService.BindPort()
+	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
+	if err != nil {
+		return err
+	}
+	s.grpcServer = grpc.NewServer(
+		network.GRPCServerOptions()...,
+	)
+	pb.RegisterLayerServer(s.grpcServer, s)
+	grpc_prometheus.Register(s.grpcServer)
+	go s.grpcServer.Serve(lis)
+	return nil
+}
 func (s *raftlayer) SendEvent(ctx context.Context, input *pb.SendEventInput) (*pb.SendEventOutput, error) {
 	return &pb.SendEventOutput{}, s.ApplyEvent(input.Payload)
 }

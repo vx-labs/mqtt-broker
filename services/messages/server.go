@@ -12,7 +12,7 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/vx-labs/mqtt-broker/cluster/types"
+	"github.com/vx-labs/mqtt-broker/adapters/cp"
 	"github.com/vx-labs/mqtt-broker/path"
 	"github.com/vx-labs/mqtt-broker/services/messages/pb"
 	"github.com/vx-labs/mqtt-broker/services/messages/store"
@@ -22,7 +22,7 @@ import (
 type server struct {
 	id         string
 	store      *store.BoltStore
-	state      types.RaftServiceLayer
+	state      cp.Synchronizer
 	ctx        context.Context
 	gprcServer *grpc.Server
 	logger     *zap.Logger

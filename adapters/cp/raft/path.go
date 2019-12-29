@@ -1,4 +1,4 @@
-package consistency
+package raft
 
 import (
 	"github.com/vx-labs/mqtt-broker/path"

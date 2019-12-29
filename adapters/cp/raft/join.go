@@ -1,4 +1,4 @@
-package consistency
+package raft
 
 import (
 	"context"
@@ -95,7 +95,7 @@ func (s *raftlayer) startClusterJoin(ctx context.Context, name string, expectNod
 				Servers: []raft.Server{
 					{
 						ID:      raft.ServerID(s.id),
-						Address: raft.ServerAddress(fmt.Sprintf("127.0.0.1:%d", s.config.BindPort)),
+						Address: raft.ServerAddress(fmt.Sprintf("127.0.0.1:%d", s.raftService.BindPort())),
 					},
 				},
 			}

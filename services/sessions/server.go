@@ -3,7 +3,7 @@ package sessions
 import (
 	"context"
 
-	"github.com/vx-labs/mqtt-broker/cluster/types"
+	ap "github.com/vx-labs/mqtt-broker/adapters/ap"
 	messages "github.com/vx-labs/mqtt-broker/services/messages/pb"
 	"github.com/vx-labs/mqtt-broker/services/sessions/pb"
 	"go.uber.org/zap"
@@ -13,7 +13,7 @@ import (
 type server struct {
 	id         string
 	store      SessionStore
-	state      types.GossipServiceLayer
+	state      ap.Distributer
 	ctx        context.Context
 	gprcServer *grpc.Server
 	logger     *zap.Logger

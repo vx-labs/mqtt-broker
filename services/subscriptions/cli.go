@@ -9,8 +9,9 @@ import (
 
 	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
 	"github.com/pkg/errors"
+	"github.com/vx-labs/mqtt-broker/adapters/ap"
 	"github.com/vx-labs/mqtt-broker/adapters/discovery"
-	"github.com/vx-labs/mqtt-broker/cluster"
+	"github.com/vx-labs/mqtt-broker/adapters/identity"
 	"github.com/vx-labs/mqtt-broker/events"
 	"github.com/vx-labs/mqtt-broker/network"
 	kv "github.com/vx-labs/mqtt-broker/services/kv/pb"
@@ -29,13 +30,21 @@ const (
 )
 
 func (b *server) Shutdown() {
-	b.state.Leave()
+	b.state.Shutdown()
 	b.gprcServer.GracefulStop()
 }
-func (b *server) JoinServiceLayer(name string, logger *zap.Logger, config cluster.ServiceConfig, rpcConfig cluster.ServiceConfig, mesh discovery.DiscoveryAdapter) {
-	l := cluster.NewGossipServiceLayer(name, logger, config, mesh)
-	b.state = l
-	b.store = NewSubscriptionStore(l, logger)
+func (b *server) Start(id, name string, mesh discovery.DiscoveryAdapter, catalog identity.Catalog, logger *zap.Logger) error {
+	b.store = NewSubscriptionStore(logger)
+	service := discovery.NewServiceFromIdentity(catalog.Get(fmt.Sprintf("%s_gossip", name)), mesh)
+	b.state = ap.GossipDistributer(id, service, b.store, logger)
+
+	userService := discovery.NewServiceFromIdentity(catalog.Get(name), mesh)
+	err := userService.Register()
+	if err != nil {
+		logger.Error("failed to register service")
+		return err
+	}
+
 	kvConn, err := mesh.DialService("kv?raft_status=leader")
 	if err != nil {
 		panic(err)
@@ -47,7 +56,6 @@ func (b *server) JoinServiceLayer(name string, logger *zap.Logger, config cluste
 	k := kv.NewClient(kvConn)
 	m := messages.NewClient(messagesConn)
 	streamClient := stream.NewClient(k, m, logger)
-
 	ctx := context.Background()
 	b.cancel = make(chan struct{})
 	b.done = make(chan struct{})
@@ -60,6 +68,7 @@ func (b *server) JoinServiceLayer(name string, logger *zap.Logger, config cluste
 			stream.WithInitialOffsetBehaviour(stream.OFFSET_BEHAVIOUR_FROM_START),
 		)
 	}()
+	return nil
 }
 func makeSubID(session string, pattern []byte) string {
 	hash := sha1.New()
