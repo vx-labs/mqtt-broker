@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/vx-labs/mqtt-broker/adapters/discovery"
 	"github.com/vx-labs/mqtt-broker/cluster"
 	"github.com/vx-labs/mqtt-broker/vaultacme"
 
@@ -112,7 +113,7 @@ func (b *api) Shutdown() {
 		lis.Close()
 	}
 }
-func (b *api) JoinServiceLayer(name string, logger *zap.Logger, config cluster.ServiceConfig, rpcConfig cluster.ServiceConfig, mesh cluster.DiscoveryAdapter) {
+func (b *api) JoinServiceLayer(name string, logger *zap.Logger, config cluster.ServiceConfig, rpcConfig cluster.ServiceConfig, mesh discovery.DiscoveryAdapter) {
 }
 func (m *api) Health() string {
 	return "ok"

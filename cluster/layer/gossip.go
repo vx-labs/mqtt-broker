@@ -13,6 +13,7 @@ import (
 
 	proto "github.com/golang/protobuf/proto"
 	"github.com/hashicorp/memberlist"
+	discovery "github.com/vx-labs/mqtt-broker/adapters/discovery/pb"
 	"github.com/vx-labs/mqtt-broker/cluster/config"
 	"github.com/vx-labs/mqtt-broker/cluster/pb"
 	"github.com/vx-labs/mqtt-broker/cluster/types"
@@ -20,7 +21,7 @@ import (
 )
 
 type DiscoveryAdapter interface {
-	EndpointsByService(name string) ([]*pb.NodeService, error)
+	EndpointsByService(name string) ([]*discovery.NodeService, error)
 }
 
 type layer struct {

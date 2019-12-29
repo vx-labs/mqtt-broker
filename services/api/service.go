@@ -3,8 +3,8 @@ package api
 import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"github.com/vx-labs/mqtt-broker/adapters/discovery"
 	"github.com/vx-labs/mqtt-broker/cli"
-	"github.com/vx-labs/mqtt-broker/cluster"
 	"go.uber.org/zap"
 )
 
@@ -25,7 +25,7 @@ func (s *Service) Register(cmd *cobra.Command, config *viper.Viper) error {
 
 	return nil
 }
-func (s *Service) Run(id string, config *viper.Viper, logger *zap.Logger, mesh cluster.DiscoveryAdapter) cli.Service {
+func (s *Service) Run(id string, config *viper.Viper, logger *zap.Logger, mesh discovery.DiscoveryAdapter) cli.Service {
 	return New(id, logger, mesh, Config{
 		TcpPort:       config.GetInt("api-tcp-port"),
 		TlsCommonName: config.GetString("api-tls-cn"),

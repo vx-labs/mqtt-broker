@@ -34,7 +34,7 @@ const (
 type Service interface {
 	Serve(port int) net.Listener
 	Shutdown()
-	JoinServiceLayer(string, *zap.Logger, cluster.ServiceConfig, cluster.ServiceConfig, cluster.DiscoveryAdapter)
+	JoinServiceLayer(string, *zap.Logger, cluster.ServiceConfig, cluster.ServiceConfig, discovery.DiscoveryAdapter)
 	Health() string
 }
 
@@ -99,12 +99,12 @@ func (s *serviceRunConfig) ServiceName() string {
 type Context struct {
 	ID          string
 	Logger      *zap.Logger
-	Discovery   cluster.DiscoveryAdapter
+	Discovery   discovery.DiscoveryAdapter
 	MeshNetConf *network.Configuration
 	Services    []*serviceRunConfig
 }
 
-func (ctx *Context) AddService(cmd *cobra.Command, config *viper.Viper, name string, f func(id string, config *viper.Viper, logger *zap.Logger, mesh cluster.DiscoveryAdapter) Service) {
+func (ctx *Context) AddService(cmd *cobra.Command, config *viper.Viper, name string, f func(id string, config *viper.Viper, logger *zap.Logger, mesh discovery.DiscoveryAdapter) Service) {
 	id := ctx.ID
 	logger := ctx.Logger.WithOptions(zap.Fields(zap.String("service_name", name)))
 	serviceNetConf := network.ConfigurationFromFlags(cmd, config, name)
@@ -308,7 +308,7 @@ func serveHTTPHealth(port int, logger *zap.Logger, sensors []healthChecker) {
 	}
 }
 
-func createMesh(id string, v *viper.Viper, logger *zap.Logger, clusterNetConf network.Configuration) cluster.DiscoveryAdapter {
+func createMesh(id string, v *viper.Viper, logger *zap.Logger, clusterNetConf network.Configuration) discovery.DiscoveryAdapter {
 	mesh := discovery.Mesh(logger, clusterconfig.Config{
 		BindPort:      clusterNetConf.BindPort,
 		AdvertisePort: clusterNetConf.AdvertisedPort,

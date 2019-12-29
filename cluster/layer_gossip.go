@@ -4,6 +4,7 @@ import (
 	fmt "fmt"
 	"log"
 
+	"github.com/vx-labs/mqtt-broker/adapters/discovery"
 	"github.com/vx-labs/mqtt-broker/cluster/config"
 	"github.com/vx-labs/mqtt-broker/cluster/layer"
 	"github.com/vx-labs/mqtt-broker/cluster/types"
@@ -18,7 +19,7 @@ type ServiceConfig struct {
 	ServicePort   int
 }
 
-func NewGossipServiceLayer(name string, logger *zap.Logger, serviceConfig ServiceConfig, discovery DiscoveryAdapter) types.GossipServiceLayer {
+func NewGossipServiceLayer(name string, logger *zap.Logger, serviceConfig ServiceConfig, discovery discovery.DiscoveryAdapter) types.GossipServiceLayer {
 	userConfig := config.Config{
 		ID:            serviceConfig.ID,
 		AdvertiseAddr: serviceConfig.AdvertiseAddr,

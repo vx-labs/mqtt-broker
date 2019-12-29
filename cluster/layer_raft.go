@@ -4,13 +4,14 @@ import (
 	fmt "fmt"
 	"log"
 
+	"github.com/vx-labs/mqtt-broker/adapters/discovery"
 	"github.com/vx-labs/mqtt-broker/cluster/config"
 	"github.com/vx-labs/mqtt-broker/cluster/layer"
 	"github.com/vx-labs/mqtt-broker/cluster/types"
 	"go.uber.org/zap"
 )
 
-func NewRaftServiceLayer(name string, logger *zap.Logger, serviceConfig ServiceConfig, rpcConfig ServiceConfig, discovery DiscoveryAdapter) types.RaftServiceLayer {
+func NewRaftServiceLayer(name string, logger *zap.Logger, serviceConfig ServiceConfig, rpcConfig ServiceConfig, discovery discovery.DiscoveryAdapter) types.RaftServiceLayer {
 	userConfig := config.Config{
 		ID:            serviceConfig.ID,
 		AdvertiseAddr: serviceConfig.AdvertiseAddr,

@@ -8,6 +8,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/vx-labs/mqtt-broker/adapters/discovery"
 	"github.com/vx-labs/mqtt-broker/struct/queues/inflight"
 
 	"github.com/dgrijalva/jwt-go"
@@ -15,7 +16,6 @@ import (
 	brokerpb "github.com/vx-labs/mqtt-broker/services/broker/pb"
 	queues "github.com/vx-labs/mqtt-broker/services/queues/pb"
 
-	"github.com/vx-labs/mqtt-broker/cluster"
 	messages "github.com/vx-labs/mqtt-broker/services/messages/pb"
 	"github.com/vx-labs/mqtt-broker/transport"
 	"github.com/vx-labs/mqtt-protocol/encoder"
@@ -116,7 +116,7 @@ type Config struct {
 	WSPort        int
 }
 
-func New(id string, logger *zap.Logger, mesh cluster.DiscoveryAdapter, config Config) *endpoint {
+func New(id string, logger *zap.Logger, mesh discovery.DiscoveryAdapter, config Config) *endpoint {
 	ctx := context.Background()
 	brokerConn, err := mesh.DialService("broker")
 	if err != nil {

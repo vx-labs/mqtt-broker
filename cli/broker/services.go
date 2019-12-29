@@ -3,8 +3,8 @@ package main
 import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"github.com/vx-labs/mqtt-broker/adapters/discovery"
 	"github.com/vx-labs/mqtt-broker/cli"
-	"github.com/vx-labs/mqtt-broker/cluster"
 	"github.com/vx-labs/mqtt-broker/services/api"
 	"github.com/vx-labs/mqtt-broker/services/auth"
 	"github.com/vx-labs/mqtt-broker/services/broker"
@@ -22,7 +22,7 @@ import (
 type service interface {
 	Name() string
 	Register(cmd *cobra.Command, config *viper.Viper) error
-	Run(id string, config *viper.Viper, logger *zap.Logger, mesh cluster.DiscoveryAdapter) cli.Service
+	Run(id string, config *viper.Viper, logger *zap.Logger, mesh discovery.DiscoveryAdapter) cli.Service
 }
 
 func Services() []service {

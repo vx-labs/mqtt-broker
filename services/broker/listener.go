@@ -8,7 +8,6 @@ import (
 
 	"github.com/vx-labs/mqtt-broker/events"
 
-	"github.com/vx-labs/mqtt-broker/cluster"
 	auth "github.com/vx-labs/mqtt-broker/services/auth/pb"
 	"go.uber.org/zap"
 
@@ -25,13 +24,6 @@ var (
 
 func isClientIDValid(clientID []byte) bool {
 	return len(clientID) > 0 && len(clientID) < 128
-}
-
-type localTransport struct {
-	ctx  context.Context
-	id   string
-	mesh cluster.Mesh
-	peer string
 }
 
 type connectReturn struct {

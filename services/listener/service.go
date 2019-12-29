@@ -5,8 +5,8 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"github.com/vx-labs/mqtt-broker/adapters/discovery"
 	"github.com/vx-labs/mqtt-broker/cli"
-	"github.com/vx-labs/mqtt-broker/cluster"
 	"go.uber.org/zap"
 )
 
@@ -34,7 +34,7 @@ func (s *Service) Register(cmd *cobra.Command, config *viper.Viper) error {
 	return nil
 }
 
-func (s *Service) Run(id string, config *viper.Viper, logger *zap.Logger, mesh cluster.DiscoveryAdapter) cli.Service {
+func (s *Service) Run(id string, config *viper.Viper, logger *zap.Logger, mesh discovery.DiscoveryAdapter) cli.Service {
 	tcpPort := config.GetInt("listener-tcp-port")
 	tlsPort := config.GetInt("listener-tls-port")
 	wssPort := config.GetInt("listener-wss-port")

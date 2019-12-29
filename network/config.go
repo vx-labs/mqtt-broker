@@ -10,6 +10,7 @@ import (
 )
 
 type Configuration struct {
+	ID                string
 	AdvertisedAddress string
 	AdvertisedPort    int
 	BindAddress       string
@@ -81,6 +82,7 @@ func (c Configuration) Describe(name string) string {
 
 func ConfigurationFromFlags(cmd *cobra.Command, v *viper.Viper, name string) Configuration {
 	config := Configuration{
+		ID:                name,
 		AdvertisedAddress: v.GetString(advertisedAddressFlagName(name)),
 		AdvertisedPort:    v.GetInt(advertisedPortFlagName(name)),
 		BindAddress:       v.GetString(bindAddressFlagName(name)),

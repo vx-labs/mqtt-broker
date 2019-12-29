@@ -3,6 +3,7 @@ package router
 import (
 	"net"
 
+	"github.com/vx-labs/mqtt-broker/adapters/discovery"
 	"github.com/vx-labs/mqtt-broker/cluster"
 
 	"go.uber.org/zap"
@@ -10,7 +11,7 @@ import (
 
 func (b *server) Shutdown() {
 }
-func (b *server) JoinServiceLayer(name string, logger *zap.Logger, config cluster.ServiceConfig, rpcConfig cluster.ServiceConfig, mesh cluster.DiscoveryAdapter) {
+func (b *server) JoinServiceLayer(name string, logger *zap.Logger, config cluster.ServiceConfig, rpcConfig cluster.ServiceConfig, mesh discovery.DiscoveryAdapter) {
 }
 func (m *server) Health() string {
 	return "ok"

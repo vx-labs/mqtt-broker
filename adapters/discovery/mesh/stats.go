@@ -4,8 +4,7 @@ import (
 	"runtime"
 	"time"
 
-	"github.com/vx-labs/mqtt-broker/cluster/pb"
-	"github.com/vx-labs/mqtt-broker/cluster/peers"
+	"github.com/vx-labs/mqtt-broker/adapters/discovery/pb"
 )
 
 func memUsage() runtime.MemStats {
@@ -20,7 +19,7 @@ func (b *discoveryLayer) oSStatsReporter() {
 		m := memUsage()
 		nbRoutines := runtime.NumGoroutine()
 		nbCores := runtime.NumCPU()
-		err := b.Peers().Update(b.id, func(self peers.Peer) peers.Peer {
+		err := b.Peers().Update(b.id, func(self pb.Peer) pb.Peer {
 			self.ComputeUsage = &pb.ComputeUsage{
 				Cores:      int64(nbCores),
 				Goroutines: int64(nbRoutines),

@@ -12,10 +12,10 @@ import (
 
 	"github.com/gogo/protobuf/proto"
 	consul "github.com/hashicorp/consul/api"
+	"github.com/vx-labs/mqtt-broker/adapters/discovery/mesh/peers"
+	"github.com/vx-labs/mqtt-broker/adapters/discovery/pb"
 	"github.com/vx-labs/mqtt-broker/cluster/config"
 	"github.com/vx-labs/mqtt-broker/cluster/layer"
-	"github.com/vx-labs/mqtt-broker/cluster/pb"
-	"github.com/vx-labs/mqtt-broker/cluster/peers"
 	"github.com/vx-labs/mqtt-broker/cluster/types"
 )
 
@@ -53,13 +53,11 @@ func NewDiscoveryAdapter(logger *zap.Logger, userConfig config.Config) *discover
 	if hostname == "" {
 		hostname = "hostname_not_available"
 	}
-	peer := peers.Peer{
-		Metadata: pb.Metadata{
-			ID:       self.id,
-			Hostname: hostname,
-			Runtime:  runtime.Version(),
-			Started:  time.Now().Unix(),
-		},
+	peer := pb.Peer{
+		ID:       self.id,
+		Hostname: hostname,
+		Runtime:  runtime.Version(),
+		Started:  time.Now().Unix(),
 	}
 	payload, err := proto.Marshal(&peer)
 	if err != nil {
@@ -70,14 +68,14 @@ func NewDiscoveryAdapter(logger *zap.Logger, userConfig config.Config) *discover
 		panic(err)
 	}
 	self.peers = store
-	self.peers.Upsert(peer)
+	self.peers.Upsert(&peer)
 
 	userConfig.OnNodeJoin = func(id string, meta []byte) {
 		if id == userConfig.ID {
 			return
 		}
-		p := peers.Peer{}
-		err := proto.Unmarshal(meta, &p)
+		p := &pb.Peer{}
+		err := proto.Unmarshal(meta, p)
 		if err != nil {
 			logger.Warn("failed to unmarshal metadata on node join", zap.Error(err))
 		}
@@ -99,12 +97,12 @@ func NewDiscoveryAdapter(logger *zap.Logger, userConfig config.Config) *discover
 		if id == userConfig.ID {
 			return
 		}
-		p := peers.Peer{}
+		p := pb.Peer{}
 		err := proto.Unmarshal(meta, &p)
 		if err != nil {
 			logger.Warn("failed to unmarshal metadata on node join", zap.Error(err))
 		}
-		err = self.peers.Update(id, func(_ peers.Peer) peers.Peer {
+		err = self.peers.Update(id, func(_ pb.Peer) pb.Peer {
 			return p
 		})
 		if err != nil {
@@ -156,7 +154,7 @@ func (m *discoveryLayer) ServiceName() string {
 	return "cluster"
 }
 func (m *discoveryLayer) RegisterService(name, address string) error {
-	err := m.peers.Update(m.id, func(self peers.Peer) peers.Peer {
+	err := m.peers.Update(m.id, func(self pb.Peer) pb.Peer {
 		self.HostedServices = append(self.HostedServices, &pb.NodeService{
 			ID:             name,
 			NetworkAddress: address,
@@ -174,7 +172,7 @@ func (m *discoveryLayer) RegisterService(name, address string) error {
 func (m *discoveryLayer) syncMeta() error {
 	self, err := m.peers.ByID(m.id)
 	if err == nil {
-		payload, err := proto.Marshal(&self)
+		payload, err := proto.Marshal(self)
 		if err != nil {
 			panic(err)
 		}
@@ -183,7 +181,7 @@ func (m *discoveryLayer) syncMeta() error {
 	return err
 }
 func (m *discoveryLayer) AddServiceTag(service, key, value string) error {
-	err := m.peers.Update(m.id, func(self peers.Peer) peers.Peer {
+	err := m.peers.Update(m.id, func(self pb.Peer) pb.Peer {
 		for idx := range self.HostedServices {
 			if self.HostedServices[idx].ID == service {
 				found := false
@@ -211,7 +209,7 @@ func (m *discoveryLayer) AddServiceTag(service, key, value string) error {
 	return err
 }
 func (m *discoveryLayer) RemoveServiceTag(name string, tag string) error {
-	err := m.peers.Update(m.id, func(self peers.Peer) peers.Peer {
+	err := m.peers.Update(m.id, func(self pb.Peer) pb.Peer {
 		for idx := range self.HostedServices {
 			if self.HostedServices[idx].ID == name {
 				dirty := false
@@ -236,7 +234,7 @@ func (m *discoveryLayer) RemoveServiceTag(name string, tag string) error {
 	return err
 }
 func (m *discoveryLayer) UnregisterService(name string) error {
-	err := m.peers.Update(m.id, func(self peers.Peer) peers.Peer {
+	err := m.peers.Update(m.id, func(self pb.Peer) pb.Peer {
 		newServices := []*pb.NodeService{}
 		newServiceNames := []string{}
 		for _, service := range self.HostedServices {
@@ -264,8 +262,12 @@ func (m *discoveryLayer) Health() string {
 	}
 	return "warning"
 }
-func (m *discoveryLayer) Members() (peers.SubscriptionSet, error) {
-	return m.peers.All()
+func (m *discoveryLayer) Members() ([]*pb.Peer, error) {
+	set, err := m.peers.All()
+	if err != nil {
+		return nil, err
+	}
+	return set.Peers, nil
 }
 func (m *discoveryLayer) EndpointsByService(name string) ([]*pb.NodeService, error) {
 	return m.peers.EndpointsByService(name)

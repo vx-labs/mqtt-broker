@@ -6,8 +6,7 @@ import (
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 
-	"github.com/vx-labs/mqtt-broker/cluster"
-
+	"github.com/vx-labs/mqtt-broker/adapters/discovery"
 	sessions "github.com/vx-labs/mqtt-broker/services/sessions/pb"
 	topics "github.com/vx-labs/mqtt-broker/services/topics/pb"
 
@@ -39,7 +38,7 @@ type Broker struct {
 	ctx        context.Context
 }
 
-func New(id string, logger *zap.Logger, mesh cluster.DiscoveryAdapter) *Broker {
+func New(id string, logger *zap.Logger, mesh discovery.DiscoveryAdapter) *Broker {
 	ctx := context.Background()
 	sessionsConn, err := mesh.DialService("sessions")
 	if err != nil {

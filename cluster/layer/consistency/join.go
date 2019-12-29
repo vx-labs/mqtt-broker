@@ -10,14 +10,14 @@ import (
 	"time"
 
 	"github.com/hashicorp/raft"
-	"github.com/vx-labs/mqtt-broker/cluster/pb"
+	discovery "github.com/vx-labs/mqtt-broker/adapters/discovery/pb"
 	"go.uber.org/zap"
 )
 
 type statusChecker interface {
 	getNodeStatus(peer string) string
 	setStatus(string)
-	getMembers() ([]*pb.NodeService, error)
+	getMembers() ([]*discovery.NodeService, error)
 }
 
 func waitForToken(ctx context.Context, token string, expectNodeCount int, s statusChecker, ticker *time.Ticker, logger *zap.Logger) error {
@@ -32,9 +32,9 @@ func waitForToken(ctx context.Context, token string, expectNodeCount int, s stat
 		if err != nil {
 			return err
 		}
-		bootstrappingMembers := make([]*pb.NodeService, 0)
+		bootstrappingMembers := make([]*discovery.NodeService, 0)
 		for _, member := range members {
-			status := pb.GetTagValue("raft_bootstrap_status", member.Tags)
+			status := discovery.GetTagValue("raft_bootstrap_status", member.Tags)
 			if status == raftStatusBootstrapped {
 				return ErrBootstrappedNodeFound
 			}
@@ -65,7 +65,7 @@ func waitForToken(ctx context.Context, token string, expectNodeCount int, s stat
 	}
 }
 
-func SyncToken(members []*pb.NodeService) string {
+func SyncToken(members []*discovery.NodeService) string {
 	if !sort.SliceIsSorted(members, func(i, j int) bool {
 		return strings.Compare(members[i].Peer, members[j].Peer) == -1
 	}) {
@@ -78,7 +78,7 @@ func SyncToken(members []*pb.NodeService) string {
 	return fmt.Sprintf("%x", (bootstrapToken.Sum(nil)))
 }
 
-func sortMembers(members []*pb.NodeService) {
+func sortMembers(members []*discovery.NodeService) {
 	sort.SliceStable(members, func(i, j int) bool {
 		return strings.Compare(members[i].Peer, members[j].Peer) == -1
 	})
@@ -90,7 +90,7 @@ func (s *raftlayer) startClusterJoin(ctx context.Context, name string, expectNod
 		defer close(ch)
 		ctx, cancel := context.WithCancel(ctx)
 		defer cancel()
-		err := s.joinCluster(ctx, name, expectNodeCount, s.logger, func(members []*pb.NodeService) error {
+		err := s.joinCluster(ctx, name, expectNodeCount, s.logger, func(members []*discovery.NodeService) error {
 			configuration := raft.Configuration{
 				Servers: []raft.Server{
 					{
@@ -112,9 +112,9 @@ func (s *raftlayer) startClusterJoin(ctx context.Context, name string, expectNod
 	}()
 	return ch
 }
-func (s *raftlayer) joinCluster(ctx context.Context, name string, expectNodeCount int, logger *zap.Logger, done func(members []*pb.NodeService) error) error {
+func (s *raftlayer) joinCluster(ctx context.Context, name string, expectNodeCount int, logger *zap.Logger, done func(members []*discovery.NodeService) error) error {
 	ticker := time.NewTicker(3 * time.Second)
-	var members []*pb.NodeService
+	var members []*discovery.NodeService
 	var err error
 	start := time.Now()
 	s.setStatus(raftStatusBootstrapping)
@@ -123,9 +123,9 @@ func (s *raftlayer) joinCluster(ctx context.Context, name string, expectNodeCoun
 		if err != nil {
 			return err
 		}
-		bootstrappingMembers := make([]*pb.NodeService, 0)
+		bootstrappingMembers := make([]*discovery.NodeService, 0)
 		for _, member := range members {
-			status := pb.GetTagValue("raft_bootstrap_status", member.Tags)
+			status := discovery.GetTagValue("raft_bootstrap_status", member.Tags)
 			if strings.HasPrefix(status, raftStatusBootstrapping) {
 				bootstrappingMembers = append(bootstrappingMembers, member)
 			}

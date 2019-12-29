@@ -1,0 +1,41 @@
+syntax = "proto3";
+
+package pb;
+
+message ServiceTag {
+  string Key = 1;
+  string Value = 2;
+}
+message NodeService {
+  string ID = 1;
+  string NetworkAddress = 2;
+  string Peer = 3;
+  repeated ServiceTag Tags = 4;
+}
+message Peer {
+  string ID = 1;
+  string Hostname = 3;
+  MemoryUsage MemoryUsage = 7;
+  ComputeUsage ComputeUsage = 8;
+  string Runtime = 9;
+  repeated NodeService HostedServices = 10;
+  repeated string  Services = 11;
+  int64 Started = 12;
+  int64 LastContact = 13;
+}
+
+message ComputeUsage {
+  int64 Cores = 1;
+  int64 Goroutines = 2;
+}
+message MemoryUsage {
+  uint64 Alloc = 1;
+  uint64 TotalAlloc = 2;
+  uint64 Sys = 3;
+  uint32 NumGC = 4;
+}
+
+message PeerList {
+  repeated Peer Peers = 1;
+}
+

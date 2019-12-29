@@ -5,7 +5,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/vx-labs/mqtt-broker/cluster/pb"
+	"github.com/vx-labs/mqtt-broker/adapters/discovery/pb"
 )
 
 const (
@@ -16,13 +16,13 @@ func TestPeerStore(t *testing.T) {
 	store, _ := NewPeerStore()
 
 	t.Run("create", func(t *testing.T) {
-		err := store.Upsert(Peer{Metadata: pb.Metadata{
+		err := store.Upsert(&pb.Peer{
 			ID: peerID,
-		}})
+		})
 		require.Nil(t, err)
-		err = store.Upsert(Peer{Metadata: pb.Metadata{
+		err = store.Upsert(&pb.Peer{
 			ID: "3",
-		}})
+		})
 		require.Nil(t, err)
 	})
 
@@ -30,7 +30,7 @@ func TestPeerStore(t *testing.T) {
 	t.Run("All", func(t *testing.T) {
 		set, err := store.All()
 		require.Nil(t, err)
-		require.Equal(t, 2, len(set))
+		require.Equal(t, 2, len(set.Peers))
 	})
 	t.Run("delete", func(t *testing.T) {
 		err := store.Delete(peerID)

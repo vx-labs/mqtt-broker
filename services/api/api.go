@@ -6,7 +6,7 @@ import (
 
 	"go.uber.org/zap"
 
-	"github.com/vx-labs/mqtt-broker/cluster"
+	"github.com/vx-labs/mqtt-broker/adapters/discovery"
 	brokerClient "github.com/vx-labs/mqtt-broker/services/broker/pb"
 	sessionsClient "github.com/vx-labs/mqtt-broker/services/sessions/pb"
 	subscriptionsClient "github.com/vx-labs/mqtt-broker/services/subscriptions/pb"
@@ -17,7 +17,7 @@ type api struct {
 	ctx                 context.Context
 	config              Config
 	listeners           []net.Listener
-	mesh                cluster.DiscoveryAdapter
+	mesh                discovery.DiscoveryAdapter
 	brokerClient        *brokerClient.Client
 	sessionsClient      *sessionsClient.Client
 	subscriptionsClient *subscriptionsClient.Client
@@ -30,7 +30,7 @@ type Config struct {
 	logger        *zap.Logger
 }
 
-func New(id string, logger *zap.Logger, mesh cluster.DiscoveryAdapter, config Config) *api {
+func New(id string, logger *zap.Logger, mesh discovery.DiscoveryAdapter, config Config) *api {
 	brokerConn, err := mesh.DialService("broker")
 	if err != nil {
 		panic(err)

@@ -9,13 +9,14 @@ import (
 
 	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
 	"github.com/pkg/errors"
+	"github.com/vx-labs/mqtt-broker/adapters/discovery"
 	"github.com/vx-labs/mqtt-broker/cluster"
 	"github.com/vx-labs/mqtt-broker/events"
+	"github.com/vx-labs/mqtt-broker/network"
 	kv "github.com/vx-labs/mqtt-broker/services/kv/pb"
 	messages "github.com/vx-labs/mqtt-broker/services/messages/pb"
-	"github.com/vx-labs/mqtt-broker/network"
-	"github.com/vx-labs/mqtt-broker/stream"
 	"github.com/vx-labs/mqtt-broker/services/subscriptions/pb"
+	"github.com/vx-labs/mqtt-broker/stream"
 
 	grpc "google.golang.org/grpc"
 
@@ -31,7 +32,7 @@ func (b *server) Shutdown() {
 	b.state.Leave()
 	b.gprcServer.GracefulStop()
 }
-func (b *server) JoinServiceLayer(name string, logger *zap.Logger, config cluster.ServiceConfig, rpcConfig cluster.ServiceConfig, mesh cluster.DiscoveryAdapter) {
+func (b *server) JoinServiceLayer(name string, logger *zap.Logger, config cluster.ServiceConfig, rpcConfig cluster.ServiceConfig, mesh discovery.DiscoveryAdapter) {
 	l := cluster.NewGossipServiceLayer(name, logger, config, mesh)
 	b.state = l
 	b.store = NewSubscriptionStore(l, logger)

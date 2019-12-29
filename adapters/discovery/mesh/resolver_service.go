@@ -5,16 +5,16 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/vx-labs/mqtt-broker/cluster/pb"
-	"github.com/vx-labs/mqtt-broker/cluster/peers"
+	"github.com/vx-labs/mqtt-broker/adapters/discovery/mesh/peers"
+	"github.com/vx-labs/mqtt-broker/adapters/discovery/pb"
 	"go.uber.org/zap"
 	"google.golang.org/grpc/resolver"
 )
 
 type Discoverer interface {
 	EndpointsByService(name string) ([]*pb.NodeService, error)
-	ByID(id string) (peers.Peer, error)
-	On(event string, handler func(peers.Peer)) func()
+	ByID(id string) (*pb.Peer, error)
+	On(event string, handler func(*pb.Peer)) func()
 }
 
 func NewMeshResolver(d Discoverer, logger *zap.Logger) resolver.Builder {
@@ -96,9 +96,9 @@ func (r *meshResolver) updateConn(target resolver.Target, cc resolver.ClientConn
 	})
 }
 func (r *meshResolver) Build(target resolver.Target, cc resolver.ClientConn, opts resolver.BuildOption) (resolver.Resolver, error) {
-	cancelCreate := r.peers.On(peers.PeerCreated, func(p peers.Peer) { r.updateConn(target, cc) })
-	cancelDelete := r.peers.On(peers.PeerDeleted, func(p peers.Peer) { r.updateConn(target, cc) })
-	cancelUpdate := r.peers.On(peers.PeerUpdated, func(p peers.Peer) { r.updateConn(target, cc) })
+	cancelCreate := r.peers.On(peers.PeerCreated, func(p *pb.Peer) { r.updateConn(target, cc) })
+	cancelDelete := r.peers.On(peers.PeerDeleted, func(p *pb.Peer) { r.updateConn(target, cc) })
+	cancelUpdate := r.peers.On(peers.PeerUpdated, func(p *pb.Peer) { r.updateConn(target, cc) })
 	r.subscriptions = append(r.subscriptions, cancelCreate, cancelDelete, cancelUpdate)
 	r.updateConn(target, cc)
 	return r, nil

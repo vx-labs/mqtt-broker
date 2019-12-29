@@ -13,6 +13,7 @@ import (
 	raftboltdb "github.com/hashicorp/raft-boltdb"
 
 	"github.com/hashicorp/raft"
+	discovery "github.com/vx-labs/mqtt-broker/adapters/discovery/pb"
 	"github.com/vx-labs/mqtt-broker/cluster/config"
 	"github.com/vx-labs/mqtt-broker/cluster/pb"
 	"github.com/vx-labs/mqtt-broker/cluster/types"
@@ -52,7 +53,7 @@ type DiscoveryProvider interface {
 	AddServiceTag(service, key, value string) error
 	RemoveServiceTag(name string, tag string) error
 	DialService(id string) (*grpc.ClientConn, error)
-	EndpointsByService(name string) ([]*pb.NodeService, error)
+	EndpointsByService(name string) ([]*discovery.NodeService, error)
 }
 
 func New(logger *zap.Logger, userConfig config.Config, discovery DiscoveryProvider) (*raftlayer, error) {
@@ -367,7 +368,7 @@ func (s *raftlayer) setStatus(status string) {
 		s.logger.Warn("failed to set raft bootstrap tag", zap.Error(err))
 	}
 }
-func (s *raftlayer) getMembers() ([]*pb.NodeService, error) {
+func (s *raftlayer) getMembers() ([]*discovery.NodeService, error) {
 	return s.discovery.EndpointsByService(fmt.Sprintf("%s_cluster", s.name))
 }
 func (s *raftlayer) getNodeStatus(peer string) string {
@@ -377,7 +378,7 @@ func (s *raftlayer) getNodeStatus(peer string) string {
 	}
 	for _, service := range discovered {
 		if service.Peer == peer {
-			return pb.GetTagValue("raft_bootstrap_status", service.Tags)
+			return discovery.GetTagValue("raft_bootstrap_status", service.Tags)
 		}
 	}
 	return ""

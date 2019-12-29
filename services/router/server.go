@@ -3,9 +3,9 @@ package router
 import (
 	"context"
 
+	"github.com/vx-labs/mqtt-broker/adapters/discovery"
 	"github.com/vx-labs/mqtt-broker/stream"
 
-	"github.com/vx-labs/mqtt-broker/cluster"
 	kv "github.com/vx-labs/mqtt-broker/services/kv/pb"
 	messages "github.com/vx-labs/mqtt-broker/services/messages/pb"
 	queues "github.com/vx-labs/mqtt-broker/services/queues/pb"
@@ -30,7 +30,7 @@ type server struct {
 	cancel        chan struct{}
 }
 
-func New(id string, logger *zap.Logger, mesh cluster.DiscoveryAdapter) *server {
+func New(id string, logger *zap.Logger, mesh discovery.DiscoveryAdapter) *server {
 	ctx := context.Background()
 	b := &server{
 		id:     id,
