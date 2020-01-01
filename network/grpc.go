@@ -5,6 +5,9 @@ import (
 	"os"
 	"time"
 
+	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
+	grpc_retry "github.com/grpc-ecosystem/go-grpc-middleware/retry"
+
 	"google.golang.org/grpc/credentials"
 
 	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
@@ -50,6 +53,10 @@ func GRPCServerOptions() []grpc.ServerOption {
 func GRPCClientOptions() []grpc.DialOption {
 	var tlsConfig credentials.TransportCredentials
 	var err error
+	opts := []grpc_retry.CallOption{
+		grpc_retry.WithBackoff(grpc_retry.BackoffLinearWithJitter(200*time.Millisecond, 0.3)),
+		grpc_retry.WithMax(5),
+	}
 	if caCertificate := os.Getenv("TLS_CA_CERTIFICATE"); caCertificate != "" {
 		tlsConfig, err = credentials.NewClientTLSFromFile(os.Getenv("TLS_CA_CERTIFICATE"), "")
 		if err != nil {
@@ -64,8 +71,18 @@ func GRPCClientOptions() []grpc.DialOption {
 		grpc.WithTransportCredentials(tlsConfig),
 		//	grpc.WithKeepaliveParams(kacp),
 		grpc.WithConnectParams(grpc.ConnectParams{MinConnectTimeout: 300 * time.Millisecond}),
-		grpc.WithStreamInterceptor(grpc_prometheus.StreamClientInterceptor),
-		grpc.WithUnaryInterceptor(grpc_prometheus.UnaryClientInterceptor),
+		grpc.WithStreamInterceptor(
+			grpc_middleware.ChainStreamClient(
+				grpc_prometheus.StreamClientInterceptor,
+				grpc_retry.StreamClientInterceptor(opts...),
+			),
+		),
+		grpc.WithUnaryInterceptor(
+			grpc_middleware.ChainUnaryClient(
+				grpc_prometheus.UnaryClientInterceptor,
+				grpc_retry.UnaryClientInterceptor(opts...),
+			),
+		),
 		grpc.WithBalancerName(roundrobin.Name),
 	}
 }
