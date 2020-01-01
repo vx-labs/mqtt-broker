@@ -8,8 +8,7 @@ job "${service_name}" {
     healthy_deadline = "3m"
     health_check     = "checks"
     auto_revert      = true
-    canary           = 1
-    auto_promote      = true
+    canary           = 0
   }
 
   group "${service_name}" {

@@ -46,6 +46,7 @@ type raftlayer struct {
 	leaderRPC       pb.LayerClient
 	observer        *raft.Observer
 	observations    chan raft.Observation
+	wasLeader       bool
 	grpcServer      *grpc.Server
 }
 type Service interface {
@@ -103,6 +104,7 @@ func (s *raftlayer) joinExistingCluster(ctx context.Context) {
 		})
 		if err == nil {
 			s.setStatus(raftStatusBootstrapped)
+			s.logger.Info("joined raft cluster")
 			return
 		}
 		<-ticker.C
@@ -118,9 +120,9 @@ func (s *raftlayer) start() error {
 	s.leaderRPC = pb.NewLayerClient(leaderConn)
 	raftConfig := raft.DefaultConfig()
 	s.setStatus(raftStatusInit)
-	if os.Getenv("ENABLE_RAFT_LOG") != "true" {
+	/*	if os.Getenv("ENABLE_RAFT_LOG") != "true" {
 		raftConfig.LogOutput = ioutil.Discard
-	}
+	}*/
 	raftConfig.LocalID = raft.ServerID(s.id)
 	raftBind := fmt.Sprintf("0.0.0.0:%d", s.raftService.BindPort())
 	addr, err := net.ResolveTCPAddr("tcp", s.raftService.Address())
@@ -242,7 +244,7 @@ func (s *raftlayer) raftMembers() []string {
 }
 
 func (s *raftlayer) IsLeader() bool {
-	return s.raft != nil && s.raft.State() == raft.Leader
+	return s.raft != nil && s.raft.Leader() == s.selfRaftAddress
 }
 func (s *raftlayer) isNodeAdopted(id string) bool {
 	cProm := s.raft.GetConfiguration()
@@ -306,18 +308,20 @@ func (s *raftlayer) leaderRoutine() {
 		return ok
 	})
 	s.raft.RegisterObserver(s.observer)
-	for range s.observations {
-		leader := s.IsLeader()
-		if !leader {
+	for ob := range s.observations {
+		leader := ob.Raft.Leader()
+		if leader == s.selfRaftAddress {
+			s.logger.Info("raft cluster leadership acquired")
+			s.raftService.AddTag("raft_status", "leader")
+			s.rpcService.AddTag("raft_status", "leader")
+			s.userService.AddTag("raft_status", "leader")
+			s.wasLeader = true
+		} else if leader != "" && s.wasLeader {
+			s.logger.Info("raft cluster leadership lost")
 			s.raftService.RemoveTag("raft_status")
 			s.rpcService.RemoveTag("raft_status")
 			s.userService.RemoveTag("raft_status")
-			continue
 		}
-		s.logger.Info("raft cluster leadership acquired")
-		s.raftService.AddTag("raft_status", "leader")
-		s.rpcService.AddTag("raft_status", "leader")
-		s.userService.AddTag("raft_status", "leader")
 	}
 }
 func (s *raftlayer) Apply(log *raft.Log) interface{} {

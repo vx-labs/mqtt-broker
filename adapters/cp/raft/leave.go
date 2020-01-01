@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/hashicorp/raft"
 	"github.com/vx-labs/mqtt-broker/adapters/cp/pb"
 	"go.uber.org/zap"
 )
@@ -28,6 +29,7 @@ func (s *raftlayer) Shutdown() error {
 	return nil
 }
 func (s *raftlayer) Leave() error {
+	var err error
 	s.raft.DeregisterObserver(s.observer)
 	close(s.observations)
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
@@ -35,39 +37,19 @@ func (s *raftlayer) Leave() error {
 	ticker := time.NewTicker(500 * time.Millisecond)
 	defer ticker.Stop()
 
-	err := s.raftService.Unregister()
-	if err != nil {
-		s.logger.Error("failed to unregister raft service from discovery", zap.Error(err))
-		return err
-	}
-	err = s.rpcService.Unregister()
-	if err != nil {
-		s.logger.Error("failed to unregister raft rpc service from discovery", zap.Error(err))
-		return err
-	}
-	s.logger.Info("unregistered service from discovery")
-	<-time.After(2 * time.Second)
-
 	numPeers := len(s.raftMembers())
-	isLeader := s.IsLeader()
+	isLeader := s.raft.VerifyLeader().Error() == nil
 	if isLeader && numPeers > 1 {
-		if b := s.raft.Barrier(5 * time.Second); b.Error() != nil {
-			s.logger.Error("failed to wait for other members to catch-up log", zap.Error(b.Error()))
+		s.logger.Info("waiting for other members to catch-up raft log")
+		if b := s.raft.Barrier(0); b.Error() != nil {
+			s.logger.Error("failed to wait for other members to catch-up raft log", zap.Error(b.Error()))
 			return b.Error()
 		}
-		err = s.raft.LeadershipTransfer().Error()
-		if err != nil {
-			s.logger.Error("failed to transfert raft cluster", zap.Error(err))
-			return err
+		err := s.raft.RemoveServer(raft.ServerID(s.id), 0, 0).Error()
+		if err == nil {
+			s.logger.Info("removed ourselves from cluster")
 		}
-		for {
-			isLeader = s.IsLeader()
-			if !isLeader {
-				break
-			}
-			<-ticker.C
-		}
-		s.logger.Debug("raft leadership transfered")
+		s.logger.Info("raft leadership transfered")
 	}
 
 	if !isLeader {
@@ -79,7 +61,7 @@ func (s *raftlayer) Leave() error {
 			if err == nil {
 				break
 			}
-			s.logger.Debug("failed to ask leader to remove us from cluster, retrying", zap.Error(err))
+			s.logger.Warn("failed to ask leader to remove us from cluster, retrying", zap.Error(err))
 			<-ticker.C
 		}
 		left := false
@@ -102,10 +84,21 @@ func (s *raftlayer) Leave() error {
 			}
 		}
 		if !left {
-			s.logger.Warn("failed to leave raft configuration gracefully, timeout")
+			s.logger.Warn("failed to leave raft cluster")
 		} else {
 			s.logger.Debug("raft cluster left")
 		}
 	}
+	err = s.raftService.Unregister()
+	if err != nil {
+		s.logger.Error("failed to unregister raft service from discovery", zap.Error(err))
+		return err
+	}
+	err = s.rpcService.Unregister()
+	if err != nil {
+		s.logger.Error("failed to unregister raft rpc service from discovery", zap.Error(err))
+		return err
+	}
+	s.logger.Info("unregistered service from discovery")
 	return s.raft.Shutdown().Error()
 }

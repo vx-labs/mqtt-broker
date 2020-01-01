@@ -35,12 +35,8 @@ func (s *raftlayer) SendEvent(ctx context.Context, input *pb.SendEventInput) (*p
 }
 
 func (s *raftlayer) PrepareShutdown(ctx context.Context, input *pb.PrepareShutdownInput) (*pb.PrepareShutdownOutput, error) {
-	if !s.IsLeader() {
+	if s.raft.VerifyLeader().Error() != nil {
 		return nil, errors.New("current node is not leader")
-	}
-	if b := s.raft.Barrier(5 * time.Second); b.Error() != nil {
-		s.logger.Error("failed to wait for other members to catch-up log", zap.Error(b.Error()))
-		return nil, b.Error()
 	}
 	err := s.raft.RemoveServer(raft.ServerID(input.ID), input.Index, 0).Error()
 	if err == nil {
@@ -49,7 +45,7 @@ func (s *raftlayer) PrepareShutdown(ctx context.Context, input *pb.PrepareShutdo
 	return &pb.PrepareShutdownOutput{}, err
 }
 func (s *raftlayer) RequestAdoption(ctx context.Context, input *pb.RequestAdoptionInput) (*pb.RequestAdoptionOutput, error) {
-	if !s.IsLeader() {
+	if s.raft.VerifyLeader().Error() != nil {
 		return nil, errors.New("current node is not leader")
 	}
 	s.syncMembers()

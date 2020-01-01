@@ -191,6 +191,7 @@ func Bootstrap(cmd *cobra.Command, v *viper.Viper) *Context {
 	var err error
 	fields := []zap.Field{
 		zap.String("node_id", ctx.ID[:8]), zap.String("version", Version()),
+		zap.Time("started_at", time.Now()),
 	}
 	if allocID := os.Getenv("NOMAD_ALLOC_ID"); allocID != "" {
 		fields = append(fields,
