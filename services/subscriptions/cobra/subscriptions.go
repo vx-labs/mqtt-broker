@@ -8,6 +8,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"github.com/vx-labs/mqtt-broker/adapters/discovery"
 )
 
 const subscriptionsTemplate = `  • {{ .ID | bold | green }}
@@ -16,20 +17,20 @@ const subscriptionsTemplate = `  • {{ .ID | bold | green }}
     {{ "Pattern matched" | faint }}: {{ .Pattern }}
 `
 
-func Subscriptions(ctx context.Context, config *viper.Viper) *cobra.Command {
+func Subscriptions(ctx context.Context, config *viper.Viper, adapter discovery.DiscoveryAdapter) *cobra.Command {
 	c := &cobra.Command{
 		Use: "subscriptions",
 	}
-	c.AddCommand(ByTopic(ctx, config))
-	c.AddCommand(List(ctx, config))
+	c.AddCommand(ByTopic(ctx, config, adapter))
+	c.AddCommand(List(ctx, config, adapter))
 	return c
 }
 
-func ByTopic(ctx context.Context, config *viper.Viper) *cobra.Command {
+func ByTopic(ctx context.Context, config *viper.Viper, adapter discovery.DiscoveryAdapter) *cobra.Command {
 	c := &cobra.Command{
 		Use: "by-topic",
 		Run: func(cmd *cobra.Command, argv []string) {
-			client := getClient(config)
+			client := getClient(adapter)
 			tpl, err := template.New("").Funcs(promptui.FuncMap).Parse(subscriptionsTemplate)
 			if err != nil {
 				panic(err)
@@ -53,12 +54,12 @@ func ByTopic(ctx context.Context, config *viper.Viper) *cobra.Command {
 	c.Flags().StringP("tenant", "t", "_default", "search for subscriptions in the given tenant")
 	return c
 }
-func List(ctx context.Context, config *viper.Viper) *cobra.Command {
+func List(ctx context.Context, config *viper.Viper, adapter discovery.DiscoveryAdapter) *cobra.Command {
 	c := &cobra.Command{
 		Use:     "list",
 		Aliases: []string{"ls"},
 		Run: func(cmd *cobra.Command, argv []string) {
-			client := getClient(config)
+			client := getClient(adapter)
 			tpl, err := template.New("").Funcs(promptui.FuncMap).Parse(subscriptionsTemplate)
 			if err != nil {
 				panic(err)

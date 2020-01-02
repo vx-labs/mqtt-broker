@@ -5,8 +5,9 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"github.com/vx-labs/mqtt-broker/adapters/discovery"
 )
 
-func Register(ctx context.Context, cmd *cobra.Command, config *viper.Viper) {
-	cmd.AddCommand(Queues(ctx, config))
+func Register(ctx context.Context, cmd *cobra.Command, config *viper.Viper, adapter discovery.DiscoveryAdapter) {
+	cmd.AddCommand(Queues(ctx, config, adapter))
 }

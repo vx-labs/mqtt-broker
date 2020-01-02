@@ -8,33 +8,30 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"github.com/vx-labs/mqtt-broker/adapters/discovery"
 	"github.com/vx-labs/mqtt-broker/services/kv/pb"
 )
 
-func KV(ctx context.Context, config *viper.Viper) *cobra.Command {
+func KV(ctx context.Context, config *viper.Viper, adapter discovery.DiscoveryAdapter) *cobra.Command {
 	c := &cobra.Command{
 		Use: "kv",
 	}
-	c.PersistentPreRun = func(_ *cobra.Command, _ []string) {
-		config.BindPFlag("discovery-url", c.PersistentFlags().Lookup("discovery-url"))
-	}
-	c.PersistentFlags().StringP("discovery-url", "d", "http://localhost:8081", "discovery api URL")
-	c.AddCommand(Get(ctx, config))
-	c.AddCommand(List(ctx, config))
-	c.AddCommand(GetMetadata(ctx, config))
-	c.AddCommand(GetWithMetadata(ctx, config))
-	c.AddCommand(Set(ctx, config))
-	c.AddCommand(Delete(ctx, config))
-	c.AddCommand(Benchmark(ctx, config))
-	c.AddCommand(Pressure(ctx, config))
+	c.AddCommand(Get(ctx, config, adapter))
+	c.AddCommand(List(ctx, config, adapter))
+	c.AddCommand(GetMetadata(ctx, config, adapter))
+	c.AddCommand(GetWithMetadata(ctx, config, adapter))
+	c.AddCommand(Set(ctx, config, adapter))
+	c.AddCommand(Delete(ctx, config, adapter))
+	c.AddCommand(Benchmark(ctx, config, adapter))
+	c.AddCommand(Pressure(ctx, config, adapter))
 	return c
 }
 
-func Get(ctx context.Context, config *viper.Viper) *cobra.Command {
+func Get(ctx context.Context, config *viper.Viper, adapter discovery.DiscoveryAdapter) *cobra.Command {
 	c := &cobra.Command{
 		Use: "get",
 		Run: func(cmd *cobra.Command, argv []string) {
-			client := getClient(config)
+			client := getClient(adapter)
 			for _, key := range argv {
 				value, err := client.Get(ctx, []byte(key))
 				if err != nil {
@@ -47,11 +44,11 @@ func Get(ctx context.Context, config *viper.Viper) *cobra.Command {
 	}
 	return c
 }
-func Benchmark(ctx context.Context, config *viper.Viper) *cobra.Command {
+func Benchmark(ctx context.Context, config *viper.Viper, adapter discovery.DiscoveryAdapter) *cobra.Command {
 	c := &cobra.Command{
 		Use: "benchmark",
 		Run: func(cmd *cobra.Command, argv []string) {
-			client := getClient(config)
+			client := getClient(adapter)
 
 			count := 0
 			total := 1000
@@ -91,7 +88,7 @@ func Benchmark(ctx context.Context, config *viper.Viper) *cobra.Command {
 	}
 	return c
 }
-func Pressure(ctx context.Context, config *viper.Viper) *cobra.Command {
+func Pressure(ctx context.Context, config *viper.Viper, adapter discovery.DiscoveryAdapter) *cobra.Command {
 	c := &cobra.Command{
 		Use:   "pressure",
 		Short: "read and write indefinitely on the kv store",
@@ -99,7 +96,7 @@ func Pressure(ctx context.Context, config *viper.Viper) *cobra.Command {
 			retries := 5
 			for retries > 0 {
 				retries--
-				client := getClient(config)
+				client := getClient(adapter)
 			mainLoop:
 				for {
 					count := 0
@@ -110,7 +107,7 @@ func Pressure(ctx context.Context, config *viper.Viper) *cobra.Command {
 						if err != nil {
 							logrus.Errorf("failed to write key %q: %v", string(key), err)
 							<-time.After(5 * time.Second)
-							client = getClient(config)
+							client = getClient(adapter)
 							break mainLoop
 						}
 						count++
@@ -123,7 +120,7 @@ func Pressure(ctx context.Context, config *viper.Viper) *cobra.Command {
 						if err != nil {
 							logrus.Errorf("failed to read key %q: %v", string(key), err)
 							<-time.After(5 * time.Second)
-							client = getClient(config)
+							client = getClient(adapter)
 							break mainLoop
 						}
 						count++
@@ -135,12 +132,12 @@ func Pressure(ctx context.Context, config *viper.Viper) *cobra.Command {
 	return c
 }
 
-func GetMetadata(ctx context.Context, config *viper.Viper) *cobra.Command {
+func GetMetadata(ctx context.Context, config *viper.Viper, adapter discovery.DiscoveryAdapter) *cobra.Command {
 	c := &cobra.Command{
 		Use:     "get-metadata",
 		Aliases: []string{"md"},
 		Run: func(cmd *cobra.Command, argv []string) {
-			client := getClient(config)
+			client := getClient(adapter)
 			for _, key := range argv {
 				value, err := client.GetMetadata(ctx, []byte(key))
 				if err != nil {
@@ -153,12 +150,12 @@ func GetMetadata(ctx context.Context, config *viper.Viper) *cobra.Command {
 	}
 	return c
 }
-func GetWithMetadata(ctx context.Context, config *viper.Viper) *cobra.Command {
+func GetWithMetadata(ctx context.Context, config *viper.Viper, adapter discovery.DiscoveryAdapter) *cobra.Command {
 	c := &cobra.Command{
 		Use:     "get-with-metadata",
 		Aliases: []string{"gmd"},
 		Run: func(cmd *cobra.Command, argv []string) {
-			client := getClient(config)
+			client := getClient(adapter)
 			for _, key := range argv {
 				value, md, err := client.GetWithMetadata(ctx, []byte(key))
 				if err != nil {
@@ -172,14 +169,14 @@ func GetWithMetadata(ctx context.Context, config *viper.Viper) *cobra.Command {
 	}
 	return c
 }
-func Delete(ctx context.Context, config *viper.Viper) *cobra.Command {
+func Delete(ctx context.Context, config *viper.Viper, adapter discovery.DiscoveryAdapter) *cobra.Command {
 	c := &cobra.Command{
 		Use: "delete",
 		PreRun: func(c *cobra.Command, _ []string) {
 			config.BindPFlag("version", c.Flags().Lookup("version"))
 		},
 		Run: func(cmd *cobra.Command, argv []string) {
-			client := getClient(config)
+			client := getClient(adapter)
 			for _, key := range argv {
 				var err error
 				if cmd.Flag("version").Changed {
@@ -198,7 +195,7 @@ func Delete(ctx context.Context, config *viper.Viper) *cobra.Command {
 	c.Flags().Uint64("version", 0, "Key version to delete")
 	return c
 }
-func Set(ctx context.Context, config *viper.Viper) *cobra.Command {
+func Set(ctx context.Context, config *viper.Viper, adapter discovery.DiscoveryAdapter) *cobra.Command {
 	c := &cobra.Command{
 		Use: "set",
 		PreRun: func(c *cobra.Command, _ []string) {
@@ -208,7 +205,7 @@ func Set(ctx context.Context, config *viper.Viper) *cobra.Command {
 			config.BindPFlag("version", c.Flags().Lookup("version"))
 		},
 		Run: func(cmd *cobra.Command, _ []string) {
-			client := getClient(config)
+			client := getClient(adapter)
 			key := config.GetString("key")
 			ttl := config.GetDuration("ttl")
 			version := config.GetUint64("version")
@@ -234,12 +231,12 @@ func Set(ctx context.Context, config *viper.Viper) *cobra.Command {
 	c.MarkFlagRequired("value")
 	return c
 }
-func List(ctx context.Context, config *viper.Viper) *cobra.Command {
+func List(ctx context.Context, config *viper.Viper, adapter discovery.DiscoveryAdapter) *cobra.Command {
 	c := &cobra.Command{
 		Use:     "list",
 		Aliases: []string{"ls"},
 		Run: func(cmd *cobra.Command, argv []string) {
-			client := getClient(config)
+			client := getClient(adapter)
 			mds, err := client.List(ctx)
 			if err != nil {
 				logrus.Errorf("failed to list keys: %v", err)

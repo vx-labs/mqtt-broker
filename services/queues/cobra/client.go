@@ -2,21 +2,16 @@ package cobra
 
 import (
 	"log"
-	"time"
 
-	"github.com/spf13/viper"
-	"github.com/vx-labs/mqtt-broker/network"
+	"github.com/vx-labs/mqtt-broker/adapters/discovery"
+
 	"github.com/vx-labs/mqtt-broker/services/queues/pb"
-	"google.golang.org/grpc"
 )
 
-func getClient(config *viper.Viper) *pb.Client {
-	host := config.GetString("host")
-	opts := network.GRPCClientOptions()
-	conn, err := grpc.Dial(host,
-		append(opts, grpc.WithTimeout(800*time.Millisecond))...)
+func getClient(adapter discovery.DiscoveryAdapter) *pb.Client {
+	conn, err := adapter.DialService("queues")
 	if err != nil {
-		log.Fatalf("failed to connect %s: %v", host, err)
+		log.Fatalf("failed to connect to messages: %v", err)
 	}
 	return pb.NewClient(conn)
 }

@@ -9,6 +9,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"github.com/vx-labs/mqtt-broker/adapters/discovery"
 	"github.com/vx-labs/mqtt-broker/events"
 )
 
@@ -25,15 +26,15 @@ const streamStatisticsTemplate = `  • {{ .ID | bold | green }}
         {{ "Current offset" |faint}}: {{ .CurrentOffset }}{{end}}
 `
 
-func Events(ctx context.Context, config *viper.Viper) *cobra.Command {
+func Events(ctx context.Context, config *viper.Viper, adapter discovery.DiscoveryAdapter) *cobra.Command {
 	c := &cobra.Command{
 		Use: "events",
 	}
-	c.AddCommand(Stream(ctx, config))
+	c.AddCommand(Stream(ctx, config, adapter))
 	return c
 }
 
-func Stream(ctx context.Context, config *viper.Viper) *cobra.Command {
+func Stream(ctx context.Context, config *viper.Viper, adapter discovery.DiscoveryAdapter) *cobra.Command {
 	c := &cobra.Command{
 		PreRun: func(c *cobra.Command, _ []string) {
 			config.BindPFlag("stream-id", c.Flags().Lookup("stream-id"))
@@ -45,7 +46,7 @@ func Stream(ctx context.Context, config *viper.Viper) *cobra.Command {
 		},
 		Use: "stream",
 		Run: func(cmd *cobra.Command, _ []string) {
-			client := getStreamClient(config)
+			client := getClient(adapter)
 			ticker := time.NewTicker(100 * time.Millisecond)
 			defer ticker.Stop()
 			size := config.GetInt("batch-size")

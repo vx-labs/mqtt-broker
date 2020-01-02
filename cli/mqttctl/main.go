@@ -13,6 +13,11 @@ import (
 	"os"
 	"time"
 
+	"github.com/vx-labs/mqtt-broker/adapters/discovery"
+	"github.com/vx-labs/mqtt-broker/adapters/discovery/pb"
+	"go.uber.org/zap"
+	"google.golang.org/grpc"
+
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	eventsCommand "github.com/vx-labs/mqtt-broker/events/cobra"
@@ -99,18 +104,60 @@ func TLSHelper(config *viper.Viper) *cobra.Command {
 	return c
 }
 
+type wrappedDiscoveryAdapter struct {
+	backend discovery.DiscoveryAdapter
+}
+
+func (w *wrappedDiscoveryAdapter) Members() ([]*pb.Peer, error) {
+	return w.backend.Members()
+}
+func (w *wrappedDiscoveryAdapter) EndpointsByService(name string) ([]*pb.NodeService, error) {
+	return w.backend.EndpointsByService(name)
+}
+func (w *wrappedDiscoveryAdapter) DialService(name string, tags ...string) (*grpc.ClientConn, error) {
+	return w.backend.DialService(name, tags...)
+}
+func (w *wrappedDiscoveryAdapter) RegisterService(name, address string) error {
+	return w.backend.RegisterService(name, address)
+}
+func (w *wrappedDiscoveryAdapter) UnregisterService(name string) error {
+	return w.backend.UnregisterService(name)
+}
+func (w *wrappedDiscoveryAdapter) AddServiceTag(service, key, value string) error {
+	return w.backend.AddServiceTag(service, key, value)
+}
+func (w *wrappedDiscoveryAdapter) RemoveServiceTag(name string, tag string) error {
+	return w.backend.RemoveServiceTag(name, tag)
+}
+func (w *wrappedDiscoveryAdapter) Shutdown() error {
+	return w.backend.Shutdown()
+}
+
 func main() {
-	rootCmd := &cobra.Command{}
 	config := viper.New()
-	rootCmd.PersistentFlags().StringP("host", "", "", "remote GRPC endpoint")
-	config.BindPFlag("host", rootCmd.PersistentFlags().Lookup("host"))
 	ctx := context.Background()
-	messagesCommand.Register(ctx, rootCmd, config)
-	kvCommand.Register(ctx, rootCmd, config)
-	eventsCommand.Register(ctx, rootCmd, config)
-	queuesCommand.Register(ctx, rootCmd, config)
-	subscriptionsCommand.Register(ctx, rootCmd, config)
-	authCommand.Register(ctx, rootCmd, config)
+	adapter := &wrappedDiscoveryAdapter{}
+	rootCmd := &cobra.Command{
+		PersistentPreRun: func(cmd *cobra.Command, _ []string) {
+			host := config.GetString("host")
+			if host == "" {
+				endpoint := config.GetString("discovery-endpoint")
+				adapter.backend = discovery.PB(ctx, "", endpoint, zap.NewNop())
+			} else {
+				adapter.backend = discovery.Static([]string{host})
+			}
+		},
+	}
+	rootCmd.PersistentFlags().StringP("host", "", "", "remote GRPC endpoint")
+	rootCmd.PersistentFlags().StringP("discovery-endpoint", "d", "http://localhost:8081", "discovery api GRPC endpoint")
+	config.BindPFlag("discovery-endpoint", rootCmd.PersistentFlags().Lookup("discovery-endpoint"))
+	config.BindPFlag("host", rootCmd.PersistentFlags().Lookup("host"))
+	messagesCommand.Register(ctx, rootCmd, config, adapter)
+	kvCommand.Register(ctx, rootCmd, config, adapter)
+	eventsCommand.Register(ctx, rootCmd, config, adapter)
+	queuesCommand.Register(ctx, rootCmd, config, adapter)
+	subscriptionsCommand.Register(ctx, rootCmd, config, adapter)
+	authCommand.Register(ctx, rootCmd, config, adapter)
 	rootCmd.AddCommand(TLSHelper(config))
 	rootCmd.Execute()
 }
