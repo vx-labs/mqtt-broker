@@ -11,7 +11,6 @@ import (
 type MembershipAdapter interface {
 	Shutdown() error
 	UpdateMetadata([]byte)
-	Join([]string) error
 	OnNodeJoin(f func(id string, meta []byte))
 	OnNodeUpdate(f func(id string, meta []byte))
 	OnNodeLeave(f func(id string, meta []byte))
