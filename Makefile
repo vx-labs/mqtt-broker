@@ -23,24 +23,24 @@ deploy-router:: release deploy-router-nodep
 deploy-topics:: release deploy-topics-nodep
 
 deploy-api-nodep::
-	cd terraform/ && terraform init && terraform apply -auto-approve -var image_tag=${VERSION}
+	cd terraform/ && terraform init && terraform apply -auto-approve -var image_tag=${VERSION} -target nomad_job.api
 deploy-broker-nodep::
-	cd terraform/ && terraform init && terraform apply -auto-approve -var image_tag=${VERSION}
+	cd terraform/ && terraform init && terraform apply -auto-approve -var image_tag=${VERSION} -target module.broker
 deploy-listener-nodep::
-	cd terraform/ && terraform init && terraform apply -auto-approve -var image_tag=${VERSION}
+	cd terraform/ && terraform init && terraform apply -auto-approve -var image_tag=${VERSION} -target nomad_job.listener
 deploy-sessions-nodep::
-	cd terraform/ && terraform init && terraform apply -auto-approve -var image_tag=${VERSION}
+	cd terraform/ && terraform init && terraform apply -auto-approve -var image_tag=${VERSION} -target module.sessions
 deploy-subscriptions-nodep::
-	cd terraform/ && terraform init && terraform apply -auto-approve -var image_tag=${VERSION}
+	cd terraform/ && terraform init && terraform apply -auto-approve -var image_tag=${VERSION} -target module.subscriptions
 deploy-queues-nodep::
-	cd terraform/ && terraform init && terraform apply -auto-approve -var image_tag=${VERSION}
+	cd terraform/ && terraform init && terraform apply -auto-approve -var image_tag=${VERSION} -target module.queues
 deploy-messages-nodep::
-	cd terraform/ && terraform init && terraform apply -auto-approve -var image_tag=${VERSION}
+	cd terraform/ && terraform init && terraform apply -auto-approve -var image_tag=${VERSION} -target module.messages
 deploy-kv-nodep::
-	cd terraform/ && terraform init && terraform apply -auto-approve -var image_tag=${VERSION}
+	cd terraform/ && terraform init && terraform apply -auto-approve -var image_tag=${VERSION} -target module.kv
 deploy-router-nodep::
-	cd terraform/ && terraform init && terraform apply -auto-approve -var image_tag=${VERSION}
+	cd terraform/ && terraform init && terraform apply -auto-approve -var image_tag=${VERSION} -target module.router
 deploy-topics-nodep::
-	cd terraform/ && terraform init && terraform apply -auto-approve -var image_tag=${VERSION}
+	cd terraform/ && terraform init && terraform apply -auto-approve -var image_tag=${VERSION} -target module.topics
 nuke:
 	cd terraform/ && terraform init && terraform destroy -auto-approve -var image_tag=${VERSION}
