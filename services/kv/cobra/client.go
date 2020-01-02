@@ -1,6 +1,7 @@
 package cobra
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -8,8 +9,12 @@ import (
 	"net/http"
 	"time"
 
+	"go.uber.org/zap"
+
 	"github.com/spf13/viper"
+	"github.com/vx-labs/mqtt-broker/adapters/discovery"
 	"github.com/vx-labs/mqtt-broker/network"
+
 	"github.com/vx-labs/mqtt-broker/services/kv/pb"
 	"google.golang.org/grpc"
 )
@@ -51,11 +56,13 @@ func resolveServiceAddress(discoveryURL string, name string) (string, error) {
 func getClient(config *viper.Viper) *pb.Client {
 	host := config.GetString("host")
 	if host == "" {
-		resolvedHost, err := resolveServiceAddress(config.GetString("discovery-url"), "kv")
+		endpoint := config.GetString("discovery-url")
+		adapter := discovery.PB(context.TODO(), "", endpoint, zap.NewNop())
+		conn, err := adapter.DialService("kv")
 		if err != nil {
-			log.Fatalf("failed to resolve kv service endpoint: %v", err)
+			log.Fatalf("failed to connect %s: %v", host, err)
 		}
-		host = resolvedHost
+		return pb.NewClient(conn)
 	}
 	opts := network.GRPCClientOptions()
 	conn, err := grpc.Dial(host,

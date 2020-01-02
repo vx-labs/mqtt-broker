@@ -39,3 +39,45 @@ message PeerList {
   repeated Peer Peers = 1;
 }
 
+message ListMembersInput{}
+message ListMembersOutput{
+  repeated Peer Peers = 1;
+}
+message GetEndpointsInput{
+  string ServiceName = 1;
+}
+message GetEndpointsOutput{
+  repeated NodeService NodeServices = 1;
+}
+message RegisterServiceInput{
+  string ServiceName = 1;
+  string NetworkAddress = 2;
+}
+message RegisterServiceOutput{}
+message UnregisterServiceInput{
+  string ServiceName = 1;
+}
+message UnregisterServiceOutput{}
+
+message AddServiceTagInput{
+  string ServiceName = 1;
+  string TagKey = 2;
+  string TagValue = 3;
+}
+message AddServiceTagOutput{}
+
+message RemoveServiceTagInput{
+  string ServiceName = 1;
+  string TagKey = 2;
+}
+message RemoveServiceTagOutput{}
+
+service DiscoveryService {
+  rpc ListMembers(ListMembersInput) returns (ListMembersOutput);
+  rpc GetEndpoints(GetEndpointsInput) returns (GetEndpointsOutput);
+  rpc StreamEndpoints(GetEndpointsInput) returns (stream GetEndpointsOutput);
+  rpc RegisterService(RegisterServiceInput) returns (RegisterServiceOutput);
+  rpc UnregisterService(UnregisterServiceInput) returns (UnregisterServiceOutput);
+  rpc AddServiceTag(AddServiceTagInput) returns (AddServiceTagOutput);
+  rpc RemoveServiceTag(RemoveServiceTagInput) returns (RemoveServiceTagOutput);
+}

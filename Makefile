@@ -21,6 +21,7 @@ deploy-messages:: release deploy-messages-nodep
 deploy-kv:: release deploy-kv-nodep
 deploy-router:: release deploy-router-nodep
 deploy-topics:: release deploy-topics-nodep
+deploy-endpoints:: release deploy-endpoints-nodep
 
 deploy-api-nodep::
 	cd terraform/ && terraform init && terraform apply -auto-approve -var image_tag=${VERSION} -target nomad_job.api
@@ -42,5 +43,7 @@ deploy-router-nodep::
 	cd terraform/ && terraform init && terraform apply -auto-approve -var image_tag=${VERSION} -target module.router
 deploy-topics-nodep::
 	cd terraform/ && terraform init && terraform apply -auto-approve -var image_tag=${VERSION} -target module.topics
+deploy-endpoints-nodep::
+	cd terraform/ && terraform init && terraform apply -auto-approve -var image_tag=${VERSION} -target module.endpoints
 nuke:
 	cd terraform/ && terraform init && terraform destroy -auto-approve -var image_tag=${VERSION}

@@ -8,6 +8,7 @@ import (
 	"github.com/vx-labs/mqtt-broker/services/api"
 	"github.com/vx-labs/mqtt-broker/services/auth"
 	"github.com/vx-labs/mqtt-broker/services/broker"
+	"github.com/vx-labs/mqtt-broker/services/endpoints"
 	"github.com/vx-labs/mqtt-broker/services/kv"
 	"github.com/vx-labs/mqtt-broker/services/listener"
 	"github.com/vx-labs/mqtt-broker/services/messages"
@@ -38,5 +39,6 @@ func Services() []service {
 		&api.Service{},
 		&broker.Service{},
 		&auth.Service{},
+		&endpoints.Service{},
 	}
 }
