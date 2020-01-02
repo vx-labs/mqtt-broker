@@ -25,6 +25,7 @@ import (
 	kvCommand "github.com/vx-labs/mqtt-broker/services/kv/cobra"
 	messagesCommand "github.com/vx-labs/mqtt-broker/services/messages/cobra"
 	queuesCommand "github.com/vx-labs/mqtt-broker/services/queues/cobra"
+	sessionsCommand "github.com/vx-labs/mqtt-broker/services/sessions/cobra"
 	subscriptionsCommand "github.com/vx-labs/mqtt-broker/services/subscriptions/cobra"
 )
 
@@ -158,6 +159,7 @@ func main() {
 	queuesCommand.Register(ctx, rootCmd, config, adapter)
 	subscriptionsCommand.Register(ctx, rootCmd, config, adapter)
 	authCommand.Register(ctx, rootCmd, config, adapter)
+	sessionsCommand.Register(ctx, rootCmd, config, adapter)
 	rootCmd.AddCommand(TLSHelper(config))
 	rootCmd.Execute()
 }
