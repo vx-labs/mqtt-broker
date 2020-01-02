@@ -5,7 +5,8 @@ job "${service_name}" {
   update {
     max_parallel     = 1
     min_healthy_time = "30s"
-    healthy_deadline = "3m"
+    healthy_deadline = "10m"
+    progress_deadline = "30m"
     health_check     = "checks"
     auto_revert      = true
     canary           = 0
