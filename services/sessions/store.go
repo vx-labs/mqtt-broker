@@ -24,6 +24,7 @@ type Channel interface {
 
 type SessionStore interface {
 	ap.APState
+	Expired() *pb.SessionMetadataList
 	ByID(id string) (*pb.Session, error)
 	ByClientID(id string) (*pb.SessionMetadataList, error)
 	ByPeer(peer string) (*pb.SessionMetadataList, error)
@@ -177,6 +178,26 @@ func (s *memDBStore) ByClientID(id string) (*pb.SessionMetadataList, error) {
 }
 func (s *memDBStore) All(f *pb.SessionFilterInput) (*pb.SessionMetadataList, error) {
 	return s.all(f), nil
+}
+
+func isSessionExpired(session *pb.Session, now int64) bool {
+	return session.Created == 0 ||
+		session.LastKeepAlive == 0 ||
+		now-session.LastKeepAlive > 5*int64(session.KeepaliveInterval)
+}
+
+func (s *memDBStore) Expired() *pb.SessionMetadataList {
+	now := time.Now()
+	all := s.all(nil)
+	out := &pb.SessionMetadataList{
+		Sessions: []*pb.Session{},
+	}
+	for _, session := range all.Sessions {
+		if isSessionExpired(session, now.Unix()) {
+			out.Sessions = append(out.Sessions, session)
+		}
+	}
+	return out
 }
 
 func (s *memDBStore) ByPeer(peer string) (*pb.SessionMetadataList, error) {

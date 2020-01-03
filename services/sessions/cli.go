@@ -4,6 +4,7 @@ import (
 	"context"
 	fmt "fmt"
 	"net"
+	"time"
 
 	proto "github.com/golang/protobuf/proto"
 	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
@@ -57,6 +58,52 @@ func (b *server) Start(id, name string, mesh discovery.DiscoveryAdapter, catalog
 	ctx := context.Background()
 	b.cancel = make(chan struct{})
 	b.done = make(chan struct{})
+	expirationTicker := time.NewTicker(10 * time.Second)
+	go func() {
+		lockPath := []byte("sessions/expiration_lock")
+		for range expirationTicker.C {
+			expiredSessions := b.store.Expired()
+			if len(expiredSessions.Sessions) == 0 {
+				continue
+			}
+			v, md, err := k.GetWithMetadata(ctx, lockPath)
+			if err != nil {
+				logger.Error("failed to read session expiration lock key", zap.Error(err))
+				continue
+			}
+			if v != nil {
+				continue
+			}
+			err = k.SetWithVersion(ctx, lockPath, []byte(b.id), md.Version, kv.WithTimeToLive(5*time.Second))
+			if err != nil {
+				logger.Error("failed to create session expiration lock key", zap.Error(err))
+				continue
+			}
+			sessionExpiredEvents := []*events.StateTransition{}
+			for _, e := range expiredSessions.Sessions {
+				sessionExpiredEvents = append(sessionExpiredEvents, &events.StateTransition{
+					Event: &events.StateTransition_SessionLost{
+						SessionLost: &events.SessionLost{
+							ID:     e.ID,
+							Tenant: e.Tenant,
+						},
+					},
+				})
+			}
+			payload, err := events.Encode(sessionExpiredEvents...)
+			if err != nil {
+				logger.Error("failed to encode session expired events", zap.Error(err))
+				continue
+			}
+			err = m.Put(ctx, "events", b.id, payload)
+			if err != nil {
+				logger.Error("failed to enqueue event in message store", zap.Error(err))
+				continue
+			}
+			k.DeleteWithVersion(ctx, lockPath, md.Version+1)
+			logger.Info("expired sessions", zap.Int("expired_session_count", len(expiredSessions.Sessions)))
+		}
+	}()
 
 	go func() {
 		defer close(b.done)
@@ -106,12 +153,24 @@ func (b *server) consumeStream(messages []*messages.StoredMessage) (int, error) 
 
 				oldSessions, err := b.store.ByClientID(input.ClientID)
 				if err == nil {
-					for _, session := range oldSessions.Sessions {
-						if session.Tenant == input.Tenant {
-							err := b.store.Delete(session.ID)
-							if err != nil {
-								b.logger.Warn("failed to delete conflicting session", zap.Error(err), zap.String("session_id", session.ID))
-							}
+					sessionReplacedEvents := []*events.StateTransition{}
+					for _, e := range oldSessions.Sessions {
+						sessionReplacedEvents = append(sessionReplacedEvents, &events.StateTransition{
+							Event: &events.StateTransition_SessionClosed{
+								SessionClosed: &events.SessionClosed{
+									ID:     e.ID,
+									Tenant: e.Tenant,
+								},
+							},
+						})
+					}
+					payload, err := events.Encode(sessionReplacedEvents...)
+					if err != nil {
+						b.logger.Error("failed to encode session replaced events", zap.Error(err))
+					} else {
+						err = b.Messages.Put(b.ctx, "events", b.id, payload)
+						if err != nil {
+							b.logger.Error("failed to enqueue event in message store", zap.Error(err))
 						}
 					}
 				}

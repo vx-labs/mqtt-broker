@@ -60,11 +60,6 @@ func (m *server) Delete(ctx context.Context, input *pb.SessionDeleteInput) (*pb.
 	return &pb.SessionDeleteOutput{}, nil
 }
 
-func isSessionExpired(session *pb.Session, now int64) bool {
-	return session.Created == 0 ||
-		session.LastKeepAlive == 0 ||
-		now-session.LastKeepAlive > 2*int64(session.KeepaliveInterval)
-}
 func (m *server) deleteSession(id string) error {
 	return m.store.Delete(id)
 }
