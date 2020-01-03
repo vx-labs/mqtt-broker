@@ -2,16 +2,15 @@ package cobra
 
 import (
 	"context"
-	"text/template"
 
-	"github.com/manifoldco/promptui"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"github.com/vx-labs/mqtt-broker/adapters/discovery"
+	"github.com/vx-labs/mqtt-broker/format"
 )
 
-const sessionTemplate = `  • {{ .ID | bold | green }}
+const sessionTemplate = `  • {{ .ID | shorten | bold | green }}
     {{ "Tenant" | faint }}: {{ .Tenant }}
     {{ "Created" | faint }}: {{ .Created }}
     {{ "Client ID" | faint }}: {{ .ClientID }}
@@ -33,10 +32,7 @@ func List(ctx context.Context, config *viper.Viper, adapter discovery.DiscoveryA
 		Aliases: []string{"ls"},
 		Run: func(cmd *cobra.Command, argv []string) {
 			client := getClient(adapter)
-			tpl, err := template.New("").Funcs(promptui.FuncMap).Parse(sessionTemplate)
-			if err != nil {
-				panic(err)
-			}
+			tpl := format.ParseTemplate(sessionTemplate)
 			subscriptions, err := client.All(ctx)
 			if err != nil {
 				logrus.Errorf("failed to list sessions: %v", err)

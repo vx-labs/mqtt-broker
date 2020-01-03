@@ -2,19 +2,18 @@ package cobra
 
 import (
 	"context"
-	"text/template"
 
-	"github.com/manifoldco/promptui"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"github.com/vx-labs/mqtt-broker/adapters/discovery"
+	"github.com/vx-labs/mqtt-broker/format"
 )
 
-const subscriptionsTemplate = `  • {{ .ID | bold | green }}
-    {{ "Session" | faint }}: {{ .SessionID }}
+const subscriptionsTemplate = `  • {{ .ID | shorten| bold | green }}
+    {{ "Session" | faint }}: {{ .SessionID | shorten }}
+    {{ "Pattern" | faint }}: {{ .Pattern | bufferToString }}
     {{ "QoS" |faint }}: {{ .Qos }}
-    {{ "Pattern matched" | faint }}: {{ .Pattern }}
 `
 
 func Subscriptions(ctx context.Context, config *viper.Viper, adapter discovery.DiscoveryAdapter) *cobra.Command {
@@ -31,10 +30,7 @@ func ByTopic(ctx context.Context, config *viper.Viper, adapter discovery.Discove
 		Use: "by-topic",
 		Run: func(cmd *cobra.Command, argv []string) {
 			client := getClient(adapter)
-			tpl, err := template.New("").Funcs(promptui.FuncMap).Parse(subscriptionsTemplate)
-			if err != nil {
-				panic(err)
-			}
+			tpl := format.ParseTemplate(subscriptionsTemplate)
 			tenant, _ := cmd.Flags().GetString("tenant")
 			for _, pattern := range argv {
 				subscriptions, err := client.ByTopic(ctx, tenant, []byte(pattern))
@@ -60,10 +56,7 @@ func List(ctx context.Context, config *viper.Viper, adapter discovery.DiscoveryA
 		Aliases: []string{"ls"},
 		Run: func(cmd *cobra.Command, argv []string) {
 			client := getClient(adapter)
-			tpl, err := template.New("").Funcs(promptui.FuncMap).Parse(subscriptionsTemplate)
-			if err != nil {
-				panic(err)
-			}
+			tpl := format.ParseTemplate(subscriptionsTemplate)
 			subscriptions, err := client.All(ctx)
 			if err != nil {
 				logrus.Errorf("failed to list subscriptions: %v", err)

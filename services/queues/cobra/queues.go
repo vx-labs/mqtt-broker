@@ -13,7 +13,7 @@ import (
 
 const queueTemplate = `  • {{ . | bold | green }}
 `
-const streamStatisticsTemplate = `  • {{ .ID | bold | green }}
+const streamStatisticsTemplate = `  • {{ .ID | shorten| bold | green }}
     {{ "Message count" |faint}}: {{ .MessageCount }}
     {{ "Inflight count" |faint}}: {{ .InflightCount }}
 `

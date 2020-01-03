@@ -3,24 +3,23 @@ package cobra
 import (
 	"context"
 	"fmt"
-	"text/template"
 	"time"
 
-	"github.com/manifoldco/promptui"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"github.com/vx-labs/mqtt-broker/adapters/discovery"
+	"github.com/vx-labs/mqtt-broker/format"
 )
 
 const streamTemplate = `  • {{ .ID | bold | green }}
     {{ "Shards" | faint }}:
-{{ range $id := .ShardIDs }}      • {{ $id }}
+{{ range $id := .ShardIDs }}      • {{ $id| shorten }}
 {{end}}`
 const streamStatisticsTemplate = `  • {{ .ID | bold | green }}
     {{ "Shards" | faint }}:
 {{- range .ShardStatistics }}
-    • {{ .ShardID }}
+    • {{ .ShardID | shorten }}
         {{ "Stored bytes" |faint}}: {{ .StoredBytes }}
         {{ "Stored record count" |faint}}: {{ .StoredRecordCount }}
         {{ "Current offset" |faint}}: {{ .CurrentOffset }}{{end}}
@@ -138,10 +137,7 @@ func ReadStream(ctx context.Context, config *viper.Viper, adapter discovery.Disc
 		Use: "read",
 		Run: func(cmd *cobra.Command, argv []string) {
 			client := getClient(adapter)
-			tpl, err := template.New("").Funcs(promptui.FuncMap).Parse(streamTemplate)
-			if err != nil {
-				panic(err)
-			}
+			tpl := format.ParseTemplate(streamTemplate)
 			for _, id := range argv {
 				stream, err := client.GetStream(ctx, id)
 				if err != nil {
@@ -163,10 +159,7 @@ func ReadStreamStatistics(ctx context.Context, config *viper.Viper, adapter disc
 		Use: "statistics",
 		Run: func(cmd *cobra.Command, argv []string) {
 			client := getClient(adapter)
-			tpl, err := template.New("").Funcs(promptui.FuncMap).Parse(streamStatisticsTemplate)
-			if err != nil {
-				panic(err)
-			}
+			tpl := format.ParseTemplate(streamStatisticsTemplate)
 			for _, id := range argv {
 				statistics, err := client.GetStreamStatistics(ctx, id)
 				if err != nil {
@@ -189,10 +182,7 @@ func ListStreams(ctx context.Context, config *viper.Viper, adapter discovery.Dis
 		Aliases: []string{"ls"},
 		Run: func(cmd *cobra.Command, argv []string) {
 			client := getClient(adapter)
-			tpl, err := template.New("").Funcs(promptui.FuncMap).Parse(streamTemplate)
-			if err != nil {
-				panic(err)
-			}
+			tpl := format.ParseTemplate(streamTemplate)
 			streams, err := client.ListStreams(ctx)
 			if err != nil {
 				logrus.Errorf("failed to list streams: %v", err)
