@@ -78,7 +78,7 @@ func (b *Broker) Connect(ctx context.Context, metadata transport.Metadata, p *pa
 		KeepaliveInterval: p.KeepaliveTimer,
 		Timestamp:         time.Now().Unix(),
 	}
-	events.Commit(ctx, b.Messages, sessionID, &events.StateTransition{
+	err = events.Commit(ctx, b.Messages, sessionID, &events.StateTransition{
 		Event: &events.StateTransition_SessionCreated{
 			SessionCreated: &events.SessionCreated{
 				ID:                input.ID,
@@ -96,7 +96,10 @@ func (b *Broker) Connect(ctx context.Context, metadata transport.Metadata, p *pa
 			},
 		},
 	})
-
+	if err != nil {
+		logger.Error("failed to commit session created event", zap.Error(err))
+		return "", "", nil, err
+	}
 	logger.Info("session connected")
 	return sessionID, resp.JWT, connack(packet.CONNACK_CONNECTION_ACCEPTED), nil
 }

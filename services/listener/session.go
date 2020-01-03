@@ -46,6 +46,7 @@ func (local *endpoint) runLocalSession(t transport.Metadata) {
 		encoder:   encoder.New(t.Channel),
 		transport: t,
 		logger:    logger,
+		cancel:    cancel,
 	}
 	defer func() {
 		t.Channel.Close()
@@ -56,6 +57,10 @@ func (local *endpoint) runLocalSession(t transport.Metadata) {
 	}()
 	err := local.handleSessionPackets(ctx, session)
 	if err != nil {
+		if ctx.Err() == context.Canceled {
+			session.logger.Info("session canceled")
+			return
+		}
 		if session.id != "" {
 			if nerr, ok := err.(net.Error); ok && nerr.Timeout() {
 				session.logger.Info("session lost", zap.String("reason", "io timeout"))

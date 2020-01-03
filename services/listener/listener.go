@@ -16,6 +16,7 @@ import (
 	brokerpb "github.com/vx-labs/mqtt-broker/services/broker/pb"
 	queues "github.com/vx-labs/mqtt-broker/services/queues/pb"
 
+	kv "github.com/vx-labs/mqtt-broker/services/kv/pb"
 	messages "github.com/vx-labs/mqtt-broker/services/messages/pb"
 	"github.com/vx-labs/mqtt-broker/transport"
 	"github.com/vx-labs/mqtt-protocol/encoder"
@@ -79,6 +80,7 @@ type endpoint struct {
 	transports []net.Listener
 	broker     Broker
 	messages   *messages.Client
+	kv         *kv.Client
 	logger     *zap.Logger
 }
 
@@ -97,6 +99,7 @@ func (local *endpoint) Close() error {
 type localSession struct {
 	id        string
 	token     string
+	cancel    context.CancelFunc
 	encoder   *encoder.Encoder
 	timer     int32
 	inflights *inflight.Queue
@@ -130,11 +133,16 @@ func New(id string, logger *zap.Logger, mesh discovery.DiscoveryAdapter, config 
 	if err != nil {
 		panic(err)
 	}
+	kvConn, err := mesh.DialService("kv?raft_status=leader")
+	if err != nil {
+		panic(err)
+	}
 	local := &endpoint{
 		broker:   brokerpb.NewClient(brokerConn),
 		sessions: btree.New(2),
 		queues:   queues.NewClient(queuesConn),
 		messages: messages.NewClient(messagesConn),
+		kv:       kv.NewClient(kvConn),
 		id:       id,
 		logger:   logger,
 	}
