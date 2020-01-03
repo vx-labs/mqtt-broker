@@ -14,13 +14,13 @@ import (
 
 const streamTemplate = `  • {{ .ID | bold | green }}
     {{ "Shards" | faint }}:
-{{ range $id := .ShardIDs }}      • {{ $id| shorten }}
+{{ range $id := .ShardIDs }}      • {{ $id| shorten | cyan }}
 {{end}}`
 const streamStatisticsTemplate = `  • {{ .ID | bold | green }}
     {{ "Shards" | faint }}:
 {{- range .ShardStatistics }}
-    • {{ .ShardID | shorten }}
-        {{ "Stored bytes" |faint}}: {{ .StoredBytes }}
+    • {{ .ShardID | shorten | cyan }}
+        {{ "Stored bytes" |faint}}: {{ .StoredBytes | humanBytes }}
         {{ "Stored record count" |faint}}: {{ .StoredRecordCount }}
         {{ "Current offset" |faint}}: {{ .CurrentOffset }}{{end}}
 `

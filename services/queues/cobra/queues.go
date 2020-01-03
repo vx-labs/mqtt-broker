@@ -2,13 +2,12 @@ package cobra
 
 import (
 	"context"
-	"text/template"
 
-	"github.com/manifoldco/promptui"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"github.com/vx-labs/mqtt-broker/adapters/discovery"
+	"github.com/vx-labs/mqtt-broker/format"
 )
 
 const queueTemplate = `  • {{ . | bold | green }}
@@ -35,10 +34,7 @@ func ListQueues(ctx context.Context, config *viper.Viper, adapter discovery.Disc
 		Aliases: []string{"ls"},
 		Run: func(cmd *cobra.Command, argv []string) {
 			client := getClient(adapter)
-			tpl, err := template.New("").Funcs(promptui.FuncMap).Parse(queueTemplate)
-			if err != nil {
-				panic(err)
-			}
+			tpl := format.ParseTemplate(queueTemplate)
 			streams, err := client.ListQueues(ctx)
 			if err != nil {
 				logrus.Errorf("failed to list streams: %v", err)
@@ -60,10 +56,7 @@ func ReadQueueStatistics(ctx context.Context, config *viper.Viper, adapter disco
 		Aliases: []string{"stats"},
 		Run: func(cmd *cobra.Command, argv []string) {
 			client := getClient(adapter)
-			tpl, err := template.New("").Funcs(promptui.FuncMap).Parse(streamStatisticsTemplate)
-			if err != nil {
-				panic(err)
-			}
+			tpl := format.ParseTemplate(streamStatisticsTemplate)
 			if ok, _ := cmd.Flags().GetBool("all"); ok {
 				queues, err := client.ListQueues(ctx)
 				if err != nil {

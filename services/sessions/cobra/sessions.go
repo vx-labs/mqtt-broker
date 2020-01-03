@@ -15,6 +15,8 @@ const sessionTemplate = `  • {{ .ID | shorten | bold | green }}
     {{ "Created" | faint }}: {{ .Created }}
     {{ "Client ID" | faint }}: {{ .ClientID }}
     {{ "Transport" | faint }}: {{ .Transport }}
+    {{ "Connected" | faint }}: {{ .Created | timeToDuration }}
+    {{ "Last keepalive" | faint }}: {{ .LastKeepAlive | timeToDuration }}
     {{ "Remote address" | faint }}: {{ .RemoteAddress }}
 `
 
