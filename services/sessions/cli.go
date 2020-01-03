@@ -103,7 +103,19 @@ func (b *server) consumeStream(messages []*messages.StoredMessage) (int, error) 
 				}
 			case *events.StateTransition_SessionCreated:
 				input := event.SessionCreated
-				err := b.store.Create(&pb.Session{
+
+				oldSessions, err := b.store.ByClientID(input.ClientID)
+				if err == nil {
+					for _, session := range oldSessions.Sessions {
+						if session.Tenant == input.Tenant {
+							err := b.store.Delete(session.ID)
+							if err != nil {
+								b.logger.Warn("failed to delete conflicting session", zap.Error(err), zap.String("session_id", session.ID))
+							}
+						}
+					}
+				}
+				err = b.store.Create(&pb.Session{
 					ClientID:          input.ClientID,
 					ID:                input.ID,
 					KeepaliveInterval: input.KeepaliveInterval,
