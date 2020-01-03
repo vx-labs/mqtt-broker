@@ -47,7 +47,7 @@ func (b *BoltStore) statistics(backend *bolt.Bucket) *pb.ShardStatistics {
 	stats := backend.Stats()
 	return &pb.ShardStatistics{
 		StoredRecordCount: int64(stats.KeyN),
-		StoredBytes:       int64(stats.InlineBucketInuse),
+		StoredBytes:       int64(stats.LeafInuse + stats.BranchInuse),
 		CurrentOffset:     backend.Sequence(),
 	}
 }
