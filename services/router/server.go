@@ -26,8 +26,7 @@ type server struct {
 	Queues        *queues.Client
 	Messages      *messages.Client
 	KV            *kv.Client
-	done          chan struct{}
-	cancel        chan struct{}
+	stream        *stream.Client
 }
 
 func New(id string, logger *zap.Logger, mesh discovery.DiscoveryAdapter) *server {
@@ -58,18 +57,6 @@ func New(id string, logger *zap.Logger, mesh discovery.DiscoveryAdapter) *server
 	b.Messages = messages.NewClient(messagesConn)
 	b.Subscriptions = subscriptions.NewClient(subscriptionConn)
 
-	streamClient := stream.NewClient(b.KV, b.Messages, logger)
-	b.cancel = make(chan struct{})
-	b.done = make(chan struct{})
-
-	go func() {
-		defer close(b.done)
-		streamClient.Consume(ctx, b.cancel, "messages", b.v2ConsumePayload,
-			stream.WithConsumerID(b.id),
-			stream.WithConsumerGroupID("router"),
-			stream.WithMaxBatchSize(200),
-			stream.WithInitialOffsetBehaviour(stream.OFFSET_BEHAVIOUR_FROM_START),
-		)
-	}()
+	b.stream = stream.NewClient(b.KV, b.Messages, logger)
 	return b
 }

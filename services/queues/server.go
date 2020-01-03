@@ -13,6 +13,7 @@ import (
 	"github.com/vx-labs/mqtt-broker/services/queues/pb"
 	"github.com/vx-labs/mqtt-broker/services/queues/store"
 	sessions "github.com/vx-labs/mqtt-broker/services/sessions/pb"
+	"github.com/vx-labs/mqtt-broker/stream"
 	"github.com/vx-labs/mqtt-protocol/packet"
 	"go.uber.org/zap"
 	grpc "google.golang.org/grpc"
@@ -32,8 +33,7 @@ type server struct {
 	logger     *zap.Logger
 	sessions   SessionStore
 	Messages   *messages.Client
-	cancel     chan struct{}
-	done       chan struct{}
+	stream     *stream.Client
 }
 
 func New(id string, logger *zap.Logger) *server {
@@ -50,8 +50,6 @@ func New(id string, logger *zap.Logger) *server {
 		ctx:    context.Background(),
 		store:  boltstore,
 		logger: logger,
-		cancel: make(chan struct{}),
-		done:   make(chan struct{}),
 	}
 	return b
 }

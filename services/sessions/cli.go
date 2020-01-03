@@ -27,8 +27,7 @@ import (
 )
 
 func (b *server) Shutdown() {
-	close(b.cancel)
-	<-b.done
+	b.stream.Shutdown()
 	b.state.Shutdown()
 	b.gprcServer.GracefulStop()
 }
@@ -53,11 +52,9 @@ func (b *server) Start(id, name string, mesh discovery.DiscoveryAdapter, catalog
 	}
 	k := kv.NewClient(kvConn)
 	m := messages.NewClient(messagesConn)
-	streamClient := stream.NewClient(k, m, logger)
+	b.stream = stream.NewClient(k, m, logger)
 	b.Messages = m
 	ctx := context.Background()
-	b.cancel = make(chan struct{})
-	b.done = make(chan struct{})
 	expirationTicker := time.NewTicker(10 * time.Second)
 	go func() {
 		lockPath := []byte("sessions/expiration_lock")
@@ -104,15 +101,11 @@ func (b *server) Start(id, name string, mesh discovery.DiscoveryAdapter, catalog
 			logger.Info("expired sessions", zap.Int("expired_session_count", len(expiredSessions.Sessions)))
 		}
 	}()
-
-	go func() {
-		defer close(b.done)
-		streamClient.Consume(ctx, b.cancel, "events", b.consumeStream,
-			stream.WithConsumerID(b.id),
-			stream.WithConsumerGroupID("sessions"),
-			stream.WithInitialOffsetBehaviour(stream.OFFSET_BEHAVIOUR_FROM_START),
-		)
-	}()
+	b.stream.ConsumeStream(ctx, "events", b.consumeStream,
+		stream.WithConsumerID(b.id),
+		stream.WithConsumerGroupID("sessions"),
+		stream.WithInitialOffsetBehaviour(stream.OFFSET_BEHAVIOUR_FROM_START),
+	)
 	return nil
 }
 

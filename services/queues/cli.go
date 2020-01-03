@@ -23,8 +23,7 @@ import (
 )
 
 func (b *server) Shutdown() {
-	close(b.cancel)
-	<-b.done
+	b.stream.Shutdown()
 	err := b.state.Shutdown()
 	if err != nil {
 		b.logger.Error("failed to shutdown raft instance cleanly", zap.Error(err))
@@ -79,20 +78,15 @@ func (b *server) Start(id, name string, mesh discovery.DiscoveryAdapter, catalog
 	}
 	k := kv.NewClient(kvConn)
 	m := messages.NewClient(messagesConn)
-	streamClient := stream.NewClient(k, m, logger)
+	b.stream = stream.NewClient(k, m, logger)
 	b.Messages = m
 	ctx := context.Background()
-	b.cancel = make(chan struct{})
-	b.done = make(chan struct{})
 
-	go func() {
-		defer close(b.done)
-		streamClient.Consume(ctx, b.cancel, "events", b.consumeStream,
-			stream.WithConsumerID(b.id),
-			stream.WithConsumerGroupID("queues"),
-			stream.WithInitialOffsetBehaviour(stream.OFFSET_BEHAVIOUR_FROM_START),
-		)
-	}()
+	b.stream.ConsumeStream(ctx, "events", b.consumeStream,
+		stream.WithConsumerID(b.id),
+		stream.WithConsumerGroupID("queues"),
+		stream.WithInitialOffsetBehaviour(stream.OFFSET_BEHAVIOUR_FROM_START),
+	)
 	return nil
 }
 func (m *server) Health() string {

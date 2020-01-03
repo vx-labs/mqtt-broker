@@ -15,10 +15,12 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-type streamClient struct {
+type Client struct {
 	kv       *kv.Client
 	messages *messages.Client
 	logger   *zap.Logger
+	sessions []*streamSession
+	mtx      sync.Mutex
 }
 
 func uint64ToBytes(u uint64) []byte {
@@ -29,8 +31,8 @@ func uint64ToBytes(u uint64) []byte {
 
 type ShardConsumer func([]*messages.StoredMessage) (int, error)
 
-func NewClient(kvClient *kv.Client, messagesClient *messages.Client, logger *zap.Logger) *streamClient {
-	return &streamClient{
+func NewClient(kvClient *kv.Client, messagesClient *messages.Client, logger *zap.Logger) *Client {
+	return &Client{
 		kv:       kvClient,
 		messages: messagesClient,
 		logger:   logger,
@@ -39,12 +41,16 @@ func NewClient(kvClient *kv.Client, messagesClient *messages.Client, logger *zap
 
 type streamSession struct {
 	kv            *kv.Client
+	messages      *messages.Client
 	ConsumerID    string
 	GroupID       string
 	StreamID      string
 	Consumer      ShardConsumer
 	MaxBatchSize  int
 	DefaultOffset uint64
+	logger        *zap.Logger
+	cancel        chan struct{}
+	done          chan struct{}
 }
 
 func (c *streamSession) resetOffset(ctx context.Context, shardID string) error {
@@ -69,7 +75,7 @@ func (c *streamSession) getOffset(ctx context.Context, shardID string) (uint64, 
 	return binary.BigEndian.Uint64(out), nil
 }
 
-func (c *streamClient) getShards(ctx context.Context, streamID string) ([]string, error) {
+func (c *Client) getShards(ctx context.Context, streamID string) ([]string, error) {
 	streamConfig, err := c.messages.GetStream(ctx, streamID)
 	if err != nil {
 		return nil, err
@@ -118,171 +124,32 @@ func WithInitialOffsetBehaviour(b offsetBehaviour) consumeOpt {
 	}
 }
 
-func (c *streamClient) Consume(ctx context.Context, cancel chan struct{}, streamID string, f ShardConsumer, opts ...consumeOpt) {
-	ticker := time.NewTicker(100 * time.Millisecond)
-	heartbeatTicker := time.NewTicker(2 * time.Second)
-	purgeTicker := time.NewTicker(20 * time.Second)
-	rebalanceTicker := time.NewTicker(5 * time.Second)
+func (c *Client) Shutdown() {
+	c.mtx.Lock()
+	defer c.mtx.Unlock()
+	for _, session := range c.sessions {
+		session.Shutdown()
+	}
+}
+func (c *Client) ConsumeStream(ctx context.Context, streamID string, f ShardConsumer, opts ...consumeOpt) {
 	defaultID := uuid.New().String()
 	session := streamSession{
 		StreamID:     streamID,
 		kv:           c.kv,
+		messages:     c.messages,
+		logger:       c.logger,
 		Consumer:     f,
 		ConsumerID:   defaultID,
 		GroupID:      defaultID,
 		MaxBatchSize: 20,
+		cancel:       make(chan struct{}),
+		done:         make(chan struct{}),
 	}
-	wg := sync.WaitGroup{}
-
 	for _, opt := range opts {
 		session = opt(session)
 	}
-	retryTick := time.NewTicker(5 * time.Second)
-	for {
-		err := registerConsumer(ctx, session.kv, streamID, session.GroupID, session.ConsumerID)
-		if err == nil {
-			break
-		}
-		c.logger.Error("failed to setup consumer group", zap.Error(err))
-		<-retryTick.C
-	}
-	retryTick.Stop()
-	defer unregisterConsumer(ctx, session.kv, streamID, session.GroupID, session.ConsumerID)
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		defer heartbeatTicker.Stop()
-		for {
-			select {
-			case <-cancel:
-				return
-			case <-ctx.Done():
-				return
-			case <-heartbeatTicker.C:
-				err := heartbeatConsumer(ctx, session.kv, streamID, session.GroupID, session.ConsumerID)
-				if err != nil {
-					c.logger.Error("failed to heartbeat group", zap.Error(err))
-				}
-			}
-		}
-	}()
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		defer purgeTicker.Stop()
-
-		for {
-			err := purgeDeadConsumers(ctx, session.kv, streamID, session.GroupID)
-			if err != nil {
-				c.logger.Error("failed to purge dead consumers", zap.Error(err))
-			}
-			select {
-			case <-cancel:
-				return
-			case <-ctx.Done():
-				return
-			case <-purgeTicker.C:
-			}
-		}
-	}()
-
-	assignedShards := []string{}
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		defer rebalanceTicker.Stop()
-		retryTicker := time.NewTicker(5 * time.Second)
-		defer retryTicker.Stop()
-		for {
-			consumers, err := listConsumers(ctx, session.kv, streamID, session.GroupID)
-			if err != nil {
-				c.logger.Error("failed to list other consumers", zap.Error(err))
-				<-retryTicker.C
-				continue
-			}
-			shards, err := c.getShards(ctx, streamID)
-			if err != nil {
-				c.logger.Error("failed to list shards", zap.Error(err))
-				<-retryTicker.C
-				continue
-			}
-			newAssignedShard := []string{}
-			for _, shard := range getAssignedShard(shards, consumers, session.ConsumerID) {
-				_, err := lockShard(ctx, session.kv, streamID, session.GroupID, shard, session.ConsumerID, 10*time.Second)
-				if err != nil {
-					c.logger.Warn("failed to lock shard", zap.Error(err))
-					continue
-				} else {
-					newAssignedShard = append(newAssignedShard, shard)
-				}
-			}
-			assignedShards = newAssignedShard
-			select {
-			case <-cancel:
-				return
-			case <-ctx.Done():
-				return
-			case <-rebalanceTicker.C:
-			}
-		}
-	}()
-	defer ticker.Stop()
-	for {
-		select {
-		case <-cancel:
-			wg.Wait()
-			return
-		case <-ctx.Done():
-			wg.Wait()
-			return
-		case <-ticker.C:
-			for _, shard := range assignedShards {
-				err := c.consumeShard(ctx, shard, session)
-				if err != nil {
-					c.logger.Error("failed to consume shard", zap.Error(err))
-				}
-			}
-		}
-	}
-}
-
-func (b *streamClient) consumeShard(ctx context.Context, shardId string, session streamSession) error {
-	consumptionStart := time.Now()
-	logger := b.logger.WithOptions(zap.Fields(zap.String("shard_id", shardId)))
-	offset, err := session.getOffset(ctx, shardId)
-	if err != nil {
-		logger.Error("failed to get offset for shard", zap.Error(err))
-		return err
-	}
-	next, messages, err := b.messages.GetMessages(ctx, session.StreamID, shardId, offset, session.MaxBatchSize)
-	if err != nil {
-		logger.Error("failed to get messages for shard", zap.Error(err))
-		return err
-	}
-	if len(messages) == 0 {
-		return nil
-	}
-	integrationElapsed := time.Since(consumptionStart)
-	start := time.Now()
-	idx, err := session.Consumer(messages)
-	processorElapsed := time.Since(start)
-	if err != nil {
-		logger.Error("failed to consume shard", zap.Uint64("shard_offset", messages[idx].Offset), zap.Error(err))
-		err = session.saveOffset(ctx, shardId, offset)
-		if err != nil {
-			logger.Error("failed to save offset", zap.Uint64("shard_offset", messages[idx].Offset), zap.Error(err))
-			return err
-		}
-		return err
-	}
-	iteratorAge := time.Since(time.Unix(0, int64(next)))
-	b.logger.Info("shard messages consumed",
-		zap.Uint64("shard_offset", offset),
-		zap.Int("shard_message_count", len(messages)),
-		zap.Duration("shard_iterator_age", iteratorAge),
-		zap.Duration("shard_consumption_time", time.Since(consumptionStart)),
-		zap.Duration("shard_consumption_processor_time", processorElapsed),
-		zap.Duration("shard_consumption_integration_time", integrationElapsed),
-	)
-	return session.saveOffset(ctx, shardId, next)
+	c.mtx.Lock()
+	c.sessions = append(c.sessions, &session)
+	c.mtx.Unlock()
+	session.Start(ctx, streamID, f)
 }

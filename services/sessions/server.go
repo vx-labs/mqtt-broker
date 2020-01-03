@@ -6,6 +6,7 @@ import (
 	ap "github.com/vx-labs/mqtt-broker/adapters/ap"
 	messages "github.com/vx-labs/mqtt-broker/services/messages/pb"
 	"github.com/vx-labs/mqtt-broker/services/sessions/pb"
+	"github.com/vx-labs/mqtt-broker/stream"
 	"go.uber.org/zap"
 	grpc "google.golang.org/grpc"
 )
@@ -18,8 +19,7 @@ type server struct {
 	gprcServer *grpc.Server
 	logger     *zap.Logger
 	Messages   *messages.Client
-	cancel     chan struct{}
-	done       chan struct{}
+	stream     *stream.Client
 }
 
 func New(id string, logger *zap.Logger) *server {
@@ -28,8 +28,6 @@ func New(id string, logger *zap.Logger) *server {
 		id:     id,
 		ctx:    context.Background(),
 		logger: logger,
-		cancel: make(chan struct{}),
-		done:   make(chan struct{}),
 	}
 }
 

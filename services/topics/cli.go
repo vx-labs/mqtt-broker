@@ -35,8 +35,7 @@ type server struct {
 	logger     *zap.Logger
 	ctx        context.Context
 	gprcServer *grpc.Server
-	cancel     chan struct{}
-	done       chan struct{}
+	stream     *stream.Client
 }
 
 func New(id string, logger *zap.Logger) *server {
@@ -48,9 +47,8 @@ func New(id string, logger *zap.Logger) *server {
 }
 
 func (b *server) Shutdown() {
-	close(b.cancel)
+	b.stream.Shutdown()
 	b.gprcServer.GracefulStop()
-	<-b.done
 }
 func (b *server) Start(id, name string, mesh discovery.DiscoveryAdapter, catalog identity.Catalog, logger *zap.Logger) error {
 	b.store = NewMemDBStore()
@@ -80,28 +78,21 @@ func (b *server) Start(id, name string, mesh discovery.DiscoveryAdapter, catalog
 	k := kv.NewClient(kvConn)
 	m := messages.NewClient(messagesConn)
 	b.Queues = queues.NewClient(queuesConn)
-	streamClient := stream.NewClient(k, m, logger)
+	b.stream = stream.NewClient(k, m, logger)
 
 	ctx := context.Background()
 	b.ctx = ctx
-	b.cancel = make(chan struct{})
-	b.done = make(chan struct{})
 
-	go func() {
-		defer close(b.done)
-		streamClient.Consume(ctx, b.cancel, "messages", b.consumeStream,
-			stream.WithConsumerID(b.id),
-			stream.WithConsumerGroupID("topics"),
-			stream.WithInitialOffsetBehaviour(stream.OFFSET_BEHAVIOUR_FROM_START),
-		)
-	}()
-	go func() {
-		streamClient.Consume(ctx, b.cancel, "events", b.consumeEventStream,
-			stream.WithConsumerID(b.id),
-			stream.WithConsumerGroupID("topics"),
-			stream.WithInitialOffsetBehaviour(stream.OFFSET_BEHAVIOUR_FROM_START),
-		)
-	}()
+	b.stream.ConsumeStream(ctx, "messages", b.consumeStream,
+		stream.WithConsumerID(b.id),
+		stream.WithConsumerGroupID("topics"),
+		stream.WithInitialOffsetBehaviour(stream.OFFSET_BEHAVIOUR_FROM_START),
+	)
+	b.stream.ConsumeStream(ctx, "events", b.consumeEventStream,
+		stream.WithConsumerID(b.id),
+		stream.WithConsumerGroupID("topics"),
+		stream.WithInitialOffsetBehaviour(stream.OFFSET_BEHAVIOUR_FROM_START),
+	)
 	return nil
 }
 

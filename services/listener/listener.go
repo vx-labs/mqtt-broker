@@ -9,6 +9,7 @@ import (
 	"sync"
 
 	"github.com/vx-labs/mqtt-broker/adapters/discovery"
+	"github.com/vx-labs/mqtt-broker/stream"
 	"github.com/vx-labs/mqtt-broker/struct/queues/inflight"
 
 	"github.com/dgrijalva/jwt-go"
@@ -73,15 +74,16 @@ type QueuesStore interface {
 }
 
 type endpoint struct {
-	id         string
-	mutex      sync.Mutex
-	sessions   *btree.BTree
-	queues     QueuesStore
-	transports []net.Listener
-	broker     Broker
-	messages   *messages.Client
-	kv         *kv.Client
-	logger     *zap.Logger
+	id           string
+	mutex        sync.Mutex
+	sessions     *btree.BTree
+	queues       QueuesStore
+	transports   []net.Listener
+	broker       Broker
+	messages     *messages.Client
+	streamClient *stream.Client
+	kv           *kv.Client
+	logger       *zap.Logger
 }
 
 func (local *endpoint) newSession(metadata transport.Metadata) error {

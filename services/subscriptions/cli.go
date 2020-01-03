@@ -30,6 +30,7 @@ const (
 )
 
 func (b *server) Shutdown() {
+	b.stream.Shutdown()
 	b.state.Shutdown()
 	b.gprcServer.GracefulStop()
 }
@@ -57,17 +58,11 @@ func (b *server) Start(id, name string, mesh discovery.DiscoveryAdapter, catalog
 	m := messages.NewClient(messagesConn)
 	streamClient := stream.NewClient(k, m, logger)
 	ctx := context.Background()
-	b.cancel = make(chan struct{})
-	b.done = make(chan struct{})
-
-	go func() {
-		defer close(b.done)
-		streamClient.Consume(ctx, b.cancel, "events", b.consumeStream,
-			stream.WithConsumerID(b.id),
-			stream.WithConsumerGroupID("subscriptions"),
-			stream.WithInitialOffsetBehaviour(stream.OFFSET_BEHAVIOUR_FROM_START),
-		)
-	}()
+	streamClient.ConsumeStream(ctx, "events", b.consumeStream,
+		stream.WithConsumerID(b.id),
+		stream.WithConsumerGroupID("subscriptions"),
+		stream.WithInitialOffsetBehaviour(stream.OFFSET_BEHAVIOUR_FROM_START),
+	)
 	return nil
 }
 func makeSubID(session string, pattern []byte) string {

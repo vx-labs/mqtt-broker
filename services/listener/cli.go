@@ -18,16 +18,15 @@ func (b *endpoint) Serve(port int) net.Listener {
 }
 func (b *endpoint) Shutdown() {
 	b.Close()
+	b.streamClient.Shutdown()
 }
 func (b *endpoint) Start(id, name string, mesh discovery.DiscoveryAdapter, catalog identity.Catalog, logger *zap.Logger) error {
-	streamClient := stream.NewClient(b.kv, b.messages, logger)
-	go func() {
-		ch := make(chan struct{})
-		streamClient.Consume(context.TODO(), ch, "events", b.consumeStream,
-			stream.WithConsumerID(b.id),
-			stream.WithInitialOffsetBehaviour(stream.OFFSET_BEHAVIOUR_FROM_NOW),
-		)
-	}()
+	ctx := context.Background()
+	b.streamClient = stream.NewClient(b.kv, b.messages, logger)
+	b.streamClient.ConsumeStream(ctx, "events", b.consumeStream,
+		stream.WithConsumerID(b.id),
+		stream.WithInitialOffsetBehaviour(stream.OFFSET_BEHAVIOUR_FROM_NOW),
+	)
 
 	return nil
 }
