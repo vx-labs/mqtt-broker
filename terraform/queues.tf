@@ -5,5 +5,5 @@ module "queues" {
   args                 = ["service", "queues"]
   replica_count        = 3
   exposed_service_name = "queues"
-  memory               = "128"
+  memory               = "256"
 }

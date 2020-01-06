@@ -9,5 +9,5 @@ module "messages" {
     "--initial-stream-config", "events:3",
   ]
   exposed_service_name = "messages"
-  memory               = "128"
+  memory               = "256"
 }

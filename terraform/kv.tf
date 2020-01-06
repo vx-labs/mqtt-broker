@@ -5,5 +5,5 @@ module "kv" {
   image_tag            = var.image_tag
   args                 = ["service", "kv"]
   exposed_service_name = "kv"
-  memory               = "128"
+  memory               = "256"
 }
