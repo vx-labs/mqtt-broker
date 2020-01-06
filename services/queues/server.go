@@ -103,7 +103,7 @@ func (s *server) clusterPutMessageBatch(ids []string, payloads [][]byte) error {
 	for idx := range ids {
 		offset := time.Now().UnixNano()
 		if !s.store.Exists(ids[idx]) {
-			return store.ErrQueueNotFound
+			continue
 		}
 		payload := payloads[idx]
 		event = append(event, &pb.QueuesStateTransition{
