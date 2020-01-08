@@ -64,10 +64,10 @@ func (c *Client) Disconnect(ctx context.Context, id string, disconnect *packet.D
 	_, err := c.api.Disconnect(ctx, &DisconnectInput{ID: id, Disconnect: disconnect})
 	return err
 }
-func (c *Client) PingReq(ctx context.Context, id string, pingreq *packet.PingReq) (*packet.PingResp, error) {
+func (c *Client) PingReq(ctx context.Context, id string, pingreq *packet.PingReq) (string, *packet.PingResp, error) {
 	out, err := c.api.PingReq(ctx, &PingReqInput{ID: id, PingReq: pingreq})
 	if out == nil {
-		return nil, err
+		return "", nil, err
 	}
-	return out.PingResp, err
+	return out.RefreshedToken, out.PingResp, err
 }
