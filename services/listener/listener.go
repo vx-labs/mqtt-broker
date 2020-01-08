@@ -53,7 +53,7 @@ var (
 )
 
 type Broker interface {
-	Connect(context.Context, transport.Metadata, *packet.Connect) (string, string, *packet.ConnAck, error)
+	Connect(context.Context, transport.Metadata, *packet.Connect) (string, string, string, *packet.ConnAck, error)
 	Disconnect(context.Context, string, *packet.Disconnect) error
 	Publish(context.Context, string, *packet.Publish) (*packet.PubAck, error)
 	Subscribe(context.Context, string, *packet.Subscribe) (*packet.SubAck, error)
@@ -99,14 +99,15 @@ func (local *endpoint) Close() error {
 }
 
 type localSession struct {
-	id        string
-	token     string
-	cancel    context.CancelFunc
-	encoder   *encoder.Encoder
-	timer     int32
-	inflights *inflight.Queue
-	logger    *zap.Logger
-	transport transport.Metadata
+	id           string
+	token        string
+	refreshToken string
+	cancel       context.CancelFunc
+	encoder      *encoder.Encoder
+	timer        int32
+	inflights    *inflight.Queue
+	logger       *zap.Logger
+	transport    transport.Metadata
 }
 
 func (local *localSession) Less(remote btree.Item) bool {

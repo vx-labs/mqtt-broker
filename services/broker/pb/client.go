@@ -24,7 +24,7 @@ func (c *Client) CloseSession(ctx context.Context, id string) error {
 	return err
 }
 
-func (c *Client) Connect(ctx context.Context, metadata transport.Metadata, connect *packet.Connect) (string, string, *packet.ConnAck, error) {
+func (c *Client) Connect(ctx context.Context, metadata transport.Metadata, connect *packet.Connect) (string, string, string, *packet.ConnAck, error) {
 	out, err := c.api.Connect(ctx, &ConnectInput{Connect: connect, TransportMetadata: &TransportMetadata{
 		Encrypted:     metadata.Encrypted,
 		Name:          metadata.Name,
@@ -32,12 +32,12 @@ func (c *Client) Connect(ctx context.Context, metadata transport.Metadata, conne
 		Endpoint:      metadata.Endpoint,
 	}})
 	if out == nil {
-		return "", "", &packet.ConnAck{
+		return "", "", "", &packet.ConnAck{
 			Header:     &packet.Header{},
 			ReturnCode: packet.CONNACK_REFUSED_SERVER_UNAVAILABLE,
 		}, err
 	}
-	return out.ID, out.Token, out.ConnAck, err
+	return out.ID, out.Token, out.RefreshToken, out.ConnAck, err
 }
 func (c *Client) Publish(ctx context.Context, id string, publish *packet.Publish) (*packet.PubAck, error) {
 	out, err := c.api.Publish(ctx, &PublishInput{ID: id, Publish: publish})

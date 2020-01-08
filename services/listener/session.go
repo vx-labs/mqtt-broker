@@ -127,7 +127,7 @@ func (local *endpoint) handleSessionPackets(ctx context.Context, session *localS
 				return err
 			}
 		case *packet.PingReq:
-			pingresp, err := local.broker.PingReq(ctx, session.token, p)
+			pingresp, err := local.broker.PingReq(ctx, session.refreshToken, p)
 			if err != nil {
 				return err
 			}

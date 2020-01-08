@@ -11,7 +11,7 @@ import (
 func (local *endpoint) ConnectHandler(ctx context.Context, session *localSession, p *packet.Connect) error {
 	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
-	id, token, connack, err := local.broker.Connect(ctx, session.transport, p)
+	id, token, refreshToken, connack, err := local.broker.Connect(ctx, session.transport, p)
 	if err != nil {
 		session.logger.Error("CONNECT failed", zap.Error(err))
 		session.encoder.ConnAck(connack)
@@ -40,6 +40,7 @@ func (local *endpoint) ConnectHandler(ctx context.Context, session *localSession
 	session.logger = session.logger.WithOptions(zap.Fields(zap.String("session_id", id), zap.String("client_id", string(p.ClientId))))
 	session.id = id
 	session.token = token
+	session.refreshToken = refreshToken
 	local.mutex.Lock()
 	old := local.sessions.ReplaceOrInsert(session)
 	local.mutex.Unlock()
