@@ -41,13 +41,13 @@ func connack(code int32) *packet.ConnAck {
 	}
 }
 
-func (b *Broker) Connect(ctx context.Context, metadata transport.Metadata, p *packet.Connect) (string, string, *packet.ConnAck, error) {
+func (b *Broker) Connect(ctx context.Context, metadata transport.Metadata, p *packet.Connect) (string, string, string, *packet.ConnAck, error) {
 	clientID := p.ClientId
 	clientIDstr := string(clientID)
 	logger := b.logger.With(zap.String("client_id", string(clientIDstr)), zap.String("username", string(p.Username)), zap.String("remote_address", metadata.RemoteAddress), zap.String("transport", metadata.Name))
 	if !isClientIDValid(clientID) {
 		logger.Info("connection refused: invalid client id")
-		return "", "", connack(packet.CONNACK_REFUSED_IDENTIFIER_REJECTED), nil
+		return "", "", "", connack(packet.CONNACK_REFUSED_IDENTIFIER_REJECTED), nil
 	}
 	resp, err := b.auth.CreateToken(ctx, auth.ProtocolContext{
 		Username: string(p.Username),
@@ -59,7 +59,7 @@ func (b *Broker) Connect(ctx context.Context, metadata transport.Metadata, p *pa
 	})
 	if err != nil {
 		logger.Info("authentication failed", zap.Error(err))
-		return "", "", connack(packet.CONNACK_REFUSED_BAD_USERNAME_OR_PASSWORD), nil
+		return "", "", "", connack(packet.CONNACK_REFUSED_BAD_USERNAME_OR_PASSWORD), nil
 	}
 	sessionID := resp.SessionID
 	tenant := resp.Tenant
@@ -98,10 +98,10 @@ func (b *Broker) Connect(ctx context.Context, metadata transport.Metadata, p *pa
 	})
 	if err != nil {
 		logger.Error("failed to commit session created event", zap.Error(err))
-		return "", "", nil, err
+		return "", "", "", nil, err
 	}
 	logger.Info("session connected")
-	return sessionID, resp.JWT, connack(packet.CONNACK_CONNECTION_ACCEPTED), nil
+	return sessionID, resp.JWT, resp.RefreshToken, connack(packet.CONNACK_CONNECTION_ACCEPTED), nil
 }
 func (b *Broker) Subscribe(ctx context.Context, token string, p *packet.Subscribe) (*packet.SubAck, error) {
 	sess, err := DecodeSessionToken(b.SigningKey(), token)

@@ -12,6 +12,7 @@ release-nodep:
 	docker push quay.io/vxlabs/mqtt-broker:${VERSION}
 
 deploy-api:: release deploy-api-nodep
+deploy-auth:: release deploy-auth-nodep
 deploy-broker:: release deploy-broker-nodep
 deploy-listener:: release deploy-listener-nodep
 deploy-sessions:: release deploy-sessions-nodep
@@ -25,6 +26,8 @@ deploy-endpoints:: release deploy-endpoints-nodep
 
 deploy-api-nodep::
 	cd terraform/ && terraform init && terraform apply -auto-approve -var image_tag=${VERSION} -target nomad_job.api
+deploy-auth-nodep::
+	cd terraform/ && terraform init && terraform apply -auto-approve -var image_tag=${VERSION} -target module.auth
 deploy-broker-nodep::
 	cd terraform/ && terraform init && terraform apply -auto-approve -var image_tag=${VERSION} -target module.broker
 deploy-listener-nodep::

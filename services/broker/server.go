@@ -9,7 +9,7 @@ import (
 
 type broker interface {
 	CloseSession(ctx context.Context, id string) error
-	Connect(context.Context, transport.Metadata, *packet.Connect) (string, string, *packet.ConnAck, error)
+	Connect(context.Context, transport.Metadata, *packet.Connect) (string, string, string, *packet.ConnAck, error)
 	Disconnect(context.Context, string, *packet.Disconnect) error
 	Publish(context.Context, string, *packet.Publish) (*packet.PubAck, error)
 	Subscribe(context.Context, string, *packet.Subscribe) (*packet.SubAck, error)
@@ -26,16 +26,17 @@ func (s *server) CloseSession(ctx context.Context, input *pb.CloseSessionInput) 
 }
 
 func (s *server) Connect(ctx context.Context, input *pb.ConnectInput) (*pb.ConnectOutput, error) {
-	id, token, connack, err := s.broker.Connect(ctx, transport.Metadata{
+	id, token, refreshToken, connack, err := s.broker.Connect(ctx, transport.Metadata{
 		Encrypted:     input.TransportMetadata.Encrypted,
 		Name:          input.TransportMetadata.Name,
 		RemoteAddress: input.TransportMetadata.RemoteAddress,
 		Endpoint:      input.TransportMetadata.Endpoint,
 	}, input.Connect)
 	return &pb.ConnectOutput{
-		ID:      id,
-		Token:   token,
-		ConnAck: connack,
+		ID:           id,
+		Token:        token,
+		ConnAck:      connack,
+		RefreshToken: refreshToken,
 	}, err
 }
 
