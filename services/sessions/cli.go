@@ -126,6 +126,15 @@ func (b *server) consumeStream(messages []*messages.StoredMessage) (int, error) 
 				if err != nil {
 					b.logger.Warn("failed to delete session", zap.Error(err))
 				}
+			case *events.StateTransition_SessionKeepalived:
+				input := event.SessionKeepalived
+				err := b.store.Update(input.SessionID, func(session pb.Session) *pb.Session {
+					session.LastKeepAlive = input.Timestamp
+					return &session
+				})
+				if err != nil {
+					b.logger.Warn("failed to update session last keepalived", zap.Error(err))
+				}
 			case *events.StateTransition_SessionLost:
 				input := event.SessionLost
 				oldSession, err := b.store.ByID(input.ID)

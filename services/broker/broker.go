@@ -7,7 +7,6 @@ import (
 	"google.golang.org/grpc"
 
 	"github.com/vx-labs/mqtt-broker/adapters/discovery"
-	sessions "github.com/vx-labs/mqtt-broker/services/sessions/pb"
 	topics "github.com/vx-labs/mqtt-broker/services/topics/pb"
 
 	auth "github.com/vx-labs/mqtt-broker/services/auth/pb"
@@ -18,10 +17,6 @@ type QueuesStore interface {
 	Create(ctx context.Context, id string) error
 	Delete(ctx context.Context, id string) error
 }
-type SessionStore interface {
-	RefreshKeepAlive(ctx context.Context, id string, timestamp int64) error
-}
-
 type TopicStore interface {
 	ByTopicPattern(ctx context.Context, tenant string, pattern []byte) ([]*topics.RetainedMessage, error)
 }
@@ -31,7 +26,6 @@ type MessagesStore interface {
 type Broker struct {
 	ID         string
 	logger     *zap.Logger
-	Sessions   SessionStore
 	Messages   *messages.Client
 	auth       *auth.Client
 	grpcServer *grpc.Server
@@ -40,10 +34,6 @@ type Broker struct {
 
 func New(id string, logger *zap.Logger, mesh discovery.DiscoveryAdapter) *Broker {
 	ctx := context.Background()
-	sessionsConn, err := mesh.DialService("sessions")
-	if err != nil {
-		panic(err)
-	}
 	authConn, err := mesh.DialService("auth")
 	if err != nil {
 		panic(err)
@@ -56,7 +46,6 @@ func New(id string, logger *zap.Logger, mesh discovery.DiscoveryAdapter) *Broker
 		ID:       id,
 		ctx:      ctx,
 		logger:   logger,
-		Sessions: sessions.NewClient(sessionsConn),
 		auth:     auth.NewClient(authConn),
 		Messages: messages.NewClient(messagesConn),
 	}

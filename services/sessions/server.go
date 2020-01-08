@@ -4,6 +4,7 @@ import (
 	"context"
 
 	ap "github.com/vx-labs/mqtt-broker/adapters/ap"
+	"github.com/vx-labs/mqtt-broker/events"
 	messages "github.com/vx-labs/mqtt-broker/services/messages/pb"
 	"github.com/vx-labs/mqtt-broker/services/sessions/pb"
 	"github.com/vx-labs/mqtt-broker/stream"
@@ -44,18 +45,38 @@ func (m *server) All(ctx context.Context, input *pb.SessionFilterInput) (*pb.Ses
 	return m.store.All(input)
 }
 func (m *server) RefreshKeepAlive(ctx context.Context, input *pb.RefreshKeepAliveInput) (*pb.RefreshKeepAliveOutput, error) {
-	err := m.store.Update(input.ID, func(session pb.Session) *pb.Session {
-		session.LastKeepAlive = input.Timestamp
-		return &session
+	session, err := m.store.ByID(input.ID)
+	if err != nil {
+		return nil, err
+	}
+	err = events.Commit(ctx, m.Messages, input.ID, &events.StateTransition{
+		Event: &events.StateTransition_SessionKeepalived{
+			SessionKeepalived: &events.SessionKeepalived{
+				SessionID: input.ID,
+				Tenant:    session.Tenant,
+				Timestamp: input.Timestamp,
+			},
+		},
 	})
-
 	return &pb.RefreshKeepAliveOutput{}, err
 }
 func (m *server) Create(ctx context.Context, input *pb.SessionCreateInput) (*pb.SessionCreateOutput, error) {
 	return &pb.SessionCreateOutput{}, nil
 }
 func (m *server) Delete(ctx context.Context, input *pb.SessionDeleteInput) (*pb.SessionDeleteOutput, error) {
-	return &pb.SessionDeleteOutput{}, nil
+	session, err := m.store.ByID(input.ID)
+	if err != nil {
+		return nil, err
+	}
+	err = events.Commit(ctx, m.Messages, input.ID, &events.StateTransition{
+		Event: &events.StateTransition_SessionLost{
+			SessionLost: &events.SessionLost{
+				ID:     input.ID,
+				Tenant: session.Tenant,
+			},
+		},
+	})
+	return &pb.SessionDeleteOutput{}, err
 }
 
 func (m *server) deleteSession(id string) error {

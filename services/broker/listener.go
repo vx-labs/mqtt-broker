@@ -240,9 +240,17 @@ func (b *Broker) PingReq(ctx context.Context, id string, _ *packet.PingReq) (*pa
 		b.logger.Warn("received packet from an unknown session", zap.String("session_id", token.SessionID), zap.String("packet", "pingreq"))
 		return nil, err
 	}
-	err = b.Sessions.RefreshKeepAlive(ctx, token.SessionID, time.Now().Unix())
+	err = events.Commit(ctx, b.Messages, token.SessionID, &events.StateTransition{
+		Event: &events.StateTransition_SessionKeepalived{
+			SessionKeepalived: &events.SessionKeepalived{
+				SessionID: token.SessionID,
+				Tenant:    token.SessionTenant,
+				Timestamp: time.Now().Unix(),
+			},
+		},
+	})
 	if err != nil {
-		b.logger.Warn("received packet from an unknown session", zap.String("session_id", token.SessionID), zap.String("packet", "pingreq"))
+		b.logger.Error("failed to enqueue event", zap.Error(err))
 		return nil, err
 	}
 

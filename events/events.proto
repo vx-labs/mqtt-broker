@@ -37,6 +37,11 @@ message SessionUnsubscribed {
   string Tenant = 2;
   bytes Pattern = 3;
 }
+message SessionKeepalived {
+  string SessionID = 1;
+  string Tenant = 2;
+  int64 Timestamp = 3;
+}
 
 message StateTransitionSet {
   repeated StateTransition events = 1;
@@ -49,5 +54,6 @@ message StateTransition {
     SessionLost SessionLost = 4;
     SessionSubscribed SessionSubscribed = 5;
     SessionUnsubscribed SessionUnsubscribed = 6;
+    SessionKeepalived SessionKeepalived = 7;
   }
 }
