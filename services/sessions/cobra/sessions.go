@@ -17,6 +17,7 @@ const sessionTemplate = `  • {{ .ID | shorten | bold | green }}
     {{ "Transport" | faint }}: {{ .Transport }}
     {{ "Connected" | faint }}: {{ .Created | timeToDuration }}
     {{ "Last keepalive" | faint }}: {{ .LastKeepAlive | timeToDuration }}
+    {{ "Keepalive interval" | faint }}: {{ .KeepaliveInterval }}s
     {{ "Remote address" | faint }}: {{ .RemoteAddress }}
 `
 
@@ -25,6 +26,7 @@ func Sessions(ctx context.Context, config *viper.Viper, adapter discovery.Discov
 		Use: "sessions",
 	}
 	c.AddCommand(List(ctx, config, adapter))
+	c.AddCommand(Read(ctx, config, adapter))
 	return c
 }
 
@@ -35,15 +37,37 @@ func List(ctx context.Context, config *viper.Viper, adapter discovery.DiscoveryA
 		Run: func(cmd *cobra.Command, argv []string) {
 			client := getClient(adapter)
 			tpl := format.ParseTemplate(sessionTemplate)
-			subscriptions, err := client.All(ctx)
+			sessions, err := client.All(ctx)
 			if err != nil {
 				logrus.Errorf("failed to list sessions: %v", err)
 				return
 			}
-			for _, subscription := range subscriptions {
-				err = tpl.Execute(cmd.OutOrStdout(), subscription)
+			for _, session := range sessions {
+				err = tpl.Execute(cmd.OutOrStdout(), session)
 				if err != nil {
-					logrus.Errorf("failed to display subscription %q: %v", subscription.ID, err)
+					logrus.Errorf("failed to display session %q: %v", session.ID, err)
+				}
+			}
+		},
+	}
+	return c
+}
+func Read(ctx context.Context, config *viper.Viper, adapter discovery.DiscoveryAdapter) *cobra.Command {
+	c := &cobra.Command{
+		Use:     "read",
+		Aliases: []string{"get"},
+		Run: func(cmd *cobra.Command, argv []string) {
+			client := getClient(adapter)
+			tpl := format.ParseTemplate(sessionTemplate)
+			for _, arg := range argv {
+				session, err := client.ByID(ctx, arg)
+				if err != nil {
+					logrus.Errorf("failed to list sessions: %v", err)
+					return
+				}
+				err = tpl.Execute(cmd.OutOrStdout(), session)
+				if err != nil {
+					logrus.Errorf("failed to display session %q: %v", session.ID, err)
 				}
 			}
 		},
