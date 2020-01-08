@@ -6,4 +6,5 @@ module "queues" {
   replica_count        = 3
   exposed_service_name = "queues"
   memory               = "256"
+  cpu                  = "300"
 }

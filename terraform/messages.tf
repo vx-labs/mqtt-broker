@@ -10,4 +10,5 @@ module "messages" {
   ]
   exposed_service_name = "messages"
   memory               = "256"
+  cpu                  = "300"
 }

@@ -130,7 +130,7 @@ EOH
       }
 
       resources {
-        cpu    = 100
+        cpu    = ${cpu}
         memory = ${memory}
 
         network {

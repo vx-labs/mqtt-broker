@@ -6,4 +6,5 @@ module "kv" {
   args                 = ["service", "kv"]
   exposed_service_name = "kv"
   memory               = "256"
+  cpu                  = "300"
 }

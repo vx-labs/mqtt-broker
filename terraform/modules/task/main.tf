@@ -6,6 +6,9 @@ variable service_name {}
 variable memory {
   default = "32"
 }
+variable cpu {
+  default = "100"
+}
 variable replica_count {
   default = "2"
 }
@@ -29,6 +32,7 @@ resource "nomad_job" "messages" {
       args                 = var.args,
       exposed_service_name = var.exposed_service_name,
       memory               = var.memory,
+      cpu                  = var.cpu,
     },
   )
 }
