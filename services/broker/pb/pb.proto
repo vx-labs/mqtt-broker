@@ -64,6 +64,7 @@ message PingReqInput {
 }
 message PingReqOutput {
   packet.PingResp PingResp = 1;
+  string RefreshedToken = 2;
 }
 
 service BrokerService {

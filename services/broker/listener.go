@@ -234,12 +234,18 @@ func (b *Broker) CloseSession(ctx context.Context, token string) error {
 	})
 }
 
-func (b *Broker) PingReq(ctx context.Context, id string, _ *packet.PingReq) (*packet.PingResp, error) {
+func (b *Broker) PingReq(ctx context.Context, id string, _ *packet.PingReq) (string, *packet.PingResp, error) {
 	token, err := DecodeSessionToken(b.SigningKey(), id)
 	if err != nil {
 		b.logger.Warn("received packet from an unknown session", zap.String("session_id", token.SessionID), zap.String("packet", "pingreq"))
-		return nil, err
+		return "", nil, err
 	}
+	refreshedToken, err := b.auth.RefreshToken(ctx, id)
+	if err != nil {
+		b.logger.Error("failed to refresh token", zap.Error(err))
+		return "", nil, err
+	}
+
 	err = events.Commit(ctx, b.Messages, token.SessionID, &events.StateTransition{
 		Event: &events.StateTransition_SessionKeepalived{
 			SessionKeepalived: &events.SessionKeepalived{
@@ -251,10 +257,10 @@ func (b *Broker) PingReq(ctx context.Context, id string, _ *packet.PingReq) (*pa
 	})
 	if err != nil {
 		b.logger.Error("failed to enqueue event", zap.Error(err))
-		return nil, err
+		return "", nil, err
 	}
 
-	return &packet.PingResp{
+	return refreshedToken, &packet.PingResp{
 		Header: &packet.Header{},
 	}, nil
 }

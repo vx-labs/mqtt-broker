@@ -14,7 +14,7 @@ type broker interface {
 	Publish(context.Context, string, *packet.Publish) (*packet.PubAck, error)
 	Subscribe(context.Context, string, *packet.Subscribe) (*packet.SubAck, error)
 	Unsubscribe(context.Context, string, *packet.Unsubscribe) (*packet.UnsubAck, error)
-	PingReq(context.Context, string, *packet.PingReq) (*packet.PingResp, error)
+	PingReq(context.Context, string, *packet.PingReq) (string, *packet.PingResp, error)
 }
 
 type server struct {
@@ -57,6 +57,6 @@ func (s *server) Unsubscribe(ctx context.Context, input *pb.UnsubscribeInput) (*
 	return &pb.UnsubscribeOutput{UnsubAck: unsuback}, err
 }
 func (s *server) PingReq(ctx context.Context, input *pb.PingReqInput) (*pb.PingReqOutput, error) {
-	pingresp, err := s.broker.PingReq(ctx, input.ID, input.PingReq)
-	return &pb.PingReqOutput{PingResp: pingresp}, err
+	refreshedToken, pingresp, err := s.broker.PingReq(ctx, input.ID, input.PingReq)
+	return &pb.PingReqOutput{PingResp: pingresp, RefreshedToken: refreshedToken}, err
 }
