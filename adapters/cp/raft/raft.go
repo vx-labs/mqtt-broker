@@ -92,6 +92,7 @@ func NewRaftSynchronizer(id string, userService Service, service Service, rpc Se
 	return self
 }
 func (s *raftlayer) joinExistingCluster(ctx context.Context) {
+	s.logger.Info("joining raft cluster")
 	defer s.cancelJoin()
 	ticker := time.NewTicker(500 * time.Millisecond)
 	defer ticker.Stop()
@@ -174,27 +175,27 @@ func (s *raftlayer) start() error {
 	go s.leaderRoutine()
 	index := s.raft.LastIndex()
 	if index != 0 {
-		s.joinExistingCluster(ctx)
+		if !s.IsLeader() {
+			s.joinExistingCluster(ctx)
+		}
 		return nil
 	}
 
 	go func() {
-		for {
-			select {
-			case <-ctx.Done():
-				s.logger.Debug("join session canceled")
-				return
-			case err := <-s.startClusterJoin(ctx, s.name, 3):
-				if err != nil {
-					if err == ErrBootstrappedNodeFound || err == ErrBootstrapRaceLost {
-						s.joinExistingCluster(ctx)
-						return
-					}
-					s.logger.Warn("failed to join raft cluster, retrying", zap.Error(err))
-				} else {
-					s.setStatus(raftStatusBootstrapped)
+		select {
+		case <-ctx.Done():
+			s.logger.Debug("join session canceled")
+			return
+		case err := <-s.startClusterJoin(ctx, s.name, 3):
+			if err != nil {
+				if err == ErrBootstrappedNodeFound || err == ErrBootstrapRaceLost {
+					s.joinExistingCluster(ctx)
 					return
 				}
+				s.logger.Warn("failed to join raft cluster, retrying", zap.Error(err))
+			} else {
+				s.setStatus(raftStatusBootstrapped)
+				return
 			}
 		}
 	}()

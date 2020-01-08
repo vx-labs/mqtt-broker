@@ -5,6 +5,7 @@ go 1.13
 require (
 	github.com/armon/go-metrics v0.3.0 // indirect
 	github.com/armon/go-proxyproto v0.0.0-20190211145416-68259f75880e
+	github.com/asaskevich/EventBus v0.0.0-20180315140547-d46933a94f05
 	github.com/boltdb/bolt v1.3.1
 	github.com/cenkalti/backoff v2.2.1+incompatible
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible
@@ -31,6 +32,7 @@ require (
 	github.com/hashicorp/raft-boltdb v0.0.0-20191021154308-4207f1bf0617
 	github.com/hashicorp/serf v0.8.5 // indirect
 	github.com/hashicorp/vault/api v1.0.4
+	github.com/hashicorp/vic v1.5.0
 	github.com/konsorten/go-windows-terminal-sequences v1.0.2 // indirect
 	github.com/lunixbochs/vtclean v1.0.0 // indirect
 	github.com/manifoldco/promptui v0.6.0

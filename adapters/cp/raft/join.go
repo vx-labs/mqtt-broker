@@ -92,12 +92,15 @@ func (s *raftlayer) startClusterJoin(ctx context.Context, name string, expectNod
 		defer cancel()
 		err := s.joinCluster(ctx, name, expectNodeCount, s.logger, func(members []*discovery.NodeService) error {
 			configuration := raft.Configuration{
-				Servers: []raft.Server{
-					{
-						ID:      raft.ServerID(s.id),
-						Address: raft.ServerAddress(fmt.Sprintf("127.0.0.1:%d", s.raftService.BindPort())),
-					},
-				},
+				Servers: []raft.Server{},
+			}
+			for idx := range members {
+				member := members[idx]
+				configuration.Servers = append(configuration.Servers, raft.Server{
+					ID:       raft.ServerID(member.Peer),
+					Suffrage: raft.Voter,
+					Address:  raft.ServerAddress(member.NetworkAddress),
+				})
 			}
 			err := s.raft.BootstrapCluster(configuration).Error()
 			if err != nil {
@@ -145,12 +148,13 @@ func (s *raftlayer) joinCluster(ctx context.Context, name string, expectNodeCoun
 	}
 	logger.Debug("discovered members", zap.Duration("member_discovery_duration", time.Since(start)))
 	sortMembers(members)
-	err = waitForToken(ctx, SyncToken(members), expectNodeCount, s, ticker, logger)
+	/*err = waitForToken(ctx, SyncToken(members), expectNodeCount, s, ticker, logger)
 	if err != nil {
 		return err
 	}
 	if members[0].Peer != s.id {
 		return ErrBootstrapRaceLost
 	}
+	*/
 	return done(members)
 }

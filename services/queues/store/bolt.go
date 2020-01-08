@@ -8,10 +8,10 @@ import (
 	"sync"
 	"time"
 
+	"github.com/asaskevich/EventBus"
 	"github.com/vx-labs/mqtt-broker/services/queues/pb"
 
 	"github.com/boltdb/bolt"
-	"github.com/vx-labs/mqtt-broker/events"
 )
 
 type Options struct {
@@ -31,7 +31,7 @@ type Options struct {
 type BoltStore struct {
 	conn        *bolt.DB
 	options     Options
-	eventBus    *events.Bus
+	eventBus    EventBus.Bus
 	restoreLock sync.Mutex
 }
 
@@ -65,7 +65,7 @@ func New(options Options) (*BoltStore, error) {
 	store := &BoltStore{
 		conn:     handle,
 		options:  options,
-		eventBus: events.NewEventBus(),
+		eventBus: EventBus.New(),
 	}
 	return store, nil
 }
@@ -77,10 +77,11 @@ func getInflightBucketName(id string) []byte {
 	return []byte(fmt.Sprintf("%s.inflight", id))
 }
 
-func (b *BoltStore) On(queue string, event string, f func(payload interface{})) (cancel func()) {
-	return b.eventBus.Subscribe(fmt.Sprintf("%s/%s", queue, event), func(e events.Event) {
-		f(e.Entry)
-	})
+func (b *BoltStore) On(queue string, event string, f func(payload interface{})) {
+	b.eventBus.Subscribe(fmt.Sprintf("%s/%s", queue, event), f)
+}
+func (b *BoltStore) Unsubscribe(queue string, event string, f func(payload interface{})) {
+	b.eventBus.Unsubscribe(fmt.Sprintf("%s/%s", queue, event), f)
 }
 
 func (b *BoltStore) Exists(id string) bool {
@@ -109,9 +110,7 @@ func (b *BoltStore) DeleteQueue(id string) error {
 	}
 	err = tx.Commit()
 	if err == nil {
-		b.eventBus.Emit(events.Event{
-			Key: fmt.Sprintf("%s/queue_deleted", id),
-		})
+		b.eventBus.Publish(fmt.Sprintf("%s/queue_deleted", id), id)
 	}
 	return err
 }
@@ -196,9 +195,7 @@ func (b *BoltStore) Put(id string, index uint64, payload []byte) error {
 	}
 	err = tx.Commit()
 	if err == nil {
-		b.eventBus.Emit(events.Event{
-			Key: fmt.Sprintf("%s/message_put", id),
-		})
+		b.eventBus.Publish(fmt.Sprintf("%s/message_put", id), id)
 	}
 	return err
 }
@@ -222,9 +219,7 @@ func (b *BoltStore) PutBatch(batches []*pb.QueueStateTransitionMessagePut) error
 	err = tx.Commit()
 	if err == nil {
 		for _, batch := range batches {
-			b.eventBus.Emit(events.Event{
-				Key: fmt.Sprintf("%s/message_put", batch.QueueID),
-			})
+			b.eventBus.Publish(fmt.Sprintf("%s/message_put", batch.QueueID), batch.QueueID)
 		}
 	}
 	return err
@@ -298,9 +293,7 @@ func (b *BoltStore) TickExpiredMessages(messages []*pb.ExpiredInflights) error {
 	err = tx.Commit()
 	if err == nil {
 		for _, message := range messages {
-			b.eventBus.Emit(events.Event{
-				Key: fmt.Sprintf("%s/message_put", message.QueueID),
-			})
+			b.eventBus.Publish(fmt.Sprintf("%s/message_put", message.QueueID), message.QueueID)
 		}
 	}
 	return err

@@ -3,9 +3,8 @@ package peers
 import (
 	"errors"
 
+	"github.com/asaskevich/EventBus"
 	"github.com/vx-labs/mqtt-broker/adapters/discovery/pb"
-
-	"github.com/vx-labs/mqtt-broker/events"
 
 	memdb "github.com/hashicorp/go-memdb"
 )
@@ -32,11 +31,11 @@ type PeerStore interface {
 	Upsert(p *pb.Peer) error
 	Update(id string, mutation func(peer pb.Peer) pb.Peer) error
 	Delete(id string) error
-	On(event string, handler func(*pb.Peer)) func()
+	On(event string, handler func(*pb.Peer))
 }
 type memDBStore struct {
 	db     *memdb.MemDB
-	events *events.Bus
+	events EventBus.Bus
 }
 
 func NewPeerStore() (*memDBStore, error) {
@@ -70,7 +69,7 @@ func NewPeerStore() (*memDBStore, error) {
 	}
 	s := &memDBStore{
 		db:     db,
-		events: events.NewEventBus(),
+		events: EventBus.New(),
 	}
 	return s, nil
 }
@@ -166,14 +165,7 @@ func (s *memDBStore) Update(id string, mutation func(peer pb.Peer) pb.Peer) erro
 }
 
 func (s *memDBStore) emitPeerEvent(event string, sess *pb.Peer) {
-	s.events.Emit(events.Event{
-		Entry: sess,
-		Key:   event,
-	})
-	s.events.Emit(events.Event{
-		Entry: sess,
-		Key:   event + "/" + sess.ID,
-	})
+	s.events.Publish(event, sess)
 }
 
 func (m *memDBStore) insert(message *pb.Peer) error {
@@ -224,8 +216,6 @@ func (s *memDBStore) first(tx *memdb.Txn, idx, id string) (*pb.Peer, error) {
 	return p, nil
 }
 
-func (s *memDBStore) On(event string, handler func(*pb.Peer)) func() {
-	return s.events.Subscribe(event, func(ev events.Event) {
-		handler(ev.Entry.(*pb.Peer))
-	})
+func (s *memDBStore) On(event string, handler func(*pb.Peer)) {
+	s.events.Subscribe(event, handler)
 }

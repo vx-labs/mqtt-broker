@@ -14,27 +14,22 @@ import (
 type Discoverer interface {
 	EndpointsByService(name string) ([]*pb.NodeService, error)
 	ByID(id string) (*pb.Peer, error)
-	On(event string, handler func(*pb.Peer)) func()
+	On(event string, handler func(*pb.Peer))
 }
 
 func NewMeshResolver(d Discoverer, logger *zap.Logger) resolver.Builder {
 	return &meshResolver{
-		peers:         d,
-		logger:        logger.With(zap.String("emitter", "grpc_mesh_resolver")),
-		subscriptions: []func(){},
+		peers:  d,
+		logger: logger.With(zap.String("emitter", "grpc_mesh_resolver")),
 	}
 }
 
 type meshResolver struct {
-	peers         Discoverer
-	logger        *zap.Logger
-	subscriptions []func()
+	peers  Discoverer
+	logger *zap.Logger
 }
 
 func (r *meshResolver) Close() {
-	for _, f := range r.subscriptions {
-		f()
-	}
 }
 func (r *meshResolver) Scheme() string {
 	return "mesh"
@@ -96,10 +91,9 @@ func (r *meshResolver) updateConn(target resolver.Target, cc resolver.ClientConn
 	})
 }
 func (r *meshResolver) Build(target resolver.Target, cc resolver.ClientConn, opts resolver.BuildOption) (resolver.Resolver, error) {
-	cancelCreate := r.peers.On(peers.PeerCreated, func(p *pb.Peer) { r.updateConn(target, cc) })
-	cancelDelete := r.peers.On(peers.PeerDeleted, func(p *pb.Peer) { r.updateConn(target, cc) })
-	cancelUpdate := r.peers.On(peers.PeerUpdated, func(p *pb.Peer) { r.updateConn(target, cc) })
-	r.subscriptions = append(r.subscriptions, cancelCreate, cancelDelete, cancelUpdate)
+	r.peers.On(peers.PeerCreated, func(p *pb.Peer) { r.updateConn(target, cc) })
+	r.peers.On(peers.PeerDeleted, func(p *pb.Peer) { r.updateConn(target, cc) })
+	r.peers.On(peers.PeerUpdated, func(p *pb.Peer) { r.updateConn(target, cc) })
 	r.updateConn(target, cc)
 	return r, nil
 }

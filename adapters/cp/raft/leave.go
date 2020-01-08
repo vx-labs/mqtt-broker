@@ -39,6 +39,7 @@ func (s *raftlayer) Leave() error {
 
 	numPeers := len(s.raftMembers())
 	isLeader := s.raft.VerifyLeader().Error() == nil
+leaderLogic:
 	if isLeader && numPeers > 1 {
 		s.logger.Info("waiting for other members to catch-up raft log")
 		if b := s.raft.Barrier(0); b.Error() != nil {
@@ -62,6 +63,10 @@ func (s *raftlayer) Leave() error {
 				break
 			}
 			s.logger.Warn("failed to ask leader to remove us from cluster, retrying", zap.Error(err))
+			isLeader = s.raft.VerifyLeader().Error() == nil
+			if isLeader {
+				goto leaderLogic
+			}
 			<-ticker.C
 		}
 		left := false

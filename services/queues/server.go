@@ -154,18 +154,19 @@ func (s *server) StreamMessages(input *pb.QueueGetMessagesInput, stream pb.Queue
 	tick := make(chan struct{}, 1)
 	closed := make(chan struct{})
 	defer close(tick)
-
-	cancelTicker := s.store.On(input.Id, "message_put", func(_ interface{}) {
+	publishedHandler := func(_ interface{}) {
 		select {
 		case tick <- struct{}{}:
 		default:
 		}
-	})
-	defer cancelTicker()
-	queueDeletedTicker := s.store.On(input.Id, "queue_deleted", func(_ interface{}) {
+	}
+	deletedHandler := func(_ interface{}) {
 		close(closed)
-	})
-	defer queueDeletedTicker()
+	}
+	s.store.On(input.Id, "message_put", publishedHandler)
+	defer s.store.Unsubscribe(input.Id, "message_put", publishedHandler)
+	s.store.On(input.Id, "queue_deleted", deletedHandler)
+	defer s.store.Unsubscribe(input.Id, "queue_deleted", deletedHandler)
 	batchSize := 10
 	items := make([]store.StoredMessage, batchSize)
 	count := 0
