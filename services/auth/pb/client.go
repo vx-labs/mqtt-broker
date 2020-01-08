@@ -22,3 +22,12 @@ func (c *Client) CreateToken(ctx context.Context, protocol ProtocolContext, tran
 		Transport: &transport,
 	})
 }
+func (c *Client) RefreshToken(ctx context.Context, refreshToken string) (string, error) {
+	out, err := c.api.RefreshToken(ctx, &RefreshTokenInput{
+		RefreshToken: refreshToken,
+	})
+	if err != nil {
+		return "", err
+	}
+	return out.JWT, nil
+}

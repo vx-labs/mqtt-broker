@@ -19,6 +19,16 @@ message CreateTokenOutput {
   string Tenant = 2;
   string EntityID = 3;
   string SessionID = 4;
+  string RefreshToken = 5;
+}
+message RefreshTokenInput {
+  string RefreshToken  = 1;
+}
+message RefreshTokenOutput {
+  string JWT = 1;
+  string Tenant = 2;
+  string EntityID = 3;
+  string SessionID = 4;
 }
 message Entity {
   string ID = 1;
@@ -29,4 +39,5 @@ message Entity {
 
 service AuthService {
   rpc CreateToken(CreateTokenInput) returns (CreateTokenOutput);
+  rpc RefreshToken(RefreshTokenInput) returns (RefreshTokenOutput);
 }

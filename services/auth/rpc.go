@@ -42,11 +42,37 @@ func (s *server) CreateToken(ctx context.Context, in *pb.CreateTokenInput) (*pb.
 		s.logger.Error("failed to encode jwt", zap.String("username", in.Protocol.Username), zap.Error(err))
 		return nil, status.Error(codes.Internal, err.Error())
 	}
+	refreshToken, err := EncodeRefreshToken(SigningKey(), tenantID, entityID, sessionID)
+	if err != nil {
+		s.logger.Error("failed to encode refresh token", zap.String("username", in.Protocol.Username), zap.Error(err))
+		return nil, status.Error(codes.Internal, err.Error())
+	}
 	s.logger.Info("user authentication succeeded", zap.String("username", in.Protocol.Username), zap.String("session_id", sessionID))
 	return &pb.CreateTokenOutput{
-		JWT:       token,
-		Tenant:    tenantID,
-		EntityID:  entityID,
-		SessionID: sessionID,
+		JWT:          token,
+		Tenant:       tenantID,
+		EntityID:     entityID,
+		SessionID:    sessionID,
+		RefreshToken: refreshToken,
+	}, nil
+}
+func (s *server) RefreshToken(ctx context.Context, in *pb.RefreshTokenInput) (*pb.RefreshTokenOutput, error) {
+	token, err := DecodeToken(SigningKey(), in.RefreshToken)
+	if err != nil {
+		return nil, err
+	}
+	if !token.VerifyIssuer("mqtt-auth", true) || !token.VerifyAudience("mqtt-auth", true) {
+		return nil, status.Error(codes.Internal, "invalid token")
+	}
+	idToken, err := EncodeSessionToken(SigningKey(), token.SessionTenant, token.SessionEntity, token.SessionID)
+	if err != nil {
+		s.logger.Error("failed to encode refeshed jwt", zap.String("session_id", token.SessionID), zap.Error(err))
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+	return &pb.RefreshTokenOutput{
+		JWT:       idToken,
+		Tenant:    token.SessionTenant,
+		EntityID:  token.SessionEntity,
+		SessionID: token.SessionID,
 	}, nil
 }

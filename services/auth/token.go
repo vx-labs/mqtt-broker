@@ -24,14 +24,15 @@ func EncodeSessionToken(signKey, tenant, entity, id string) (string, error) {
 		SessionTenant: tenant,
 		StandardClaims: jwt.StandardClaims{
 			ExpiresAt: time.Now().Add(72 * time.Hour).Unix(),
-			Issuer:    "mqtt-broker",
+			Issuer:    "mqtt-auth",
 			Subject:   id,
+			Audience:  "mqtt-broker",
 		},
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, t)
 	return token.SignedString([]byte(signKey))
 }
-func DecodeSessionToken(signKey, signedToken string) (Token, error) {
+func DecodeToken(signKey, signedToken string) (Token, error) {
 	token, err := jwt.ParseWithClaims(signedToken, &Token{}, func(token *jwt.Token) (interface{}, error) {
 		return []byte(signKey), nil
 	})
@@ -42,4 +43,19 @@ func DecodeSessionToken(signKey, signedToken string) (Token, error) {
 		return *claims, nil
 	}
 	return Token{}, err
+}
+
+func EncodeRefreshToken(signKey, tenant, entity, id string) (string, error) {
+	t := Token{
+		SessionID:     id,
+		SessionTenant: tenant,
+		StandardClaims: jwt.StandardClaims{
+			ExpiresAt: time.Now().Add(90 * 24 * time.Hour).Unix(),
+			Issuer:    "mqtt-auth",
+			Subject:   id,
+			Audience:  "mqtt-auth",
+		},
+	}
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, t)
+	return token.SignedString([]byte(signKey))
 }
