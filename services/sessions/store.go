@@ -183,7 +183,7 @@ func (s *memDBStore) All(f *pb.SessionFilterInput) (*pb.SessionMetadataList, err
 func isSessionExpired(session *pb.Session, now int64) bool {
 	return session.Created == 0 ||
 		session.LastKeepAlive == 0 ||
-		now-session.LastKeepAlive > 5*int64(session.KeepaliveInterval)
+		now-(session.LastKeepAlive+30) > 2*int64(session.KeepaliveInterval)
 }
 
 func (s *memDBStore) Expired() *pb.SessionMetadataList {
