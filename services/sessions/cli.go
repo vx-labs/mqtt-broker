@@ -83,19 +83,6 @@ func (b *server) Start(id, name string, mesh discovery.DiscoveryAdapter, catalog
 				logger.Error("failed to list sessions", zap.Error(err))
 				continue
 			}
-			v, md, err := k.GetWithMetadata(ctx, lockPath)
-			if err != nil {
-				logger.Error("failed to read session expiration lock key", zap.Error(err))
-				continue
-			}
-			if v != nil {
-				continue
-			}
-			err = k.SetWithVersion(ctx, lockPath, []byte(b.id), md.Version, kv.WithTimeToLive(5*time.Second))
-			if err != nil {
-				logger.Error("failed to create session expiration lock key", zap.Error(err))
-				continue
-			}
 			sessionExpiredEvents := []*events.StateTransition{}
 			for _, e := range sessions.Sessions {
 				if !contains(e.Peer, memberIDs) {
@@ -109,18 +96,33 @@ func (b *server) Start(id, name string, mesh discovery.DiscoveryAdapter, catalog
 					})
 				}
 			}
-			payload, err := events.Encode(sessionExpiredEvents...)
-			if err != nil {
-				logger.Error("failed to encode session expired events", zap.Error(err))
-				continue
+			if len(sessionExpiredEvents) > 0 {
+				payload, err := events.Encode(sessionExpiredEvents...)
+				if err != nil {
+					logger.Error("failed to encode session expired events", zap.Error(err))
+					continue
+				}
+				v, md, err := k.GetWithMetadata(ctx, lockPath)
+				if err != nil {
+					logger.Error("failed to read session expiration lock key", zap.Error(err))
+					continue
+				}
+				if v != nil {
+					continue
+				}
+				err = k.SetWithVersion(ctx, lockPath, []byte(b.id), md.Version, kv.WithTimeToLive(5*time.Second))
+				if err != nil {
+					logger.Error("failed to create session expiration lock key", zap.Error(err))
+					continue
+				}
+				err = m.Put(ctx, "events", b.id, payload)
+				if err != nil {
+					logger.Error("failed to enqueue event in message store", zap.Error(err))
+					continue
+				}
+				k.DeleteWithVersion(ctx, lockPath, md.Version+1)
+				logger.Info("expired sessions", zap.Int("expired_session_count", len(sessionExpiredEvents)))
 			}
-			err = m.Put(ctx, "events", b.id, payload)
-			if err != nil {
-				logger.Error("failed to enqueue event in message store", zap.Error(err))
-				continue
-			}
-			k.DeleteWithVersion(ctx, lockPath, md.Version+1)
-			logger.Info("expired sessions", zap.Int("expired_session_count", len(sessionExpiredEvents)))
 		}
 	}()
 	b.stream.ConsumeStream(ctx, "events", b.consumeStream,
@@ -155,7 +157,7 @@ func (b *server) consumeStream(messages []*messages.StoredMessage) (int, error) 
 					return &session
 				})
 				if err != nil {
-					b.logger.Warn("failed to update session last keepalived", zap.Error(err))
+					b.logger.Warn("failed to update session last keepalived", zap.String("session_id", input.SessionID), zap.Error(err))
 				}
 			case *events.StateTransition_SessionLost:
 				input := event.SessionLost
