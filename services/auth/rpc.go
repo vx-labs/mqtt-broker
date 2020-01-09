@@ -37,12 +37,16 @@ func (s *server) CreateToken(ctx context.Context, in *pb.CreateTokenInput) (*pb.
 		return nil, status.Error(codes.FailedPrecondition, "authentication failed")
 	}
 	sessionID := uuid.New().String()
-	token, err := EncodeSessionToken(SigningKey(), tenantID, entityID, sessionID)
+	var interval int64 = 60
+	if in.Protocol.KeepaliveInterval > 0 {
+		interval = in.Protocol.KeepaliveInterval
+	}
+	token, err := EncodeSessionToken(SigningKey(), tenantID, entityID, sessionID, interval)
 	if err != nil {
 		s.logger.Error("failed to encode jwt", zap.String("username", in.Protocol.Username), zap.Error(err))
 		return nil, status.Error(codes.Internal, err.Error())
 	}
-	refreshToken, err := EncodeRefreshToken(SigningKey(), tenantID, entityID, sessionID)
+	refreshToken, err := EncodeRefreshToken(SigningKey(), tenantID, entityID, sessionID, interval)
 	if err != nil {
 		s.logger.Error("failed to encode refresh token", zap.String("username", in.Protocol.Username), zap.Error(err))
 		return nil, status.Error(codes.Internal, err.Error())
@@ -64,7 +68,11 @@ func (s *server) RefreshToken(ctx context.Context, in *pb.RefreshTokenInput) (*p
 	if !token.VerifyIssuer("mqtt-auth", true) || !token.VerifyAudience("mqtt-auth", true) {
 		return nil, status.Error(codes.Internal, "invalid token")
 	}
-	idToken, err := EncodeSessionToken(SigningKey(), token.SessionTenant, token.SessionEntity, token.SessionID)
+	var interval int64 = 60
+	if token.RefreshInterval > 0 {
+		interval = token.RefreshInterval
+	}
+	idToken, err := EncodeSessionToken(SigningKey(), token.SessionTenant, token.SessionEntity, token.SessionID, interval)
 	if err != nil {
 		s.logger.Error("failed to encode refeshed jwt", zap.String("session_id", token.SessionID), zap.Error(err))
 		return nil, status.Error(codes.Internal, err.Error())

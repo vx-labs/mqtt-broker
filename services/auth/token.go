@@ -8,9 +8,10 @@ import (
 )
 
 type Token struct {
-	SessionID     string `json:"session_id"`
-	SessionEntity string `json:"session_entity"`
-	SessionTenant string `json:"session_tenant"`
+	SessionID       string `json:"session_id"`
+	SessionEntity   string `json:"session_entity"`
+	SessionTenant   string `json:"session_tenant"`
+	RefreshInterval int64  `json:"refresh_interval"`
 	jwt.StandardClaims
 }
 
@@ -18,12 +19,14 @@ func SigningKey() string {
 	return os.Getenv("JWT_SIGN_KEY")
 }
 
-func EncodeSessionToken(signKey, tenant, entity, id string) (string, error) {
+func EncodeSessionToken(signKey, tenant, entity, id string, refreshInterval int64) (string, error) {
 	t := Token{
-		SessionID:     id,
-		SessionTenant: tenant,
+		SessionID:       id,
+		SessionTenant:   tenant,
+		SessionEntity:   entity,
+		RefreshInterval: refreshInterval,
 		StandardClaims: jwt.StandardClaims{
-			ExpiresAt: time.Now().Add(72 * time.Hour).Unix(),
+			ExpiresAt: time.Now().Add(3 * time.Duration(refreshInterval) * time.Second).Unix(),
 			Issuer:    "mqtt-auth",
 			Subject:   id,
 			Audience:  "mqtt-broker",
@@ -45,10 +48,12 @@ func DecodeToken(signKey, signedToken string) (Token, error) {
 	return Token{}, err
 }
 
-func EncodeRefreshToken(signKey, tenant, entity, id string) (string, error) {
+func EncodeRefreshToken(signKey, tenant, entity, id string, refreshInterval int64) (string, error) {
 	t := Token{
-		SessionID:     id,
-		SessionTenant: tenant,
+		SessionID:       id,
+		SessionTenant:   tenant,
+		SessionEntity:   entity,
+		RefreshInterval: refreshInterval,
 		StandardClaims: jwt.StandardClaims{
 			ExpiresAt: time.Now().Add(90 * 24 * time.Hour).Unix(),
 			Issuer:    "mqtt-auth",

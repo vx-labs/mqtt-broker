@@ -9,6 +9,7 @@ message TransportContext {
 message ProtocolContext {
   string username = 1;
   string password = 2;
+  int64 keepaliveInterval = 3;
 }
 message CreateTokenInput {
   ProtocolContext protocol  = 1;
