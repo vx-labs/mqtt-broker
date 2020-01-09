@@ -31,6 +31,16 @@ func (b *server) Shutdown() {
 	b.state.Shutdown()
 	b.gprcServer.GracefulStop()
 }
+
+func contains(needle string, haystack []string) bool {
+	for idx := range haystack {
+		if needle == haystack[idx] {
+			return true
+		}
+	}
+	return false
+}
+
 func (b *server) Start(id, name string, mesh discovery.DiscoveryAdapter, catalog identity.Catalog, logger *zap.Logger) error {
 	b.store = NewSessionStore(logger)
 	service := discovery.NewServiceFromIdentity(catalog.Get(fmt.Sprintf("%s_gossip", name)), mesh)
@@ -59,8 +69,18 @@ func (b *server) Start(id, name string, mesh discovery.DiscoveryAdapter, catalog
 	go func() {
 		lockPath := []byte("sessions/expiration_lock")
 		for range expirationTicker.C {
-			expiredSessions := b.store.Expired()
-			if len(expiredSessions.Sessions) == 0 {
+			members, err := mesh.Members()
+			if err != nil {
+				logger.Error("failed to list members", zap.Error(err))
+				continue
+			}
+			memberIDs := make([]string, len(members))
+			for idx := range members {
+				memberIDs[idx] = members[idx].ID
+			}
+			sessions, err := b.store.All(&pb.SessionFilterInput{})
+			if err != nil {
+				logger.Error("failed to list sessions", zap.Error(err))
 				continue
 			}
 			v, md, err := k.GetWithMetadata(ctx, lockPath)
@@ -77,15 +97,17 @@ func (b *server) Start(id, name string, mesh discovery.DiscoveryAdapter, catalog
 				continue
 			}
 			sessionExpiredEvents := []*events.StateTransition{}
-			for _, e := range expiredSessions.Sessions {
-				sessionExpiredEvents = append(sessionExpiredEvents, &events.StateTransition{
-					Event: &events.StateTransition_SessionLost{
-						SessionLost: &events.SessionLost{
-							ID:     e.ID,
-							Tenant: e.Tenant,
+			for _, e := range sessions.Sessions {
+				if !contains(e.Peer, memberIDs) {
+					sessionExpiredEvents = append(sessionExpiredEvents, &events.StateTransition{
+						Event: &events.StateTransition_SessionLost{
+							SessionLost: &events.SessionLost{
+								ID:     e.ID,
+								Tenant: e.Tenant,
+							},
 						},
-					},
-				})
+					})
+				}
 			}
 			payload, err := events.Encode(sessionExpiredEvents...)
 			if err != nil {
@@ -98,7 +120,7 @@ func (b *server) Start(id, name string, mesh discovery.DiscoveryAdapter, catalog
 				continue
 			}
 			k.DeleteWithVersion(ctx, lockPath, md.Version+1)
-			logger.Info("expired sessions", zap.Int("expired_session_count", len(expiredSessions.Sessions)))
+			logger.Info("expired sessions", zap.Int("expired_session_count", len(sessionExpiredEvents)))
 		}
 	}()
 	b.stream.ConsumeStream(ctx, "events", b.consumeStream,

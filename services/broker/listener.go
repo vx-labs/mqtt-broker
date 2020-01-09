@@ -50,8 +50,9 @@ func (b *Broker) Connect(ctx context.Context, metadata transport.Metadata, p *pa
 		return "", "", "", connack(packet.CONNACK_REFUSED_IDENTIFIER_REJECTED), nil
 	}
 	resp, err := b.auth.CreateToken(ctx, auth.ProtocolContext{
-		Username: string(p.Username),
-		Password: string(p.Password),
+		Username:          string(p.Username),
+		Password:          string(p.Password),
+		KeepaliveInterval: int64(p.KeepaliveTimer),
 	}, auth.TransportContext{
 		Encrypted:       metadata.Encrypted,
 		RemoteAddress:   metadata.RemoteAddress,
