@@ -140,10 +140,20 @@ func (b *BoltStore) GetStatistics(id string) (*pb.QueueStatistics, error) {
 		return nil, err
 	}
 	defer tx.Rollback()
+	bucket := tx.Bucket(bucketName)
+	if bucket == nil {
+		return nil, ErrQueueNotFound
+	}
+	inflightBucket := tx.Bucket(inflightBucketName)
+	if inflightBucket == nil {
+		return nil, ErrQueueNotFound
+	}
+	stats := bucket.Stats()
+	inflightStats := inflightBucket.Stats()
 	return &pb.QueueStatistics{
 		ID:            id,
-		MessageCount:  int64(tx.Bucket(bucketName).Stats().KeyN),
-		InflightCount: int64(tx.Bucket(inflightBucketName).Stats().KeyN),
+		MessageCount:  int64(stats.KeyN),
+		InflightCount: int64(inflightStats.KeyN),
 	}, nil
 }
 func (b *BoltStore) ListQueues() ([]string, error) {

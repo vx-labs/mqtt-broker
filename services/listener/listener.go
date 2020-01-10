@@ -71,6 +71,7 @@ type Endpoint interface {
 type QueuesStore interface {
 	StreamMessages(ctx context.Context, id string, f func(uint64, *packet.Publish) error) error
 	AckMessage(ctx context.Context, id string, ackOffset uint64) error
+	GetQueueStatistics(ctx context.Context, queueID string) (*queues.QueueStatistics, error)
 }
 
 type endpoint struct {
