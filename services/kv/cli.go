@@ -72,6 +72,9 @@ func (b *server) Start(id, name string, mesh discovery.DiscoveryAdapter, catalog
 	return nil
 }
 func (m *server) Health() string {
+	if m.state == nil {
+		return "warning"
+	}
 	return m.state.Health()
 }
 func (m *server) Serve(port int) net.Listener {
