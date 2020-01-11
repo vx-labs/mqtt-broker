@@ -100,80 +100,67 @@ func saveMetadata(bucket *bolt.Bucket, key []byte, md *pb.KVMetadata) error {
 	return bucket.Put(key, data)
 }
 func (b *BoltStore) Put(key []byte, value []byte, deadline uint64, version uint64) error {
-	tx, err := b.conn.Begin(true)
-	if err != nil {
-		return err
-	}
-	defer tx.Rollback()
-	bucket := tx.Bucket(kvBucket)
-	if bucket == nil {
-		return ErrBucketNotFound
-	}
-	metadatasBucket := tx.Bucket(metadatasBucketName)
-	if err != nil {
-		return ErrMDBucketNotFound
-	}
-
-	var deadlineBucket *bolt.Bucket
-
-	var md *pb.KVMetadata
-	md, err = loadMetadata(metadatasBucket, key)
-	if err != nil {
-		return err
-	}
-
-	if md.Version != version {
-		return ErrIndexOutdated
-	}
-
-	if deadline > 0 || md.Deadline > 0 {
-		deadlineBucket = tx.Bucket(deadlinesBucketName)
-		if deadlineBucket == nil {
-			return ErrTTLBucketNotFound
+	return b.conn.Update(func(tx *bolt.Tx) error {
+		bucket := tx.Bucket(kvBucket)
+		if bucket == nil {
+			return ErrBucketNotFound
 		}
-	}
+		metadatasBucket := tx.Bucket(metadatasBucketName)
+		if metadatasBucket == nil {
+			return ErrMDBucketNotFound
+		}
 
-	if md.Deadline > 0 {
-		deadlineBucket.Delete(uint64ToBytes(md.Deadline))
-	}
-
-	md.Version++
-	md.Deadline = deadline
-
-	err = bucket.Put(key, value)
-	if err != nil {
-		return err
-	}
-
-	mdPayload, err := proto.Marshal(md)
-	if err != nil {
-		return err
-	}
-	err = metadatasBucket.Put(key, mdPayload)
-	if err != nil {
-		return err
-	}
-
-	if deadline > 0 {
-		err = deadlineBucket.Put(uint64ToBytes(deadline), mdPayload)
+		var deadlineBucket *bolt.Bucket
+		md, err := loadMetadata(metadatasBucket, key)
 		if err != nil {
 			return err
 		}
-	}
-	err = tx.Commit()
-	return err
+
+		if md.Version != version {
+			return ErrIndexOutdated
+		}
+
+		if deadline > 0 || md.Deadline > 0 {
+			deadlineBucket = tx.Bucket(deadlinesBucketName)
+			if deadlineBucket == nil {
+				return ErrTTLBucketNotFound
+			}
+		}
+
+		if md.Deadline > 0 {
+			deadlineBucket.Delete(uint64ToBytes(md.Deadline))
+		}
+
+		md.Version++
+		md.Deadline = deadline
+
+		err = bucket.Put(key, value)
+		if err != nil {
+			return err
+		}
+
+		mdPayload, err := proto.Marshal(md)
+		if err != nil {
+			return err
+		}
+		err = metadatasBucket.Put(key, mdPayload)
+		if err != nil {
+			return err
+		}
+
+		if deadline > 0 {
+			err = deadlineBucket.Put(uint64ToBytes(deadline), mdPayload)
+			if err != nil {
+				return err
+			}
+		}
+		return err
+	})
 }
 func (b *BoltStore) Delete(key []byte, version uint64) error {
-	tx, err := b.conn.Begin(true)
-	if err != nil {
-		return err
-	}
-	defer tx.Rollback()
-	err = b.deleteKey(tx, key, version)
-	if err == nil {
-		return tx.Commit()
-	}
-	return err
+	return b.conn.Update(func(tx *bolt.Tx) error {
+		return b.deleteKey(tx, key, version)
+	})
 }
 func (b *BoltStore) deleteKey(tx *bolt.Tx, key []byte, version uint64) error {
 	bucket := tx.Bucket(kvBucket)
