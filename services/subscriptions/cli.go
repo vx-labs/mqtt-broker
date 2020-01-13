@@ -40,7 +40,7 @@ func (b *server) Start(id, name string, mesh discovery.DiscoveryAdapter, catalog
 	b.state = ap.GossipDistributer(id, service, b.store, logger)
 
 	userService := discovery.NewServiceFromIdentity(catalog.Get(name), mesh)
-	err := userService.Register()
+	err := userService.RegisterTCP()
 	if err != nil {
 		logger.Error("failed to register service")
 		return err

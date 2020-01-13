@@ -34,7 +34,13 @@ func (c *StaticDiscoveryAdapter) EndpointsByService(name string) ([]*pb.NodeServ
 	}
 	return out, nil
 }
-func (c *StaticDiscoveryAdapter) RegisterService(name, address string) error {
+func (c *StaticDiscoveryAdapter) RegisterGRPCService(id, name, address string) error {
+	return errors.New("Unsupported yet")
+}
+func (c *StaticDiscoveryAdapter) RegisterTCPService(id, name, address string) error {
+	return errors.New("Unsupported yet")
+}
+func (c *StaticDiscoveryAdapter) RegisterUDPService(id, name, address string) error {
 	return errors.New("Unsupported yet")
 }
 func (c *StaticDiscoveryAdapter) UnregisterService(name string) error {

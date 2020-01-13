@@ -3,6 +3,7 @@ package identity
 import "sync"
 
 type Identity interface {
+	ID() string
 	Name() string
 	AdvertisedAddress() string
 	AdvertisedPort() int

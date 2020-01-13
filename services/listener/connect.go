@@ -48,22 +48,6 @@ func (local *endpoint) ConnectHandler(ctx context.Context, session *localSession
 		old.(*localSession).transport.Channel.Close()
 	}
 
-	waitTicker := time.NewTicker(1 * time.Second)
-	defer waitTicker.Stop()
-	retries := 3
-	for retries > 0 {
-		retries--
-		_, err = local.queues.GetQueueStatistics(ctx, session.id)
-		if err == nil {
-			break
-		}
-		<-waitTicker.C
-	}
-	if err != nil {
-		session.logger.Error("timed out waiting for queue to be created", zap.Error(err))
-		return err
-	}
-
 	err = session.encoder.ConnAck(&packet.ConnAck{
 		ReturnCode: packet.CONNACK_CONNECTION_ACCEPTED,
 		Header:     &packet.Header{},

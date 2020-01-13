@@ -35,7 +35,7 @@ func (b *Broker) Shutdown() {
 }
 func (b *Broker) Start(id, name string, mesh discovery.DiscoveryAdapter, catalog identity.Catalog, logger *zap.Logger) error {
 	config := catalog.Get(name)
-	err := mesh.RegisterService(name, fmt.Sprintf("%s:%d", config.AdvertisedAddress(), config.AdvertisedPort()))
+	err := mesh.RegisterTCPService(id, name, fmt.Sprintf("%s:%d", config.AdvertisedAddress(), config.AdvertisedPort()))
 	if err != nil {
 		panic(err)
 	}

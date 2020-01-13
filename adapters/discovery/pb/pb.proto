@@ -8,9 +8,10 @@ message ServiceTag {
 }
 message NodeService {
   string ID = 1;
-  string NetworkAddress = 2;
-  string Peer = 3;
-  repeated ServiceTag Tags = 4;
+  string Name = 2;
+  string NetworkAddress = 3;
+  string Peer = 4;
+  repeated ServiceTag Tags = 5;
 }
 message Peer {
   string ID = 1;
@@ -50,24 +51,25 @@ message GetEndpointsOutput{
   repeated NodeService NodeServices = 1;
 }
 message RegisterServiceInput{
-  string ServiceName = 1;
-  string NetworkAddress = 2;
+  string ServiceID = 1;
+  string ServiceName = 2;
+  string NetworkAddress = 3;
 }
 message RegisterServiceOutput{}
 message UnregisterServiceInput{
-  string ServiceName = 1;
+  string ServiceID = 1;
 }
 message UnregisterServiceOutput{}
 
 message AddServiceTagInput{
-  string ServiceName = 1;
+  string ServiceID = 1;
   string TagKey = 2;
   string TagValue = 3;
 }
 message AddServiceTagOutput{}
 
 message RemoveServiceTagInput{
-  string ServiceName = 1;
+  string ServiceID = 1;
   string TagKey = 2;
 }
 message RemoveServiceTagOutput{}

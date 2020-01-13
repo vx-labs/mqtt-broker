@@ -48,22 +48,22 @@ type raftlayer struct {
 	observations    chan raft.Observation
 	wasLeader       bool
 	grpcServer      *grpc.Server
+	rpcListener     net.Listener
 }
 type Service interface {
 	DiscoverEndpoints() ([]*discovery.NodeService, error)
-	Register() error
-	Unregister() error
 	Address() string
+	ID() string
 	Name() string
-	BindPort() int
 	Dial(...string) (*grpc.ClientConn, error)
 	AddTag(key, value string) error
 	RemoveTag(tag string) error
+	ListenTCP() (net.Listener, error)
 }
 
 func NewRaftSynchronizer(id string, userService Service, service Service, rpc Service, state pb.CPState, logger *zap.Logger) *raftlayer {
 	self := &raftlayer{
-		id:              id,
+		id:              service.ID(),
 		userService:     userService,
 		name:            service.Name(),
 		selfRaftAddress: raft.ServerAddress(service.Address()),
@@ -72,16 +72,7 @@ func NewRaftSynchronizer(id string, userService Service, service Service, rpc Se
 		logger:          logger,
 		state:           state,
 	}
-	err := self.raftService.Register()
-	if err != nil {
-		panic(err)
-	}
-	err = self.rpcService.Register()
-	if err != nil {
-		panic(err)
-	}
-
-	err = self.Serve()
+	err := self.Serve()
 	if err != nil {
 		panic(err)
 	}
@@ -97,9 +88,10 @@ func (s *raftlayer) joinExistingCluster(ctx context.Context) {
 	ticker := time.NewTicker(500 * time.Millisecond)
 	defer ticker.Stop()
 	retries := 100
+	var err error
 	for retries > 0 {
 		retries--
-		_, err := s.leaderRPC.RequestAdoption(ctx, &pb.RequestAdoptionInput{
+		_, err = s.leaderRPC.RequestAdoption(ctx, &pb.RequestAdoptionInput{
 			ID:      s.id,
 			Address: s.raftService.Address(),
 		})
@@ -111,7 +103,7 @@ func (s *raftlayer) joinExistingCluster(ctx context.Context) {
 		<-ticker.C
 		continue
 	}
-	s.logger.Error("failed to request adoption")
+	s.logger.Error("failed to request adoption", zap.Error(err))
 }
 func (s *raftlayer) start() error {
 	leaderConn, err := s.rpcService.Dial("raft_status=leader")
@@ -125,16 +117,26 @@ func (s *raftlayer) start() error {
 		raftConfig.LogOutput = ioutil.Discard
 	}*/
 	raftConfig.LocalID = raft.ServerID(s.id)
-	raftBind := fmt.Sprintf("0.0.0.0:%d", s.raftService.BindPort())
+	listener, err := s.raftService.ListenTCP()
+	if err != nil {
+		return err
+	}
 	addr, err := net.ResolveTCPAddr("tcp", s.raftService.Address())
 	if err != nil {
 		return err
 	}
 	var transport *raft.NetworkTransport
 	if os.Getenv("ENABLE_RAFT_LOG") != "true" {
-		transport, err = raft.NewTCPTransport(raftBind, addr, 5, 15*time.Second, ioutil.Discard)
+
+		transport = raft.NewNetworkTransport(&TCPStreamLayer{
+			listener:  listener,
+			advertise: addr,
+		}, 5, 15*time.Second, ioutil.Discard)
 	} else {
-		transport, err = raft.NewTCPTransport(raftBind, addr, 5, 15*time.Second, os.Stderr)
+		transport = raft.NewNetworkTransport(&TCPStreamLayer{
+			listener:  listener,
+			advertise: addr,
+		}, 5, 15*time.Second, os.Stderr)
 	}
 	if err != nil {
 		return err
@@ -226,7 +228,7 @@ func (s *raftlayer) discoveredMembers() []string {
 	}
 
 	for _, member := range discovered {
-		members = append(members, member.Peer)
+		members = append(members, member.ID)
 	}
 	return members
 }
@@ -293,7 +295,7 @@ func (s *raftlayer) syncMembers() {
 		server := clusterConfig.Servers[idx]
 		found := false
 		for _, member := range members {
-			if string(server.ID) == member.Peer {
+			if string(server.ID) == member.ID {
 				found = true
 			}
 		}
@@ -399,16 +401,4 @@ func (s *raftlayer) setStatus(status string) {
 }
 func (s *raftlayer) getMembers() ([]*discovery.NodeService, error) {
 	return s.raftService.DiscoverEndpoints()
-}
-func (s *raftlayer) getNodeStatus(peer string) string {
-	discovered, err := s.raftService.DiscoverEndpoints()
-	if err != nil {
-		return ""
-	}
-	for _, service := range discovered {
-		if service.Peer == peer {
-			return discovery.GetTagValue("raft_bootstrap_status", service.Tags)
-		}
-	}
-	return ""
 }

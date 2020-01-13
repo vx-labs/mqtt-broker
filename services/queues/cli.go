@@ -35,7 +35,7 @@ func (b *server) Start(id, name string, mesh discovery.DiscoveryAdapter, catalog
 	raftService := discovery.NewServiceFromIdentity(catalog.Get(fmt.Sprintf("%s_gossip", name)), mesh)
 	raftRPCService := discovery.NewServiceFromIdentity(catalog.Get(fmt.Sprintf("%s_gossip_rpc", name)), mesh)
 
-	err := userService.Register()
+	err := userService.RegisterTCP()
 	if err != nil {
 		logger.Error("failed to register service")
 		return err

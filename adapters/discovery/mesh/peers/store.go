@@ -135,7 +135,7 @@ func (m *memDBStore) EndpointsByService(name string) ([]*pb.NodeService, error) 
 	out := make([]*pb.NodeService, 0)
 	for _, peer := range set.Peers {
 		for _, service := range peer.HostedServices {
-			if service.ID == name {
+			if service.Name == name {
 				out = append(out, service)
 			}
 		}

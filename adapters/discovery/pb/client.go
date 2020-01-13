@@ -69,20 +69,28 @@ func (d *DiscoveryAdapter) streamEndpoints(ctx context.Context, name string) (ch
 	}()
 	return ch, nil
 }
-func (d *DiscoveryAdapter) RegisterService(name, address string) error {
-	_, err := d.api.RegisterService(d.ctx, &RegisterServiceInput{ServiceName: name, NetworkAddress: address})
+func (d *DiscoveryAdapter) RegisterTCPService(id, name, address string) error {
+	_, err := d.api.RegisterService(d.ctx, &RegisterServiceInput{ServiceID: id, ServiceName: name, NetworkAddress: address})
 	return err
 }
-func (d *DiscoveryAdapter) UnregisterService(name string) error {
-	_, err := d.api.UnregisterService(d.ctx, &UnregisterServiceInput{ServiceName: name})
+func (d *DiscoveryAdapter) RegisterUDPService(id, name, address string) error {
+	_, err := d.api.RegisterService(d.ctx, &RegisterServiceInput{ServiceID: id, ServiceName: name, NetworkAddress: address})
+	return err
+}
+func (d *DiscoveryAdapter) RegisterGRPCService(id, name, address string) error {
+	_, err := d.api.RegisterService(d.ctx, &RegisterServiceInput{ServiceID: id, ServiceName: name, NetworkAddress: address})
+	return err
+}
+func (d *DiscoveryAdapter) UnregisterService(id string) error {
+	_, err := d.api.UnregisterService(d.ctx, &UnregisterServiceInput{ServiceID: id})
 	return err
 }
 func (d *DiscoveryAdapter) AddServiceTag(service, key, value string) error {
-	_, err := d.api.AddServiceTag(d.ctx, &AddServiceTagInput{ServiceName: service, TagKey: key, TagValue: value})
+	_, err := d.api.AddServiceTag(d.ctx, &AddServiceTagInput{ServiceID: service, TagKey: key, TagValue: value})
 	return err
 }
 func (d *DiscoveryAdapter) RemoveServiceTag(service, key string) error {
-	_, err := d.api.RemoveServiceTag(d.ctx, &RemoveServiceTagInput{ServiceName: service, TagKey: key})
+	_, err := d.api.RemoveServiceTag(d.ctx, &RemoveServiceTagInput{ServiceID: service, TagKey: key})
 	return err
 }
 func (d *DiscoveryAdapter) DialService(name string, tags ...string) (*grpc.ClientConn, error) {

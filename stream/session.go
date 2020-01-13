@@ -43,7 +43,7 @@ func (session *streamSession) waitForReadiness(ctx context.Context, streamID str
 				session.logger.Warn("messages service is not ready yet, waiting")
 			}
 		} else {
-			session.logger.Warn("session service is not ready yet, waiting")
+			session.logger.Warn("messages service is not ready yet, waiting")
 		}
 		select {
 		case <-session.cancel:

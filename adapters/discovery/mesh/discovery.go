@@ -114,10 +114,23 @@ func (m *MeshDiscoveryAdapter) Leave() {
 	m.layer.Shutdown()
 }
 
-func (m *MeshDiscoveryAdapter) RegisterService(name, address string) error {
+func (m *MeshDiscoveryAdapter) RegisterTCPService(id, name, address string) error {
+	return m.registerService(id, name, address)
+}
+func (m *MeshDiscoveryAdapter) RegisterUDPService(id, name, address string) error {
+	return m.registerService(id, name, address)
+}
+func (m *MeshDiscoveryAdapter) RegisterGRPCService(id, name, address string) error {
+	return m.registerService(id, name, address)
+}
+func (m *MeshDiscoveryAdapter) registerService(id, name, address string) error {
+	if id == "" {
+		return errors.New("empty service id")
+	}
 	err := m.peers.Update(m.id, func(self pb.Peer) pb.Peer {
 		self.HostedServices = append(self.HostedServices, &pb.NodeService{
-			ID:             name,
+			ID:             id,
+			Name:           name,
 			NetworkAddress: address,
 			Peer:           m.id,
 		})
@@ -169,10 +182,10 @@ func (m *MeshDiscoveryAdapter) AddServiceTag(service, key, value string) error {
 	}
 	return err
 }
-func (m *MeshDiscoveryAdapter) RemoveServiceTag(name string, tag string) error {
+func (m *MeshDiscoveryAdapter) RemoveServiceTag(id string, tag string) error {
 	err := m.peers.Update(m.id, func(self pb.Peer) pb.Peer {
 		for idx := range self.HostedServices {
-			if self.HostedServices[idx].ID == name {
+			if self.HostedServices[idx].ID == id {
 				dirty := false
 				tags := []*pb.ServiceTag{}
 				for _, currentTag := range self.HostedServices[idx].Tags {
@@ -199,7 +212,7 @@ func (m *MeshDiscoveryAdapter) UnregisterService(name string) error {
 		newServices := []*pb.NodeService{}
 		newServiceNames := []string{}
 		for _, service := range self.HostedServices {
-			if service.ID != name {
+			if service.Name != name {
 				newServices = append(newServices, service)
 			}
 		}

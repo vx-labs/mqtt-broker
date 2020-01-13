@@ -26,7 +26,7 @@ func (a *api) GetEndpoints(ctx context.Context, input *pb.GetEndpointsInput) (*p
 	}, nil
 }
 func (a *api) RegisterService(ctx context.Context, input *pb.RegisterServiceInput) (*pb.RegisterServiceOutput, error) {
-	err := a.mesh.RegisterService(input.ServiceName, input.NetworkAddress)
+	err := a.mesh.RegisterTCPService(input.ServiceID, input.ServiceName, input.NetworkAddress)
 	if err != nil {
 		return nil, err
 	}
@@ -34,21 +34,21 @@ func (a *api) RegisterService(ctx context.Context, input *pb.RegisterServiceInpu
 }
 
 func (a *api) UnregisterService(ctx context.Context, input *pb.UnregisterServiceInput) (*pb.UnregisterServiceOutput, error) {
-	err := a.mesh.UnregisterService(input.ServiceName)
+	err := a.mesh.UnregisterService(input.ServiceID)
 	if err != nil {
 		return nil, err
 	}
 	return &pb.UnregisterServiceOutput{}, nil
 }
 func (a *api) AddServiceTag(ctx context.Context, input *pb.AddServiceTagInput) (*pb.AddServiceTagOutput, error) {
-	err := a.mesh.AddServiceTag(input.ServiceName, input.TagKey, input.TagValue)
+	err := a.mesh.AddServiceTag(input.ServiceID, input.TagKey, input.TagValue)
 	if err != nil {
 		return nil, err
 	}
 	return &pb.AddServiceTagOutput{}, nil
 }
 func (a *api) RemoveServiceTag(ctx context.Context, input *pb.RemoveServiceTagInput) (*pb.RemoveServiceTagOutput, error) {
-	err := a.mesh.RemoveServiceTag(input.ServiceName, input.TagKey)
+	err := a.mesh.RemoveServiceTag(input.ServiceID, input.TagKey)
 	if err != nil {
 		return nil, err
 	}

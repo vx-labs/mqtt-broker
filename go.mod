@@ -3,7 +3,7 @@ module github.com/vx-labs/mqtt-broker
 go 1.13
 
 require (
-	github.com/armon/go-metrics v0.3.0 // indirect
+	github.com/armon/go-metrics v0.3.0
 	github.com/armon/go-proxyproto v0.0.0-20190211145416-68259f75880e
 	github.com/asaskevich/EventBus v0.0.0-20180315140547-d46933a94f05
 	github.com/boltdb/bolt v1.3.1
@@ -26,6 +26,7 @@ require (
 	github.com/hashicorp/go-memdb v1.0.4
 	github.com/hashicorp/go-retryablehttp v0.6.4 // indirect
 	github.com/hashicorp/go-rootcerts v1.0.2 // indirect
+	github.com/hashicorp/go-sockaddr v1.0.2
 	github.com/hashicorp/golang-lru v0.5.3 // indirect
 	github.com/hashicorp/memberlist v0.1.5
 	github.com/hashicorp/raft v1.1.1

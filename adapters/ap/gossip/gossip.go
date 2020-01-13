@@ -15,11 +15,11 @@ import (
 
 type Service interface {
 	DiscoverEndpoints() ([]*discovery.NodeService, error)
-	Register() error
-	Unregister() error
 	Address() string
 	Name() string
 	BindPort() int
+	ListenTCP() (net.Listener, error)
+	ListenUDP() (net.PacketConn, error)
 }
 
 type layer struct {
@@ -75,7 +75,7 @@ func (self *layer) discoverPeers() error {
 	peers, _ := self.service.DiscoverEndpoints()
 	addresses := []string{}
 	for _, peer := range peers {
-		if !self.isNodeKnown(peer.Peer) {
+		if !self.isNodeKnown(peer.ID) {
 			addresses = append(addresses, peer.NetworkAddress)
 		}
 	}
@@ -91,11 +91,7 @@ func (self *layer) Shutdown() error {
 	self.logger.Info("shutting down gossip state distributer")
 	close(self.cancel)
 	<-self.done
-	err := self.service.Unregister()
-	if err != nil {
-		return err
-	}
-	err = self.mlist.Leave(5 * time.Second)
+	err := self.mlist.Leave(5 * time.Second)
 	if err != nil {
 		return err
 	}
@@ -163,15 +159,15 @@ func NewGossipDistributer(id string, service Service, state pb.APState, logger *
 	if os.Getenv("ENABLE_MEMBERLIST_LOG") != "true" {
 		config.LogOutput = ioutil.Discard
 	}
+	config.Transport, err = newNetTransport(service, logger)
+	if err != nil {
+		panic(err)
+	}
 	list, err := memberlist.Create(config)
 	if err != nil {
 		panic(err)
 	}
 	self.mlist = list
-	err = service.Register()
-	if err != nil {
-		panic(err)
-	}
 	go func() {
 		retryTicker := time.NewTicker(5 * time.Second)
 		defer retryTicker.Stop()

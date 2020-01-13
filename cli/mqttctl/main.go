@@ -118,8 +118,11 @@ func (w *wrappedDiscoveryAdapter) EndpointsByService(name string) ([]*pb.NodeSer
 func (w *wrappedDiscoveryAdapter) DialService(name string, tags ...string) (*grpc.ClientConn, error) {
 	return w.backend.DialService(name, tags...)
 }
-func (w *wrappedDiscoveryAdapter) RegisterService(name, address string) error {
-	return w.backend.RegisterService(name, address)
+func (w *wrappedDiscoveryAdapter) RegisterTCPService(id, name, address string) error {
+	return w.backend.RegisterTCPService(id, name, address)
+}
+func (w *wrappedDiscoveryAdapter) RegisterGRPCService(id, name, address string) error {
+	return w.backend.RegisterGRPCService(id, name, address)
 }
 func (w *wrappedDiscoveryAdapter) UnregisterService(name string) error {
 	return w.backend.UnregisterService(name)

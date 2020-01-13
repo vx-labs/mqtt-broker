@@ -109,6 +109,8 @@ type localSession struct {
 	inflights    *inflight.Queue
 	logger       *zap.Logger
 	transport    transport.Metadata
+	poller       sync.Once
+	pollerCh     chan error
 }
 
 func (local *localSession) Less(remote btree.Item) bool {

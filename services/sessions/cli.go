@@ -45,7 +45,7 @@ func (b *server) Start(id, name string, mesh discovery.DiscoveryAdapter, catalog
 	b.store = NewSessionStore(logger)
 	service := discovery.NewServiceFromIdentity(catalog.Get(fmt.Sprintf("%s_gossip", name)), mesh)
 	userService := discovery.NewServiceFromIdentity(catalog.Get(name), mesh)
-	err := userService.Register()
+	err := userService.RegisterTCP()
 	if err != nil {
 		logger.Error("failed to register service")
 		return err

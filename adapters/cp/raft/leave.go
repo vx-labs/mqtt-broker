@@ -94,15 +94,13 @@ leaderLogic:
 			s.logger.Debug("raft cluster left")
 		}
 	}
-	err = s.raftService.Unregister()
+	err = s.rpcListener.Close()
 	if err != nil {
-		s.logger.Error("failed to unregister raft service from discovery", zap.Error(err))
-		return err
+		s.logger.Error("failed to close raft rpc service", zap.Error(err))
 	}
-	err = s.rpcService.Unregister()
+	err = s.raftNetwork.Close()
 	if err != nil {
-		s.logger.Error("failed to unregister raft rpc service from discovery", zap.Error(err))
-		return err
+		s.logger.Error("failed to close raft service", zap.Error(err))
 	}
 	s.logger.Info("unregistered service from discovery")
 	return s.raft.Shutdown().Error()
