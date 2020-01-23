@@ -124,6 +124,9 @@ func (w *wrappedDiscoveryAdapter) RegisterTCPService(id, name, address string) e
 func (w *wrappedDiscoveryAdapter) RegisterGRPCService(id, name, address string) error {
 	return w.backend.RegisterGRPCService(id, name, address)
 }
+func (w *wrappedDiscoveryAdapter) RegisterUDPService(id, name, address string) error {
+	return w.backend.RegisterGRPCService(id, name, address)
+}
 func (w *wrappedDiscoveryAdapter) UnregisterService(name string) error {
 	return w.backend.UnregisterService(name)
 }

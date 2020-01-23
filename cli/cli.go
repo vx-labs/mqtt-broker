@@ -22,6 +22,7 @@ import (
 	"github.com/vx-labs/mqtt-broker/adapters/identity"
 	"github.com/vx-labs/mqtt-broker/adapters/membership"
 	"github.com/vx-labs/mqtt-broker/network"
+	"github.com/vx-labs/mqtt-broker/path"
 )
 
 const (
@@ -85,13 +86,13 @@ func logService(logger *zap.Logger, name string, config identity.Identity) {
 }
 
 type serviceRunConfig struct {
-	Service Service
-	Name    string
-	ID      string
+	service Service
+	Name    string `json:"name"`
+	ID      string `json:"id"`
 }
 
 func (s *serviceRunConfig) Health() string {
-	return s.Service.Health()
+	return s.service.Health()
 }
 func (s *serviceRunConfig) ServiceName() string {
 	return s.Name
@@ -109,11 +110,25 @@ type Context struct {
 }
 
 func (ctx *Context) AddService(cmd *cobra.Command, config *viper.Viper, name string, f func(id string, config *viper.Viper, logger *zap.Logger, mesh discovery.DiscoveryAdapter) Service) {
+	exists := false
+	for _, service := range ctx.Services {
+		for _, wantedName := range []string{
+			name,
+			fmt.Sprintf("%s_gossip", name),
+			fmt.Sprintf("%s_gossip_rpc", name),
+		} {
+			exists = true
+			if service.Name == wantedName && service.ID != "" {
+				config.Set(fmt.Sprintf("%s-service-id", wantedName), service.ID)
+			}
+		}
+	}
 	serviceNetConf := network.ConfigurationFromFlags(cmd, config, name)
 	serviceGossipNetConf := network.ConfigurationFromFlags(cmd, config, fmt.Sprintf("%s_gossip", name))
 	serviceGossipRPCNetConf := network.ConfigurationFromFlags(cmd, config, fmt.Sprintf("%s_gossip_rpc", name))
 
 	id := serviceNetConf.ID()
+
 	logger := ctx.Logger.WithOptions(zap.Fields(
 		zap.String("service_name", name),
 	))
@@ -124,20 +139,37 @@ func (ctx *Context) AddService(cmd *cobra.Command, config *viper.Viper, name str
 	ctx.identityCatalog.Register(&serviceGossipNetConf)
 	ctx.identityCatalog.Register(&serviceGossipRPCNetConf)
 
-	ctx.Services = append(ctx.Services, &serviceRunConfig{
-		Service: service,
-		Name:    name,
-		ID:      id,
-	})
+	if exists {
+		for idx := range ctx.Services {
+			if ctx.Services[idx].ID == id {
+				ctx.Services[idx].service = service
+			}
+		}
+	} else {
+		ctx.Services = append(ctx.Services, &serviceRunConfig{
+			service: service,
+			Name:    name,
+			ID:      id,
+		})
+	}
 }
 
 func (ctx *Context) Run(v *viper.Viper) error {
+	fd, err := os.Create(fmt.Sprintf("%s/services_%s.json", path.DataDir(), ctx.ID))
+	if err != nil {
+		panic(err)
+	}
+	err = json.NewEncoder(fd).Encode(&ctx.Services)
+	if err != nil {
+		panic(err)
+	}
+	fd.Close()
 	defer func() {
+		ctx.Logger.Sync()
 		if r := recover(); r != nil {
 			ctx.Logger.Error("panic", zap.String("panic_log", fmt.Sprint(r)))
 			os.Exit(9)
 		}
-		ctx.Logger.Sync()
 	}()
 	sigc := make(chan os.Signal, 1)
 	signal.Notify(sigc,
@@ -158,11 +190,11 @@ func (ctx *Context) Run(v *viper.Viper) error {
 			zap.String("service_name", service.Name),
 		))
 		identity := ctx.identityCatalog.Get(service.Name)
-		err := service.Service.Start(service.ID, service.Name, ctx.Discovery, ctx.identityCatalog, logger)
+		err := service.service.Start(service.ID, service.Name, ctx.Discovery, ctx.identityCatalog, logger)
 		if err != nil {
 			logger.Error("failed to start service", zap.Error(err))
 		}
-		listener := service.Service.Serve(identity.BindPort())
+		listener := service.service.Serve(identity.BindPort())
 		if listener != nil {
 			logService(logger, service.Name, identity)
 		}
@@ -179,7 +211,7 @@ func (ctx *Context) Run(v *viper.Viper) error {
 		}()
 		for _, service := range ctx.Services {
 			logger.Debug(fmt.Sprintf("stopping service %s", service.Name))
-			service.Service.Shutdown()
+			service.service.Shutdown()
 			logger.Debug(fmt.Sprintf("stopped service %s", service.Name))
 		}
 		ctx.Discovery.Shutdown()
@@ -244,6 +276,14 @@ func Bootstrap(cmd *cobra.Command, v *viper.Viper) *Context {
 	ctx.identityCatalog.Register(&clusterNetConf)
 	mesh := createMesh(ctx.ID, v, logger, &clusterNetConf)
 	ctx.Discovery = mesh
+	fd, err := os.Open(fmt.Sprintf("%s/services_%s.json", path.DataDir(), ctx.ID))
+	if err == nil {
+		defer fd.Close()
+		err := json.NewDecoder(fd).Decode(&ctx.Services)
+		if err != nil {
+			panic(err)
+		}
+	}
 	logger.Debug("mesh created")
 	return ctx
 }
