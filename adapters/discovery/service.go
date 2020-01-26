@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"net"
 	"strconv"
-	"time"
 
 	"github.com/vx-labs/mqtt-broker/adapters/discovery/pb"
 	"github.com/vx-labs/mqtt-broker/adapters/identity"
@@ -19,83 +18,11 @@ type service struct {
 	bindPort int
 }
 
-type serviceTCPListener struct {
-	closeCallback func() error
-	listener      net.Listener
-}
-
-func (s *serviceTCPListener) Accept() (net.Conn, error) {
-	return s.listener.Accept()
-}
-func (s *serviceTCPListener) Addr() net.Addr {
-	return s.listener.Addr()
-}
-func (s *serviceTCPListener) Close() error {
-	err := s.closeCallback()
-	if err != nil {
-		return err
-	}
-	return s.listener.Close()
-}
-
-type serviceUDPListener struct {
-	closeCallback func() error
-	listener      net.PacketConn
-}
-
-func (s *serviceUDPListener) ReadFrom(p []byte) (n int, addr net.Addr, err error) {
-	return s.listener.ReadFrom(p)
-}
-func (s *serviceUDPListener) WriteTo(p []byte, addr net.Addr) (n int, err error) {
-	return s.listener.WriteTo(p, addr)
-}
-func (s *serviceUDPListener) LocalAddr() net.Addr {
-	return s.listener.LocalAddr()
-}
-func (s *serviceUDPListener) SetDeadline(t time.Time) error {
-	return s.listener.SetDeadline(t)
-}
-func (s *serviceUDPListener) SetReadDeadline(t time.Time) error {
-	return s.listener.SetReadDeadline(t)
-}
-func (s *serviceUDPListener) SetWriteDeadline(t time.Time) error {
-	return s.listener.SetWriteDeadline(t)
-}
-func (s *serviceUDPListener) Close() error {
-	err := s.closeCallback()
-	if err != nil {
-		return err
-	}
-	return s.listener.Close()
-}
-
 func (s *service) ListenTCP() (net.Listener, error) {
-	listener, err := net.Listen("tcp", fmt.Sprintf(":%d", s.BindPort()))
-	if err != nil {
-		return nil, err
-	}
-	err = s.RegisterTCP()
-	if err != nil {
-		return nil, err
-	}
-	return &serviceTCPListener{
-		closeCallback: s.Unregister,
-		listener:      listener,
-	}, nil
+	return s.adapter.ListenTCP(s.ID(), s.Name(), s.BindPort(), s.Address())
 }
 func (s *service) ListenUDP() (net.PacketConn, error) {
-	listener, err := net.ListenPacket("udp", fmt.Sprintf(":%d", s.BindPort()))
-	if err != nil {
-		return nil, err
-	}
-	/*err = s.RegisterUDP()
-	if err != nil {
-		return nil, err
-	}*/
-	return &serviceUDPListener{
-		//	closeCallback: s.Unregister,
-		listener: listener,
-	}, nil
+	return s.adapter.ListenUDP(s.ID(), s.Name(), s.BindPort(), s.Address())
 }
 
 func (s *service) Dial(tags ...string) (*grpc.ClientConn, error) {
@@ -133,18 +60,6 @@ func (s *service) Name() string {
 }
 func (s *service) BindPort() int {
 	return s.bindPort
-}
-func (s *service) RegisterTCP() error {
-	return s.adapter.RegisterTCPService(s.id, s.name, s.address)
-}
-func (s *service) RegisterUDP() error {
-	return s.adapter.RegisterUDPService(s.id, s.name, s.address)
-}
-func (s *service) RegisterGRPC() error {
-	return s.adapter.RegisterGRPCService(s.id, s.name, s.address)
-}
-func (s *service) Unregister() error {
-	return s.adapter.UnregisterService(s.id)
 }
 func (s *service) AddTag(key string, value string) error {
 	return s.adapter.AddServiceTag(s.id, key, value)

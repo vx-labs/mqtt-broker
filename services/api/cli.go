@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/vx-labs/mqtt-broker/adapters/discovery"
-	"github.com/vx-labs/mqtt-broker/adapters/identity"
 	"github.com/vx-labs/mqtt-broker/vaultacme"
 
 	"go.uber.org/zap"
@@ -52,19 +51,6 @@ func (b *api) acceptLoop(listener net.Listener) {
 		w.WriteHeader(http.StatusOK)
 		json.NewEncoder(w).Encode(sessions)
 	})
-	mux.HandleFunc(prefixVersion("peers/"), func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodGet {
-			w.WriteHeader(http.StatusMethodNotAllowed)
-			return
-		}
-		peers, err := b.mesh.Members()
-		if err != nil {
-			httpFail(w, err)
-			return
-		}
-		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(peers)
-	})
 	go http.Serve(listener, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		now := time.Now()
 		w.Header().Set("Content-Type", "application/json")
@@ -86,7 +72,7 @@ func (b *api) Shutdown() {
 		lis.Close()
 	}
 }
-func (b *api) Start(id, name string, mesh discovery.DiscoveryAdapter, catalog identity.Catalog, logger *zap.Logger) error {
+func (b *api) Start(id, name string, catalog discovery.ServiceCatalog, logger *zap.Logger) error {
 	if b.config.TlsPort > 0 {
 		TLSConfig, err := vaultacme.GetConfig(b.ctx, b.config.TlsCommonName, b.logger)
 		if err != nil {

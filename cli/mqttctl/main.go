@@ -109,26 +109,17 @@ type wrappedDiscoveryAdapter struct {
 	backend discovery.DiscoveryAdapter
 }
 
-func (w *wrappedDiscoveryAdapter) Members() ([]*pb.Peer, error) {
-	return w.backend.Members()
-}
 func (w *wrappedDiscoveryAdapter) EndpointsByService(name string) ([]*pb.NodeService, error) {
 	return w.backend.EndpointsByService(name)
 }
 func (w *wrappedDiscoveryAdapter) DialService(name string, tags ...string) (*grpc.ClientConn, error) {
 	return w.backend.DialService(name, tags...)
 }
-func (w *wrappedDiscoveryAdapter) RegisterTCPService(id, name, address string) error {
-	return w.backend.RegisterTCPService(id, name, address)
+func (w *wrappedDiscoveryAdapter) ListenTCP(id, name string, port int, advertizedAddress string) (net.Listener, error) {
+	return w.backend.ListenTCP(id, name, port, advertizedAddress)
 }
-func (w *wrappedDiscoveryAdapter) RegisterGRPCService(id, name, address string) error {
-	return w.backend.RegisterGRPCService(id, name, address)
-}
-func (w *wrappedDiscoveryAdapter) RegisterUDPService(id, name, address string) error {
-	return w.backend.RegisterGRPCService(id, name, address)
-}
-func (w *wrappedDiscoveryAdapter) UnregisterService(name string) error {
-	return w.backend.UnregisterService(name)
+func (w *wrappedDiscoveryAdapter) ListenUDP(id, name string, port int, advertizedAddress string) (net.PacketConn, error) {
+	return w.backend.ListenUDP(id, name, port, advertizedAddress)
 }
 func (w *wrappedDiscoveryAdapter) AddServiceTag(service, key, value string) error {
 	return w.backend.AddServiceTag(service, key, value)

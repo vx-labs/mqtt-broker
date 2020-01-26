@@ -36,7 +36,7 @@ func New(id string, logger *zap.Logger, mesh discovery.DiscoveryAdapter) *server
 		ctx:    ctx,
 		logger: logger,
 	}
-	kvConn, err := mesh.DialService("kv?raft_status=leader")
+	kvConn, err := mesh.DialService("kv")
 	if err != nil {
 		panic(err)
 	}
@@ -44,7 +44,7 @@ func New(id string, logger *zap.Logger, mesh discovery.DiscoveryAdapter) *server
 	if err != nil {
 		panic(err)
 	}
-	queuesConn, err := mesh.DialService("queues?raft_status=leader")
+	queuesConn, err := mesh.DialService("queues")
 	if err != nil {
 		panic(err)
 	}

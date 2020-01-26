@@ -1,7 +1,6 @@
 package auth
 
 import (
-	"fmt"
 	"net"
 
 	"github.com/vx-labs/mqtt-broker/adapters/discovery"
@@ -9,7 +8,6 @@ import (
 
 	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
 
-	"github.com/vx-labs/mqtt-broker/adapters/identity"
 	"github.com/vx-labs/mqtt-broker/network"
 	"google.golang.org/grpc"
 
@@ -17,28 +15,24 @@ import (
 )
 
 func (b *server) Serve(port int) net.Listener {
-	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
-	if err != nil {
-		return nil
-	}
 	s := grpc.NewServer(
 		network.GRPCServerOptions()...,
 	)
 	pb.RegisterAuthServiceServer(s, b)
 	grpc_prometheus.Register(s)
-	go s.Serve(lis)
+	go s.Serve(b.listener)
 	b.grpcServer = s
-	return lis
+	return b.listener
 }
 func (b *server) Shutdown() {
 	b.grpcServer.GracefulStop()
 }
-func (b *server) Start(id, name string, mesh discovery.DiscoveryAdapter, catalog identity.Catalog, logger *zap.Logger) error {
-	config := catalog.Get(name)
-	err := mesh.RegisterTCPService(id, name, fmt.Sprintf("%s:%d", config.AdvertisedAddress(), config.AdvertisedPort()))
+func (b *server) Start(id, name string, catalog discovery.ServiceCatalog, logger *zap.Logger) error {
+	listener, err := catalog.Service(name).ListenTCP()
 	if err != nil {
-		panic(err)
+		return err
 	}
+	b.listener = listener
 	return nil
 }
 

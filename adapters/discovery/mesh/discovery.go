@@ -2,6 +2,8 @@ package mesh
 
 import (
 	"errors"
+	"fmt"
+	"net"
 	"os"
 	"runtime"
 	"time"
@@ -10,6 +12,7 @@ import (
 	"google.golang.org/grpc/resolver"
 
 	"github.com/gogo/protobuf/proto"
+	"github.com/vx-labs/mqtt-broker/adapters/discovery/listeners"
 	"github.com/vx-labs/mqtt-broker/adapters/discovery/mesh/peers"
 	"github.com/vx-labs/mqtt-broker/adapters/discovery/pb"
 )
@@ -122,6 +125,40 @@ func (m *MeshDiscoveryAdapter) RegisterUDPService(id, name, address string) erro
 }
 func (m *MeshDiscoveryAdapter) RegisterGRPCService(id, name, address string) error {
 	return m.registerService(id, name, address)
+}
+func (m *MeshDiscoveryAdapter) ListenTCP(id, name string, port int, advertizedAddress string) (net.Listener, error) {
+	err := m.registerService(id, name, advertizedAddress)
+	if err != nil {
+		return nil, err
+	}
+	listener, err := net.Listen("tcp", fmt.Sprintf("0.0.0.0:%d", port))
+	if err != nil {
+		return nil, err
+	}
+
+	return &listeners.ServiceTCPListener{
+		CloseCallback: func() error {
+			return m.UnregisterService(id)
+		},
+		Listener: listener,
+	}, nil
+}
+func (m *MeshDiscoveryAdapter) ListenUDP(id, name string, port int, advertizedAddress string) (net.PacketConn, error) {
+	err := m.registerService(id, name, advertizedAddress)
+	if err != nil {
+		return nil, err
+	}
+	listener, err := net.ListenPacket("udp", fmt.Sprintf("0.0.0.0:%d", port))
+	if err != nil {
+		return nil, err
+	}
+
+	return &listeners.ServiceUDPListener{
+		CloseCallback: func() error {
+			return m.UnregisterService(id)
+		},
+		Listener: listener,
+	}, nil
 }
 func (m *MeshDiscoveryAdapter) registerService(id, name, address string) error {
 	if id == "" {

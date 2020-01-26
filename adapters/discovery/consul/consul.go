@@ -1,7 +1,6 @@
 package consul
 
 import (
-	"errors"
 	"fmt"
 	"net"
 	"net/http"
@@ -10,6 +9,7 @@ import (
 
 	"github.com/hashicorp/consul/api"
 	consul "github.com/hashicorp/consul/api"
+	"github.com/vx-labs/mqtt-broker/adapters/discovery/listeners"
 	"github.com/vx-labs/mqtt-broker/adapters/discovery/pb"
 	"github.com/vx-labs/mqtt-broker/network"
 	"go.uber.org/zap"
@@ -65,6 +65,7 @@ func (c *ConsulDiscoveryAdapter) EndpointsByService(name string) ([]*pb.NodeServ
 		out[idx] = &pb.NodeService{
 			ID:             service.Service.ID,
 			Name:           name,
+			Health:         service.Checks.AggregatedStatus(),
 			Peer:           service.Service.Meta["node_id"],
 			NetworkAddress: fmt.Sprintf("%s:%d", service.Service.Address, service.Service.Port),
 			Tags:           parseTags(service.Service.Tags),
@@ -100,6 +101,23 @@ func (c *ConsulDiscoveryAdapter) RegisterTCPService(id, name, address string) er
 		},
 	})
 }
+func (d *ConsulDiscoveryAdapter) ListenTCP(id, name string, port int, advertizedAddress string) (net.Listener, error) {
+	err := d.RegisterTCPService(id, name, advertizedAddress)
+	if err != nil {
+		return nil, err
+	}
+	listener, err := net.Listen("tcp", fmt.Sprintf("0.0.0.0:%d", port))
+	if err != nil {
+		return nil, err
+	}
+
+	return &listeners.ServiceTCPListener{
+		CloseCallback: func() error {
+			return d.UnregisterService(id)
+		},
+		Listener: listener,
+	}, nil
+}
 func (c *ConsulDiscoveryAdapter) RegisterUDPService(id, name, address string) error {
 	host, port, err := net.SplitHostPort(address)
 	if err != nil {
@@ -119,6 +137,24 @@ func (c *ConsulDiscoveryAdapter) RegisterUDPService(id, name, address string) er
 		},
 		EnableTagOverride: true,
 	})
+}
+
+func (d *ConsulDiscoveryAdapter) ListenUDP(id, name string, port int, advertizedAddress string) (net.PacketConn, error) {
+	err := d.RegisterUDPService(id, name, advertizedAddress)
+	if err != nil {
+		return nil, err
+	}
+	listener, err := net.ListenPacket("udp", fmt.Sprintf("0.0.0.0:%d", port))
+	if err != nil {
+		return nil, err
+	}
+
+	return &listeners.ServiceUDPListener{
+		CloseCallback: func() error {
+			return d.UnregisterService(id)
+		},
+		Listener: listener,
+	}, nil
 }
 
 func (c *ConsulDiscoveryAdapter) RegisterGRPCService(id, name, address string) error {
@@ -218,7 +254,4 @@ func (c *ConsulDiscoveryAdapter) DialService(name string, tags ...string) (*grpc
 }
 func (c *ConsulDiscoveryAdapter) Shutdown() error {
 	return nil
-}
-func (c *ConsulDiscoveryAdapter) Members() ([]*pb.Peer, error) {
-	return nil, errors.New("Unsupported")
 }

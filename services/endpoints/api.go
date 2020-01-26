@@ -2,6 +2,7 @@ package endpoints
 
 import (
 	"context"
+	"net"
 
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
@@ -14,6 +15,7 @@ type api struct {
 	ctx        context.Context
 	grpcServer *grpc.Server
 	mesh       discovery.DiscoveryAdapter
+	listener   net.Listener
 	logger     *zap.Logger
 }
 

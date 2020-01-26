@@ -20,12 +20,6 @@ import (
 	"go.uber.org/zap"
 )
 
-const (
-	raftStatusInit          = "init"
-	raftStatusBootstrapping = "bootstraping"
-	raftStatusBootstrapped  = "bootstrapped"
-)
-
 var (
 	ErrBootstrappedNodeFound = errors.New("bootstrapped node found")
 	ErrBootstrapRaceLost     = errors.New("bootstrapped race lost")
@@ -96,7 +90,6 @@ func (s *raftlayer) joinExistingCluster(ctx context.Context) {
 			Address: s.raftService.Address(),
 		})
 		if err == nil {
-			s.setStatus(raftStatusBootstrapped)
 			s.logger.Info("joined raft cluster")
 			return
 		}
@@ -106,13 +99,12 @@ func (s *raftlayer) joinExistingCluster(ctx context.Context) {
 	s.logger.Error("failed to request adoption", zap.Error(err))
 }
 func (s *raftlayer) start() error {
-	leaderConn, err := s.rpcService.Dial("raft_status=leader")
+	leaderConn, err := s.rpcService.Dial()
 	if err != nil {
 		panic(err)
 	}
 	s.leaderRPC = pb.NewLayerClient(leaderConn)
 	raftConfig := raft.DefaultConfig()
-	s.setStatus(raftStatusInit)
 	/*	if os.Getenv("ENABLE_RAFT_LOG") != "true" {
 		raftConfig.LogOutput = ioutil.Discard
 	}*/
@@ -196,7 +188,6 @@ func (s *raftlayer) start() error {
 				}
 				s.logger.Warn("failed to join raft cluster, retrying", zap.Error(err))
 			} else {
-				s.setStatus(raftStatusBootstrapped)
 				return
 			}
 		}
@@ -211,13 +202,10 @@ func (s *raftlayer) Health() string {
 	if s.raft == nil {
 		return "critical"
 	}
-	if s.raft.AppliedIndex() == 0 {
-		return "warning"
+	if s.IsLeader() {
+		return "ok"
 	}
-	if (s.raft.Leader()) == "" {
-		return "critical"
-	}
-	return "ok"
+	return "warning"
 }
 
 func (s *raftlayer) discoveredMembers() []string {
@@ -315,15 +303,8 @@ func (s *raftlayer) leaderRoutine() {
 		leader := ob.Raft.Leader()
 		if leader == s.selfRaftAddress {
 			s.logger.Info("raft cluster leadership acquired")
-			s.raftService.AddTag("raft_status", "leader")
-			s.rpcService.AddTag("raft_status", "leader")
-			s.userService.AddTag("raft_status", "leader")
-			s.wasLeader = true
 		} else if leader != "" && s.wasLeader {
 			s.logger.Info("raft cluster leadership lost")
-			s.raftService.RemoveTag("raft_status")
-			s.rpcService.RemoveTag("raft_status")
-			s.userService.RemoveTag("raft_status")
 		}
 	}
 }
@@ -393,12 +374,6 @@ func (s *raftlayer) ApplyEvent(event []byte) error {
 	return errors.New("failed to commit to leader after 5 retries")
 }
 
-func (s *raftlayer) setStatus(status string) {
-	err := s.raftService.AddTag("raft_bootstrap_status", status)
-	if err != nil {
-		s.logger.Warn("failed to set raft bootstrap tag", zap.Error(err))
-	}
-}
 func (s *raftlayer) getMembers() ([]*discovery.NodeService, error) {
 	return s.raftService.DiscoverEndpoints()
 }

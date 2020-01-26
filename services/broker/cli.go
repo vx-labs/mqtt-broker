@@ -1,12 +1,10 @@
 package broker
 
 import (
-	"fmt"
 	"net"
 
 	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
 	"github.com/vx-labs/mqtt-broker/adapters/discovery"
-	"github.com/vx-labs/mqtt-broker/adapters/identity"
 	"github.com/vx-labs/mqtt-broker/network"
 	"github.com/vx-labs/mqtt-broker/services/broker/pb"
 	"go.uber.org/zap"
@@ -14,10 +12,6 @@ import (
 )
 
 func (b *Broker) Serve(port int) net.Listener {
-	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
-	if err != nil {
-		return nil
-	}
 	s := grpc.NewServer(
 		network.GRPCServerOptions()...,
 	)
@@ -26,19 +20,19 @@ func (b *Broker) Serve(port int) net.Listener {
 	}
 	pb.RegisterBrokerServiceServer(s, server)
 	grpc_prometheus.Register(s)
-	go s.Serve(lis)
+	go s.Serve(b.listener)
 	b.grpcServer = s
-	return lis
+	return b.listener
 }
 func (b *Broker) Shutdown() {
 	b.grpcServer.GracefulStop()
 }
-func (b *Broker) Start(id, name string, mesh discovery.DiscoveryAdapter, catalog identity.Catalog, logger *zap.Logger) error {
-	config := catalog.Get(name)
-	err := mesh.RegisterTCPService(id, name, fmt.Sprintf("%s:%d", config.AdvertisedAddress(), config.AdvertisedPort()))
+func (b *Broker) Start(id, name string, catalog discovery.ServiceCatalog, logger *zap.Logger) error {
+	listener, err := catalog.Service("broker").ListenTCP()
 	if err != nil {
-		panic(err)
+		return err
 	}
+	b.listener = listener
 	return nil
 }
 

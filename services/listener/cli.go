@@ -6,7 +6,6 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/vx-labs/mqtt-broker/adapters/discovery"
-	"github.com/vx-labs/mqtt-broker/adapters/identity"
 	"github.com/vx-labs/mqtt-broker/events"
 	messages "github.com/vx-labs/mqtt-broker/services/messages/pb"
 	"github.com/vx-labs/mqtt-broker/stream"
@@ -14,13 +13,18 @@ import (
 )
 
 func (b *endpoint) Serve(port int) net.Listener {
-	return nil
+	return b.listener
 }
 func (b *endpoint) Shutdown() {
 	b.Close()
 	b.streamClient.Shutdown()
 }
-func (b *endpoint) Start(id, name string, mesh discovery.DiscoveryAdapter, catalog identity.Catalog, logger *zap.Logger) error {
+func (b *endpoint) Start(id, name string, catalog discovery.ServiceCatalog, logger *zap.Logger) error {
+	listener, err := catalog.Service(name).ListenTCP()
+	if err != nil {
+		return err
+	}
+	b.listener = listener
 	ctx := context.Background()
 	b.streamClient = stream.NewClient(b.kv, b.messages, logger)
 	b.streamClient.ConsumeStream(ctx, "events", b.consumeStream,

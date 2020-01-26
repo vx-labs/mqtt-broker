@@ -2,6 +2,7 @@ package subscriptions
 
 import (
 	"context"
+	"net"
 
 	"github.com/vx-labs/mqtt-broker/adapters/ap"
 	sessions "github.com/vx-labs/mqtt-broker/services/sessions/pb"
@@ -21,6 +22,7 @@ type server struct {
 	state      ap.Distributer
 	ctx        context.Context
 	gprcServer *grpc.Server
+	listener   net.Listener
 	logger     *zap.Logger
 	sessions   SessionStore
 	stream     *stream.Client

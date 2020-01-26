@@ -3,6 +3,7 @@ package static
 import (
 	"errors"
 	"io"
+	"net"
 
 	"github.com/vx-labs/mqtt-broker/adapters/discovery/pb"
 	"github.com/vx-labs/mqtt-broker/network"
@@ -56,6 +57,12 @@ func (c *StaticDiscoveryAdapter) DialService(name string, tags ...string) (*grpc
 	return grpc.Dial(c.list[0],
 		network.GRPCClientOptions()...,
 	)
+}
+func (c *StaticDiscoveryAdapter) ListenTCP(id, name string, port int, advertizedAddress string) (net.Listener, error) {
+	return nil, errors.New("Unsupported yet")
+}
+func (c *StaticDiscoveryAdapter) ListenUDP(id, name string, port int, advertizedAddress string) (net.PacketConn, error) {
+	return nil, errors.New("Unsupported yet")
 }
 func (c *StaticDiscoveryAdapter) Shutdown() error {
 	return nil

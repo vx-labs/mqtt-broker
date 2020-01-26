@@ -107,7 +107,7 @@ func (c Configuration) Describe(name string) string {
 	)
 }
 
-func ConfigurationFromFlags(cmd *cobra.Command, v *viper.Viper, name string) Configuration {
+func ConfigurationFromFlags(v *viper.Viper, name string) Configuration {
 	serviceID := fmt.Sprintf("%s-service-id", name)
 
 	config := Configuration{

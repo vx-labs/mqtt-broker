@@ -110,9 +110,9 @@ EOH
 %{ endfor }
           "--cluster-bind-port=3500",
 %{ if exposed_service_name != "" }
-          "--${exposed_service_name}_gossip-bind-port=3100",
+          "--${exposed_service_name}gossip-bind-port=3100",
           "--${exposed_service_name}-bind-port=4000",
-          "--${exposed_service_name}_gossip_rpc-bind-port=3200",
+          "--${exposed_service_name}gossiprpc-bind-port=3200",
 %{ endif }
         ]
         force_pull = true
@@ -122,8 +122,8 @@ EOH
           cluster = 3500
 %{ if exposed_service_name != "" }
           ${exposed_service_name}            = 4000
-          ${exposed_service_name}_gossip     = 3100
-          ${exposed_service_name}_gossip_rpc = 3200
+          ${exposed_service_name}gossip     = 3100
+          ${exposed_service_name}gossiprpc = 3200
 %{ endif }
         }
       }
@@ -138,8 +138,8 @@ EOH
           port  "health"{}
 %{ if exposed_service_name != "" }
           port ${exposed_service_name}            {}
-          port ${exposed_service_name}_gossip     {}
-          port ${exposed_service_name}_gossip_rpc {}
+          port ${exposed_service_name}gossip     {}
+          port ${exposed_service_name}gossiprpc {}
 %{ endif }
         }
       }

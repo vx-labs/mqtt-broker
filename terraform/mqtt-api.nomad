@@ -105,7 +105,7 @@ EOH
           "service", "api",
           "--api-tls-port=3000",
           "--cluster-bind-port=3500",
-          "--api_gossip-bind-port=3100",
+          "--apigossip-bind-port=3100",
           "--api-bind-port=4000",
         ]
 
@@ -113,7 +113,7 @@ EOH
           health  = 9000
           cluster = 3500
           api = 4000
-          api_gossip  = 3100
+          apigossip  = 3100
           https   = 3000
         }
       }
@@ -127,7 +127,7 @@ EOH
           port  "cluster"{}
           port  "health"{}
           port  "api"{}
-          port  "api_gossip"{}
+          port  "apigossip"{}
           port  "https"{}
         }
       }

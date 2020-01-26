@@ -7,7 +7,7 @@ job "${service_name}" {
     min_healthy_time = "30s"
     healthy_deadline = "10m"
     progress_deadline = "30m"
-    health_check     = "checks"
+    health_check     = "task_states"
     auto_revert      = true
     canary           = 0
   }
@@ -111,9 +111,9 @@ EOH
 %{ endfor }
           "--cluster-bind-port=3500",
 %{ if exposed_service_name != "" }
-          "--${exposed_service_name}_gossip-bind-port=3100",
+          "--${exposed_service_name}gossip-bind-port=3100",
           "--${exposed_service_name}-bind-port=4000",
-          "--${exposed_service_name}_gossip_rpc-bind-port=3200",
+          "--${exposed_service_name}gossiprpc-bind-port=3200",
 %{ endif }
         ]
         force_pull = true
@@ -123,8 +123,8 @@ EOH
           cluster = 3500
 %{ if exposed_service_name != "" }
           ${exposed_service_name}            = 4000
-          ${exposed_service_name}_gossip     = 3100
-          ${exposed_service_name}_gossip_rpc = 3200
+          ${exposed_service_name}gossip     = 3100
+          ${exposed_service_name}gossiprpc = 3200
 %{ endif }
         }
       }
@@ -139,15 +139,15 @@ EOH
           port  "health"{}
 %{ if exposed_service_name != "" }
           port ${exposed_service_name}            {}
-          port ${exposed_service_name}_gossip     {}
-          port ${exposed_service_name}_gossip_rpc {}
+          port ${exposed_service_name}gossip     {}
+          port ${exposed_service_name}gossiprpc {}
 %{ endif }
         }
       }
 
       service {
-        name = "cluster"
-        port = "cluster"
+        name = "${exposed_service_name}gossip"
+        port = "${exposed_service_name}gossip"
 
         check {
           type     = "http"
@@ -158,8 +158,21 @@ EOH
         }
       }
       service {
-        name = "mqtt-metrics"
-        port = "health"
+        name = "${exposed_service_name}gossiprpc"
+        port = "${exposed_service_name}gossiprpc"
+
+        check {
+          type     = "http"
+          path     = "/health"
+          port     = "health"
+          interval = "5s"
+          timeout  = "2s"
+        }
+      }
+      service {
+        name = "${exposed_service_name}"
+        port = "${exposed_service_name}"
+
         check {
           type     = "http"
           path     = "/health"

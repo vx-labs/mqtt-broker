@@ -1,13 +1,14 @@
-package consul
+package nomad
 
 import (
-	"errors"
 	"fmt"
+	"net"
 	"net/http"
 	"strings"
 
 	"github.com/hashicorp/consul/api"
 	consul "github.com/hashicorp/consul/api"
+	"github.com/vx-labs/mqtt-broker/adapters/discovery/listeners"
 	"github.com/vx-labs/mqtt-broker/adapters/discovery/pb"
 	"github.com/vx-labs/mqtt-broker/network"
 	"go.uber.org/zap"
@@ -15,9 +16,10 @@ import (
 	"google.golang.org/grpc/resolver"
 )
 
-type ConsulDiscoveryAdapter struct {
-	id  string
-	api *consul.Client
+type NomadDiscoveryAdapter struct {
+	id     string
+	api    *consul.Client
+	nodeId string
 }
 
 func parseTags(tags []string) []*pb.ServiceTag {
@@ -38,7 +40,7 @@ func parseTags(tags []string) []*pb.ServiceTag {
 	return out
 }
 
-func NewNomadDiscoveryAdapter(id string, logger *zap.Logger) *ConsulDiscoveryAdapter {
+func NewNomadDiscoveryAdapter(id string, logger *zap.Logger) *NomadDiscoveryAdapter {
 	consulConfig := consul.DefaultConfig()
 	consulConfig.HttpClient = http.DefaultClient
 	consulAPI, err := consul.NewClient(consulConfig)
@@ -47,43 +49,58 @@ func NewNomadDiscoveryAdapter(id string, logger *zap.Logger) *ConsulDiscoveryAda
 		return nil
 	}
 	resolver.Register(newNomadResolver(consulAPI, logger))
-	return &ConsulDiscoveryAdapter{
-		id:  id,
-		api: consulAPI,
+	info, err := consulAPI.Agent().Self()
+	if err != nil {
+		panic(err)
+	}
+	return &NomadDiscoveryAdapter{
+		id:     id,
+		api:    consulAPI,
+		nodeId: info["Config"]["NodeID"].(string),
 	}
 }
 
-func (c *ConsulDiscoveryAdapter) EndpointsByService(name string) ([]*pb.NodeService, error) {
+func (c *NomadDiscoveryAdapter) EndpointsByService(name string) ([]*pb.NodeService, error) {
 	services, _, err := c.api.Health().Service(name, "", false, &api.QueryOptions{AllowStale: false})
 	if err != nil {
 		return nil, err
 	}
 	out := make([]*pb.NodeService, len(services))
 	for idx, service := range services {
+		nomadAllocID := strings.TrimPrefix(service.Service.ID, "_nomad-task-")[0:36]
 		out[idx] = &pb.NodeService{
 			ID:             service.Service.ID,
 			Name:           name,
-			Peer:           service.Service.Meta["node_id"],
+			Health:         service.Checks.AggregatedStatus(),
+			Peer:           nomadAllocID,
 			NetworkAddress: fmt.Sprintf("%s:%d", service.Service.Address, service.Service.Port),
 			Tags:           parseTags(service.Service.Tags),
 		}
 	}
 	return out, nil
 }
-func (c *ConsulDiscoveryAdapter) RegisterTCPService(id, name, address string) error {
-	return errors.New("unsupported on nomad")
+func (d *NomadDiscoveryAdapter) ListenTCP(id, name string, port int, advertizedAddress string) (net.Listener, error) {
+	listener, err := net.Listen("tcp", fmt.Sprintf("0.0.0.0:%d", port))
+	if err != nil {
+		return nil, err
+	}
+
+	return &listeners.ServiceTCPListener{
+		Listener: listener,
+	}, nil
 }
-func (c *ConsulDiscoveryAdapter) RegisterUDPService(id, name, address string) error {
-	return errors.New("unsupported on nomad")
+func (d *NomadDiscoveryAdapter) ListenUDP(id, name string, port int, advertizedAddress string) (net.PacketConn, error) {
+	listener, err := net.ListenPacket("udp", fmt.Sprintf("0.0.0.0:%d", port))
+	if err != nil {
+		return nil, err
+	}
+
+	return &listeners.ServiceUDPListener{
+		Listener: listener,
+	}, nil
 }
 
-func (c *ConsulDiscoveryAdapter) RegisterGRPCService(id, name, address string) error {
-	return errors.New("unsupported on nomad")
-}
-func (c *ConsulDiscoveryAdapter) UnregisterService(id string) error {
-	return errors.New("unsupported on nomad")
-}
-func (c *ConsulDiscoveryAdapter) AddServiceTag(id, key, value string) error {
+func (c *NomadDiscoveryAdapter) AddServiceTag(id, key, value string) error {
 	service, _, err := c.api.Agent().Service(id, &api.QueryOptions{AllowStale: false})
 	if err != nil {
 		return err
@@ -101,17 +118,17 @@ func (c *ConsulDiscoveryAdapter) AddServiceTag(id, key, value string) error {
 	if !updated {
 		service.Tags = append(service.Tags, fmt.Sprintf("%s=%s", key, value))
 	}
-	return c.api.Agent().ServiceRegister(&api.AgentServiceRegistration{
-		ID:                id,
-		Name:              service.Service,
-		Address:           service.Address,
-		Port:              service.Port,
-		EnableTagOverride: true,
-		Tags:              service.Tags,
-		Meta:              service.Meta,
-	})
+	_, err = c.api.Catalog().Register(&consul.CatalogRegistration{
+		ID:             id,
+		Node:           c.nodeId,
+		SkipNodeUpdate: true,
+		Service: &consul.AgentService{
+			Tags: service.Tags,
+		},
+	}, nil)
+	return err
 }
-func (c *ConsulDiscoveryAdapter) RemoveServiceTag(id, key string) error {
+func (c *NomadDiscoveryAdapter) RemoveServiceTag(id, key string) error {
 	service, _, err := c.api.Agent().Service(id, &api.QueryOptions{AllowStale: false})
 	if err != nil {
 		return err
@@ -127,17 +144,17 @@ func (c *ConsulDiscoveryAdapter) RemoveServiceTag(id, key string) error {
 	if !updated {
 		return nil
 	}
-	return c.api.Agent().ServiceRegister(&api.AgentServiceRegistration{
-		ID:                id,
-		Name:              service.Service,
-		Address:           service.Address,
-		Port:              service.Port,
-		EnableTagOverride: true,
-		Tags:              service.Tags,
-		Meta:              service.Meta,
-	})
+	_, err = c.api.Catalog().Register(&consul.CatalogRegistration{
+		ID:             id,
+		SkipNodeUpdate: true,
+		Node:           c.nodeId,
+		Service: &consul.AgentService{
+			Tags: service.Tags,
+		},
+	}, nil)
+	return err
 }
-func (c *ConsulDiscoveryAdapter) DialService(name string, tags ...string) (*grpc.ClientConn, error) {
+func (c *NomadDiscoveryAdapter) DialService(name string, tags ...string) (*grpc.ClientConn, error) {
 	key := fmt.Sprintf("nomad:///%s", name)
 	if len(tags) > 0 {
 		key = fmt.Sprintf("%s?%s", key, strings.Join(tags, "&"))
@@ -146,9 +163,6 @@ func (c *ConsulDiscoveryAdapter) DialService(name string, tags ...string) (*grpc
 		network.GRPCClientOptions()...,
 	)
 }
-func (c *ConsulDiscoveryAdapter) Shutdown() error {
+func (c *NomadDiscoveryAdapter) Shutdown() error {
 	return nil
-}
-func (c *ConsulDiscoveryAdapter) Members() ([]*pb.Peer, error) {
-	return nil, errors.New("Unsupported")
 }

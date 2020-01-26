@@ -64,7 +64,7 @@ func newNetTransport(service Service, logger *zap.Logger) (*NetTransport, error)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to start TCP listener on %q port %d: %v", addr, port, err)
 	}
-	t.tcpListeners = append(t.tcpListeners, tcpLn.(*net.TCPListener))
+	t.tcpListeners = append(t.tcpListeners, tcpLn)
 
 	// If the config port given was zero, use the first TCP listener
 	// to pick an available port and then apply that to everything

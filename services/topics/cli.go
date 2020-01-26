@@ -11,7 +11,6 @@ import (
 	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
 	"github.com/vx-labs/mqtt-broker/adapters/ap"
 	"github.com/vx-labs/mqtt-broker/adapters/discovery"
-	"github.com/vx-labs/mqtt-broker/adapters/identity"
 	"github.com/vx-labs/mqtt-broker/events"
 	"github.com/vx-labs/mqtt-broker/network"
 	broker "github.com/vx-labs/mqtt-broker/services/broker/pb"
@@ -35,6 +34,7 @@ type server struct {
 	logger     *zap.Logger
 	ctx        context.Context
 	gprcServer *grpc.Server
+	listener   net.Listener
 	stream     *stream.Client
 }
 
@@ -50,27 +50,27 @@ func (b *server) Shutdown() {
 	b.stream.Shutdown()
 	b.gprcServer.GracefulStop()
 }
-func (b *server) Start(id, name string, mesh discovery.DiscoveryAdapter, catalog identity.Catalog, logger *zap.Logger) error {
+func (b *server) Start(id, name string, catalog discovery.ServiceCatalog, logger *zap.Logger) error {
 	b.store = NewMemDBStore()
-	service := discovery.NewServiceFromIdentity(catalog.Get(fmt.Sprintf("%s_gossip", name)), mesh)
-	userService := discovery.NewServiceFromIdentity(catalog.Get(name), mesh)
-	err := userService.RegisterTCP()
+	service := catalog.Service(fmt.Sprintf("%sgossip", name))
+	b.state = ap.GossipDistributer(id, service, b.store, logger)
+
+	userService := catalog.Service(name)
+	listener, err := userService.ListenTCP()
 	if err != nil {
-		logger.Error("failed to register service")
 		return err
 	}
-
-	b.state = ap.GossipDistributer(id, service, b.store, logger)
-	kvConn, err := mesh.DialService("kv?raft_status=leader")
+	b.listener = listener
+	kvConn, err := catalog.Dial("kv")
 	if err != nil {
 		panic(err)
 	}
 
-	messagesConn, err := mesh.DialService("messages")
+	messagesConn, err := catalog.Dial("messages")
 	if err != nil {
 		panic(err)
 	}
-	queuesConn, err := mesh.DialService("queues?raft_status=leader")
+	queuesConn, err := catalog.Dial("queues")
 	if err != nil {
 		panic(err)
 	}
@@ -125,18 +125,14 @@ func (b *server) Health() string {
 }
 
 func (m *server) Serve(port int) net.Listener {
-	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
-	if err != nil {
-		return nil
-	}
 	s := grpc.NewServer(
 		network.GRPCServerOptions()...,
 	)
 	pb.RegisterTopicsServiceServer(s, m)
 	grpc_prometheus.Register(s)
-	go s.Serve(lis)
+	go s.Serve(m.listener)
 	m.gprcServer = s
-	return lis
+	return m.listener
 }
 
 func (m *server) ByTopicPattern(ctx context.Context, input *pb.ByTopicPatternInput) (*pb.ByTopicPatternOutput, error) {

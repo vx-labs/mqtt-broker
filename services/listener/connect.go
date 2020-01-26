@@ -14,10 +14,18 @@ func (local *endpoint) ConnectHandler(ctx context.Context, session *localSession
 	id, token, refreshToken, connack, err := local.broker.Connect(ctx, session.transport, p)
 	if err != nil {
 		session.logger.Error("CONNECT failed", zap.Error(err))
+		// Do not return CONNACK_REFUSED_SERVER_UNAVAILABLE for now
+		if connack.ReturnCode != packet.CONNACK_REFUSED_SERVER_UNAVAILABLE {
+			session.encoder.ConnAck(connack)
+		}
 		session.encoder.ConnAck(connack)
 		return ErrConnectNotDone
 	}
 	if connack.ReturnCode != packet.CONNACK_CONNECTION_ACCEPTED {
+		// Do not return CONNACK_REFUSED_SERVER_UNAVAILABLE for now
+		if connack.ReturnCode == packet.CONNACK_REFUSED_SERVER_UNAVAILABLE {
+			return ErrConnectNotDone
+		}
 		session.encoder.ConnAck(connack)
 		return ErrConnectNotDone
 	}

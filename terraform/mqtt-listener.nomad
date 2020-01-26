@@ -101,7 +101,7 @@ EOH
         }
 
         image      = "quay.io/vxlabs/mqtt-broker:${broker_version}"
-        args       = ["service", "listener", "-t", "1883", "--cluster-bind-port=3500", "--listener_gossip-bind-port=3100", "--listener-bind-port=4000"]
+        args       = ["service", "listener", "-t", "1883", "--cluster-bind-port=3500", "--listenergossip-bind-port=3100", "--listener-bind-port=4000"]
         force_pull = true
 
         port_map {
@@ -109,7 +109,7 @@ EOH
           cluster         = 3500
           mqtt            = 1883
           listener        = 4000
-          listener_gossip = 3100
+          listenergossip = 3100
         }
       }
 
@@ -123,7 +123,7 @@ EOH
           port  "cluster"{}
           port  "health"{}
           port  "listener"{}
-          port  "listener_gossip"{}
+          port  "listenergossip"{}
         }
       }
 
@@ -253,14 +253,14 @@ EOH
         }
 
         image      = "quay.io/vxlabs/mqtt-broker:${broker_version}"
-        args       = ["service", "listener", "-s", "8883", "--cluster-bind-port=3500", "--listener_gossip-bind-port=3100", "--listener-bind-port=4000"]
+        args       = ["service", "listener", "-s", "8883", "--cluster-bind-port=3500", "--listenergossip-bind-port=3100", "--listener-bind-port=4000"]
         force_pull = true
 
         port_map {
           health          = 9000
           cluster         = 3500
           listener        = 4000
-          listener_gossip = 3100
+          listenergossip = 3100
           mqtts           = 8883
         }
       }
@@ -275,7 +275,7 @@ EOH
           port  "cluster"{}
           port  "health"{}
           port  "listener"{}
-          port  "listener_gossip"{}
+          port  "listenergossip"{}
         }
       }
 
@@ -420,14 +420,14 @@ EOH
         }
 
         image      = "quay.io/vxlabs/mqtt-broker:${broker_version}"
-        args       = ["service", "listener", "-w", "8008", "--cluster-bind-port=3500", "--listener_gossip-bind-port=3100", "--listener-bind-port=4000"]
+        args       = ["service", "listener", "-w", "8008", "--cluster-bind-port=3500", "--listenergossip-bind-port=3100", "--listener-bind-port=4000"]
         force_pull = true
 
         port_map {
           health          = 9000
           cluster         = 3500
           listener        = 4000
-          listener_gossip = 3100
+          listenergossip = 3100
           wss             = 8008
         }
       }
@@ -442,7 +442,7 @@ EOH
           port  "cluster"{}
           port  "health"{}
           port  "listener"{}
-          port  "listener_gossip"{}
+          port  "listenergossip"{}
         }
       }
 

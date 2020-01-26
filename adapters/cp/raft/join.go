@@ -12,7 +12,6 @@ import (
 )
 
 type statusChecker interface {
-	setStatus(string)
 	getMembers() ([]*discovery.NodeService, error)
 }
 
@@ -45,7 +44,6 @@ func (s *raftlayer) startClusterJoin(ctx context.Context, name string, expectNod
 				return err
 			}
 			s.logger.Debug("raft cluster bootstrapped")
-			s.setStatus(raftStatusBootstrapped)
 			s.cancelJoin()
 			return nil
 		})
@@ -58,7 +56,6 @@ func (s *raftlayer) joinCluster(ctx context.Context, name string, expectNodeCoun
 	var members []*discovery.NodeService
 	var err error
 	start := time.Now()
-	s.setStatus(raftStatusBootstrapping)
 	for {
 		members, err = s.getMembers()
 		if err != nil {
@@ -66,12 +63,11 @@ func (s *raftlayer) joinCluster(ctx context.Context, name string, expectNodeCoun
 		}
 		bootstrappingMembers := make([]*discovery.NodeService, 0)
 		for _, member := range members {
-			status := discovery.GetTagValue("raft_bootstrap_status", member.Tags)
-			if strings.HasPrefix(status, raftStatusBootstrapping) {
-				bootstrappingMembers = append(bootstrappingMembers, member)
-			}
-			if status == raftStatusBootstrapped {
+			if member.Health == "passing" {
 				return ErrBootstrappedNodeFound
+			}
+			if member.Health == "warning" {
+				bootstrappingMembers = append(bootstrappingMembers, member)
 			}
 		}
 		if len(bootstrappingMembers) == expectNodeCount {
