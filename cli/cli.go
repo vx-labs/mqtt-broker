@@ -20,7 +20,6 @@ import (
 	"github.com/spf13/viper"
 	"github.com/vx-labs/mqtt-broker/adapters/discovery"
 	"github.com/vx-labs/mqtt-broker/adapters/identity"
-	"github.com/vx-labs/mqtt-broker/adapters/membership"
 	"github.com/vx-labs/mqtt-broker/network"
 	"github.com/vx-labs/mqtt-broker/path"
 )
@@ -270,7 +269,7 @@ func Bootstrap(cmd *cobra.Command, v *viper.Viper) *Context {
 			http.ListenAndServe(":8080", nil)
 		}()
 	}
-	mesh := createMesh(ctx.ID, v, logger, ctx.identityCatalog.Get(FLAG_NAME_CLUSTER))
+	mesh := createDiscoveryProvider(ctx.ID, v, logger, ctx.identityCatalog.Get(FLAG_NAME_CLUSTER))
 	ctx.Discovery = mesh
 	if allocID := os.Getenv("NOMAD_ALLOC_ID"); allocID == "" {
 		fd, err := os.Open(fmt.Sprintf("%s/services_%s.json", path.DataDir(), ctx.ID))
@@ -341,22 +340,12 @@ func serveHTTPHealth(port int, logger *zap.Logger, sensors []healthChecker) {
 	}
 }
 
-func createMesh(id string, v *viper.Viper, logger *zap.Logger, service identity.Identity) discovery.DiscoveryAdapter {
+func createDiscoveryProvider(id string, v *viper.Viper, logger *zap.Logger, service identity.Identity) discovery.DiscoveryAdapter {
 	if v.GetString("discovery-provider") == "consul" {
 		return discovery.Consul(id, logger)
 	}
 	if v.GetString("discovery-provider") == "nomad" {
 		return discovery.Nomad(id, logger)
 	}
-	var clusterDiscovery discovery.DiscoveryAdapter
-	if allocID := os.Getenv("NOMAD_ALLOC_ID"); allocID != "" {
-		logger.Debug("nomad environment detected, attempting to find peers using Consul discovery API")
-		clusterDiscovery = discovery.Consul(id, logger)
-	} else {
-		nodes := v.GetStringSlice("join")
-		logger.Debug("will attempt to join provided node list", zap.Strings("node_list", nodes))
-		clusterDiscovery = discovery.Static(nodes)
-	}
-	membershipAdapter := membership.Mesh(id, logger, discovery.NewServiceFromIdentity(service, clusterDiscovery))
-	return discovery.Mesh(id, logger, membershipAdapter)
+	panic("unknown discovery provider")
 }

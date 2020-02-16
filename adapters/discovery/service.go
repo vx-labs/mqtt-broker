@@ -11,6 +11,7 @@ import (
 )
 
 type service struct {
+	health   string
 	adapter  DiscoveryAdapter
 	id       string
 	name     string
@@ -60,12 +61,6 @@ func (s *service) Name() string {
 }
 func (s *service) BindPort() int {
 	return s.bindPort
-}
-func (s *service) AddTag(key string, value string) error {
-	return s.adapter.AddServiceTag(s.id, key, value)
-}
-func (s *service) RemoveTag(key string) error {
-	return s.adapter.RemoveServiceTag(s.id, key)
 }
 
 func NewService(id, name, address string, bindPort int, adapter DiscoveryAdapter) Service {

@@ -5,7 +5,6 @@ import (
 	"net"
 
 	"github.com/vx-labs/mqtt-broker/adapters/discovery/consul"
-	"github.com/vx-labs/mqtt-broker/adapters/discovery/mesh"
 	"github.com/vx-labs/mqtt-broker/adapters/discovery/nomad"
 	"github.com/vx-labs/mqtt-broker/adapters/discovery/pb"
 	"github.com/vx-labs/mqtt-broker/adapters/discovery/static"
@@ -16,8 +15,6 @@ import (
 type DiscoveryAdapter interface {
 	EndpointsByService(name string) ([]*pb.NodeService, error)
 	DialService(name string, tags ...string) (*grpc.ClientConn, error)
-	AddServiceTag(id, key, value string) error
-	RemoveServiceTag(id string, tag string) error
 	ListenTCP(id, name string, port int, advertizedAddress string) (net.Listener, error)
 	ListenUDP(id, name string, port int, advertizedAddress string) (net.PacketConn, error)
 	Shutdown() error
@@ -31,16 +28,11 @@ type Service interface {
 	BindPort() int
 	AdvertisedHost() string
 	AdvertisedPort() int
-	AddTag(key, value string) error
-	RemoveTag(tag string) error
 	Dial(tags ...string) (*grpc.ClientConn, error)
 	ListenTCP() (net.Listener, error)
 	ListenUDP() (net.PacketConn, error)
 }
 
-func Mesh(id string, logger *zap.Logger, membershipAdapter pb.MembershipAdapter) DiscoveryAdapter {
-	return mesh.NewDiscoveryAdapter(id, logger, membershipAdapter)
-}
 func PB(ctx context.Context, id, host string, logger *zap.Logger) DiscoveryAdapter {
 	return pb.NewPBDiscoveryAdapter(ctx, id, host, logger)
 }
