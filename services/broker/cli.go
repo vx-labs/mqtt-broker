@@ -28,7 +28,7 @@ func (b *Broker) Shutdown() {
 	b.grpcServer.GracefulStop()
 }
 func (b *Broker) Start(id, name string, catalog discovery.ServiceCatalog, logger *zap.Logger) error {
-	listener, err := catalog.Service("broker").ListenTCP()
+	listener, err := catalog.Service("broker", "rpc").ListenTCP()
 	if err != nil {
 		return err
 	}

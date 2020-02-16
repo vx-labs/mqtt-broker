@@ -35,20 +35,19 @@ func (b *server) Shutdown() {
 }
 func (b *server) Start(id, name string, catalog discovery.ServiceCatalog, logger *zap.Logger) error {
 	b.store = NewSubscriptionStore(logger)
-	service := catalog.Service(fmt.Sprintf("%sgossip", name))
-
-	userService := catalog.Service(name)
+	service := catalog.Service(name, "cluster")
+	userService := catalog.Service(name, "rpc")
 	b.state = ap.GossipDistributer(id, service, b.store, logger)
 	listener, err := userService.ListenTCP()
 	if err != nil {
 		return err
 	}
 	b.listener = listener
-	kvConn, err := catalog.Dial("kv")
+	kvConn, err := catalog.Dial("kv", "rpc")
 	if err != nil {
 		panic(err)
 	}
-	messagesConn, err := catalog.Dial("messages")
+	messagesConn, err := catalog.Dial("messages", "rpc")
 	if err != nil {
 		panic(err)
 	}

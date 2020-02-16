@@ -19,7 +19,7 @@ job "${service_name}" {
       change_signal = "SIGUSR1"
       env           = false
     }
-    count = ${replica_count}
+    count = "${replica_count}"
     constraint {
         distinct_hosts = true
     }
@@ -109,22 +109,20 @@ EOH
 %{ for arg in args }
           "${arg}",
 %{ endfor }
-          "--cluster-bind-port=3500",
 %{ if exposed_service_name != "" }
-          "--${exposed_service_name}gossip-bind-port=3100",
+          "--${exposed_service_name}-cluster-bind-port=3100",
           "--${exposed_service_name}-bind-port=4000",
-          "--${exposed_service_name}gossiprpc-bind-port=3200",
+          "--${exposed_service_name}-cluster_rpc-bind-port=3200",
 %{ endif }
         ]
         force_pull = true
 
         port_map {
           health  = 9000
-          cluster = 3500
 %{ if exposed_service_name != "" }
-          ${exposed_service_name}            = 4000
-          ${exposed_service_name}gossip     = 3100
-          ${exposed_service_name}gossiprpc = 3200
+          rpc            = 4000
+          cluster     = 3100
+          cluster_rpc = 3200
 %{ endif }
         }
       }
@@ -135,32 +133,19 @@ EOH
 
         network {
           mbits = 10
-          port  "cluster"{}
           port  "health"{}
 %{ if exposed_service_name != "" }
-          port ${exposed_service_name}            {}
-          port ${exposed_service_name}gossip     {}
-          port ${exposed_service_name}gossiprpc {}
+          port rpc            {}
+          port cluster     {}
+          port cluster_rpc {}
 %{ endif }
         }
       }
 
       service {
-        name = "${exposed_service_name}gossip"
-        port = "${exposed_service_name}gossip"
-
-        check {
-          type     = "http"
-          path     = "/health"
-          port     = "health"
-          interval = "5s"
-          timeout  = "2s"
-        }
-      }
-      service {
-        name = "${exposed_service_name}gossiprpc"
-        port = "${exposed_service_name}gossiprpc"
-
+        name = "${exposed_service_name}"
+        port = "cluster"
+        tags = ["cluster"]
         check {
           type     = "http"
           path     = "/health"
@@ -171,7 +156,20 @@ EOH
       }
       service {
         name = "${exposed_service_name}"
-        port = "${exposed_service_name}"
+        port = "cluster_rpc"
+        tags = ["cluster_rpc"]
+        check {
+          type     = "http"
+          path     = "/health"
+          port     = "health"
+          interval = "5s"
+          timeout  = "2s"
+        }
+      }
+      service {
+        name = "${exposed_service_name}"
+        port = "rpc"
+        tags = ["rpc"]
 
         check {
           type     = "http"

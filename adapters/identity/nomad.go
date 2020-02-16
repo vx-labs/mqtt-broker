@@ -3,6 +3,7 @@ package identity
 type nomadIdentity struct {
 	id                string
 	name              string
+	tag               string
 	advertisedAddress string
 	advertisedPort    int
 	bindAddress       string
@@ -14,6 +15,9 @@ func (c *nomadIdentity) Name() string {
 }
 func (c *nomadIdentity) ID() string {
 	return c.id
+}
+func (c *nomadIdentity) Tag() string {
+	return c.tag
 }
 func (c *nomadIdentity) AdvertisedAddress() string {
 	return c.advertisedAddress

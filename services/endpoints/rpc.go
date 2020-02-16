@@ -8,7 +8,7 @@ import (
 )
 
 func (a *api) GetEndpoints(ctx context.Context, input *pb.GetEndpointsInput) (*pb.GetEndpointsOutput, error) {
-	services, err := a.mesh.EndpointsByService(input.ServiceName)
+	services, err := a.mesh.EndpointsByService(input.ServiceName, "rpc")
 	if err != nil {
 		return nil, err
 	}
@@ -16,27 +16,13 @@ func (a *api) GetEndpoints(ctx context.Context, input *pb.GetEndpointsInput) (*p
 		NodeServices: services,
 	}, nil
 }
-func (a *api) AddServiceTag(ctx context.Context, input *pb.AddServiceTagInput) (*pb.AddServiceTagOutput, error) {
-	err := a.mesh.AddServiceTag(input.ServiceID, input.TagKey, input.TagValue)
-	if err != nil {
-		return nil, err
-	}
-	return &pb.AddServiceTagOutput{}, nil
-}
-func (a *api) RemoveServiceTag(ctx context.Context, input *pb.RemoveServiceTagInput) (*pb.RemoveServiceTagOutput, error) {
-	err := a.mesh.RemoveServiceTag(input.ServiceID, input.TagKey)
-	if err != nil {
-		return nil, err
-	}
-	return &pb.RemoveServiceTagOutput{}, nil
-}
 
 func (a *api) StreamEndpoints(input *pb.GetEndpointsInput, stream pb.DiscoveryService_StreamEndpointsServer) error {
 	// TODO: use events
 	ticker := time.NewTicker(5 * time.Second)
 	defer ticker.Stop()
 	for {
-		services, err := a.mesh.EndpointsByService(input.ServiceName)
+		services, err := a.mesh.EndpointsByService(input.ServiceName, "rpc")
 		if err != nil {
 			return err
 		}

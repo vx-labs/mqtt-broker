@@ -2,15 +2,17 @@ package identity
 
 import (
 	"fmt"
-	"github.com/spf13/viper"
-	"github.com/vx-labs/mqtt-broker/network"
 	"os"
 	"strconv"
+
+	"github.com/spf13/viper"
+	"github.com/vx-labs/mqtt-broker/network"
 )
 
 type Identity interface {
 	ID() string
 	Name() string
+	Tag() string
 	AdvertisedAddress() string
 	AdvertisedPort() int
 	BindAddress() string
@@ -18,7 +20,7 @@ type Identity interface {
 }
 
 type Catalog interface {
-	Get(name string) Identity
+	Get(name, tag string) Identity
 }
 
 type local struct {
@@ -33,8 +35,8 @@ func NewCatalog(v *viper.Viper) Catalog {
 	}
 }
 
-func (c *local) Get(name string) Identity {
-	config := network.ConfigurationFromFlags(c.v, name)
+func (c *local) Get(name, tag string) Identity {
+	config := network.ConfigurationFromFlags(c.v, name, tag)
 	return &config
 }
 
@@ -45,18 +47,23 @@ func NewNomadCatalog() Catalog {
 	return &nomad{}
 }
 
-func (c *nomad) Get(name string) Identity {
-	hostPort, err := strconv.ParseInt(os.Getenv(fmt.Sprintf("NOMAD_HOST_PORT_%s", name)), 10, 64)
-	if err != nil {
-		panic(err)
+func (c *nomad) Get(name, tag string) Identity {
+	value := os.Getenv(fmt.Sprintf("NOMAD_HOST_PORT_%s", tag))
+	if value == "" {
+		return nil
 	}
-	bindPort, err := strconv.ParseInt(os.Getenv(fmt.Sprintf("NOMAD_PORT_%s", name)), 10, 64)
+	hostPort, err := strconv.ParseInt(value, 10, 64)
 	if err != nil {
-		panic(err)
+		panic(fmt.Sprintf("service %s: failed to parse NOMAD_HOST_PORT_%s into an integer: %v", name, tag, err))
+	}
+	bindPort, err := strconv.ParseInt(os.Getenv(fmt.Sprintf("NOMAD_PORT_%s", tag)), 10, 64)
+	if err != nil {
+		panic(fmt.Sprintf("service %s: failed to parse NOMAD_PORT_%s into an integer: %v", name, tag, err))
 	}
 	return &nomadIdentity{
-		id:                fmt.Sprintf("_nomad-task-%s-%s-%s-%s", os.Getenv("NOMAD_ALLOC_ID"), os.Getenv("NOMAD_TASK_NAME"), name, name),
+		id:                fmt.Sprintf("_nomad-task-%s-%s-%s-%s", os.Getenv("NOMAD_ALLOC_ID"), os.Getenv("NOMAD_TASK_NAME"), name, tag),
 		name:              name,
+		tag:               tag,
 		advertisedAddress: os.Getenv(fmt.Sprintf("NOMAD_IP_%s", name)),
 		advertisedPort:    int(hostPort),
 		bindAddress:       "0.0.0.0",

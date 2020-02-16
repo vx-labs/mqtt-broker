@@ -84,7 +84,6 @@ type endpoint struct {
 	messages     *messages.Client
 	streamClient *stream.Client
 	kv           *kv.Client
-	listener     net.Listener
 	logger       *zap.Logger
 }
 
@@ -128,19 +127,19 @@ type Config struct {
 
 func New(id string, logger *zap.Logger, mesh discovery.DiscoveryAdapter, config Config) *endpoint {
 	ctx := context.Background()
-	brokerConn, err := mesh.DialService("broker")
+	brokerConn, err := mesh.DialService("broker", "rpc")
 	if err != nil {
 		panic(err)
 	}
-	queuesConn, err := mesh.DialService("queues")
+	queuesConn, err := mesh.DialService("queues", "rpc")
 	if err != nil {
 		panic(err)
 	}
-	messagesConn, err := mesh.DialService("messages")
+	messagesConn, err := mesh.DialService("messages", "rpc")
 	if err != nil {
 		panic(err)
 	}
-	kvConn, err := mesh.DialService("kv")
+	kvConn, err := mesh.DialService("kv", "rpc")
 	if err != nil {
 		panic(err)
 	}

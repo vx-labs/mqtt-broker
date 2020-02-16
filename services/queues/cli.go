@@ -2,7 +2,6 @@ package queues
 
 import (
 	"context"
-	fmt "fmt"
 	"net"
 	"time"
 
@@ -30,9 +29,9 @@ func (b *server) Shutdown() {
 	b.gprcServer.GracefulStop()
 }
 func (b *server) Start(id, name string, catalog discovery.ServiceCatalog, logger *zap.Logger) error {
-	userService := catalog.Service(name)
-	raftService := catalog.Service(fmt.Sprintf("%sgossip", name))
-	raftRPCService := catalog.Service(fmt.Sprintf("%sgossiprpc", name))
+	userService := catalog.Service(name, "rpc")
+	raftService := catalog.Service(name, "cluster")
+	raftRPCService := catalog.Service(name, "cluster_rpc")
 	listener, err := userService.ListenTCP()
 	if err != nil {
 		return err
@@ -40,7 +39,7 @@ func (b *server) Start(id, name string, catalog discovery.ServiceCatalog, logger
 	b.listener = listener
 	b.state = cp.RaftSynchronizer(id, userService, raftService, raftRPCService, b, logger)
 
-	sessionConn, err := catalog.Dial("sessions")
+	sessionConn, err := catalog.Dial("sessions", "rpc")
 	if err != nil {
 		logger.Error("failed to dial session service")
 		return err
@@ -66,11 +65,11 @@ func (b *server) Start(id, name string, catalog discovery.ServiceCatalog, logger
 			}
 		}
 	}()
-	kvConn, err := catalog.Dial("kv")
+	kvConn, err := catalog.Dial("kv", "rpc")
 	if err != nil {
 		panic(err)
 	}
-	messagesConn, err := catalog.Dial("messages")
+	messagesConn, err := catalog.Dial("messages", "rpc")
 	if err != nil {
 		panic(err)
 	}

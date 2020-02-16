@@ -26,7 +26,7 @@ func (b *api) Shutdown() {
 	b.grpcServer.GracefulStop()
 }
 func (b *api) Start(id, name string, catalog discovery.ServiceCatalog, logger *zap.Logger) error {
-	listener, err := catalog.Service(name).ListenTCP()
+	listener, err := catalog.Service(name, "rpc").ListenTCP()
 	if err != nil {
 		return err
 	}

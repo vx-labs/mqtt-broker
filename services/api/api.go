@@ -31,15 +31,15 @@ type Config struct {
 }
 
 func New(id string, logger *zap.Logger, mesh discovery.DiscoveryAdapter, config Config) *api {
-	brokerConn, err := mesh.DialService("broker")
+	brokerConn, err := mesh.DialService("broker", "rpc")
 	if err != nil {
 		panic(err)
 	}
-	sessionsConn, err := mesh.DialService("sessions")
+	sessionsConn, err := mesh.DialService("sessions", "rpc")
 	if err != nil {
 		panic(err)
 	}
-	subscriptionsConn, err := mesh.DialService("subscriptions")
+	subscriptionsConn, err := mesh.DialService("subscriptions", "rpc")
 	if err != nil {
 		panic(err)
 	}

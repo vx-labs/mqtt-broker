@@ -109,23 +109,17 @@ type wrappedDiscoveryAdapter struct {
 	backend discovery.DiscoveryAdapter
 }
 
-func (w *wrappedDiscoveryAdapter) EndpointsByService(name string) ([]*pb.NodeService, error) {
-	return w.backend.EndpointsByService(name)
+func (w *wrappedDiscoveryAdapter) EndpointsByService(name, tag string) ([]*pb.NodeService, error) {
+	return w.backend.EndpointsByService(name, tag)
 }
-func (w *wrappedDiscoveryAdapter) DialService(name string, tags ...string) (*grpc.ClientConn, error) {
-	return w.backend.DialService(name, tags...)
+func (w *wrappedDiscoveryAdapter) DialService(name string, tag string) (*grpc.ClientConn, error) {
+	return w.backend.DialService(name, tag)
 }
 func (w *wrappedDiscoveryAdapter) ListenTCP(id, name string, port int, advertizedAddress string) (net.Listener, error) {
 	return w.backend.ListenTCP(id, name, port, advertizedAddress)
 }
 func (w *wrappedDiscoveryAdapter) ListenUDP(id, name string, port int, advertizedAddress string) (net.PacketConn, error) {
 	return w.backend.ListenUDP(id, name, port, advertizedAddress)
-}
-func (w *wrappedDiscoveryAdapter) AddServiceTag(service, key, value string) error {
-	return w.backend.AddServiceTag(service, key, value)
-}
-func (w *wrappedDiscoveryAdapter) RemoveServiceTag(name string, tag string) error {
-	return w.backend.RemoveServiceTag(name, tag)
 }
 func (w *wrappedDiscoveryAdapter) Shutdown() error {
 	return w.backend.Shutdown()

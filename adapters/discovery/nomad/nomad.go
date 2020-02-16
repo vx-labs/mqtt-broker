@@ -19,25 +19,7 @@ import (
 type NomadDiscoveryAdapter struct {
 	id     string
 	api    *consul.Client
-	nodeId string
-}
-
-func parseTags(tags []string) []*pb.ServiceTag {
-	out := make([]*pb.ServiceTag, len(tags))
-	for idx, tag := range tags {
-		tokens := strings.Split(tag, "=")
-		if len(tokens) == 1 {
-			out[idx] = &pb.ServiceTag{
-				Key: tokens[0],
-			}
-		} else {
-			out[idx] = &pb.ServiceTag{
-				Key:   tokens[0],
-				Value: tokens[1],
-			}
-		}
-	}
-	return out
+	nodeID string
 }
 
 func NewNomadDiscoveryAdapter(id string, logger *zap.Logger) *NomadDiscoveryAdapter {
@@ -56,12 +38,12 @@ func NewNomadDiscoveryAdapter(id string, logger *zap.Logger) *NomadDiscoveryAdap
 	return &NomadDiscoveryAdapter{
 		id:     id,
 		api:    consulAPI,
-		nodeId: info["Config"]["NodeID"].(string),
+		nodeID: info["Config"]["NodeID"].(string),
 	}
 }
 
-func (c *NomadDiscoveryAdapter) EndpointsByService(name string) ([]*pb.NodeService, error) {
-	services, _, err := c.api.Health().Service(name, "", false, &api.QueryOptions{AllowStale: false})
+func (c *NomadDiscoveryAdapter) EndpointsByService(name, tag string) ([]*pb.NodeService, error) {
+	services, _, err := c.api.Health().Service(name, tag, false, &api.QueryOptions{AllowStale: false})
 	if err != nil {
 		return nil, err
 	}
@@ -74,7 +56,7 @@ func (c *NomadDiscoveryAdapter) EndpointsByService(name string) ([]*pb.NodeServi
 			Health:         service.Checks.AggregatedStatus(),
 			Peer:           nomadAllocID,
 			NetworkAddress: fmt.Sprintf("%s:%d", service.Service.Address, service.Service.Port),
-			Tags:           parseTags(service.Service.Tags),
+			Tag:            tag,
 		}
 	}
 	return out, nil
@@ -100,65 +82,10 @@ func (d *NomadDiscoveryAdapter) ListenUDP(id, name string, port int, advertizedA
 	}, nil
 }
 
-func (c *NomadDiscoveryAdapter) AddServiceTag(id, key, value string) error {
-	service, _, err := c.api.Agent().Service(id, &api.QueryOptions{AllowStale: false})
-	if err != nil {
-		return err
-	}
-	updated := false
-	for idx, tag := range parseTags(service.Tags) {
-		if tag.Key == key {
-			if tag.Value == value {
-				return nil
-			}
-			service.Tags[idx] = fmt.Sprintf("%s=%s", tag.Key, value)
-			updated = true
-		}
-	}
-	if !updated {
-		service.Tags = append(service.Tags, fmt.Sprintf("%s=%s", key, value))
-	}
-	_, err = c.api.Catalog().Register(&consul.CatalogRegistration{
-		ID:             id,
-		Node:           c.nodeId,
-		SkipNodeUpdate: true,
-		Service: &consul.AgentService{
-			Tags: service.Tags,
-		},
-	}, nil)
-	return err
-}
-func (c *NomadDiscoveryAdapter) RemoveServiceTag(id, key string) error {
-	service, _, err := c.api.Agent().Service(id, &api.QueryOptions{AllowStale: false})
-	if err != nil {
-		return err
-	}
-	updated := false
-	for idx, tag := range parseTags(service.Tags) {
-		if tag.Key == key {
-			service.Tags[idx] = service.Tags[len(service.Tags)-1]
-			service.Tags = service.Tags[:len(service.Tags)-1]
-			updated = true
-		}
-	}
-	if !updated {
-		return nil
-	}
-	_, err = c.api.Catalog().Register(&consul.CatalogRegistration{
-		ID:             id,
-		SkipNodeUpdate: true,
-		Node:           c.nodeId,
-		Service: &consul.AgentService{
-			Tags: service.Tags,
-		},
-	}, nil)
-	return err
-}
-func (c *NomadDiscoveryAdapter) DialService(name string, tags ...string) (*grpc.ClientConn, error) {
+func (c *NomadDiscoveryAdapter) DialService(name string, tag string) (*grpc.ClientConn, error) {
 	key := fmt.Sprintf("nomad:///%s", name)
-	if len(tags) > 0 {
-		key = fmt.Sprintf("%s?%s", key, strings.Join(tags, "&"))
-	}
+	key = fmt.Sprintf("%s?tag=%s", key, tag)
+
 	return grpc.Dial(key,
 		network.GRPCClientOptions()...,
 	)

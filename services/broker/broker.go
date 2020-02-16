@@ -36,11 +36,11 @@ type Broker struct {
 
 func New(id string, logger *zap.Logger, mesh discovery.DiscoveryAdapter) *Broker {
 	ctx := context.Background()
-	authConn, err := mesh.DialService("auth")
+	authConn, err := mesh.DialService("auth", "rpc")
 	if err != nil {
 		panic(err)
 	}
-	messagesConn, err := mesh.DialService("messages")
+	messagesConn, err := mesh.DialService("messages", "rpc")
 	if err != nil {
 		panic(err)
 	}

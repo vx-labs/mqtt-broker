@@ -13,18 +13,13 @@ import (
 )
 
 func (b *endpoint) Serve(port int) net.Listener {
-	return b.listener
+	return nil
 }
 func (b *endpoint) Shutdown() {
 	b.Close()
 	b.streamClient.Shutdown()
 }
 func (b *endpoint) Start(id, name string, catalog discovery.ServiceCatalog, logger *zap.Logger) error {
-	listener, err := catalog.Service(name).ListenTCP()
-	if err != nil {
-		return err
-	}
-	b.listener = listener
 	ctx := context.Background()
 	b.streamClient = stream.NewClient(b.kv, b.messages, logger)
 	b.streamClient.ConsumeStream(ctx, "events", b.consumeStream,

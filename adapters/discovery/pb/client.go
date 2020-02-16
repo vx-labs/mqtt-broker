@@ -6,7 +6,6 @@ import (
 	fmt "fmt"
 	"log"
 	"net"
-	"strings"
 	"time"
 
 	"github.com/vx-labs/mqtt-broker/network"
@@ -39,7 +38,7 @@ func NewPBDiscoveryAdapter(ctx context.Context, nodeid, host string, logger *zap
 	return c
 }
 
-func (d *DiscoveryAdapter) EndpointsByService(name string) ([]*NodeService, error) {
+func (d *DiscoveryAdapter) EndpointsByService(name, tag string) ([]*NodeService, error) {
 	out, err := d.api.GetEndpoints(d.ctx, &GetEndpointsInput{ServiceName: name})
 	if err != nil {
 		return nil, err
@@ -64,25 +63,16 @@ func (d *DiscoveryAdapter) streamEndpoints(ctx context.Context, name string) (ch
 	}()
 	return ch, nil
 }
-func (d *DiscoveryAdapter) AddServiceTag(service, key, value string) error {
-	_, err := d.api.AddServiceTag(d.ctx, &AddServiceTagInput{ServiceID: service, TagKey: key, TagValue: value})
-	return err
-}
-func (d *DiscoveryAdapter) RemoveServiceTag(service, key string) error {
-	_, err := d.api.RemoveServiceTag(d.ctx, &RemoveServiceTagInput{ServiceID: service, TagKey: key})
-	return err
-}
 func (d *DiscoveryAdapter) ListenTCP(id, name string, port int, advertizedAddress string) (net.Listener, error) {
 	return nil, errors.New("unsupported")
 }
 func (d *DiscoveryAdapter) ListenUDP(id, name string, port int, advertizedAddress string) (net.PacketConn, error) {
 	return nil, errors.New("unsupported")
 }
-func (d *DiscoveryAdapter) DialService(name string, tags ...string) (*grpc.ClientConn, error) {
+func (d *DiscoveryAdapter) DialService(name string, tag string) (*grpc.ClientConn, error) {
 	key := fmt.Sprintf("pb:///%s", name)
-	if len(tags) > 0 {
-		key = fmt.Sprintf("%s?%s", key, strings.Join(tags, "&"))
-	}
+	key = fmt.Sprintf("%s?tag=%s", key, tag)
+
 	return grpc.Dial(key,
 		network.GRPCClientOptions()...,
 	)

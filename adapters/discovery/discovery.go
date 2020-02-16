@@ -13,8 +13,8 @@ import (
 )
 
 type DiscoveryAdapter interface {
-	EndpointsByService(name string) ([]*pb.NodeService, error)
-	DialService(name string, tags ...string) (*grpc.ClientConn, error)
+	EndpointsByService(name, tag string) ([]*pb.NodeService, error)
+	DialService(name string, tag string) (*grpc.ClientConn, error)
 	ListenTCP(id, name string, port int, advertizedAddress string) (net.Listener, error)
 	ListenUDP(id, name string, port int, advertizedAddress string) (net.PacketConn, error)
 	Shutdown() error
@@ -28,7 +28,7 @@ type Service interface {
 	BindPort() int
 	AdvertisedHost() string
 	AdvertisedPort() int
-	Dial(tags ...string) (*grpc.ClientConn, error)
+	Dial() (*grpc.ClientConn, error)
 	ListenTCP() (net.Listener, error)
 	ListenUDP() (net.PacketConn, error)
 }

@@ -6,8 +6,8 @@ import (
 )
 
 type ServiceCatalog interface {
-	Service(name string) Service
-	Dial(name string, tags ...string) (*grpc.ClientConn, error)
+	Service(name, tag string) Service
+	Dial(name string, tag string) (*grpc.ClientConn, error)
 }
 
 type servicecatalog struct {
@@ -15,11 +15,11 @@ type servicecatalog struct {
 	adapter    DiscoveryAdapter
 }
 
-func (s *servicecatalog) Dial(name string, tags ...string) (*grpc.ClientConn, error) {
-	return s.adapter.DialService(name, tags...)
+func (s *servicecatalog) Dial(name string, tag string) (*grpc.ClientConn, error) {
+	return s.adapter.DialService(name, tag)
 }
-func (s *servicecatalog) Service(name string) Service {
-	return NewServiceFromIdentity(s.identities.Get(name), s.adapter)
+func (s *servicecatalog) Service(name, tag string) Service {
+	return NewServiceFromIdentity(s.identities.Get(name, tag), s.adapter)
 }
 
 func NewServiceCatalog(i identity.Catalog, adapter DiscoveryAdapter) ServiceCatalog {

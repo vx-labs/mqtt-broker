@@ -35,37 +35,17 @@ func (r *pbResolver) Scheme() string {
 	return "pb"
 }
 
-func contains(needle string, slice []string) bool {
-	for _, s := range slice {
-		if s == needle {
-			return true
-		}
-	}
-	return false
-}
-func containsAll(needles []string, slice []string) bool {
-	if needles == nil || len(needles) == 0 {
-		return true
-	}
-	for _, needle := range needles {
-		if !contains(needle, slice) {
-			return false
-		}
-	}
-	return true
-}
-
-func tagsFilter(endpoint string) (string, []*ServiceTag) {
+func tagsFilter(endpoint string) (string, string) {
 	targetURL, err := url.Parse("pb:///" + endpoint)
 	if err != nil {
-		return endpoint, nil
+		return endpoint, ""
 	}
-	tagFilter := ParseFilter(targetURL.Query())
+	tagFilter := targetURL.Query().Get("tag")
 	return strings.TrimPrefix(targetURL.Path, "/"), tagFilter
 }
 func (r *pbResolverSession) updateConn(target resolver.Target, cc resolver.ClientConn) {
 	service, tagFilter := tagsFilter(target.Endpoint)
-	peers, err := r.peers.EndpointsByService(service)
+	peers, err := r.peers.EndpointsByService(service, tagFilter)
 	if err != nil {
 		log.Printf("ERR: failed to search peers for service %s", service)
 		return
@@ -74,7 +54,7 @@ func (r *pbResolverSession) updateConn(target resolver.Target, cc resolver.Clien
 	loggableAddresses := make([]string, 0)
 	for idx := range peers {
 		peer := peers[idx]
-		if MatchFilter(tagFilter, peer.Tags) {
+		if tagFilter == peer.Tag {
 			loggableAddresses = append(loggableAddresses, peer.Peer)
 			addresses = append(addresses, resolver.Address{
 				Addr:       peer.NetworkAddress,

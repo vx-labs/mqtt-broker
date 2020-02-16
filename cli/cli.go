@@ -25,10 +25,9 @@ import (
 )
 
 const (
-	FLAG_NAME_CLUSTER            = "cluster"
-	FLAG_NAME_SERVICE            = "service"
-	FLAG_NAME_SERVICE_GOSSIP     = "gossip"
-	FLAG_NAME_SERVICE_GOSSIP_RPC = "gossiprpc"
+	FLAG_NAME_SERVICE            = "rpc"
+	FLAG_NAME_SERVICE_GOSSIP     = "cluster"
+	FLAG_NAME_SERVICE_GOSSIP_RPC = "cluster_rpc"
 )
 
 type Service interface {
@@ -62,15 +61,14 @@ func AddClusterFlags(root *cobra.Command, config *viper.Viper) {
 	root.Flags().BoolP("debug", "", false, "Enable debug logs and fancy log printing")
 	config.BindPFlag("pprof", root.Flags().Lookup("pprof"))
 	config.BindPFlag("debug", root.Flags().Lookup("debug"))
-	network.RegisterFlagsForService(root, config, FLAG_NAME_CLUSTER, 3500)
 }
 func AddServiceFlags(root *cobra.Command, config *viper.Viper, name string) {
 	startServiceFlagName := fmt.Sprintf("start-%s", name)
 	root.Flags().BoolP(startServiceFlagName, "", true, fmt.Sprintf("Start the %s service", name))
 	config.BindPFlag(startServiceFlagName, root.Flags().Lookup(startServiceFlagName))
 
-	network.RegisterFlagsForService(root, config, fmt.Sprintf("%sgossiprpc", name), 0)
-	network.RegisterFlagsForService(root, config, fmt.Sprintf("%sgossip", name), 0)
+	network.RegisterFlagsForService(root, config, fmt.Sprintf("%s-cluster_rpc", name), 0)
+	network.RegisterFlagsForService(root, config, fmt.Sprintf("%s-cluster", name), 0)
 	network.RegisterFlagsForService(root, config, name, 0)
 }
 
@@ -113,8 +111,8 @@ func (ctx *Context) AddService(cmd *cobra.Command, config *viper.Viper, name str
 	for _, service := range ctx.Services {
 		for _, wantedName := range []string{
 			name,
-			fmt.Sprintf("%sgossip", name),
-			fmt.Sprintf("%sgossiprpc", name),
+			fmt.Sprintf("%s-cluster", name),
+			fmt.Sprintf("%s-cluster_rpc", name),
 		} {
 			exists = true
 			if service.Name == wantedName && service.ID != "" {
@@ -122,7 +120,7 @@ func (ctx *Context) AddService(cmd *cobra.Command, config *viper.Viper, name str
 			}
 		}
 	}
-	serviceNetConf := network.ConfigurationFromFlags(config, name)
+	serviceNetConf := network.ConfigurationFromFlags(config, name, "rpc")
 
 	id := serviceNetConf.ID()
 
@@ -184,15 +182,17 @@ func (ctx *Context) Run(v *viper.Viper) error {
 		logger := ctx.Logger.WithOptions(zap.Fields(
 			zap.String("service_name", service.Name),
 		))
-		identity := ctx.identityCatalog.Get(service.Name)
+		identity := ctx.identityCatalog.Get(service.Name, "rpc")
 		catalog := discovery.NewServiceCatalog(ctx.identityCatalog, ctx.Discovery)
 		err := service.service.Start(service.ID, service.Name, catalog, logger)
 		if err != nil {
 			logger.Error("failed to start service", zap.Error(err))
 		}
-		listener := service.service.Serve(identity.BindPort())
-		if listener != nil {
-			logService(logger, service.Name, identity)
+		if identity != nil {
+			listener := service.service.Serve(identity.BindPort())
+			if listener != nil {
+				logService(logger, service.Name, identity)
+			}
 		}
 	}
 	quit := make(chan struct{})
@@ -269,7 +269,7 @@ func Bootstrap(cmd *cobra.Command, v *viper.Viper) *Context {
 			http.ListenAndServe(":8080", nil)
 		}()
 	}
-	mesh := createDiscoveryProvider(ctx.ID, v, logger, ctx.identityCatalog.Get(FLAG_NAME_CLUSTER))
+	mesh := createDiscoveryProvider(ctx.ID, v, logger)
 	ctx.Discovery = mesh
 	if allocID := os.Getenv("NOMAD_ALLOC_ID"); allocID == "" {
 		fd, err := os.Open(fmt.Sprintf("%s/services_%s.json", path.DataDir(), ctx.ID))
@@ -340,7 +340,7 @@ func serveHTTPHealth(port int, logger *zap.Logger, sensors []healthChecker) {
 	}
 }
 
-func createDiscoveryProvider(id string, v *viper.Viper, logger *zap.Logger, service identity.Identity) discovery.DiscoveryAdapter {
+func createDiscoveryProvider(id string, v *viper.Viper, logger *zap.Logger) discovery.DiscoveryAdapter {
 	if v.GetString("discovery-provider") == "consul" {
 		return discovery.Consul(id, logger)
 	}

@@ -20,7 +20,7 @@ func NewStaticDiscoveryAdapter(list []string) *StaticDiscoveryAdapter {
 	}
 }
 
-func (c *StaticDiscoveryAdapter) EndpointsByService(name string) ([]*pb.NodeService, error) {
+func (c *StaticDiscoveryAdapter) EndpointsByService(name, tag string) ([]*pb.NodeService, error) {
 	if len(c.list) == 0 {
 		return nil, io.EOF
 	}
@@ -30,7 +30,7 @@ func (c *StaticDiscoveryAdapter) EndpointsByService(name string) ([]*pb.NodeServ
 			ID:             name,
 			Peer:           address,
 			NetworkAddress: address,
-			Tags:           nil,
+			Tag:            tag,
 		}
 	}
 	return out, nil
@@ -47,13 +47,7 @@ func (c *StaticDiscoveryAdapter) RegisterUDPService(id, name, address string) er
 func (c *StaticDiscoveryAdapter) UnregisterService(name string) error {
 	return errors.New("Unsupported yet")
 }
-func (c *StaticDiscoveryAdapter) AddServiceTag(service, key, value string) error {
-	return errors.New("Unsupported yet")
-}
-func (c *StaticDiscoveryAdapter) RemoveServiceTag(service, key string) error {
-	return errors.New("Unsupported yet")
-}
-func (c *StaticDiscoveryAdapter) DialService(name string, tags ...string) (*grpc.ClientConn, error) {
+func (c *StaticDiscoveryAdapter) DialService(name string, tag string) (*grpc.ClientConn, error) {
 	return grpc.Dial(c.list[0],
 		network.GRPCClientOptions()...,
 	)

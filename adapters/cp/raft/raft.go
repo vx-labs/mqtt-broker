@@ -49,9 +49,7 @@ type Service interface {
 	Address() string
 	ID() string
 	Name() string
-	Dial(...string) (*grpc.ClientConn, error)
-	AddTag(key, value string) error
-	RemoveTag(tag string) error
+	Dial() (*grpc.ClientConn, error)
 	ListenTCP() (net.Listener, error)
 }
 

@@ -2,7 +2,6 @@ package messages
 
 import (
 	"context"
-	fmt "fmt"
 	"net"
 	"time"
 
@@ -26,16 +25,16 @@ func (b *server) Shutdown() {
 	b.store.Close()
 }
 func (b *server) Start(id, name string, catalog discovery.ServiceCatalog, logger *zap.Logger) error {
-	userService := catalog.Service(name)
-	raftService := catalog.Service(fmt.Sprintf("%sgossip", name))
-	raftRPCService := catalog.Service(fmt.Sprintf("%sgossiprpc", name))
+	userService := catalog.Service(name, "rpc")
+	raftService := catalog.Service(name, "cluster")
+	raftRPCService := catalog.Service(name, "cluster_rpc")
 	listener, err := userService.ListenTCP()
 	if err != nil {
 		return err
 	}
 	b.listener = listener
 	b.state = cp.RaftSynchronizer(id, userService, raftService, raftRPCService, b, logger)
-	leaderConn, err := catalog.Dial("messages")
+	leaderConn, err := catalog.Dial("messages", "rpc")
 	if err != nil {
 		panic(err)
 	}

@@ -2,16 +2,12 @@ syntax = "proto3";
 
 package pb;
 
-message ServiceTag {
-  string Key = 1;
-  string Value = 2;
-}
 message NodeService {
   string ID = 1;
   string Name = 2;
   string NetworkAddress = 3;
   string Peer = 4;
-  repeated ServiceTag Tags = 5;
+  string Tag = 5;
   string Health = 6;
 }
 message Peer {
@@ -74,6 +70,4 @@ message RemoveServiceTagOutput{}
 service DiscoveryService {
   rpc GetEndpoints(GetEndpointsInput) returns (GetEndpointsOutput);
   rpc StreamEndpoints(GetEndpointsInput) returns (stream GetEndpointsOutput);
-  rpc AddServiceTag(AddServiceTagInput) returns (AddServiceTagOutput);
-  rpc RemoveServiceTag(RemoveServiceTagInput) returns (RemoveServiceTagOutput);
 }

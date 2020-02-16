@@ -13,6 +13,7 @@ import (
 type Configuration struct {
 	id                string
 	name              string
+	tag               string
 	advertisedAddress string
 	advertisedPort    int
 	bindAddress       string
@@ -24,6 +25,9 @@ func (c *Configuration) Name() string {
 }
 func (c *Configuration) ID() string {
 	return c.id
+}
+func (c *Configuration) Tag() string {
+	return c.tag
 }
 func (c *Configuration) AdvertisedAddress() string {
 	return c.advertisedAddress
@@ -107,12 +111,13 @@ func (c Configuration) Describe(name string) string {
 	)
 }
 
-func ConfigurationFromFlags(v *viper.Viper, name string) Configuration {
+func ConfigurationFromFlags(v *viper.Viper, name, tag string) Configuration {
 	serviceID := fmt.Sprintf("%s-service-id", name)
 
 	config := Configuration{
 		id:                v.GetString(serviceID),
 		name:              name,
+		tag:               tag,
 		advertisedAddress: v.GetString(advertisedAddressFlagName(name)),
 		advertisedPort:    v.GetInt(advertisedPortFlagName(name)),
 		bindAddress:       v.GetString(bindAddressFlagName(name)),

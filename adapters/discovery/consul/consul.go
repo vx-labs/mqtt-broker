@@ -5,7 +5,6 @@ import (
 	"net"
 	"net/http"
 	"strconv"
-	"strings"
 
 	"github.com/hashicorp/consul/api"
 	consul "github.com/hashicorp/consul/api"
@@ -20,24 +19,6 @@ import (
 type ConsulDiscoveryAdapter struct {
 	id  string
 	api *consul.Client
-}
-
-func parseTags(tags []string) []*pb.ServiceTag {
-	out := make([]*pb.ServiceTag, len(tags))
-	for idx, tag := range tags {
-		tokens := strings.Split(tag, "=")
-		if len(tokens) == 1 {
-			out[idx] = &pb.ServiceTag{
-				Key: tokens[0],
-			}
-		} else {
-			out[idx] = &pb.ServiceTag{
-				Key:   tokens[0],
-				Value: tokens[1],
-			}
-		}
-	}
-	return out
 }
 
 func NewConsulDiscoveryAdapter(id string, logger *zap.Logger) *ConsulDiscoveryAdapter {
@@ -55,8 +36,8 @@ func NewConsulDiscoveryAdapter(id string, logger *zap.Logger) *ConsulDiscoveryAd
 	}
 }
 
-func (c *ConsulDiscoveryAdapter) EndpointsByService(name string) ([]*pb.NodeService, error) {
-	services, _, err := c.api.Health().Service(name, "", false, &api.QueryOptions{AllowStale: false})
+func (c *ConsulDiscoveryAdapter) EndpointsByService(name, tag string) ([]*pb.NodeService, error) {
+	services, _, err := c.api.Health().Service(name, tag, false, &api.QueryOptions{AllowStale: false})
 	if err != nil {
 		return nil, err
 	}
@@ -68,7 +49,7 @@ func (c *ConsulDiscoveryAdapter) EndpointsByService(name string) ([]*pb.NodeServ
 			Health:         service.Checks.AggregatedStatus(),
 			Peer:           service.Service.Meta["node_id"],
 			NetworkAddress: fmt.Sprintf("%s:%d", service.Service.Address, service.Service.Port),
-			Tags:           parseTags(service.Service.Tags),
+			Tag:            tag,
 		}
 	}
 	return out, nil
@@ -189,65 +170,11 @@ func (c *ConsulDiscoveryAdapter) RegisterGRPCService(id, name, address string) e
 func (c *ConsulDiscoveryAdapter) UnregisterService(id string) error {
 	return c.api.Agent().ServiceDeregister(id)
 }
-func (c *ConsulDiscoveryAdapter) AddServiceTag(id, key, value string) error {
-	service, _, err := c.api.Agent().Service(id, &api.QueryOptions{AllowStale: false})
-	if err != nil {
-		return err
-	}
-	updated := false
-	for idx, tag := range parseTags(service.Tags) {
-		if tag.Key == key {
-			if tag.Value == value {
-				return nil
-			}
-			service.Tags[idx] = fmt.Sprintf("%s=%s", tag.Key, value)
-			updated = true
-		}
-	}
-	if !updated {
-		service.Tags = append(service.Tags, fmt.Sprintf("%s=%s", key, value))
-	}
-	return c.api.Agent().ServiceRegister(&api.AgentServiceRegistration{
-		ID:                id,
-		Name:              service.Service,
-		Address:           service.Address,
-		Port:              service.Port,
-		EnableTagOverride: true,
-		Tags:              service.Tags,
-		Meta:              service.Meta,
-	})
-}
-func (c *ConsulDiscoveryAdapter) RemoveServiceTag(id, key string) error {
-	service, _, err := c.api.Agent().Service(id, &api.QueryOptions{AllowStale: false})
-	if err != nil {
-		return err
-	}
-	updated := false
-	for idx, tag := range parseTags(service.Tags) {
-		if tag.Key == key {
-			service.Tags[idx] = service.Tags[len(service.Tags)-1]
-			service.Tags = service.Tags[:len(service.Tags)-1]
-			updated = true
-		}
-	}
-	if !updated {
-		return nil
-	}
-	return c.api.Agent().ServiceRegister(&api.AgentServiceRegistration{
-		ID:                id,
-		Name:              service.Service,
-		Address:           service.Address,
-		Port:              service.Port,
-		EnableTagOverride: true,
-		Tags:              service.Tags,
-		Meta:              service.Meta,
-	})
-}
-func (c *ConsulDiscoveryAdapter) DialService(name string, tags ...string) (*grpc.ClientConn, error) {
+
+func (c *ConsulDiscoveryAdapter) DialService(name string, tag string) (*grpc.ClientConn, error) {
 	key := fmt.Sprintf("consul:///%s", name)
-	if len(tags) > 0 {
-		key = fmt.Sprintf("%s?%s", key, strings.Join(tags, "&"))
-	}
+	key = fmt.Sprintf("%s?tag=%s", key, tag)
+
 	return grpc.Dial(key,
 		network.GRPCClientOptions()...,
 	)
