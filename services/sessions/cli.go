@@ -242,7 +242,7 @@ func (b *server) maybeSendWill(oldSession *pb.Session) error {
 }
 func (m *server) Health() string {
 	if m.state == nil {
-		return "warning"
+		return "critical"
 	}
 	return m.state.Health()
 }

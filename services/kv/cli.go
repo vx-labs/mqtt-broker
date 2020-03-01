@@ -71,7 +71,7 @@ func (b *server) Start(id, name string, catalog discovery.ServiceCatalog, logger
 }
 func (m *server) Health() string {
 	if m.state == nil {
-		return "warning"
+		return "critical"
 	}
 	return m.state.Health()
 }

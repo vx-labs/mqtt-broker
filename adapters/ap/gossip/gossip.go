@@ -69,6 +69,7 @@ func (m *layer) join(newHosts []string) error {
 		}
 		m.logger.Warn("failed to join some member of cluster", zap.Error(err))
 	}
+	m.logger.Info("gossip cluster joined", zap.Error(err), zap.Int("gossip_members_count", m.mlist.NumMembers()))
 	return nil
 }
 func (self *layer) discoverPeers() error {

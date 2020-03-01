@@ -153,7 +153,7 @@ func (b *server) consumeStream(messages []*messages.StoredMessage) (int, error) 
 
 func (m *server) Health() string {
 	if m.state == nil {
-		return "warning"
+		return "critical"
 	}
 	return m.state.Health()
 }
