@@ -39,6 +39,7 @@ message PeerList {
 
 message GetEndpointsInput{
   string ServiceName = 1;
+  string Tag = 2;
 }
 message GetEndpointsOutput{
   repeated NodeService NodeServices = 1;

@@ -8,7 +8,7 @@ import (
 )
 
 func (a *api) GetEndpoints(ctx context.Context, input *pb.GetEndpointsInput) (*pb.GetEndpointsOutput, error) {
-	services, err := a.mesh.EndpointsByService(input.ServiceName, "rpc")
+	services, err := a.mesh.EndpointsByService(input.ServiceName, input.Tag)
 	if err != nil {
 		return nil, err
 	}
@@ -22,7 +22,7 @@ func (a *api) StreamEndpoints(input *pb.GetEndpointsInput, stream pb.DiscoverySe
 	ticker := time.NewTicker(5 * time.Second)
 	defer ticker.Stop()
 	for {
-		services, err := a.mesh.EndpointsByService(input.ServiceName, "rpc")
+		services, err := a.mesh.EndpointsByService(input.ServiceName, input.Tag)
 		if err != nil {
 			return err
 		}

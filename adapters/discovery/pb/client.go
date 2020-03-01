@@ -39,7 +39,7 @@ func NewPBDiscoveryAdapter(ctx context.Context, nodeid, host string, logger *zap
 }
 
 func (d *DiscoveryAdapter) EndpointsByService(name, tag string) ([]*NodeService, error) {
-	out, err := d.api.GetEndpoints(d.ctx, &GetEndpointsInput{ServiceName: name})
+	out, err := d.api.GetEndpoints(d.ctx, &GetEndpointsInput{ServiceName: name, Tag: tag})
 	if err != nil {
 		return nil, err
 	}
