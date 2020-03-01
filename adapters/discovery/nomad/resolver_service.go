@@ -57,12 +57,15 @@ func tagsFilter(endpoint string) (string, string) {
 	tagFilter := targetURL.Query().Get("tag")
 	return strings.TrimPrefix(targetURL.Path, "/"), tagFilter
 }
-func (r *meshResolver) updateConn(target resolver.Target, cc resolver.ClientConn) {
+func (r *meshResolver) updateConn(target resolver.Target, cc resolver.ClientConn, idx uint64) (uint64, error) {
 	service, tagFilter := tagsFilter(target.Endpoint)
-	peers, _, err := r.peers.Health().Service(service, tagFilter, true, nil)
+	peers, meta, err := r.peers.Health().Service(service, tagFilter, true, &api.QueryOptions{
+		WaitIndex: idx,
+		WaitTime:  60 * time.Second,
+	})
 	if err != nil {
 		r.logger.Warn("failed to search nomad for service", zap.Error(err))
-		return
+		return 0, err
 	}
 	addresses := make([]resolver.Address, 0)
 	loggableAddresses := make([]string, 0)
@@ -83,26 +86,18 @@ func (r *meshResolver) updateConn(target resolver.Target, cc resolver.ClientConn
 		Addresses:     addresses,
 		ServiceConfig: nil,
 	})
+	return meta.LastIndex, nil
 }
 func (r *meshResolver) Build(target resolver.Target, cc resolver.ClientConn, opts resolver.BuildOption) (resolver.Resolver, error) {
-	service, _ := tagsFilter(target.Endpoint)
 	go func() {
 		var idx uint64 = 0
 		for {
-			_, meta, err := r.peers.Health().Service(service, "", true, &api.QueryOptions{
-				WaitIndex: idx,
-				WaitTime:  60 * time.Second,
-			})
+			newIdx, err := r.updateConn(target, cc, idx)
 			if err != nil {
-				r.logger.Warn("failed to search nomad for service", zap.Error(err))
-				<-time.After(1 * time.Second)
-				continue
+				r.logger.Error("failed to search for peers", zap.Error(err))
+			} else {
+				idx = newIdx
 			}
-			if idx == meta.LastIndex {
-				continue
-			}
-			r.updateConn(target, cc)
-			idx = meta.LastIndex
 		}
 	}()
 	return r, nil

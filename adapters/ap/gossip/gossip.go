@@ -72,7 +72,10 @@ func (m *layer) join(newHosts []string) error {
 	return nil
 }
 func (self *layer) discoverPeers() error {
-	peers, _ := self.service.DiscoverEndpoints()
+	peers, err := self.service.DiscoverEndpoints()
+	if err != nil {
+		return err
+	}
 	addresses := []string{}
 	for _, peer := range peers {
 		if !self.isNodeKnown(peer.ID) {
@@ -80,10 +83,7 @@ func (self *layer) discoverPeers() error {
 		}
 	}
 	if len(addresses) > 0 {
-		err := self.join(addresses)
-		if err == nil {
-			return err
-		}
+		return self.join(addresses)
 	}
 	return nil
 }
@@ -176,6 +176,7 @@ func NewGossipDistributer(id string, service Service, state pb.APState, logger *
 			if err == nil {
 				return
 			}
+			logger.Warn("failed to join gossip cluster members", zap.Error(err))
 		}
 	}()
 	return self
