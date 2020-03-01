@@ -11,7 +11,7 @@ import (
 func getClient(adapter discovery.DiscoveryAdapter) *pb.Client {
 	conn, err := adapter.DialService("auth", "rpc")
 	if err != nil {
-		log.Fatalf("failed to connect to subscriptions: %v", err)
+		log.Fatalf("failed to connect to auth: %v", err)
 	}
 	return pb.NewClient(conn)
 }

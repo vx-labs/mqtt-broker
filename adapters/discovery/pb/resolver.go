@@ -47,7 +47,7 @@ func (r *pbResolverSession) updateConn(target resolver.Target, cc resolver.Clien
 	service, tagFilter := tagsFilter(target.Endpoint)
 	peers, err := r.peers.EndpointsByService(service, tagFilter)
 	if err != nil {
-		log.Printf("ERR: failed to search peers for service %s", service)
+		log.Printf("ERR: failed to search peers for service %s: %v", service, err)
 		return
 	}
 	addresses := make([]resolver.Address, 0)

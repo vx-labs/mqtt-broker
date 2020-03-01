@@ -15,10 +15,6 @@ func Auth(ctx context.Context, config *viper.Viper, adapter discovery.DiscoveryA
 	c := &cobra.Command{
 		Use: "auth",
 	}
-	c.PersistentPreRun = func(_ *cobra.Command, _ []string) {
-		config.BindPFlag("discovery-url", c.PersistentFlags().Lookup("discovery-url"))
-	}
-	c.PersistentFlags().StringP("discovery-url", "d", "http://localhost:8081", "discovery api URL")
 	c.AddCommand(createToken(ctx, config, adapter))
 	return c
 }
