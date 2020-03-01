@@ -64,7 +64,7 @@ func (c *nomad) Get(name, tag string) Identity {
 		id:                fmt.Sprintf("_nomad-task-%s-%s-%s-%s", os.Getenv("NOMAD_ALLOC_ID"), os.Getenv("NOMAD_TASK_NAME"), name, tag),
 		name:              name,
 		tag:               tag,
-		advertisedAddress: os.Getenv(fmt.Sprintf("NOMAD_IP_%s", name)),
+		advertisedAddress: os.Getenv(fmt.Sprintf("NOMAD_IP_%s", tag)),
 		advertisedPort:    int(hostPort),
 		bindAddress:       "0.0.0.0",
 		bindPort:          int(bindPort),

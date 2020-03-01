@@ -3,12 +3,12 @@ package gossip
 import (
 	"fmt"
 	"net"
+	"strconv"
 	"sync"
 	"sync/atomic"
 	"time"
 
 	"github.com/armon/go-metrics"
-	"github.com/hashicorp/go-sockaddr"
 	"github.com/hashicorp/memberlist"
 	"go.uber.org/zap"
 )
@@ -95,43 +95,21 @@ func (t *NetTransport) GetAutoBindPort() int {
 }
 
 // See Transport.
-func (t *NetTransport) FinalAdvertiseAddr(ip string, port int) (net.IP, int, error) {
-	var advertiseAddr net.IP
-	var advertisePort int
-	if ip != "" {
-		// If they've supplied an address, use that.
-		advertiseAddr = net.ParseIP(ip)
-		if advertiseAddr == nil {
-			return nil, 0, fmt.Errorf("Failed to parse advertise address %q", ip)
-		}
-
-		// Ensure IPv4 conversion if necessary.
-		if ip4 := advertiseAddr.To4(); ip4 != nil {
-			advertiseAddr = ip4
-		}
-		advertisePort = port
-	} else {
-		// Otherwise, if we're not bound to a specific IP, let's
-		// use a suitable private IP address.
-		var err error
-		ip, err = sockaddr.GetPrivateIP()
-		if err != nil {
-			return nil, 0, fmt.Errorf("Failed to get interface addresses: %v", err)
-		}
-		if ip == "" {
-			return nil, 0, fmt.Errorf("No private IP address found, and explicit IP not provided")
-		}
-
-		advertiseAddr = net.ParseIP(ip)
-		if advertiseAddr == nil {
-			return nil, 0, fmt.Errorf("Failed to parse advertise address: %q", ip)
-		}
-
-		// Use the port we are bound to.
-		advertisePort = t.GetAutoBindPort()
+func (t *NetTransport) FinalAdvertiseAddr(_ string, _ int) (net.IP, int, error) {
+	advAddress := t.service.Address()
+	address, portStr, err := net.SplitHostPort(advAddress)
+	if err != nil {
+		return nil, 0, err
 	}
-
-	return advertiseAddr, advertisePort, nil
+	port, err := strconv.ParseInt(portStr, 10, 64)
+	if err != nil {
+		return nil, 0, err
+	}
+	ip := net.ParseIP(address)
+	if ip == nil {
+		t.logger.Fatal("failed to parse IP address", zap.String("provided_address", advAddress))
+	}
+	return ip, int(port), nil
 }
 
 // See Transport.

@@ -196,14 +196,14 @@ func (s *raftlayer) start() error {
 func (s *raftlayer) logRaftStatus(log *raft.Log) {
 	//s.logger.Debug("raft status", zap.Uint64("raft_last_index", s.raft.LastIndex()), zap.Uint64("raft_applied_index", s.raft.AppliedIndex()), zap.Uint64("raft_current_index", log.Index))
 }
-func (s *raftlayer) Health() string {
+func (s *raftlayer) Health() (string, string) {
 	if s.raft == nil {
-		return "critical"
+		return "critical", "raft state is not ready"
 	}
 	if s.IsLeader() {
-		return "ok"
+		return "ok", "node is leader"
 	}
-	return "warning"
+	return "warning", "node is not leader"
 }
 
 func (s *raftlayer) discoveredMembers() []string {

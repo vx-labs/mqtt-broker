@@ -102,6 +102,6 @@ func (b *api) Start(id, name string, catalog discovery.ServiceCatalog, logger *z
 	}
 	return nil
 }
-func (m *api) Health() string {
-	return "ok"
+func (m *api) Health() (string, string) {
+	return "ok", ""
 }

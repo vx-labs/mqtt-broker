@@ -9,7 +9,7 @@ import (
 
 type Synchronizer interface {
 	Shutdown() error
-	Health() string
+	Health() (string, string)
 	ApplyEvent(event []byte) error
 	IsLeader() bool
 }

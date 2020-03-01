@@ -29,8 +29,8 @@ func (b *endpoint) Start(id, name string, catalog discovery.ServiceCatalog, logg
 
 	return nil
 }
-func (m *endpoint) Health() string {
-	return "ok"
+func (m *endpoint) Health() (string, string) {
+	return "ok", ""
 }
 
 func (b *endpoint) consumeStream(messages []*messages.StoredMessage) (int, error) {

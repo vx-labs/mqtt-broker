@@ -33,6 +33,6 @@ func (b *api) Start(id, name string, catalog discovery.ServiceCatalog, logger *z
 	b.listener = listener
 	return nil
 }
-func (m *api) Health() string {
-	return "ok"
+func (m *api) Health() (string, string) {
+	return "ok", ""
 }

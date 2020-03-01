@@ -36,6 +36,6 @@ func (b *Broker) Start(id, name string, catalog discovery.ServiceCatalog, logger
 	return nil
 }
 
-func (b *Broker) Health() string {
-	return "ok"
+func (b *Broker) Health() (string, string) {
+	return "ok", ""
 }

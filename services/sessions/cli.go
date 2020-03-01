@@ -240,9 +240,9 @@ func (b *server) maybeSendWill(oldSession *pb.Session) error {
 	}
 	return nil
 }
-func (m *server) Health() string {
+func (m *server) Health() (string, string) {
 	if m.state == nil {
-		return "critical"
+		return "critical", "state is not ready"
 	}
 	return m.state.Health()
 }

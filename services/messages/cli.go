@@ -63,7 +63,7 @@ func (b *server) Start(id, name string, catalog discovery.ServiceCatalog, logger
 	}()
 	return nil
 }
-func (m *server) Health() string {
+func (m *server) Health() (string, string) {
 	return m.state.Health()
 }
 func (m *server) Serve(port int) net.Listener {

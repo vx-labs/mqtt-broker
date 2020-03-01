@@ -9,7 +9,7 @@ import (
 
 type Distributer interface {
 	Shutdown() error
-	Health() string
+	Health() (string, string)
 }
 
 func GossipDistributer(id string, service discovery.Service, state pb.APState, logger *zap.Logger) Distributer {

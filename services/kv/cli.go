@@ -69,9 +69,9 @@ func (b *server) Start(id, name string, catalog discovery.ServiceCatalog, logger
 	}()
 	return nil
 }
-func (m *server) Health() string {
+func (m *server) Health() (string, string) {
 	if m.state == nil {
-		return "critical"
+		return "critical", "state is not ready"
 	}
 	return m.state.Health()
 }

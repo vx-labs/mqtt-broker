@@ -39,11 +39,11 @@ func (m *layer) NotifyMsg(b []byte) {
 		return
 	}
 }
-func (s *layer) Health() string {
+func (s *layer) Health() (string, string) {
 	if s.mlist.NumMembers() == 1 {
-		return "warning"
+		return "warning", "only one cluster member is present"
 	}
-	return "ok"
+	return "ok", ""
 }
 func (s *layer) GetBroadcasts(overhead, limit int) [][]byte {
 	return s.bcastQueue.GetBroadcasts(overhead, limit)

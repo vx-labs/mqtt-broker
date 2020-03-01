@@ -34,7 +34,7 @@ type Service interface {
 	Serve(port int) net.Listener
 	Shutdown()
 	Start(id, name string, catalog discovery.ServiceCatalog, logger *zap.Logger) error
-	Health() string
+	Health() (string, string)
 }
 
 func AddClusterFlags(root *cobra.Command, config *viper.Viper) {
@@ -88,7 +88,7 @@ type serviceRunConfig struct {
 	ID      string `json:"id"`
 }
 
-func (s *serviceRunConfig) Health() string {
+func (s *serviceRunConfig) Health() (string, string) {
 	return s.service.Health()
 }
 func (s *serviceRunConfig) ServiceName() string {
@@ -286,12 +286,13 @@ func Bootstrap(cmd *cobra.Command, v *viper.Viper) *Context {
 }
 
 type healthChecker interface {
-	Health() string
+	Health() (string, string)
 	ServiceName() string
 }
 type ServiceHealthReport struct {
-	ServiceName string `json:"service_name"`
-	Health      string `json:"health"`
+	ServiceName  string `json:"service_name"`
+	Health       string `json:"health"`
+	HealthReason string `json:"health_reason`
 }
 type HealthReport struct {
 	Timestamp    time.Time             `json:"timestamp"`
@@ -314,10 +315,11 @@ func serveHTTPHealth(port int, logger *zap.Logger, sensors []healthChecker) {
 		}
 		worst := "ok"
 		for _, sensor := range sensors {
-			status := sensor.Health()
+			status, reason := sensor.Health()
 			report.Services = append(report.Services, ServiceHealthReport{
-				Health:      status,
-				ServiceName: sensor.ServiceName(),
+				Health:       status,
+				ServiceName:  sensor.ServiceName(),
+				HealthReason: reason,
 			})
 			if serviceHealthMap[status] > serviceHealthMap[worst] {
 				worst = status

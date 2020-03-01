@@ -119,8 +119,11 @@ func (b *server) consumeStream(messages []*messages.StoredMessage) (int, error) 
 	}
 	return len(messages), nil
 }
-func (b *server) Health() string {
-	return "ok"
+func (b *server) Health() (string, string) {
+	if b.state == nil {
+		return "critical", "state is not ready"
+	}
+	return b.state.Health()
 }
 
 func (m *server) Serve(port int) net.Listener {

@@ -151,9 +151,9 @@ func (b *server) consumeStream(messages []*messages.StoredMessage) (int, error) 
 	return len(messages), nil
 }
 
-func (m *server) Health() string {
+func (m *server) Health() (string, string) {
 	if m.state == nil {
-		return "critical"
+		return "critical", "state is not ready"
 	}
 	return m.state.Health()
 }

@@ -36,6 +36,6 @@ func (b *server) Start(id, name string, catalog discovery.ServiceCatalog, logger
 	return nil
 }
 
-func (m *server) Health() string {
-	return "ok"
+func (m *server) Health() (string, string) {
+	return "ok", ""
 }
