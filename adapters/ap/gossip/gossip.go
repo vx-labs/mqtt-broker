@@ -15,11 +15,11 @@ import (
 
 type Service interface {
 	DiscoverEndpoints() ([]*discovery.NodeService, error)
-	Register() error
-	Unregister() error
 	Address() string
 	Name() string
 	BindPort() int
+	ListenTCP() (net.Listener, error)
+	ListenUDP() (net.PacketConn, error)
 }
 
 type layer struct {
@@ -39,11 +39,11 @@ func (m *layer) NotifyMsg(b []byte) {
 		return
 	}
 }
-func (s *layer) Health() string {
+func (s *layer) Health() (string, string) {
 	if s.mlist.NumMembers() == 1 {
-		return "warning"
+		return "warning", "only one cluster member is present"
 	}
-	return "ok"
+	return "ok", ""
 }
 func (s *layer) GetBroadcasts(overhead, limit int) [][]byte {
 	return s.bcastQueue.GetBroadcasts(overhead, limit)
@@ -69,21 +69,22 @@ func (m *layer) join(newHosts []string) error {
 		}
 		m.logger.Warn("failed to join some member of cluster", zap.Error(err))
 	}
+	m.logger.Info("gossip cluster joined", zap.Error(err), zap.Int("gossip_members_count", m.mlist.NumMembers()))
 	return nil
 }
 func (self *layer) discoverPeers() error {
-	peers, _ := self.service.DiscoverEndpoints()
+	peers, err := self.service.DiscoverEndpoints()
+	if err != nil {
+		return err
+	}
 	addresses := []string{}
 	for _, peer := range peers {
-		if !self.isNodeKnown(peer.Peer) {
+		if !self.isNodeKnown(peer.ID) {
 			addresses = append(addresses, peer.NetworkAddress)
 		}
 	}
 	if len(addresses) > 0 {
-		err := self.join(addresses)
-		if err == nil {
-			return err
-		}
+		return self.join(addresses)
 	}
 	return nil
 }
@@ -91,11 +92,7 @@ func (self *layer) Shutdown() error {
 	self.logger.Info("shutting down gossip state distributer")
 	close(self.cancel)
 	<-self.done
-	err := self.service.Unregister()
-	if err != nil {
-		return err
-	}
-	err = self.mlist.Leave(5 * time.Second)
+	err := self.mlist.Leave(5 * time.Second)
 	if err != nil {
 		return err
 	}
@@ -163,15 +160,15 @@ func NewGossipDistributer(id string, service Service, state pb.APState, logger *
 	if os.Getenv("ENABLE_MEMBERLIST_LOG") != "true" {
 		config.LogOutput = ioutil.Discard
 	}
+	config.Transport, err = newNetTransport(service, logger)
+	if err != nil {
+		panic(err)
+	}
 	list, err := memberlist.Create(config)
 	if err != nil {
 		panic(err)
 	}
 	self.mlist = list
-	err = service.Register()
-	if err != nil {
-		panic(err)
-	}
 	go func() {
 		retryTicker := time.NewTicker(5 * time.Second)
 		defer retryTicker.Stop()
@@ -180,6 +177,7 @@ func NewGossipDistributer(id string, service Service, state pb.APState, logger *
 			if err == nil {
 				return
 			}
+			logger.Warn("failed to join gossip cluster members", zap.Error(err))
 		}
 	}()
 	return self

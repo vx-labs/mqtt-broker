@@ -3,8 +3,6 @@ package raft
 import (
 	"context"
 	"errors"
-	fmt "fmt"
-	"net"
 	"time"
 
 	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
@@ -17,11 +15,11 @@ import (
 )
 
 func (s *raftlayer) Serve() error {
-	port := s.rpcService.BindPort()
-	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
+	lis, err := s.rpcService.ListenTCP()
 	if err != nil {
 		return err
 	}
+	s.rpcListener = lis
 	s.grpcServer = grpc.NewServer(
 		network.GRPCServerOptions()...,
 	)

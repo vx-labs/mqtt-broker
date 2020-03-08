@@ -1,6 +1,8 @@
 package auth
 
 import (
+	"net"
+
 	"github.com/vx-labs/mqtt-broker/services/auth/store"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
@@ -9,6 +11,7 @@ import (
 type server struct {
 	id         string
 	grpcServer *grpc.Server
+	listener   net.Listener
 	logger     *zap.Logger
 	store      *store.Static
 }

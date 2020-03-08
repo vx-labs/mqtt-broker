@@ -22,6 +22,7 @@ import (
 	"github.com/spf13/viper"
 	eventsCommand "github.com/vx-labs/mqtt-broker/events/cobra"
 	authCommand "github.com/vx-labs/mqtt-broker/services/auth/cobra"
+	endpointsCommand "github.com/vx-labs/mqtt-broker/services/endpoints/cobra"
 	kvCommand "github.com/vx-labs/mqtt-broker/services/kv/cobra"
 	messagesCommand "github.com/vx-labs/mqtt-broker/services/messages/cobra"
 	queuesCommand "github.com/vx-labs/mqtt-broker/services/queues/cobra"
@@ -109,26 +110,17 @@ type wrappedDiscoveryAdapter struct {
 	backend discovery.DiscoveryAdapter
 }
 
-func (w *wrappedDiscoveryAdapter) Members() ([]*pb.Peer, error) {
-	return w.backend.Members()
+func (w *wrappedDiscoveryAdapter) EndpointsByService(name, tag string) ([]*pb.NodeService, error) {
+	return w.backend.EndpointsByService(name, tag)
 }
-func (w *wrappedDiscoveryAdapter) EndpointsByService(name string) ([]*pb.NodeService, error) {
-	return w.backend.EndpointsByService(name)
+func (w *wrappedDiscoveryAdapter) DialService(name string, tag string) (*grpc.ClientConn, error) {
+	return w.backend.DialService(name, tag)
 }
-func (w *wrappedDiscoveryAdapter) DialService(name string, tags ...string) (*grpc.ClientConn, error) {
-	return w.backend.DialService(name, tags...)
+func (w *wrappedDiscoveryAdapter) ListenTCP(id, name string, port int, advertizedAddress string) (net.Listener, error) {
+	return w.backend.ListenTCP(id, name, port, advertizedAddress)
 }
-func (w *wrappedDiscoveryAdapter) RegisterService(name, address string) error {
-	return w.backend.RegisterService(name, address)
-}
-func (w *wrappedDiscoveryAdapter) UnregisterService(name string) error {
-	return w.backend.UnregisterService(name)
-}
-func (w *wrappedDiscoveryAdapter) AddServiceTag(service, key, value string) error {
-	return w.backend.AddServiceTag(service, key, value)
-}
-func (w *wrappedDiscoveryAdapter) RemoveServiceTag(name string, tag string) error {
-	return w.backend.RemoveServiceTag(name, tag)
+func (w *wrappedDiscoveryAdapter) ListenUDP(id, name string, port int, advertizedAddress string) (net.PacketConn, error) {
+	return w.backend.ListenUDP(id, name, port, advertizedAddress)
 }
 func (w *wrappedDiscoveryAdapter) Shutdown() error {
 	return w.backend.Shutdown()
@@ -160,6 +152,7 @@ func main() {
 	subscriptionsCommand.Register(ctx, rootCmd, config, adapter)
 	authCommand.Register(ctx, rootCmd, config, adapter)
 	sessionsCommand.Register(ctx, rootCmd, config, adapter)
+	endpointsCommand.Register(ctx, rootCmd, config, adapter)
 	rootCmd.AddCommand(TLSHelper(config))
 	rootCmd.Execute()
 }

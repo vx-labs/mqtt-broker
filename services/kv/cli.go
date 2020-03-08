@@ -1,14 +1,12 @@
 package kv
 
 import (
-	fmt "fmt"
 	"net"
 	"time"
 
 	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
 	"github.com/vx-labs/mqtt-broker/adapters/cp"
 	"github.com/vx-labs/mqtt-broker/adapters/discovery"
-	"github.com/vx-labs/mqtt-broker/adapters/identity"
 	"github.com/vx-labs/mqtt-broker/network"
 	"github.com/vx-labs/mqtt-broker/services/kv/pb"
 
@@ -25,17 +23,17 @@ func (b *server) Shutdown() {
 	b.gprcServer.GracefulStop()
 	b.store.Close()
 }
-func (b *server) Start(id, name string, mesh discovery.DiscoveryAdapter, catalog identity.Catalog, logger *zap.Logger) error {
-	userService := discovery.NewServiceFromIdentity(catalog.Get(name), mesh)
-	raftService := discovery.NewServiceFromIdentity(catalog.Get(fmt.Sprintf("%s_gossip", name)), mesh)
-	raftRPCService := discovery.NewServiceFromIdentity(catalog.Get(fmt.Sprintf("%s_gossip_rpc", name)), mesh)
-	err := userService.Register()
+func (b *server) Start(id, name string, catalog discovery.ServiceCatalog, logger *zap.Logger) error {
+	userService := catalog.Service(name, "rpc")
+	raftService := catalog.Service(name, "cluster")
+	raftRPCService := catalog.Service(name, "cluster_rpc")
+	listener, err := userService.ListenTCP()
 	if err != nil {
-		logger.Error("failed to register service")
 		return err
 	}
+	b.listener = listener
 	b.state = cp.RaftSynchronizer(id, userService, raftService, raftRPCService, b, logger)
-	leaderConn, err := mesh.DialService("kv", "raft_status=leader")
+	leaderConn, err := catalog.Dial("kv", "rpc")
 	if err != nil {
 		panic(err)
 	}
@@ -71,23 +69,19 @@ func (b *server) Start(id, name string, mesh discovery.DiscoveryAdapter, catalog
 	}()
 	return nil
 }
-func (m *server) Health() string {
+func (m *server) Health() (string, string) {
 	if m.state == nil {
-		return "warning"
+		return "critical", "state is not ready"
 	}
 	return m.state.Health()
 }
 func (m *server) Serve(port int) net.Listener {
-	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
-	if err != nil {
-		return nil
-	}
 	s := grpc.NewServer(
 		network.GRPCServerOptions()...,
 	)
 	pb.RegisterKVServiceServer(s, m)
 	grpc_prometheus.Register(s)
-	go s.Serve(lis)
+	go s.Serve(m.listener)
 	m.gprcServer = s
-	return lis
+	return m.listener
 }

@@ -2,6 +2,7 @@ package broker
 
 import (
 	"context"
+	"net"
 
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
@@ -29,16 +30,17 @@ type Broker struct {
 	Messages   *messages.Client
 	auth       *auth.Client
 	grpcServer *grpc.Server
+	listener   net.Listener
 	ctx        context.Context
 }
 
 func New(id string, logger *zap.Logger, mesh discovery.DiscoveryAdapter) *Broker {
 	ctx := context.Background()
-	authConn, err := mesh.DialService("auth")
+	authConn, err := mesh.DialService("auth", "rpc")
 	if err != nil {
 		panic(err)
 	}
-	messagesConn, err := mesh.DialService("messages?raft_status=leader")
+	messagesConn, err := mesh.DialService("messages", "rpc")
 	if err != nil {
 		panic(err)
 	}

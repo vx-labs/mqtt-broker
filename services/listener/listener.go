@@ -109,6 +109,8 @@ type localSession struct {
 	inflights    *inflight.Queue
 	logger       *zap.Logger
 	transport    transport.Metadata
+	poller       sync.Once
+	pollerCh     chan error
 }
 
 func (local *localSession) Less(remote btree.Item) bool {
@@ -125,19 +127,19 @@ type Config struct {
 
 func New(id string, logger *zap.Logger, mesh discovery.DiscoveryAdapter, config Config) *endpoint {
 	ctx := context.Background()
-	brokerConn, err := mesh.DialService("broker")
+	brokerConn, err := mesh.DialService("broker", "rpc")
 	if err != nil {
 		panic(err)
 	}
-	queuesConn, err := mesh.DialService("queues?raft_status=leader")
+	queuesConn, err := mesh.DialService("queues", "rpc")
 	if err != nil {
 		panic(err)
 	}
-	messagesConn, err := mesh.DialService("messages?raft_status=leader")
+	messagesConn, err := mesh.DialService("messages", "rpc")
 	if err != nil {
 		panic(err)
 	}
-	kvConn, err := mesh.DialService("kv?raft_status=leader")
+	kvConn, err := mesh.DialService("kv", "rpc")
 	if err != nil {
 		panic(err)
 	}

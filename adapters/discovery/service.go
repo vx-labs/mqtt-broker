@@ -11,17 +11,27 @@ import (
 )
 
 type service struct {
+	health   string
 	adapter  DiscoveryAdapter
+	id       string
 	name     string
+	tag      string
 	address  string
 	bindPort int
 }
 
-func (s *service) Dial(tags ...string) (*grpc.ClientConn, error) {
-	return s.adapter.DialService(s.name, tags...)
+func (s *service) ListenTCP() (net.Listener, error) {
+	return s.adapter.ListenTCP(s.ID(), s.Name(), s.BindPort(), s.Address())
+}
+func (s *service) ListenUDP() (net.PacketConn, error) {
+	return s.adapter.ListenUDP(s.ID(), s.Name(), s.BindPort(), s.Address())
+}
+
+func (s *service) Dial() (*grpc.ClientConn, error) {
+	return s.adapter.DialService(s.name, s.tag)
 }
 func (s *service) DiscoverEndpoints() ([]*pb.NodeService, error) {
-	return s.adapter.EndpointsByService(s.name)
+	return s.adapter.EndpointsByService(s.name, s.tag)
 }
 func (s *service) Address() string {
 	return s.address
@@ -44,27 +54,20 @@ func (s *service) AdvertisedPort() int {
 	}
 	return int(portInt)
 }
+func (s *service) ID() string {
+	return s.id
+}
 func (s *service) Name() string {
 	return s.name
 }
 func (s *service) BindPort() int {
 	return s.bindPort
 }
-func (s *service) Register() error {
-	return s.adapter.RegisterService(s.name, s.address)
-}
-func (s *service) Unregister() error {
-	return s.adapter.UnregisterService(s.name)
-}
-func (s *service) AddTag(key string, value string) error {
-	return s.adapter.AddServiceTag(s.name, key, value)
-}
-func (s *service) RemoveTag(key string) error {
-	return s.adapter.RemoveServiceTag(s.name, key)
-}
 
-func NewService(name, address string, bindPort int, adapter DiscoveryAdapter) Service {
+func NewService(id, name, tag, address string, bindPort int, adapter DiscoveryAdapter) Service {
 	return &service{
+		id:       id,
+		tag:      tag,
 		name:     name,
 		address:  address,
 		adapter:  adapter,
@@ -77,6 +80,8 @@ func NewServiceFromIdentity(id identity.Identity, adapter DiscoveryAdapter) Serv
 		panic("nil identity")
 	}
 	return &service{
+		id:       id.ID(),
+		tag:      id.Tag(),
 		name:     id.Name(),
 		address:  fmt.Sprintf("%s:%d", id.AdvertisedAddress(), id.AdvertisedPort()),
 		adapter:  adapter,

@@ -1,13 +1,11 @@
 package endpoints
 
 import (
-	"fmt"
 	"net"
 
 	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
 	"github.com/vx-labs/mqtt-broker/adapters/discovery"
 	"github.com/vx-labs/mqtt-broker/adapters/discovery/pb"
-	"github.com/vx-labs/mqtt-broker/adapters/identity"
 	"github.com/vx-labs/mqtt-broker/network"
 	"google.golang.org/grpc"
 
@@ -15,25 +13,26 @@ import (
 )
 
 func (b *api) Serve(port int) net.Listener {
-	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
-	if err != nil {
-		return nil
-	}
 	s := grpc.NewServer(
 		network.GRPCServerOptions()...,
 	)
 	pb.RegisterDiscoveryServiceServer(s, b)
 	grpc_prometheus.Register(s)
-	go s.Serve(lis)
+	go s.Serve(b.listener)
 	b.grpcServer = s
-	return lis
+	return b.listener
 }
 func (b *api) Shutdown() {
 	b.grpcServer.GracefulStop()
 }
-func (b *api) Start(id, name string, mesh discovery.DiscoveryAdapter, catalog identity.Catalog, logger *zap.Logger) error {
+func (b *api) Start(id, name string, catalog discovery.ServiceCatalog, logger *zap.Logger) error {
+	listener, err := catalog.Service(name, "rpc").ListenTCP()
+	if err != nil {
+		return err
+	}
+	b.listener = listener
 	return nil
 }
-func (m *api) Health() string {
-	return "ok"
+func (m *api) Health() (string, string) {
+	return "ok", ""
 }

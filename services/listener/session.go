@@ -47,6 +47,7 @@ func (local *endpoint) runLocalSession(t transport.Metadata) {
 		transport: t,
 		logger:    logger,
 		cancel:    cancel,
+		pollerCh:  make(chan error),
 	}
 	defer func() {
 		t.Channel.Close()
@@ -98,9 +99,6 @@ func (local *endpoint) handleSessionPackets(ctx context.Context, session *localS
 	} else {
 		return ErrConnectNotDone
 	}
-	poller := make(chan error)
-	go local.startPoller(ctx, session, poller)
-
 	for data := range dec.Packet() {
 		if sessionTracePacket == "true" {
 			session.logger.Debug("session sent packet", zap.Any("traced_packet", data))
@@ -141,7 +139,7 @@ func (local *endpoint) handleSessionPackets(ctx context.Context, session *localS
 			return nil
 		}
 		select {
-		case err := <-poller:
+		case err := <-session.pollerCh:
 			session.logger.Error("failed to poll messages", zap.Error(err))
 			return err
 		default:

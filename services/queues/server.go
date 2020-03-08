@@ -4,6 +4,7 @@ import (
 	"context"
 	fmt "fmt"
 	"io"
+	"net"
 	"time"
 
 	"github.com/gogo/protobuf/proto"
@@ -30,6 +31,7 @@ type server struct {
 	state      cp.Synchronizer
 	ctx        context.Context
 	gprcServer *grpc.Server
+	listener   net.Listener
 	logger     *zap.Logger
 	sessions   SessionStore
 	Messages   *messages.Client

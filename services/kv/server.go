@@ -3,6 +3,7 @@ package kv
 import (
 	"context"
 	fmt "fmt"
+	"net"
 	"time"
 
 	grpc "google.golang.org/grpc"
@@ -22,6 +23,7 @@ type server struct {
 	state      cp.Synchronizer
 	ctx        context.Context
 	gprcServer *grpc.Server
+	listener   net.Listener
 	logger     *zap.Logger
 	leaderRPC  pb.KVServiceClient
 }

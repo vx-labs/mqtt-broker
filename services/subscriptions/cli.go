@@ -11,7 +11,6 @@ import (
 	"github.com/pkg/errors"
 	"github.com/vx-labs/mqtt-broker/adapters/ap"
 	"github.com/vx-labs/mqtt-broker/adapters/discovery"
-	"github.com/vx-labs/mqtt-broker/adapters/identity"
 	"github.com/vx-labs/mqtt-broker/events"
 	"github.com/vx-labs/mqtt-broker/network"
 	kv "github.com/vx-labs/mqtt-broker/services/kv/pb"
@@ -34,23 +33,21 @@ func (b *server) Shutdown() {
 	b.state.Shutdown()
 	b.gprcServer.GracefulStop()
 }
-func (b *server) Start(id, name string, mesh discovery.DiscoveryAdapter, catalog identity.Catalog, logger *zap.Logger) error {
+func (b *server) Start(id, name string, catalog discovery.ServiceCatalog, logger *zap.Logger) error {
 	b.store = NewSubscriptionStore(logger)
-	service := discovery.NewServiceFromIdentity(catalog.Get(fmt.Sprintf("%s_gossip", name)), mesh)
+	service := catalog.Service(name, "cluster")
+	userService := catalog.Service(name, "rpc")
 	b.state = ap.GossipDistributer(id, service, b.store, logger)
-
-	userService := discovery.NewServiceFromIdentity(catalog.Get(name), mesh)
-	err := userService.Register()
+	listener, err := userService.ListenTCP()
 	if err != nil {
-		logger.Error("failed to register service")
 		return err
 	}
-
-	kvConn, err := mesh.DialService("kv?raft_status=leader")
+	b.listener = listener
+	kvConn, err := catalog.Dial("kv", "rpc")
 	if err != nil {
 		panic(err)
 	}
-	messagesConn, err := mesh.DialService("messages")
+	messagesConn, err := catalog.Dial("messages", "rpc")
 	if err != nil {
 		panic(err)
 	}
@@ -154,23 +151,19 @@ func (b *server) consumeStream(messages []*messages.StoredMessage) (int, error) 
 	return len(messages), nil
 }
 
-func (m *server) Health() string {
+func (m *server) Health() (string, string) {
 	if m.state == nil {
-		return "warning"
+		return "critical", "state is not ready"
 	}
 	return m.state.Health()
 }
 func (m *server) Serve(port int) net.Listener {
-	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
-	if err != nil {
-		return nil
-	}
 	s := grpc.NewServer(
 		network.GRPCServerOptions()...,
 	)
 	pb.RegisterSubscriptionsServiceServer(s, m)
 	grpc_prometheus.Register(s)
-	go s.Serve(lis)
+	go s.Serve(m.listener)
 	m.gprcServer = s
-	return lis
+	return m.listener
 }

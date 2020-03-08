@@ -9,7 +9,7 @@ import (
 )
 
 func getClient(adapter discovery.DiscoveryAdapter) *pb.Client {
-	conn, err := adapter.DialService("kv")
+	conn, err := adapter.DialService("kv", "rpc")
 	if err != nil {
 		log.Fatalf("failed to connect to kv: %v", err)
 	}

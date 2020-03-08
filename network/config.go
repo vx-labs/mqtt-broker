@@ -5,12 +5,15 @@ import (
 	"log"
 	"net"
 
+	"github.com/google/uuid"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
 
 type Configuration struct {
 	id                string
+	name              string
+	tag               string
 	advertisedAddress string
 	advertisedPort    int
 	bindAddress       string
@@ -18,7 +21,13 @@ type Configuration struct {
 }
 
 func (c *Configuration) Name() string {
+	return c.name
+}
+func (c *Configuration) ID() string {
 	return c.id
+}
+func (c *Configuration) Tag() string {
+	return c.tag
 }
 func (c *Configuration) AdvertisedAddress() string {
 	return c.advertisedAddress
@@ -102,13 +111,21 @@ func (c Configuration) Describe(name string) string {
 	)
 }
 
-func ConfigurationFromFlags(cmd *cobra.Command, v *viper.Viper, name string) Configuration {
+func ConfigurationFromFlags(v *viper.Viper, name, tag string) Configuration {
+	serviceID := fmt.Sprintf("%s-service-id", name)
+
 	config := Configuration{
-		id:                name,
+		id:                v.GetString(serviceID),
+		name:              name,
+		tag:               tag,
 		advertisedAddress: v.GetString(advertisedAddressFlagName(name)),
 		advertisedPort:    v.GetInt(advertisedPortFlagName(name)),
 		bindAddress:       v.GetString(bindAddressFlagName(name)),
 		bindPort:          v.GetInt(bindPortFlagName(name)),
+	}
+
+	if len(config.id) == 0 {
+		log.Fatalf("empty service id")
 	}
 
 	if len(config.advertisedAddress) == 0 {
@@ -145,6 +162,9 @@ func RegisterFlagsForService(cmd *cobra.Command, config *viper.Viper, name strin
 	advLongAddr := advertisedAddressFlagName(name)
 
 	defaultAddr := localPrivateHost()
+	serviceID := fmt.Sprintf("%s-service-id", name)
+	cmd.Flags().StringP(serviceID, "", uuid.New().String(), fmt.Sprintf("%s unique id", name))
+	config.BindPFlag(serviceID, cmd.Flags().Lookup(serviceID))
 
 	cmd.Flags().IntP(long, "", defaultPort, fmt.Sprintf("Start %s listener on this port", name))
 	config.BindPFlag(long, cmd.Flags().Lookup(long))

@@ -14,10 +14,18 @@ func (local *endpoint) ConnectHandler(ctx context.Context, session *localSession
 	id, token, refreshToken, connack, err := local.broker.Connect(ctx, session.transport, p)
 	if err != nil {
 		session.logger.Error("CONNECT failed", zap.Error(err))
+		// Do not return CONNACK_REFUSED_SERVER_UNAVAILABLE for now
+		if connack.ReturnCode != packet.CONNACK_REFUSED_SERVER_UNAVAILABLE {
+			session.encoder.ConnAck(connack)
+		}
 		session.encoder.ConnAck(connack)
 		return ErrConnectNotDone
 	}
 	if connack.ReturnCode != packet.CONNACK_CONNECTION_ACCEPTED {
+		// Do not return CONNACK_REFUSED_SERVER_UNAVAILABLE for now
+		if connack.ReturnCode == packet.CONNACK_REFUSED_SERVER_UNAVAILABLE {
+			return ErrConnectNotDone
+		}
 		session.encoder.ConnAck(connack)
 		return ErrConnectNotDone
 	}
@@ -46,22 +54,6 @@ func (local *endpoint) ConnectHandler(ctx context.Context, session *localSession
 	local.mutex.Unlock()
 	if old != nil {
 		old.(*localSession).transport.Channel.Close()
-	}
-
-	waitTicker := time.NewTicker(1 * time.Second)
-	defer waitTicker.Stop()
-	retries := 3
-	for retries > 0 {
-		retries--
-		_, err = local.queues.GetQueueStatistics(ctx, session.id)
-		if err == nil {
-			break
-		}
-		<-waitTicker.C
-	}
-	if err != nil {
-		session.logger.Error("timed out waiting for queue to be created", zap.Error(err))
-		return err
 	}
 
 	err = session.encoder.ConnAck(&packet.ConnAck{

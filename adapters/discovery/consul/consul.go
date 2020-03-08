@@ -1,38 +1,24 @@
 package consul
 
 import (
-	"errors"
 	"fmt"
+	"net"
 	"net/http"
-	"strings"
+	"strconv"
 
+	"github.com/hashicorp/consul/api"
 	consul "github.com/hashicorp/consul/api"
+	"github.com/vx-labs/mqtt-broker/adapters/discovery/listeners"
 	"github.com/vx-labs/mqtt-broker/adapters/discovery/pb"
+	"github.com/vx-labs/mqtt-broker/network"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/resolver"
 )
 
 type ConsulDiscoveryAdapter struct {
 	id  string
 	api *consul.Client
-}
-
-func parseTags(tags []string) []*pb.ServiceTag {
-	out := make([]*pb.ServiceTag, len(tags))
-	for idx, tag := range tags {
-		tokens := strings.Split(tag, "=")
-		if len(tokens) == 1 {
-			out[idx] = &pb.ServiceTag{
-				Key: tokens[0],
-			}
-		} else {
-			out[idx] = &pb.ServiceTag{
-				Key:   tokens[0],
-				Value: tokens[1],
-			}
-		}
-	}
-	return out
 }
 
 func NewConsulDiscoveryAdapter(id string, logger *zap.Logger) *ConsulDiscoveryAdapter {
@@ -43,74 +29,156 @@ func NewConsulDiscoveryAdapter(id string, logger *zap.Logger) *ConsulDiscoveryAd
 		logger.Error("failed to connect to consul", zap.Error(err))
 		return nil
 	}
+	resolver.Register(newConsulResolver(consulAPI, logger))
 	return &ConsulDiscoveryAdapter{
 		id:  id,
 		api: consulAPI,
 	}
 }
 
-func (c *ConsulDiscoveryAdapter) EndpointsByService(name string) ([]*pb.NodeService, error) {
-	services, _, err := c.api.Health().Service(name, "", false, nil)
+func (c *ConsulDiscoveryAdapter) EndpointsByService(name, tag string) ([]*pb.NodeService, error) {
+	services, _, err := c.api.Health().Service(name, tag, false, &api.QueryOptions{AllowStale: false})
 	if err != nil {
 		return nil, err
 	}
 	out := make([]*pb.NodeService, len(services))
 	for idx, service := range services {
 		out[idx] = &pb.NodeService{
-			ID:             name,
-			Peer:           service.Node.ID,
+			ID:             service.Service.ID,
+			Name:           name,
+			Health:         service.Checks.AggregatedStatus(),
+			Peer:           service.Service.Meta["node_id"],
 			NetworkAddress: fmt.Sprintf("%s:%d", service.Service.Address, service.Service.Port),
-			Tags:           parseTags(service.Service.Tags),
+			Tag:            tag,
 		}
 	}
 	return out, nil
 }
-func (c *ConsulDiscoveryAdapter) RegisterService(name, address string) error {
-	return errors.New("Unsupported yet")
+func (c *ConsulDiscoveryAdapter) RegisterTCPService(id, name, address string) error {
+	host, port, err := net.SplitHostPort(address)
+	if err != nil {
+		return err
+	}
+	intPort, err := strconv.ParseInt(port, 10, 64)
+	if err != nil {
+		return err
+	}
+	return c.api.Agent().ServiceRegister(&api.AgentServiceRegistration{
+		ID:      id,
+		Name:    name,
+		Address: host,
+		Port:    int(intPort),
+		Meta: map[string]string{
+			"node_id": c.id,
+		},
+		EnableTagOverride: true,
+		Check: &api.AgentServiceCheck{
+			CheckID:                        fmt.Sprintf("check-tcp-%s-%s", name, id),
+			Name:                           fmt.Sprintf("TCP Check on address %s", address),
+			DeregisterCriticalServiceAfter: "5m",
+			TCP:                            address,
+			Interval:                       "10s",
+			Timeout:                        "2s",
+		},
+	})
 }
-func (c *ConsulDiscoveryAdapter) UnregisterService(name string) error {
-	return errors.New("Unsupported yet")
+func (d *ConsulDiscoveryAdapter) ListenTCP(id, name string, port int, advertizedAddress string) (net.Listener, error) {
+	err := d.RegisterTCPService(id, name, advertizedAddress)
+	if err != nil {
+		return nil, err
+	}
+	listener, err := net.Listen("tcp", fmt.Sprintf("0.0.0.0:%d", port))
+	if err != nil {
+		return nil, err
+	}
+
+	return &listeners.ServiceTCPListener{
+		CloseCallback: func() error {
+			return d.UnregisterService(id)
+		},
+		Listener: listener,
+	}, nil
 }
-func (c *ConsulDiscoveryAdapter) AddServiceTag(service, key, value string) error {
-	return errors.New("Unsupported yet")
-	/*
-		tag := fmt.Sprintf("%s=%s", key, value)
-		results, _, err := c.api.Catalog().Service(service, "", nil)
-		if err != nil {
-			return nil
-		}
-		for _, result := range results {
-			if result.Node == c.id {
-				result.ServiceTags = append(result.ServiceTags, tag)
-				_, err := c.api.Catalog().Register(&api.CatalogRegistration{
-					ID:         result.ID,
-					Node:       result.Node,
-					NodeMeta:   result.NodeMeta,
-					Address:    result.Address,
-					Checks:     result.Checks,
-					Datacenter: result.Datacenter,
-					Service: &api.AgentService{
-						ID:      result.ServiceID,
-						Address: result.ServiceAddress,
-						Tags:    result.ServiceTags,
-						Port:    result.ServicePort,
-					},
-				}, nil)
-				return err
-			}
-		}
-		return errors.New("service not found")
-	*/
+func (c *ConsulDiscoveryAdapter) RegisterUDPService(id, name, address string) error {
+	host, port, err := net.SplitHostPort(address)
+	if err != nil {
+		return err
+	}
+	intPort, err := strconv.ParseInt(port, 10, 64)
+	if err != nil {
+		return err
+	}
+	return c.api.Agent().ServiceRegister(&api.AgentServiceRegistration{
+		ID:      id,
+		Name:    name,
+		Address: host,
+		Port:    int(intPort),
+		Meta: map[string]string{
+			"node_id": c.id,
+		},
+		EnableTagOverride: true,
+	})
 }
-func (c *ConsulDiscoveryAdapter) RemoveServiceTag(service, key string) error {
-	return errors.New("Unsupported yet")
+
+func (d *ConsulDiscoveryAdapter) ListenUDP(id, name string, port int, advertizedAddress string) (net.PacketConn, error) {
+	err := d.RegisterUDPService(id, name, advertizedAddress)
+	if err != nil {
+		return nil, err
+	}
+	listener, err := net.ListenPacket("udp", fmt.Sprintf("0.0.0.0:%d", port))
+	if err != nil {
+		return nil, err
+	}
+
+	return &listeners.ServiceUDPListener{
+		CloseCallback: func() error {
+			return d.UnregisterService(id)
+		},
+		Listener: listener,
+	}, nil
 }
-func (c *ConsulDiscoveryAdapter) DialService(name string, tags ...string) (*grpc.ClientConn, error) {
-	return nil, errors.New("Unsupported yet")
+
+func (c *ConsulDiscoveryAdapter) RegisterGRPCService(id, name, address string) error {
+	host, port, err := net.SplitHostPort(address)
+	if err != nil {
+		return err
+	}
+	intPort, err := strconv.ParseInt(port, 10, 64)
+	if err != nil {
+		return err
+	}
+	return c.api.Agent().ServiceRegister(&api.AgentServiceRegistration{
+		ID:      id,
+		Name:    name,
+		Address: host,
+		Port:    int(intPort),
+		Meta: map[string]string{
+			"node_id": c.id,
+		},
+		EnableTagOverride: true,
+		Check: &api.AgentServiceCheck{
+			CheckID:                        fmt.Sprintf("check-grpc-%s-%s", name, id),
+			Name:                           fmt.Sprintf("GRPC Check on address %s", address),
+			DeregisterCriticalServiceAfter: "5m",
+			GRPC:                           address,
+			GRPCUseTLS:                     true,
+			Interval:                       "10s",
+			Timeout:                        "2s",
+		},
+	})
+}
+func (c *ConsulDiscoveryAdapter) UnregisterService(id string) error {
+	return c.api.Agent().ServiceDeregister(id)
+}
+
+func (c *ConsulDiscoveryAdapter) DialService(name string, tag string) (*grpc.ClientConn, error) {
+	key := fmt.Sprintf("consul:///%s", name)
+	key = fmt.Sprintf("%s?tag=%s", key, tag)
+
+	return grpc.Dial(key,
+		network.GRPCClientOptions()...,
+	)
 }
 func (c *ConsulDiscoveryAdapter) Shutdown() error {
 	return nil
-}
-func (c *ConsulDiscoveryAdapter) Members() ([]*pb.Peer, error) {
-	return nil, errors.New("Unsupported yet")
 }

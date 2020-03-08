@@ -103,6 +103,9 @@ func heartbeatConsumer(ctx context.Context, client *kv.Client, streamID, groupID
 				return nil, err
 			}
 		}
+		if _, ok := config.ConsumerHeartbeats[consumerID]; !ok {
+			panic("not were removed from group")
+		}
 		config.ConsumerHeartbeats[consumerID] = now
 		updatedConfig, err := json.Marshal(config)
 		if err != nil {

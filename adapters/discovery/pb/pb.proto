@@ -2,15 +2,13 @@ syntax = "proto3";
 
 package pb;
 
-message ServiceTag {
-  string Key = 1;
-  string Value = 2;
-}
 message NodeService {
   string ID = 1;
-  string NetworkAddress = 2;
-  string Peer = 3;
-  repeated ServiceTag Tags = 4;
+  string Name = 2;
+  string NetworkAddress = 3;
+  string Peer = 4;
+  string Tag = 5;
+  string Health = 6;
 }
 message Peer {
   string ID = 1;
@@ -39,45 +37,38 @@ message PeerList {
   repeated Peer Peers = 1;
 }
 
-message ListMembersInput{}
-message ListMembersOutput{
-  repeated Peer Peers = 1;
-}
 message GetEndpointsInput{
   string ServiceName = 1;
+  string Tag = 2;
 }
 message GetEndpointsOutput{
   repeated NodeService NodeServices = 1;
 }
 message RegisterServiceInput{
-  string ServiceName = 1;
-  string NetworkAddress = 2;
+  string ServiceID = 1;
+  string ServiceName = 2;
+  string NetworkAddress = 3;
 }
 message RegisterServiceOutput{}
 message UnregisterServiceInput{
-  string ServiceName = 1;
+  string ServiceID = 1;
 }
 message UnregisterServiceOutput{}
 
 message AddServiceTagInput{
-  string ServiceName = 1;
+  string ServiceID = 1;
   string TagKey = 2;
   string TagValue = 3;
 }
 message AddServiceTagOutput{}
 
 message RemoveServiceTagInput{
-  string ServiceName = 1;
+  string ServiceID = 1;
   string TagKey = 2;
 }
 message RemoveServiceTagOutput{}
 
 service DiscoveryService {
-  rpc ListMembers(ListMembersInput) returns (ListMembersOutput);
   rpc GetEndpoints(GetEndpointsInput) returns (GetEndpointsOutput);
   rpc StreamEndpoints(GetEndpointsInput) returns (stream GetEndpointsOutput);
-  rpc RegisterService(RegisterServiceInput) returns (RegisterServiceOutput);
-  rpc UnregisterService(UnregisterServiceInput) returns (UnregisterServiceOutput);
-  rpc AddServiceTag(AddServiceTagInput) returns (AddServiceTagOutput);
-  rpc RemoveServiceTag(RemoveServiceTagInput) returns (RemoveServiceTagOutput);
 }
