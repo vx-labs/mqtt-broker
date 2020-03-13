@@ -5,11 +5,14 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/gogo/protobuf/proto"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"github.com/vx-labs/mqtt-broker/adapters/discovery"
+	"github.com/vx-labs/mqtt-broker/events"
 	"github.com/vx-labs/mqtt-broker/format"
+	brokerpb "github.com/vx-labs/mqtt-broker/services/broker/pb"
 )
 
 const streamTemplate = `  • {{ .ID | bold | green }}
@@ -45,10 +48,10 @@ func ConsumeStream(ctx context.Context, config *viper.Viper, adapter discovery.D
 			config.BindPFlag("stream-id", c.Flags().Lookup("stream-id"))
 			config.BindPFlag("shard-id", c.Flags().Lookup("shard-id"))
 			config.BindPFlag("from-offset", c.Flags().Lookup("from-offset"))
-			config.BindPFlag("poll", c.Flags().Lookup("poll"))
 			config.BindPFlag("from-now", c.Flags().Lookup("from-now"))
 			config.BindPFlag("offset-only", c.Flags().Lookup("offset-only"))
 			config.BindPFlag("batch-size", c.Flags().Lookup("batch-size"))
+			config.BindPFlag("decoder", c.Flags().Lookup("decoder"))
 		},
 		Use: "consume",
 		Run: func(cmd *cobra.Command, _ []string) {
@@ -58,37 +61,66 @@ func ConsumeStream(ctx context.Context, config *viper.Viper, adapter discovery.D
 			if config.GetBool("from-now") {
 				offset = uint64(time.Now().UnixNano())
 			}
-			for {
-				next, messages, err := client.GetMessages(ctx, config.GetString("stream-id"), config.GetString("shard-id"), offset, size)
+			shardIDs := config.GetStringSlice("shard-id")
+			if len(shardIDs) == 0 {
+				logrus.Info("no shard-id provided: discovering shards")
+				streamConfig, err := client.GetStream(ctx, config.GetString("stream-id"))
 				if err != nil {
-					logrus.Errorf("failed to consume stream: %v", err)
+					logrus.Errorf("failed to describe stream: %v", err)
 					return
 				}
-				logrus.Infof("from offset: %d", offset)
-				for _, message := range messages {
-					if config.GetBool("offset-only") {
-						fmt.Printf("%d\n", message.Offset)
-					} else {
-						fmt.Printf("%d\n\t%s\n", message.Offset, string(message.Payload))
-					}
-				}
-				fmt.Printf("\n")
-				if !config.GetBool("poll") {
-					logrus.Infof("next offset: %d", next)
-					return
-				}
-				offset = next
+				logrus.Infof("discovered %d shards", len(streamConfig.GetShardIDs()))
+				shardIDs = streamConfig.ShardIDs
 			}
+			for _, shardID := range shardIDs {
+				logrus.Infof("consuming shard %s", shardID)
+				go func(shardID string) {
+					for {
+						next, messages, err := client.GetMessages(ctx, config.GetString("stream-id"), shardID, offset, size)
+						if err != nil {
+							logrus.Errorf("failed to consume stream: %v", err)
+							return
+						}
+						for _, message := range messages {
+							if config.GetBool("offset-only") {
+								fmt.Printf("%d\n", message.Offset)
+							} else {
+								switch config.GetString("decoder") {
+								case "events":
+									events, err := events.Decode(message.Payload)
+									if err != nil {
+										logrus.Error("failed to decode event: ", err)
+										continue
+									}
+									fmt.Printf("%s - %d\n\t%v\n", shardID, message.Offset, events)
+								case "messages":
+									v := &brokerpb.MessagePublished{}
+									err := proto.Unmarshal(message.Payload, v)
+									if err != nil {
+										logrus.Error("failed to decode message: ", err)
+										continue
+									}
+									fmt.Printf("%s - %d\n\t%v\n", shardID, message.Offset, v)
+								default:
+									fmt.Printf("%s - %d\n\t%s\n", shardID, message.Offset, string(message.Payload))
+								}
+							}
+						}
+						fmt.Printf("\n")
+						offset = next
+					}
+				}(shardID)
+			}
+			<-ctx.Done()
 		},
 	}
 	c.Flags().StringP("stream-id", "i", "", "Stream unique ID")
 	c.MarkFlagRequired("stream-id")
-	c.Flags().StringP("shard-id", "s", "", "Stream shard id")
-	c.MarkFlagRequired("shard-id")
+	c.Flags().StringSliceP("shard-id", "s", nil, "Stream shard id")
 	c.Flags().Uint64P("from-offset", "o", 0, "Stream from offset")
 	c.Flags().Bool("from-now", false, "Stream from now")
 	c.Flags().Bool("offset-only", false, "Only display message offsets")
-	c.Flags().BoolP("poll", "", false, "Continuously polls the stream for new messages")
+	c.Flags().StringP("decoder", "", "none", "Decode received message using the provided decoder. Supported values are events, messages, none.")
 	c.Flags().Int("batch-size", 10, "maximum batch size")
 	return c
 }
