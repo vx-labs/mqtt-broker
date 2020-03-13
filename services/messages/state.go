@@ -48,6 +48,11 @@ func (m *server) applyEvent(payload *pb.MessagesStateTransition) error {
 		err := m.store.Put(input.StreamID, input.ShardID, input.Offset, input.Payload)
 		if err != nil {
 			m.logger.Error("failed to store message", zap.Error(err))
+		} else {
+			select {
+			case m.messagePutCh <- input:
+			default:
+			}
 		}
 		return err
 	default:

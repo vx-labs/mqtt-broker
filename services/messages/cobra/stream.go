@@ -14,12 +14,12 @@ import (
 
 const streamTemplate = `  • {{ .ID | bold | green }}
     {{ "Shards" | faint }}:
-{{ range $id := .ShardIDs }}      • {{ $id| shorten | cyan }}
+{{ range $id := .ShardIDs }}      • {{ $id | cyan }}
 {{end}}`
 const streamStatisticsTemplate = `  • {{ .ID | bold | green }}
     {{ "Shards" | faint }}:
 {{- range .ShardStatistics }}
-    • {{ .ShardID | shorten | cyan }}
+    • {{ .ShardID | cyan }}
         {{ "Stored bytes" |faint}}: {{ .StoredBytes | humanBytes }}
         {{ "Stored record count" |faint}}: {{ .StoredRecordCount }}
         {{ "Current offset" |faint}}: {{ .CurrentOffset }}{{end}}
@@ -47,13 +47,12 @@ func ConsumeStream(ctx context.Context, config *viper.Viper, adapter discovery.D
 			config.BindPFlag("from-offset", c.Flags().Lookup("from-offset"))
 			config.BindPFlag("poll", c.Flags().Lookup("poll"))
 			config.BindPFlag("from-now", c.Flags().Lookup("from-now"))
+			config.BindPFlag("offset-only", c.Flags().Lookup("offset-only"))
 			config.BindPFlag("batch-size", c.Flags().Lookup("batch-size"))
 		},
 		Use: "consume",
 		Run: func(cmd *cobra.Command, _ []string) {
 			client := getClient(adapter)
-			ticker := time.NewTicker(200 * time.Millisecond)
-			defer ticker.Stop()
 			offset := config.GetUint64("from-offset")
 			size := config.GetInt("batch-size")
 			if config.GetBool("from-now") {
@@ -65,14 +64,20 @@ func ConsumeStream(ctx context.Context, config *viper.Viper, adapter discovery.D
 					logrus.Errorf("failed to consume stream: %v", err)
 					return
 				}
+				logrus.Infof("from offset: %d", offset)
 				for _, message := range messages {
-					fmt.Printf("%d - %s\n", message.Offset, string(message.Payload))
+					if config.GetBool("offset-only") {
+						fmt.Printf("%d\n", message.Offset)
+					} else {
+						fmt.Printf("%d\n\t%s\n", message.Offset, string(message.Payload))
+					}
 				}
+				fmt.Printf("\n")
 				if !config.GetBool("poll") {
 					logrus.Infof("next offset: %d", next)
 					return
 				}
-				<-ticker.C
+				offset = next
 			}
 		},
 	}
@@ -82,6 +87,7 @@ func ConsumeStream(ctx context.Context, config *viper.Viper, adapter discovery.D
 	c.MarkFlagRequired("shard-id")
 	c.Flags().Uint64P("from-offset", "o", 0, "Stream from offset")
 	c.Flags().Bool("from-now", false, "Stream from now")
+	c.Flags().Bool("offset-only", false, "Only display message offsets")
 	c.Flags().BoolP("poll", "", false, "Continuously polls the stream for new messages")
 	c.Flags().Int("batch-size", 10, "maximum batch size")
 	return c

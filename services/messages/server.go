@@ -11,6 +11,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
+	"github.com/asaskevich/EventBus"
 	"github.com/google/uuid"
 
 	"github.com/vx-labs/mqtt-broker/adapters/cp"
@@ -20,16 +21,23 @@ import (
 	"go.uber.org/zap"
 )
 
+type messagePutNotification struct {
+	StreamID string
+	ShardID  string
+	Offset   uint64
+}
 type server struct {
-	id         string
-	store      *store.BoltStore
-	state      cp.Synchronizer
-	ctx        context.Context
-	gprcServer *grpc.Server
-	listener   net.Listener
-	logger     *zap.Logger
-	config     ServerConfig
-	leaderRPC  pb.MessagesServiceClient
+	id           string
+	store        *store.BoltStore
+	eventBus     EventBus.Bus
+	messagePutCh chan *pb.MessagesStateTransitionMessagePut
+	state        cp.Synchronizer
+	ctx          context.Context
+	gprcServer   *grpc.Server
+	listener     net.Listener
+	logger       *zap.Logger
+	config       ServerConfig
+	leaderRPC    pb.MessagesServiceClient
 }
 
 type ServerStreamConfig struct {
@@ -45,23 +53,29 @@ func hashShardKey(key string, shardCount int) int {
 	hash.Write([]byte(key))
 	return int(hash.Sum32()) % shardCount
 }
-
 func New(id string, config ServerConfig, logger *zap.Logger) *server {
 	logger.Debug("opening messages durable store")
 	boltstore, err := store.New(store.Options{
 		NoSync: false,
-		Path:   fmt.Sprintf("%s/db.bolt", path.ServiceDataDir(id, "queues")),
+		Path:   fmt.Sprintf("%s/db.bolt", path.ServiceDataDir(id, "messages")),
 	})
 	if err != nil {
 		logger.Fatal("failed to open messages durable store", zap.Error(err))
 	}
 	b := &server{
-		id:     id,
-		ctx:    context.Background(),
-		store:  boltstore,
-		logger: logger,
-		config: config,
+		id:           id,
+		ctx:          context.Background(),
+		eventBus:     EventBus.New(),
+		messagePutCh: make(chan *pb.MessagesStateTransitionMessagePut, 10),
+		store:        boltstore,
+		logger:       logger,
+		config:       config,
 	}
+	go func() {
+		for notification := range b.messagePutCh {
+			b.eventBus.Publish(fmt.Sprintf("%s/message_put", notification.ShardID), notification)
+		}
+	}()
 	return b
 }
 
@@ -160,19 +174,46 @@ func (s *server) GetMessages(ctx context.Context, input *pb.MessageGetMessagesIn
 		return nil, status.Error(codes.Unavailable, "node is not ready")
 	}
 	buf := make([]*pb.StoredMessage, input.MaxCount)
-	count, offset, err := s.store.GetRange(input.StreamID, input.ShardID, input.Offset, buf)
-	if err != nil {
-		return nil, err
+	for {
+		count, offset, err := s.store.GetRange(input.StreamID, input.ShardID, input.Offset, buf)
+		if err != nil {
+			return nil, err
+		}
+		if count == 0 {
+			waitCh := make(chan *pb.MessagesStateTransitionMessagePut)
+			handler := func(notification *pb.MessagesStateTransitionMessagePut) {
+				waitCh <- notification
+			}
+			err := s.eventBus.SubscribeOnce(fmt.Sprintf("%s/message_put", input.ShardID), handler)
+			if err != nil {
+				close(waitCh)
+				return nil, err
+			}
+			defer func() {
+				s.eventBus.Unsubscribe(fmt.Sprintf("%s/message_put", input.ShardID), handler)
+				close(waitCh)
+			}()
+			select {
+			case <-waitCh:
+				continue
+			case <-ctx.Done():
+				return nil, ctx.Err()
+			case <-time.After(30 * time.Second):
+				return &pb.MessageGetMessagesOutput{
+					Messages:   buf[:count],
+					NextOffset: input.Offset,
+					StreamID:   input.StreamID,
+					ShardID:    input.ShardID,
+				}, nil
+			}
+		}
+		return &pb.MessageGetMessagesOutput{
+			Messages:   buf[:count],
+			NextOffset: offset,
+			StreamID:   input.StreamID,
+			ShardID:    input.ShardID,
+		}, nil
 	}
-	if count == 0 {
-		offset = input.Offset
-	}
-	return &pb.MessageGetMessagesOutput{
-		Messages:   buf[:count],
-		NextOffset: offset,
-		StreamID:   input.StreamID,
-		ShardID:    input.ShardID,
-	}, nil
 }
 
 func (s *server) PutMessage(ctx context.Context, input *pb.MessagePutMessageInput) (*pb.MessagePutMessageOutput, error) {
